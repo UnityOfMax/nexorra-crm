@@ -63,7 +63,7 @@ export default function AccountSelector({ accounts, currentAccount, onAccountCha
             >
               <div className="font-medium">{account.name}</div>
               <div className="text-xs text-gray-500 mt-1">
-                {account.type === 'agency' ? 'Agency Account' : 'Client Account'}
+                {account.account_type === 'agency' ? 'Agency Account' : 'Client Account'}
               </div>
             </button>
           ))}

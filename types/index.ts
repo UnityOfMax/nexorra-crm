@@ -11,12 +11,11 @@ export interface Account {
   id: string;
   name: string;
   slug: string;
-  type: 'agency' | 'client';
+  account_type: 'agency' | 'client';
   parent_account_id?: string;
-  owner_id: string;
   created_at: string;
   updated_at: string;
-  settings?: AccountSettings;
+  settings?: any;
 }
 
 export interface AccountSettings {

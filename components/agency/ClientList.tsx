@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Users, Settings, Mail, Search, Building2 } from 'lucide-react';
+import { Plus, Users, Settings, Mail, Search, Building2, Globe } from 'lucide-react';
 import CreateClientModal from './CreateClientModal';
 import ClientDetailModal from './ClientDetailModal';
 

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Get account settings for from email/name
     const { data: account, error: accountError } = await supabaseAdmin
       .from('accounts')
-      .select('settings, owner_id')
+      .select('settings')
       .eq('id', accountId)
       .single();
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       subject: subject,
       description: textContent || htmlContent.substring(0, 500),
       completed: true,
-      created_by: account.owner_id,
+      created_by: accountId,
     });
 
     console.log('=== EMAIL SENT SUCCESSFULLY ===');

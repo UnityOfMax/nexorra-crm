@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     console.log('Querying accounts...');
     const { data: accounts, error: accountsError } = await supabaseAdmin
       .from('accounts')
-      .select('id, settings, owner_id');
+      .select('id, settings');
 
     console.log('All accounts:', accounts);
     console.log('Accounts error:', accountsError);
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       subject: `SMS from ${from}`,
       description: body,
       completed: true,
-      created_by: account.owner_id,
+      created_by: account.id,
     });
 
     if (activityError) {

@@ -272,7 +272,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
       case 'settings':
         return (
           <Settings
-            account={currentAccount}
+            account={currentAccount!}
             onUpdate={loadAccounts}
           />
         );

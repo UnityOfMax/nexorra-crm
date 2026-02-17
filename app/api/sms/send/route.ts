@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         subject: `SMS to ${to}`,
         description: message,
         completed: true,
-        created_by: account.owner_id,
+        created_by: accountId,
       });
 
     if (activityError) {

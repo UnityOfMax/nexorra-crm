@@ -121,7 +121,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'lead' | 'customer' | 'lost' })}
               className="input"
             >
               <option value="lead">Lead</option>

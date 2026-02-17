@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import AuthForm from '@/components/AuthForm';
 import Dashboard from '@/components/Dashboard';
 
-export default function Home() {
+function HomeContent() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
@@ -42,5 +42,17 @@ export default function Home() {
     <main className="min-h-screen">
       {!user ? <AuthForm /> : <Dashboard user={user} initialView={initialView} />}
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

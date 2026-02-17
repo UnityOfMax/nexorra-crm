@@ -77,7 +77,6 @@ export interface AgencyAccount {
   slug: string;
   account_type: 'agency';
   parent_account_id: null;
-  owner_id: string;
   domain?: string;
   settings?: any;
   created_at: string;
@@ -90,7 +89,6 @@ export interface ClientAccount {
   slug: string;
   account_type: 'client';
   parent_account_id: string;
-  owner_id: string;
   domain?: string;
   settings?: any;
   created_at: string;
