@@ -274,6 +274,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
           <Settings
             account={currentAccount!}
             onUpdate={loadAccounts}
+            isAgencyUser={isAgencyUser}
           />
         );
       case 'pipelines':

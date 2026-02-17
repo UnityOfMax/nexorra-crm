@@ -9,6 +9,7 @@ import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 interface SettingsProps {
   account: Account;
   onUpdate: () => void;
+  isAgencyUser?: boolean;
 }
 
 interface TwilioNumber {
@@ -22,7 +23,7 @@ interface TwilioNumber {
   };
 }
 
-export default function Settings({ account, onUpdate }: SettingsProps) {
+export default function Settings({ account, onUpdate, isAgencyUser = false }: SettingsProps) {
   const [loading, setLoading] = useState(false);
   const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [message, setMessage] = useState('');
@@ -179,7 +180,8 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
     <div className="max-w-4xl">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Account Settings</h2>
 
-      {/* Twilio Phone Number Selection */}
+      {/* Twilio Phone Number Selection - Agency only */}
+      {isAgencyUser && (
       <div className="card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-green-100 rounded-lg">
@@ -256,7 +258,10 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
         </div>
       </div>
 
-      {/* Email Settings */}
+      )}
+
+      {/* Email Settings - Agency only */}
+      {isAgencyUser && (
       <div className="card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-blue-100 rounded-lg">
@@ -327,7 +332,10 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
         </div>
       </div>
 
-      {/* Branding */}
+      )}
+
+      {/* Branding - Agency only */}
+      {isAgencyUser && (
       <div className="card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-purple-100 rounded-lg">
@@ -375,6 +383,8 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
           </div>
         </div>
       </div>
+
+      )}
 
       {/* Google Calendar Integration */}
       <div className="card mb-6">
@@ -453,7 +463,8 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
         )}
       </div>
 
-      {/* Facebook Integration */}
+      {/* Facebook Integration - Agency only */}
+      {isAgencyUser && (
       <div className="card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-blue-100 rounded-lg">
@@ -533,7 +544,10 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
         )}
       </div>
 
-      {/* Save Button */}
+      )}
+
+      {/* Save Button - Agency only */}
+      {isAgencyUser && (<>
       {message && (
         <div className={`mb-4 p-3 rounded-lg ${
           message.includes('❌') || message.includes('⚠️') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
@@ -550,6 +564,7 @@ export default function Settings({ account, onUpdate }: SettingsProps) {
         <Save className="w-4 h-4" />
         {loading ? 'Saving...' : 'Save Settings'}
       </button>
+      </>)}
     </div>
   );
 }
