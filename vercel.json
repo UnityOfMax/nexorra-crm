@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-delayed-jobs",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sync-google-calendar",
+      "schedule": "* * * * *"
+    }
+  ]
+}

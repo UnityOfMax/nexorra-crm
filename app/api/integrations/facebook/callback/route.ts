@@ -1,0 +1,107 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+
+// GET /api/integrations/facebook/callback - Handle Facebook OAuth callback
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
+    const accountId = searchParams.get('state');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+
+    // Handle OAuth errors
+    if (error) {
+      console.error('Facebook OAuth error:', error, errorDescription);
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=error&message=${encodeURIComponent(errorDescription || error)}`
+      );
+    }
+
+    if (!code || !accountId) {
+      return NextResponse.json(
+        { error: 'Missing code or accountId' },
+        { status: 400 }
+      );
+    }
+
+    const facebookAppId = process.env.FACEBOOK_APP_ID;
+    const facebookAppSecret = process.env.FACEBOOK_APP_SECRET;
+    const redirectUri = process.env.FACEBOOK_REDIRECT_URI;
+
+    if (!facebookAppId || !facebookAppSecret || !redirectUri) {
+      throw new Error('Facebook credentials not configured');
+    }
+
+    // Exchange code for access token
+    const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    tokenUrl.searchParams.set('client_id', facebookAppId);
+    tokenUrl.searchParams.set('client_secret', facebookAppSecret);
+    tokenUrl.searchParams.set('redirect_uri', redirectUri);
+    tokenUrl.searchParams.set('code', code);
+
+    const tokenResponse = await fetch(tokenUrl.toString());
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || tokenData.error) {
+      throw new Error(tokenData.error?.message || 'Failed to get access token');
+    }
+
+    const accessToken = tokenData.access_token;
+    const expiresIn = tokenData.expires_in || 5184000; // Default 60 days
+
+    // Get user info
+    const userResponse = await fetch(
+      `https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${accessToken}`
+    );
+    const userData = await userResponse.json();
+
+    if (!userResponse.ok || userData.error) {
+      throw new Error(userData.error?.message || 'Failed to get user info');
+    }
+
+    // Get user ID from account
+    const { data: accountData } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', accountId)
+      .eq('role', 'owner')
+      .single();
+
+    if (!accountData) {
+      throw new Error('Account not found');
+    }
+
+    // Store integration in database
+    const { error: dbError } = await supabaseAdmin
+      .from('facebook_integrations')
+      .upsert({
+        account_id: accountId,
+        user_id: accountData.user_id,
+        access_token: accessToken,
+        token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+        facebook_user_id: userData.id,
+        facebook_user_name: userData.name,
+        last_sync_at: new Date().toISOString()
+      }, {
+        onConflict: 'account_id'
+      });
+
+    if (dbError) {
+      console.error('Error saving Facebook integration:', dbError);
+      throw new Error('Failed to save Facebook integration');
+    }
+
+    console.log('Facebook connected successfully for account:', accountId);
+
+    // Redirect back to settings page with success message
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=connected`
+    );
+  } catch (error: any) {
+    console.error('Error in Facebook OAuth callback:', error);
+    return NextResponse.redirect(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=error&message=${encodeURIComponent(error.message)}`
+    );
+  }
+}
