@@ -23,7 +23,7 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'hero' | 'about' | 'reviews' | 'location' | 'footer' | 'form'>('hero');
+  const [activeTab, setActiveTab] = useState<'hero' | 'about' | 'reviews' | 'location' | 'footer' | 'form' | 'tracking'>('hero');
 
   // Hero
   const [agentName, setAgentName] = useState(heroBlock?.data?.agentName || '');
@@ -63,6 +63,15 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
   const [availStart, setAvailStart] = useState(page.content?.calendarSettings?.startHour ?? 9);
   const [availEnd, setAvailEnd] = useState(page.content?.calendarSettings?.endHour ?? 17);
 
+  // Tracking pixels
+  const existingPixels: any[] = page.tracking_pixels || [];
+  const [fbPixelCode, setFbPixelCode] = useState<string>(
+    existingPixels.find((p: any) => p.name === 'Facebook Pixel')?.code || ''
+  );
+  const [customScripts, setCustomScripts] = useState<string>(
+    existingPixels.find((p: any) => p.name === 'Custom Scripts')?.code || ''
+  );
+
   const handleSave = async () => {
     setSaving(true);
     setMessage('');
@@ -92,10 +101,19 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
         calendarSettings: { startHour: availStart, endHour: availEnd },
       };
 
+      // Build tracking_pixels array — only include non-empty entries
+      const trackingPixels: any[] = [];
+      if (fbPixelCode.trim()) {
+        trackingPixels.push({ id: 'fb-pixel', name: 'Facebook Pixel', code: fbPixelCode.trim() });
+      }
+      if (customScripts.trim()) {
+        trackingPixels.push({ id: 'custom-scripts', name: 'Custom Scripts', code: customScripts.trim() });
+      }
+
       const res = await fetch(`/api/landing-pages/${page.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: updatedContent }),
+        body: JSON.stringify({ content: updatedContent, tracking_pixels: trackingPixels }),
       });
 
       if (res.ok) {
@@ -135,6 +153,7 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
     { id: 'location', label: 'Location' },
     { id: 'footer', label: 'Footer' },
     { id: 'form', label: 'Calendar' },
+    { id: 'tracking', label: 'Tracking' },
   ];
 
   return (
@@ -316,6 +335,54 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
                 <p className="text-sm text-blue-800">
                   Slots show Mon–Fri, 30-minute intervals. Times display automatically in the visitor's local timezone.
                 </p>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'tracking' && (
+            <>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                <p className="text-sm text-amber-800 font-medium mb-1">How it works</p>
+                <p className="text-sm text-amber-700">
+                  Paste your tracking code below and click Save. It will automatically be injected into the page head when leads visit it. The pixel events (ViewContent, Lead, Schedule) fire automatically at the right steps.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Facebook Pixel Code
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Go to Facebook Events Manager → your Pixel → Setup → Install code manually → copy the full base code and paste it here.
+                </p>
+                <textarea
+                  value={fbPixelCode}
+                  onChange={e => setFbPixelCode(e.target.value)}
+                  rows={8}
+                  className="input font-mono text-xs resize-none"
+                  placeholder={`<!-- Meta Pixel Code -->\n<script>\n!function(f,b,e,v,n,t,s){...}\nfbq('init', 'YOUR_PIXEL_ID');\nfbq('track', 'PageView');\n</script>`}
+                  spellCheck={false}
+                />
+                {fbPixelCode.includes('fbq(') && (
+                  <p className="text-xs text-green-600 mt-1">✅ Facebook Pixel code detected</p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Additional Scripts (optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Google Tag Manager, TikTok Pixel, or any other tracking code.
+                </p>
+                <textarea
+                  value={customScripts}
+                  onChange={e => setCustomScripts(e.target.value)}
+                  rows={5}
+                  className="input font-mono text-xs resize-none"
+                  placeholder="<!-- Paste any other tracking scripts here -->"
+                  spellCheck={false}
+                />
               </div>
             </>
           )}
