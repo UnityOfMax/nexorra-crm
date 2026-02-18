@@ -1,20 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, FileText, Globe, Pencil, Trash2, Eye, EyeOff, Search, LayoutTemplate } from 'lucide-react';
+import { Plus, FileText, Globe, Pencil, Trash2, Eye, EyeOff, Search, LayoutTemplate, Settings2 } from 'lucide-react';
 import LandingPageBuilder from './LandingPageBuilder';
+import LandingPageFieldsEditor from './LandingPageFieldsEditor';
 import { templates, getEmptyContent } from '@/lib/landing-page-templates';
 import type { LandingPage } from '@/types';
 
 interface LandingPageListProps {
   accountId: string;
+  isAgencyUser?: boolean;
 }
 
-export default function LandingPageList({ accountId }: LandingPageListProps) {
+export default function LandingPageList({ accountId, isAgencyUser }: LandingPageListProps) {
   const [pages, setPages] = useState<LandingPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPage, setEditingPage] = useState<LandingPage | null>(null);
+  const [editingFieldsPage, setEditingFieldsPage] = useState<LandingPage | null>(null);
   const [showCreateChoice, setShowCreateChoice] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -201,11 +204,21 @@ export default function LandingPageList({ accountId }: LandingPageListProps) {
                   <button
                     onClick={() => setEditingPage(page)}
                     className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"
-                    title="Edit"
+                    title="Edit page layout"
                   >
                     <Pencil className="w-4 h-4" />
                     Edit
                   </button>
+                  {isAgencyUser && (
+                    <button
+                      onClick={() => setEditingFieldsPage(page)}
+                      className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"
+                      title="Edit agent fields"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      Fields
+                    </button>
+                  )}
                   <button
                     onClick={() => togglePublish(page)}
                     className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"
@@ -270,6 +283,18 @@ export default function LandingPageList({ accountId }: LandingPageListProps) {
             }
           }}
           onClose={() => setShowTemplates(false)}
+        />
+      )}
+
+      {/* Fields Editor Modal (agency/admin only) */}
+      {editingFieldsPage && (
+        <LandingPageFieldsEditor
+          page={editingFieldsPage}
+          onClose={() => setEditingFieldsPage(null)}
+          onSave={() => {
+            setEditingFieldsPage(null);
+            loadPages();
+          }}
         />
       )}
     </div>

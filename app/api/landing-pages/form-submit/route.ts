@@ -1,0 +1,92 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+
+// POST /api/landing-pages/form-submit
+// Creates or updates a contact from landing page form submission
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const {
+      accountId,
+      first_name,
+      last_name,
+      phone,
+      email,
+      source,
+      custom_fields,
+    } = body;
+
+    if (!accountId || (!phone && !email)) {
+      return NextResponse.json({ error: 'accountId and phone or email required' }, { status: 400 });
+    }
+
+    // Check if contact already exists by phone or email
+    let existingContact = null;
+
+    if (phone) {
+      const { data } = await supabaseAdmin
+        .from('contacts')
+        .select('id, custom_fields')
+        .eq('account_id', accountId)
+        .eq('phone', phone)
+        .single();
+      existingContact = data;
+    }
+
+    if (!existingContact && email) {
+      const { data } = await supabaseAdmin
+        .from('contacts')
+        .select('id, custom_fields')
+        .eq('account_id', accountId)
+        .eq('email', email)
+        .single();
+      existingContact = data;
+    }
+
+    let contactId: string;
+
+    if (existingContact) {
+      // Update existing contact with new info
+      const mergedFields = { ...(existingContact.custom_fields || {}), ...(custom_fields || {}) };
+      const { error } = await supabaseAdmin
+        .from('contacts')
+        .update({
+          first_name: first_name || undefined,
+          last_name: last_name || undefined,
+          phone: phone || undefined,
+          email: email || undefined,
+          source: source || 'Landing Page',
+          custom_fields: mergedFields,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingContact.id);
+
+      if (error) throw error;
+      contactId = existingContact.id;
+    } else {
+      // Create new contact
+      const { data, error } = await supabaseAdmin
+        .from('contacts')
+        .insert({
+          account_id: accountId,
+          first_name: first_name || null,
+          last_name: last_name || null,
+          phone: phone || null,
+          email: email || null,
+          status: 'lead',
+          source: source || 'Landing Page',
+          custom_fields: custom_fields || {},
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      contactId = data.id;
+    }
+
+    return NextResponse.json({ success: true, contactId });
+  } catch (error: any) {
+    console.error('Form submit error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to submit form' }, { status: 500 });
+  }
+}

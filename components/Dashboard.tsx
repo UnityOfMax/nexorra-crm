@@ -254,7 +254,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
         );
       case 'pages':
         return (
-          <LandingPageList accountId={currentAccount?.id || ''} />
+          <LandingPageList accountId={currentAccount?.id || ''} isAgencyUser={isAgencyUser} />
         );
       default:
         // Unified dashboard
