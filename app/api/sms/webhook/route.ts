@@ -144,6 +144,28 @@ export async function POST(request: NextRequest) {
 
     console.log('=== WEBHOOK COMPLETED SUCCESSFULLY ===');
 
+    // Trigger AI auto-respond if enabled for this account (fire-and-forget)
+    if (contact) {
+      const { data: aiConfig } = await supabaseAdmin
+        .from('ai_agent_configs')
+        .select('enabled, mode, channels')
+        .eq('account_id', account.id)
+        .single();
+
+      if (aiConfig?.enabled && aiConfig?.mode === 'auto' && aiConfig?.channels?.sms) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+        fetch(`${baseUrl}/api/ai/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: account.id,
+            contactId: contact.id,
+            channel: 'sms',
+          }),
+        }).catch((err) => console.error('AI auto-respond error:', err));
+      }
+    }
+
     // Respond to Twilio with empty TwiML (no auto-reply)
     return new NextResponse(
       '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',

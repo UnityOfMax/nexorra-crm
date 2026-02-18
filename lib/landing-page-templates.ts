@@ -1,6 +1,20 @@
 export interface LandingPageBlock {
   id: string;
-  type: 'hero' | 'text' | 'image' | 'cta' | 'form' | 'video' | 'testimonial' | 'spacer' | 'features';
+  type:
+    | 'hero'
+    | 'text'
+    | 'image'
+    | 'cta'
+    | 'form'
+    | 'video'
+    | 'testimonial'
+    | 'spacer'
+    | 'features'
+    | 're_hero'
+    | 're_about'
+    | 're_reviews'
+    | 're_location'
+    | 're_footer';
   data: Record<string, any>;
   order: number;
 }
@@ -18,7 +32,7 @@ export interface PageTemplate {
   id: string;
   name: string;
   description: string;
-  thumbnail: string; // emoji for now
+  thumbnail: string;
   content: LandingPageContent;
 }
 
@@ -30,184 +44,88 @@ function genId() {
 
 export const templates: PageTemplate[] = [
   {
-    id: 'lead-capture',
-    name: 'Lead Capture',
-    description: 'Hero section with a lead capture form and testimonials',
-    thumbnail: '📋',
+    id: 'real-estate-agent',
+    name: 'Real Estate Agent',
+    description: 'Agent profile with home search CTA, reviews, map, and contact info',
+    thumbnail: '🏡',
     content: {
       blocks: [
         {
-          id: genId(), type: 'hero', order: 0,
+          id: genId(), type: 're_hero', order: 0,
           data: {
-            heading: 'Get Your Free Consultation Today',
-            subheading: 'Fill out the form below and one of our experts will get in touch within 24 hours.',
-            ctaText: '',
-            ctaLink: '',
-            bgColor: '#1a1a2e',
-            textColor: '#ffffff',
-          }
-        },
-        {
-          id: genId(), type: 'form', order: 1,
-          data: {
-            heading: 'Request a Free Quote',
-            fields: ['name', 'email', 'phone'],
-            buttonText: 'Get Started',
-            buttonColor: '#0ea5e9',
-          }
-        },
-        {
-          id: genId(), type: 'spacer', order: 2,
-          data: { height: 40 }
-        },
-        {
-          id: genId(), type: 'testimonial', order: 3,
-          data: {
-            quote: 'This service completely transformed our business. Highly recommended!',
-            author: 'Sarah Johnson',
-            role: 'CEO, TechStart Inc.',
-          }
-        },
-        {
-          id: genId(), type: 'testimonial', order: 4,
-          data: {
-            quote: 'Professional, reliable, and delivered exactly what we needed.',
-            author: 'Mike Chen',
-            role: 'Founder, GrowthLabs',
-          }
-        },
-      ],
-      styles: { fontFamily: 'Inter', primaryColor: '#0ea5e9' }
-    }
-  },
-  {
-    id: 'webinar',
-    name: 'Webinar Registration',
-    description: 'Video embed with registration form and countdown feel',
-    thumbnail: '🎥',
-    content: {
-      blocks: [
-        {
-          id: genId(), type: 'hero', order: 0,
-          data: {
-            heading: 'Free Live Webinar',
-            subheading: 'Learn the secrets to scaling your business in 2025. Reserve your spot now.',
-            ctaText: 'Register Now',
-            ctaLink: '#register',
+            agentName: 'Jane Smith',
+            title: 'Licensed Real Estate Agent',
+            subtitle: "Helping families find their dream home in Greater Miami for over 15 years. Let's find yours.",
+            profileImageUrl: '',
             bgColor: '#0f172a',
-            textColor: '#ffffff',
+            accentColor: '#f59e0b',
+            ctaText: 'View Available Homes',
           }
         },
         {
-          id: genId(), type: 'video', order: 1,
+          id: genId(), type: 're_about', order: 1,
           data: {
-            url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            caption: 'Watch the preview',
+            heading: 'About Jane',
+            bio: "With over 15 years of experience in the Greater Miami real estate market, I specialize in helping first-time buyers, investors, and growing families find the perfect property. My deep market knowledge and client-first approach means you'll never feel lost in the process.",
+            agentPhotoUrl: '',
+            yearsExperience: 15,
+            dealsClosed: 400,
+            specialties: ['Luxury Homes', 'First-Time Buyers', 'Investment Properties', 'Waterfront Estates'],
+            accentColor: '#f59e0b',
           }
         },
         {
-          id: genId(), type: 'features', order: 2,
+          id: genId(), type: 're_reviews', order: 2,
           data: {
-            heading: 'What You\'ll Learn',
-            items: [
-              { title: 'Growth Strategies', description: 'Proven methods to scale your revenue' },
-              { title: 'Lead Generation', description: 'How to attract high-quality leads on autopilot' },
-              { title: 'Automation', description: 'Save 20+ hours per week with smart workflows' },
-            ]
+            heading: 'What My Clients Say',
+            reviews: [
+              {
+                text: "Jane made buying our first home so easy. She was patient, knowledgeable, and always available. We couldn't have done it without her!",
+                author: 'Michael & Sarah T.',
+                location: 'Coral Gables, FL',
+                rating: 5,
+              },
+              {
+                text: 'Sold my condo in 12 days over asking price. Jane\'s marketing strategy is simply unmatched. Highly recommend!',
+                author: 'David R.',
+                location: 'Brickell, FL',
+                rating: 5,
+              },
+              {
+                text: 'As an investor, I rely on market expertise. Jane consistently delivers that and more. My go-to agent for every deal.',
+                author: 'Lisa M.',
+                location: 'Miami Beach, FL',
+                rating: 5,
+              },
+            ],
+            ctaText: 'Find Your Dream Home',
+            accentColor: '#f59e0b',
           }
         },
         {
-          id: genId(), type: 'form', order: 3,
+          id: genId(), type: 're_location', order: 3,
           data: {
-            heading: 'Register for the Webinar',
-            fields: ['name', 'email'],
-            buttonText: 'Reserve My Spot',
-            buttonColor: '#22c55e',
+            heading: 'Find Me',
+            address: '123 Brickell Ave, Miami, FL 33131',
+            phone: '(305) 555-0123',
+            email: 'jane@janesmith.realtor',
+            mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57379.80390789073!2d-80.23906339999999!3d25.7616798!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x88d9b0a20ec8c111%3A0xff96f271ddad4f65!2sMiami%2C+FL!5e0!3m2!1sen!2sus!4v1&output=embed',
+            accentColor: '#f59e0b',
+          }
+        },
+        {
+          id: genId(), type: 're_footer', order: 4,
+          data: {
+            agentName: 'Jane Smith',
+            brokerage: 'Sunshine Realty Group',
+            phone: '(305) 555-0123',
+            email: 'jane@janesmith.realtor',
+            license: 'License #FL-3456789',
+            accentColor: '#f59e0b',
           }
         },
       ],
-      styles: { fontFamily: 'Inter', primaryColor: '#22c55e' }
-    }
-  },
-  {
-    id: 'product-launch',
-    name: 'Product Launch',
-    description: 'Showcase your product with features and a strong CTA',
-    thumbnail: '🚀',
-    content: {
-      blocks: [
-        {
-          id: genId(), type: 'hero', order: 0,
-          data: {
-            heading: 'Introducing the Future of [Your Product]',
-            subheading: 'The all-in-one solution that saves you time, money, and headaches.',
-            ctaText: 'Learn More',
-            ctaLink: '#features',
-            bgColor: '#7c3aed',
-            textColor: '#ffffff',
-          }
-        },
-        {
-          id: genId(), type: 'features', order: 1,
-          data: {
-            heading: 'Why Choose Us',
-            items: [
-              { title: 'Lightning Fast', description: 'Get results in minutes, not hours' },
-              { title: 'Easy to Use', description: 'No technical skills required' },
-              { title: 'Affordable', description: 'Plans starting at just $29/month' },
-            ]
-          }
-        },
-        {
-          id: genId(), type: 'testimonial', order: 2,
-          data: {
-            quote: 'This product paid for itself in the first week. An absolute game-changer.',
-            author: 'Alex Rivera',
-            role: 'Marketing Director',
-          }
-        },
-        {
-          id: genId(), type: 'cta', order: 3,
-          data: {
-            text: 'Start Your Free Trial',
-            link: '#signup',
-            color: '#7c3aed',
-            size: 'large',
-          }
-        },
-      ],
-      styles: { fontFamily: 'Inter', primaryColor: '#7c3aed' }
-    }
-  },
-  {
-    id: 'simple-optin',
-    name: 'Simple Opt-in',
-    description: 'Minimal page with hero and email capture form',
-    thumbnail: '✉️',
-    content: {
-      blocks: [
-        {
-          id: genId(), type: 'hero', order: 0,
-          data: {
-            heading: 'Join Our Exclusive List',
-            subheading: 'Get insider tips and early access to new features. No spam, ever.',
-            ctaText: '',
-            ctaLink: '',
-            bgColor: '#0ea5e9',
-            textColor: '#ffffff',
-          }
-        },
-        {
-          id: genId(), type: 'form', order: 1,
-          data: {
-            heading: 'Sign Up Now',
-            fields: ['name', 'email'],
-            buttonText: 'Subscribe',
-            buttonColor: '#0ea5e9',
-          }
-        },
-      ],
-      styles: { fontFamily: 'Inter', primaryColor: '#0ea5e9' }
+      styles: { fontFamily: 'Inter', primaryColor: '#f59e0b', backgroundColor: '#ffffff' }
     }
   },
 ];

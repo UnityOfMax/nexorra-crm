@@ -1,6 +1,7 @@
 'use client';
 
-import { LayoutDashboard, Users, Settings, LogOut, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { LayoutDashboard, Users, Settings, LogOut, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import type { Account } from '@/types';
 
@@ -27,7 +28,8 @@ const allMenuItems = [
   { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true },
 ];
 
-export default function Sidebar({
+function SidebarContent({
+  menuItems,
   activeView,
   onViewChange,
   onSignOut,
@@ -35,23 +37,26 @@ export default function Sidebar({
   accounts,
   clientAccounts,
   onAccountSwitch,
-  isViewingClient = false
-}: SidebarProps) {
-  // Hide "Sub-Accounts" when viewing a sub-account (sub-accounts don't have their own sub-accounts)
-  const menuItems = allMenuItems.filter(item => {
-    if (item.agencyOnly && isViewingClient) return false;
-    return true;
-  });
-
+  onClose,
+}: {
+  menuItems: typeof allMenuItems;
+  activeView: string;
+  onViewChange: (view: string) => void;
+  onSignOut: () => void;
+  currentAccount: Account;
+  accounts: Account[];
+  clientAccounts: Account[];
+  onAccountSwitch: (accountId: string) => void;
+  onClose?: () => void;
+}) {
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-      {/* Account Switcher at top */}
+    <>
       <div className="p-4 border-b border-gray-200">
         <AccountSwitcherDropdown
           currentAccount={currentAccount}
           accounts={accounts}
           clientAccounts={clientAccounts}
-          onAccountSwitch={onAccountSwitch}
+          onAccountSwitch={(id) => { onAccountSwitch(id); onClose?.(); }}
         />
       </div>
 
@@ -60,18 +65,17 @@ export default function Sidebar({
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-
             return (
               <li key={item.id}>
                 <button
-                  onClick={() => onViewChange(item.id)}
+                  onClick={() => { onViewChange(item.id); onClose?.(); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-primary-50 text-primary-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5 flex-shrink-0" />
                   <span>{item.label}</span>
                 </button>
               </li>
@@ -89,6 +93,74 @@ export default function Sidebar({
           <span>Sign Out</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar({
+  activeView,
+  onViewChange,
+  onSignOut,
+  currentAccount,
+  accounts,
+  clientAccounts,
+  onAccountSwitch,
+  isViewingClient = false,
+}: SidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const menuItems = allMenuItems.filter(item => {
+    if (item.agencyOnly && isViewingClient) return false;
+    return true;
+  });
+
+  const sharedProps = {
+    menuItems,
+    activeView,
+    onViewChange,
+    onSignOut,
+    currentAccount,
+    accounts,
+    clientAccounts,
+    onAccountSwitch,
+  };
+
+  return (
+    <>
+      {/* Mobile hamburger button — shown only on small screens */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open menu"
+      >
+        <Menu className="w-5 h-5 text-gray-700" />
+      </button>
+
+      {/* Mobile drawer overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setMobileOpen(false)}
+        >
+          <aside
+            className="absolute left-0 top-0 bottom-0 w-72 bg-white flex flex-col shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <span className="font-semibold text-gray-900">Menu</span>
+              <button onClick={() => setMobileOpen(false)} className="p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <SidebarContent {...sharedProps} onClose={() => setMobileOpen(false)} />
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar — hidden on mobile */}
+      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0">
+        <SidebarContent {...sharedProps} />
+      </aside>
+    </>
   );
 }

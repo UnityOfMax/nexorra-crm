@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm audit:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

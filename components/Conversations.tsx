@@ -350,8 +350,8 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
   return (
     <div className="h-[calc(100vh-180px)] flex bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      {/* Left Sidebar - Contact List */}
-      <div className="w-80 border-r border-gray-200 flex flex-col">
+      {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
+      <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200 flex-col`}>
         {/* Search */}
         <div className="p-4 border-b border-gray-200">
           <div className="relative">
@@ -401,9 +401,9 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         </div>
       </div>
 
-      {/* Right Side - Conversation */}
+      {/* Right Side - Conversation (full width on mobile when contact selected) */}
       {!selectedContact ? (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50">
           <div className="text-center">
             <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
@@ -411,11 +411,19 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Conversation Header */}
-          <div className="p-4 border-b border-gray-200 bg-white">
+          <div className="p-3 md:p-4 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
+                {/* Back button on mobile */}
+                <button
+                  onClick={() => setSelectedContact(null)}
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700"
+                  aria-label="Back"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold">
                   {selectedContact.first_name?.[0]}{selectedContact.last_name?.[0]}
                 </div>

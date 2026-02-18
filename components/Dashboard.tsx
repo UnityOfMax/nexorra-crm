@@ -463,23 +463,24 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
         />
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Header — add left padding on mobile for hamburger button */}
+        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 pl-16 md:pl-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
                 {activeView === 'dashboard' ? 'Dashboard' :
                  activeView === 'sub-accounts' ? 'Sub-Accounts' :
                  activeView === 'pipelines' ? 'Opportunities' :
                  activeView === 'pages' ? 'Landing Pages' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 mt-0.5 truncate">
                 {isViewingClient && isAgencyUser ? (
                   <span className="flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5" />
-                    {currentAccount.name}
-                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-1">Owner View</span>
+                    <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{currentAccount.name}</span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">Owner View</span>
                   </span>
                 ) : (
                   currentAccount.name
@@ -489,7 +490,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {renderContent()}
         </main>
       </div>

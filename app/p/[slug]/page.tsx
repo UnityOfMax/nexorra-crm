@@ -1,14 +1,14 @@
 import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
-import LandingPageRenderer from '@/components/landing-pages/LandingPageRenderer';
 import Script from 'next/script';
+import PublicPageClient from '@/components/landing-pages/PublicPageClient';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
-    .select('meta_title, meta_description')
+    .select('meta_title, meta_description, name')
     .eq('slug', params.slug)
     .eq('published', true)
     .single();
@@ -16,8 +16,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!page) return { title: 'Page Not Found' };
 
   return {
-    title: page.meta_title || 'Landing Page',
+    title: page.meta_title || page.name || 'Landing Page',
     description: page.meta_description || '',
+    viewport: 'width=device-width, initial-scale=1',
   };
 }
 
@@ -37,11 +38,7 @@ export default async function PublicLandingPage({ params }: { params: { slug: st
 
   return (
     <>
-      <LandingPageRenderer
-        content={page.content}
-        accountId={page.account_id}
-      />
-      {/* Inject tracking pixels */}
+      <PublicPageClient content={page.content} accountId={page.account_id} />
       {trackingPixels.map((pixel: any) => (
         <Script
           key={pixel.id}
