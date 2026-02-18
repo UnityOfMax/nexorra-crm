@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 
 // GET /api/agency/clients - List all client accounts (agency only)
 export async function GET(request: NextRequest) {
@@ -69,7 +68,8 @@ export async function POST(request: NextRequest) {
       name,
       slug,
       domain,
-      settings
+      location,
+      userInfo,
     } = await request.json();
 
     if (!agencyId || !userId || !name) {
@@ -111,17 +111,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-generate sending email from location name
+    let fromEmail = '';
+    let fromName = '';
+    if (location?.first_name && location?.last_name) {
+      const firstName = location.first_name.toLowerCase().replace(/\s+/g, '');
+      const lastName = location.last_name.toLowerCase().replace(/\s+/g, '');
+      fromEmail = `${firstName}${lastName}@contact.ourlimitedoffer.com`;
+      fromName = `${location.first_name} ${location.last_name}`;
+    }
+
+    // Build account settings
+    const accountSettings: any = {};
+    if (location) {
+      accountSettings.location = {
+        first_name: location.first_name,
+        last_name: location.last_name,
+        email: location.email,
+        phone: location.phone || null,
+        address: location.address || null,
+      };
+    }
+    if (fromEmail) {
+      accountSettings.from_email = fromEmail;
+      accountSettings.from_name = fromName;
+    }
+
     // Create client account
     const { data: client, error: clientError } = await supabaseAdmin
       .from('accounts')
       .insert({
         name,
         slug: clientSlug,
-        type: null, // Legacy column, set to null
+        type: null,
         account_type: 'client',
         parent_account_id: agencyId,
-        domain,
-        settings: settings || {}
+        domain: domain || null,
+        settings: accountSettings,
       })
       .select()
       .single();
@@ -132,6 +158,42 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create client account' },
         { status: 500 }
       );
+    }
+
+    // If user info provided, create an invitation
+    if (userInfo?.email && client) {
+      try {
+        const token = crypto.randomUUID();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        await supabaseAdmin
+          .from('invitations')
+          .insert({
+            account_id: client.id,
+            email: userInfo.email,
+            role: 'client_owner',
+            token,
+            invited_by: userId,
+            expires_at: expiresAt.toISOString(),
+          });
+
+        // Send invitation email
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        await fetch(`${appUrl}/api/invitations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: client.id,
+            email: userInfo.email,
+            role: 'client_owner',
+            invitedBy: userId,
+          }),
+        });
+      } catch (inviteError) {
+        console.error('Error creating invitation:', inviteError);
+        // Don't fail the whole request if invitation fails
+      }
     }
 
     return NextResponse.json({

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Contact } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { Send, MessageSquare, Phone, Mail, Loader, Search, X } from 'lucide-react';
+import { Send, MessageSquare, Phone, Mail, Loader, Search, X, Bot, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ConversationsProps {
@@ -21,10 +21,18 @@ interface Message {
   from_address: string;
   to_address: string;
   status: string;
+  is_ai_generated?: boolean;
+  ai_metadata?: Record<string, any>;
   metadata?: {
     subject?: string;
   };
   created_at: string;
+}
+
+interface AiConfig {
+  enabled: boolean;
+  mode: 'suggest' | 'auto';
+  channels: { sms: boolean; email: boolean };
 }
 
 type MessageType = 'sms' | 'email';
@@ -41,6 +49,27 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // AI state
+  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [contactAiEnabled, setContactAiEnabled] = useState(true);
+
+  // Load AI config for this account
+  useEffect(() => {
+    const loadAiConfig = async () => {
+      try {
+        const res = await fetch(`/api/ai/config?accountId=${accountId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAiConfig(data.config);
+        }
+      } catch (error) {
+        console.error('Error loading AI config:', error);
+      }
+    };
+    loadAiConfig();
+  }, [accountId]);
+
   // Load draft messages from localStorage when contact changes
   useEffect(() => {
     if (selectedContact) {
@@ -48,9 +77,12 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       const subjectKey = `subject_${selectedContact.id}`;
       const savedDraft = localStorage.getItem(draftKey);
       const savedSubject = localStorage.getItem(subjectKey);
-      
+
       if (savedDraft) setNewMessage(savedDraft);
       if (savedSubject) setEmailSubject(savedSubject);
+
+      // Load per-contact AI setting
+      setContactAiEnabled((selectedContact as any).ai_enabled !== false);
     } else {
       setNewMessage('');
       setEmailSubject('');
@@ -99,7 +131,22 @@ export default function Conversations({ accountId, contacts, selectedContactId }
             filter: `contact_id=eq.${selectedContact.id}`,
           },
           (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message]);
+            const newMsg = payload.new as Message;
+            setMessages((prev) => [...prev, newMsg]);
+
+            // AI auto-respond / suggest on inbound messages
+            if (newMsg.direction === 'inbound' && aiConfig?.enabled && contactAiEnabled) {
+              const channel = newMsg.type === 'email' ? 'email' : 'sms';
+              if (aiConfig.channels[channel]) {
+                if (aiConfig.mode === 'auto') {
+                  // Auto-respond: generate and send
+                  handleAiAutoRespond(channel);
+                } else {
+                  // Suggest: generate draft
+                  handleAiSuggest(channel);
+                }
+              }
+            }
           }
         )
         .subscribe();
@@ -108,7 +155,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         supabase.removeChannel(channel);
       };
     }
-  }, [selectedContact]);
+  }, [selectedContact, aiConfig, contactAiEnabled]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -117,7 +164,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
   const loadMessages = async () => {
     if (!selectedContact) return;
-    
+
     setLoading(true);
     const { data, error } = await supabase
       .from('messages')
@@ -130,6 +177,72 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       setMessages(data);
     }
     setLoading(false);
+  };
+
+  const handleAiSuggest = async (channel: MessageType) => {
+    if (!selectedContact || aiGenerating) return;
+    setAiGenerating(true);
+
+    try {
+      const res = await fetch('/api/ai/generate-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          contactId: selectedContact.id,
+          channel,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setNewMessage(data.response);
+        if (data.subject && channel === 'email') {
+          setEmailSubject(data.subject);
+          setMessageType('email');
+          setShowEmailComposer(true);
+        }
+      }
+    } catch (error) {
+      console.error('AI suggest error:', error);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAiAutoRespond = async (channel: MessageType) => {
+    if (!selectedContact) return;
+
+    try {
+      await fetch('/api/ai/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          contactId: selectedContact.id,
+          channel,
+        }),
+      });
+      // Messages will arrive via real-time subscription
+    } catch (error) {
+      console.error('AI auto-respond error:', error);
+    }
+  };
+
+  const handleGenerateAiResponse = () => {
+    const channel = messageType === 'email' ? 'email' : 'sms';
+    handleAiSuggest(channel);
+  };
+
+  const toggleContactAi = async () => {
+    if (!selectedContact) return;
+    const newValue = !contactAiEnabled;
+    setContactAiEnabled(newValue);
+
+    await supabase
+      .from('contacts')
+      .update({ ai_enabled: newValue })
+      .eq('id', selectedContact.id);
   };
 
   const handleSendSMS = async () => {
@@ -150,7 +263,6 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       });
 
       if (response.ok) {
-        // Clear drafts from localStorage
         if (selectedContact) {
           localStorage.removeItem(`draft_${selectedContact.id}`);
         }
@@ -190,7 +302,6 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       });
 
       if (response.ok) {
-        // Clear drafts from localStorage
         if (selectedContact) {
           localStorage.removeItem(`draft_${selectedContact.id}`);
           localStorage.removeItem(`subject_${selectedContact.id}`);
@@ -234,6 +345,8 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       contact.phone?.includes(search)
     );
   });
+
+  const isAiActive = aiConfig?.enabled && contactAiEnabled;
 
   return (
     <div className="h-[calc(100vh-180px)] flex bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -314,8 +427,23 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                 </div>
               </div>
 
-              {/* Message Type Selector */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                {/* AI Toggle for this contact */}
+                {aiConfig?.enabled && (
+                  <button
+                    onClick={toggleContactAi}
+                    className={`p-2 rounded-lg transition-colors ${
+                      contactAiEnabled
+                        ? 'bg-violet-100 text-violet-700'
+                        : 'hover:bg-gray-100 text-gray-400'
+                    }`}
+                    title={contactAiEnabled ? `AI Active (${aiConfig.mode})` : 'AI Disabled for this contact'}
+                  >
+                    <Bot className="w-5 h-5" />
+                  </button>
+                )}
+
+                {/* Message Type Selector */}
                 <button
                   onClick={() => setMessageType('sms')}
                   className={`p-2 rounded-lg transition-colors ${
@@ -371,7 +499,9 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                       // Email format - white card with subject and preview
                       <div
                         className={`max-w-[75%] rounded-lg border ${
-                          message.direction === 'outbound'
+                          message.is_ai_generated
+                            ? 'border-violet-300 bg-violet-50'
+                            : message.direction === 'outbound'
                             ? 'bg-white border-gray-300 shadow-sm'
                             : 'bg-gray-50 border-gray-200'
                         }`}
@@ -382,6 +512,11 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                             <span className="font-semibold text-gray-900">
                               {message.metadata?.subject || '(No Subject)'}
                             </span>
+                            {message.is_ai_generated && (
+                              <span className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">
+                                <Bot className="w-3 h-3" /> AI
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="px-4 py-3">
@@ -401,18 +536,30 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                         </div>
                       </div>
                     ) : (
-                      // SMS format - blue bubble
+                      // SMS format - blue bubble (violet for AI)
                       <div
                         className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                          message.direction === 'outbound'
+                          message.is_ai_generated
+                            ? 'bg-violet-500 text-white rounded-br-sm'
+                            : message.direction === 'outbound'
                             ? 'bg-blue-500 text-white rounded-br-sm'
                             : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-200'
                         }`}
                       >
+                        {message.is_ai_generated && (
+                          <div className={`flex items-center gap-1 text-xs mb-1 ${
+                            message.direction === 'outbound' ? 'text-violet-200' : 'text-violet-500'
+                          }`}>
+                            <Bot className="w-3 h-3" />
+                            <span>AI Response</span>
+                          </div>
+                        )}
                         <div className="break-words whitespace-pre-wrap">{message.content}</div>
                         <div
                           className={`text-xs mt-1 ${
-                            message.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
+                            message.is_ai_generated
+                              ? 'text-violet-200'
+                              : message.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
                           }`}
                         >
                           {format(new Date(message.created_at), 'h:mm a')}
@@ -470,6 +617,20 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                   >
                     Cancel
                   </button>
+                  {isAiActive && (
+                    <button
+                      onClick={handleGenerateAiResponse}
+                      disabled={aiGenerating}
+                      className="btn bg-violet-100 text-violet-700 hover:bg-violet-200 flex items-center justify-center gap-2"
+                    >
+                      {aiGenerating ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      AI Draft
+                    </button>
+                  )}
                   <button
                     onClick={handleSendEmail}
                     disabled={sending || !newMessage.trim() || !emailSubject.trim()}
@@ -488,7 +649,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
               </div>
             ) : !selectedContact.phone && !selectedContact.email ? (
               <div className="text-center text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                ⚠️ This contact doesn't have a phone number or email. Add contact info to send messages.
+                This contact doesn't have a phone number or email. Add contact info to send messages.
               </div>
             ) : (
               <div className="flex gap-2 items-end">
@@ -515,6 +676,21 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                   }}
                   disabled={messageType === 'sms' && !selectedContact.phone}
                 />
+                {/* AI Generate button */}
+                {isAiActive && messageType === 'sms' && (
+                  <button
+                    onClick={handleGenerateAiResponse}
+                    disabled={aiGenerating}
+                    className="h-[42px] px-3 rounded-xl bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    title="Generate AI Response"
+                  >
+                    {aiGenerating ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={handleSend}
                   disabled={sending || !newMessage.trim() || (messageType === 'sms' && !selectedContact.phone)}

@@ -12,18 +12,19 @@ interface SidebarProps {
   accounts: Account[];
   clientAccounts: Account[];
   onAccountSwitch: (accountId: string) => void;
+  isViewingClient?: boolean;
 }
 
-const menuItems = [
-  { id: 'clients', label: 'Client Accounts', icon: Building2 },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'contacts', label: 'Contacts', icon: Users },
-  { id: 'conversations', label: 'Conversations', icon: MessageSquare },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare },
-  { id: 'workflows', label: 'Workflows', icon: Workflow },
-  { id: 'pages', label: 'Landing Pages', icon: FileText },
-  { id: 'settings', label: 'Settings', icon: Settings },
+const allMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, agencyOnly: false },
+  { id: 'contacts', label: 'Contacts', icon: Users, agencyOnly: false },
+  { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false },
+  { id: 'calendar', label: 'Calendar', icon: Calendar, agencyOnly: false },
+  { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare, agencyOnly: false },
+  { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false },
+  { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false },
+  { id: 'settings', label: 'Settings', icon: Settings, agencyOnly: false },
+  { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true },
 ];
 
 export default function Sidebar({
@@ -33,8 +34,15 @@ export default function Sidebar({
   currentAccount,
   accounts,
   clientAccounts,
-  onAccountSwitch
+  onAccountSwitch,
+  isViewingClient = false
 }: SidebarProps) {
+  // Hide "Sub-Accounts" when viewing a sub-account (sub-accounts don't have their own sub-accounts)
+  const menuItems = allMenuItems.filter(item => {
+    if (item.agencyOnly && isViewingClient) return false;
+    return true;
+  });
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Account Switcher at top */}

@@ -6,14 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { Account, Contact } from '@/types';
 import Sidebar from './Sidebar';
 import ClientSidebar from './client/ClientSidebar';
-import ClientList from './agency/ClientList';
+import SubAccountsView from './agency/SubAccountsView';
 import ContactsList from './ContactsList';
-import { Users, TrendingUp, Mail, Phone } from 'lucide-react';
+import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare } from 'lucide-react';
 import Settings from './Settings';
 import Conversations from './Conversations';
 import PipelineManager from './pipelines/PipelineManager';
 import WorkflowList from './workflows/WorkflowList';
 import CalendarView from './calendar/CalendarView';
+import LandingPageList from './landing-pages/LandingPageList';
 import type { UserRole } from '@/types/agency';
 
 interface DashboardProps {
@@ -23,13 +24,12 @@ interface DashboardProps {
 
 export default function Dashboard({ user, initialView }: DashboardProps) {
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
-  const [agencyAccount, setAgencyAccount] = useState<Account | null>(null); // Always the agency account
+  const [agencyAccount, setAgencyAccount] = useState<Account | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [clientAccounts, setClientAccounts] = useState<Account[]>([]);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [isAgencyUser, setIsAgencyUser] = useState(false); // Whether logged-in user IS an agency owner
-  const [isAgency, setIsAgency] = useState(false);
-  const [isViewingClient, setIsViewingClient] = useState(false); // Whether viewing a client account
+  const [isAgencyUser, setIsAgencyUser] = useState(false);
+  const [isViewingClient, setIsViewingClient] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [stats, setStats] = useState({
     totalContacts: 0,
@@ -51,7 +51,6 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
     }
   }, [currentAccount]);
 
-  // Load client accounts once we know the agency account
   useEffect(() => {
     if (agencyAccount && isAgencyUser) {
       loadClientAccounts();
@@ -59,23 +58,14 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
   }, [agencyAccount, isAgencyUser]);
 
   const loadAccounts = async () => {
-    console.log('[DEBUG] Loading accounts for user:', user.id);
-
     const { data, error } = await supabase
       .from('account_members')
       .select('account_id, role, status, accounts(*)')
       .eq('user_id', user.id)
       .eq('status', 'active');
 
-    console.log('[DEBUG] Account members query result:', {
-      data,
-      error,
-      userId: user.id,
-      rowCount: data?.length
-    });
-
     if (error) {
-      console.error('[ERROR] Failed to load accounts:', error);
+      console.error('Failed to load accounts:', error);
       return;
     }
 
@@ -84,41 +74,25 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
         .map((item: any) => item.accounts)
         .filter((acc: any) => acc !== null);
 
-      console.log('[DEBUG] Parsed accounts list:', {
-        accountsCount: accountsList.length,
-        accounts: accountsList.map((a: any) => ({ id: a.id, name: a.name, type: a.account_type }))
-      });
-
       setAccounts(accountsList);
 
-      // Set user role and check if agency
       if (accountsList.length > 0) {
         const firstAccount = accountsList[0];
         const membership = data.find((item: any) => item.account_id === firstAccount.id);
 
-        console.log('[DEBUG] Setting current account:', {
-          account: firstAccount.name,
-          accountType: firstAccount.account_type,
-          userRole: membership?.role,
-          isAgency: firstAccount.account_type === 'agency'
-        });
-
         setUserRole(membership?.role as UserRole);
         const userIsAgency = firstAccount.account_type === 'agency' &&
                    (membership?.role === 'agency_owner' || membership?.role === 'agency_admin');
-        setIsAgency(userIsAgency);
         setIsAgencyUser(userIsAgency);
         setCurrentAccount(firstAccount);
 
         if (userIsAgency) {
           setAgencyAccount(firstAccount);
-          setActiveView(initialView || 'clients');
+          setActiveView(initialView || 'dashboard');
         } else if (initialView) {
           setActiveView(initialView);
         }
       }
-    } else {
-      console.warn('[WARN] No accounts found for user. User may not be invited to any accounts.');
     }
   };
 
@@ -155,7 +129,6 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
   };
 
   const handleAccountSwitch = async (accountId: string) => {
-    // Find the account in either accounts or clientAccounts
     const selectedAccount = [...accounts, ...clientAccounts].find(
       (acc) => acc.id === accountId
     );
@@ -165,18 +138,14 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
       return;
     }
 
-    // Update current account
     setCurrentAccount(selectedAccount);
 
     if (selectedAccount.account_type === 'agency') {
-      // Switching back to agency view
       setIsViewingClient(false);
-      setIsAgency(true);
-      setActiveView('clients');
+      setActiveView('dashboard');
     } else {
-      // Switching to a client account (agency owner viewing client)
+      // Agency owner viewing a sub-account — keep full navigation
       setIsViewingClient(true);
-      setIsAgency(false); // Show client views but keep agency sidebar via isAgencyUser
       setActiveView('dashboard');
     }
   };
@@ -184,31 +153,26 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
   const loadStats = async () => {
     if (!currentAccount) return;
 
-    // Get all contacts
     const { data: contactsData } = await supabase
       .from('contacts')
       .select('id, status')
       .eq('account_id', currentAccount.id);
 
-    // Get messages from last 7 days to determine active leads
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { data: recentMessages} = await supabase
+    const { data: recentMessages } = await supabase
       .from('messages')
       .select('contact_id')
       .eq('account_id', currentAccount.id)
       .gte('created_at', sevenDaysAgo.toISOString());
 
-    // Get unique contact IDs with recent activity
     const activeContactIds = new Set(recentMessages?.map(m => m.contact_id) || []);
 
-    // Count active leads (leads with activity in last 7 days)
-    const activeLeads = contactsData?.filter(c => 
+    const activeLeads = contactsData?.filter(c =>
       c.status === 'lead' && activeContactIds.has(c.id)
     ).length || 0;
 
-    // Get deals stats
     const { data: dealsData } = await supabase
       .from('deals')
       .select('status')
@@ -218,7 +182,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
     if (contactsData) {
       setStats({
         totalContacts: contactsData.length,
-        totalLeads: activeLeads, // Only active leads
+        totalLeads: activeLeads,
         totalCustomers: contactsData.filter((c) => c.status === 'customer').length,
         activeDeals: dealsData?.length || 0,
       });
@@ -231,13 +195,13 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
 
   const renderContent = () => {
     switch (activeView) {
-      case 'clients':
-        // Agency-only view - always use agencyAccount for client list
+      case 'sub-accounts':
         if (isAgencyUser && agencyAccount) {
           return (
-            <ClientList
+            <SubAccountsView
               agencyId={agencyAccount.id}
               userId={user.id}
+              onRefreshClientAccounts={loadClientAccounts}
             />
           );
         }
@@ -288,11 +252,87 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
             userId={user.id}
           />
         );
+      case 'pages':
+        return (
+          <LandingPageList accountId={currentAccount?.id || ''} />
+        );
       default:
+        // Unified dashboard
         return (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h2>
-            
+
+            {/* Viewing sub-account banner */}
+            {isViewingClient && isAgencyUser && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">
+                    Viewing: {currentAccount?.name}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    You are managing this sub-account as an agency owner
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (agencyAccount) {
+                      setCurrentAccount(agencyAccount);
+                      setIsViewingClient(false);
+                      setActiveView('dashboard');
+                    }
+                  }}
+                  className="text-sm text-blue-700 hover:text-blue-900 font-medium"
+                >
+                  Back to Agency
+                </button>
+              </div>
+            )}
+
+            {/* Sub-accounts summary — only on agency account */}
+            {isAgencyUser && !isViewingClient && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Sub-Accounts</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-1">{clientAccounts.length}</p>
+                    </div>
+                    <div className="p-3 bg-indigo-100 rounded-lg">
+                      <Building2 className="w-6 h-6 text-indigo-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Users</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-1">
+                        {clientAccounts.reduce((sum: number, c: any) => sum + (c.members?.[0]?.count || 0), 0)}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-green-100 rounded-lg">
+                      <Users className="w-6 h-6 text-green-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveView('sub-accounts')}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Manage Accounts</p>
+                      <p className="text-sm font-medium text-primary-600 mt-2">View Sub-Accounts →</p>
+                    </div>
+                    <div className="p-3 bg-primary-100 rounded-lg">
+                      <Building2 className="w-6 h-6 text-primary-600" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stats cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="card">
                 <div className="flex items-center justify-between">
@@ -343,6 +383,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
               </div>
             </div>
 
+            {/* Recent Contacts */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Contacts</h3>
               {contacts.length === 0 ? (
@@ -402,7 +443,6 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Agency users always get the full sidebar with account switcher */}
       {isAgencyUser ? (
         <Sidebar
           activeView={activeView}
@@ -412,6 +452,7 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
           accounts={accounts}
           clientAccounts={clientAccounts}
           onAccountSwitch={handleAccountSwitch}
+          isViewingClient={isViewingClient}
         />
       ) : (
         <ClientSidebar
@@ -423,22 +464,31 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">
                 {activeView === 'dashboard' ? 'Dashboard' :
-                 activeView === 'clients' ? 'Client Accounts' :
+                 activeView === 'sub-accounts' ? 'Sub-Accounts' :
                  activeView === 'pipelines' ? 'Opportunities' :
+                 activeView === 'pages' ? 'Landing Pages' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
-              <p className="text-sm text-gray-600 mt-1">{currentAccount.name}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                {isViewingClient && isAgencyUser ? (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {currentAccount.name}
+                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-1">Owner View</span>
+                  </span>
+                ) : (
+                  currentAccount.name
+                )}
+              </p>
             </div>
           </div>
         </header>
 
-        {/* Main content */}
         <main className="flex-1 overflow-y-auto p-6">
           {renderContent()}
         </main>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Account } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook } from 'lucide-react';
+import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, Bot } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
 interface SettingsProps {
@@ -29,6 +29,17 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
   const [message, setMessage] = useState('');
   const [twilioNumbers, setTwilioNumbers] = useState<TwilioNumber[]>([]);
   const [facebookIntegration, setFacebookIntegration] = useState<any>(null);
+  const [aiConfig, setAiConfig] = useState({
+    enabled: false,
+    mode: 'suggest' as 'suggest' | 'auto',
+    system_prompt: '',
+    tone: 'professional',
+    max_tokens: 500,
+    channels: { sms: true, email: true },
+    business_context: '',
+  });
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiTesting, setAiTesting] = useState(false);
   const [settings, setSettings] = useState({
     // Twilio Phone Number (just the selection, credentials in env)
     twilio_phone_number: '',
@@ -55,6 +66,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
     // Load integrations on mount
     loadTwilioNumbers();
     loadFacebookIntegration();
+    loadAiConfig();
   }, [account]);
 
   const loadFacebookIntegration = async () => {
@@ -71,6 +83,92 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
     } catch (error) {
       // Facebook integration doesn't exist yet, which is fine
       console.log('No Facebook integration found');
+    }
+  };
+
+  const loadAiConfig = async () => {
+    try {
+      const res = await fetch(`/api/ai/config?accountId=${account.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.config) {
+          setAiConfig({
+            enabled: data.config.enabled ?? false,
+            mode: data.config.mode || 'suggest',
+            system_prompt: data.config.system_prompt || '',
+            tone: data.config.tone || 'professional',
+            max_tokens: data.config.max_tokens || 500,
+            channels: data.config.channels || { sms: true, email: true },
+            business_context: data.config.business_context || '',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading AI config:', error);
+    }
+  };
+
+  const saveAiConfig = async () => {
+    setAiSaving(true);
+    try {
+      const res = await fetch('/api/ai/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id, ...aiConfig }),
+      });
+      if (res.ok) {
+        setMessage('AI agent settings saved!');
+      } else {
+        setMessage('Failed to save AI settings');
+      }
+    } catch (error: any) {
+      setMessage('Error: ' + error.message);
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const testAiResponse = async () => {
+    setAiTesting(true);
+    setMessage('');
+    try {
+      // Save config first
+      await saveAiConfig();
+
+      // Find a contact to test with
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('account_id', account.id)
+        .limit(1)
+        .single();
+
+      if (!contacts) {
+        setMessage('No contacts found. Add a contact first to test AI.');
+        return;
+      }
+
+      const res = await fetch('/api/ai/generate-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: account.id,
+          contactId: contacts.id,
+          channel: 'sms',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessage(`AI Test Response: "${data.response}"`);
+      } else {
+        const data = await res.json();
+        setMessage('AI Test Failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      setMessage('Error: ' + error.message);
+    } finally {
+      setAiTesting(false);
     }
   };
 
@@ -386,6 +484,33 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
 
       )}
 
+      {/* Per-Account Sending Email — shown for sub-accounts */}
+      {account.parent_account_id && account.settings?.from_email && (
+      <div className="card mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-orange-100 rounded-lg">
+            <Mail className="w-6 h-6 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Sending Email</h3>
+            <p className="text-sm text-gray-600">Email address used for automations and client communications</p>
+          </div>
+        </div>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+          <p className="text-sm font-mono text-gray-900">{account.settings.from_email}</p>
+          {account.settings.from_name && (
+            <p className="text-xs text-gray-500 mt-1">From: {account.settings.from_name}</p>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500">
+          This email is auto-generated from the location name and used for all automated communications.
+          System emails (invitations, password resets) use noreply@contact.ainexorra.com.
+        </p>
+      </div>
+      )}
+
       {/* Google Calendar Integration */}
       <div className="card mb-6">
         <div className="flex items-center gap-3 mb-6">
@@ -544,6 +669,176 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
         )}
       </div>
 
+      )}
+
+      {/* AI Agent Settings - Agency only */}
+      {isAgencyUser && (
+      <div className="card mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-violet-100 rounded-lg">
+            <Bot className="w-6 h-6 text-violet-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900">AI Agent</h3>
+            <p className="text-sm text-gray-600">Configure AI-powered responses for conversations</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={aiConfig.enabled}
+              onChange={(e) => setAiConfig({ ...aiConfig, enabled: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+            <span className="ml-2 text-sm font-medium text-gray-700">{aiConfig.enabled ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+
+        {aiConfig.enabled && (
+          <div className="space-y-4">
+            {/* Mode Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Response Mode</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setAiConfig({ ...aiConfig, mode: 'suggest' })}
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                    aiConfig.mode === 'suggest'
+                      ? 'border-violet-500 bg-violet-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-medium text-gray-900 text-sm">Suggest Only</p>
+                  <p className="text-xs text-gray-500 mt-1">AI drafts responses for you to review and send</p>
+                </button>
+                <button
+                  onClick={() => setAiConfig({ ...aiConfig, mode: 'auto' })}
+                  className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                    aiConfig.mode === 'auto'
+                      ? 'border-violet-500 bg-violet-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-medium text-gray-900 text-sm">Auto-Respond</p>
+                  <p className="text-xs text-gray-500 mt-1">AI automatically sends responses to inbound messages</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Tone */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tone</label>
+              <select
+                value={aiConfig.tone}
+                onChange={(e) => setAiConfig({ ...aiConfig, tone: e.target.value })}
+                className="input"
+              >
+                <option value="professional">Professional</option>
+                <option value="casual">Casual</option>
+                <option value="friendly">Friendly</option>
+                <option value="formal">Formal</option>
+              </select>
+            </div>
+
+            {/* System Prompt */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
+              <textarea
+                value={aiConfig.system_prompt}
+                onChange={(e) => setAiConfig({ ...aiConfig, system_prompt: e.target.value })}
+                className="input font-mono text-sm"
+                rows={4}
+                placeholder="You are a helpful assistant for our business. Answer questions about our services and schedule appointments..."
+              />
+              <p className="text-xs text-gray-500 mt-1">Instructions that guide how the AI responds to messages.</p>
+            </div>
+
+            {/* Business Context */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Context</label>
+              <textarea
+                value={aiConfig.business_context}
+                onChange={(e) => setAiConfig({ ...aiConfig, business_context: e.target.value })}
+                className="input text-sm"
+                rows={3}
+                placeholder="We are a dental office open Mon-Fri 9am-5pm. We offer cleanings, fillings, and cosmetic services..."
+              />
+              <p className="text-xs text-gray-500 mt-1">Information about your business the AI can reference.</p>
+            </div>
+
+            {/* Channel Toggles */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Active Channels</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aiConfig.channels.sms}
+                    onChange={(e) => setAiConfig({ ...aiConfig, channels: { ...aiConfig.channels, sms: e.target.checked } })}
+                    className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span className="text-sm text-gray-700">SMS</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aiConfig.channels.email}
+                    onChange={(e) => setAiConfig({ ...aiConfig, channels: { ...aiConfig.channels, email: e.target.checked } })}
+                    className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span className="text-sm text-gray-700">Email</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Max Tokens */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Max Response Length: {aiConfig.max_tokens} tokens
+              </label>
+              <input
+                type="range"
+                min={100}
+                max={2000}
+                step={100}
+                value={aiConfig.max_tokens}
+                onChange={(e) => setAiConfig({ ...aiConfig, max_tokens: parseInt(e.target.value) })}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Short</span>
+                <span>Long</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={saveAiConfig}
+                disabled={aiSaving}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                {aiSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save AI Settings
+              </button>
+              <button
+                onClick={testAiResponse}
+                disabled={aiTesting}
+                className="btn btn-secondary flex items-center gap-2"
+              >
+                {aiTesting ? <Loader className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                Test AI
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!aiConfig.enabled && (
+          <p className="text-sm text-gray-500">
+            Enable the AI agent to automatically generate or suggest responses to inbound messages from contacts.
+          </p>
+        )}
+      </div>
       )}
 
       {/* Save Button - Agency only */}

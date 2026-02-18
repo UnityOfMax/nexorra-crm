@@ -18,6 +18,14 @@ export interface Account {
   settings?: any;
 }
 
+export interface LocationInfo {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+}
+
 export interface AccountSettings {
   branding?: {
     logo_url?: string;
@@ -203,7 +211,8 @@ export type WorkflowStepType =
   | 'wait_delay'
   | 'wait_until'
   | 'condition'
-  | 'webhook';
+  | 'webhook'
+  | 'ai_respond';
 
 export interface WorkflowNode {
   id: string;

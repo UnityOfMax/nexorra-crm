@@ -105,7 +105,7 @@ export default function AccountSwitcherDropdown({
           {clientAccounts.length > 0 && (
             <div>
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
-                CLIENT ACCOUNTS ({clientAccounts.length})
+                SUB-ACCOUNTS ({clientAccounts.length})
               </div>
               {clientAccounts.map((account) => (
                 <button
