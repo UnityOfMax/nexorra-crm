@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Building2, Check } from 'lucide-react';
+import { ChevronDown, Building2, Check, LogOut } from 'lucide-react';
 import type { Account } from '@/types';
 
 interface AccountSwitcherDropdownProps {
@@ -9,35 +9,39 @@ interface AccountSwitcherDropdownProps {
   accounts: Account[];
   clientAccounts: Account[];
   onAccountSwitch: (accountId: string) => void;
+  onSignOut: () => void;
 }
 
 export default function AccountSwitcherDropdown({
   currentAccount,
   accounts,
   clientAccounts,
-  onAccountSwitch
+  onAccountSwitch,
+  onSignOut,
 }: AccountSwitcherDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // All accounts (agency + clients)
   const allAccounts = [...accounts, ...clientAccounts];
 
   const handleAccountSelect = (accountId: string) => {
     setIsOpen(false);
     onAccountSwitch(accountId);
+  };
+
+  const handleSignOut = () => {
+    setIsOpen(false);
+    onSignOut();
   };
 
   return (
@@ -56,7 +60,7 @@ export default function AccountSwitcherDropdown({
               {currentAccount.name}
             </div>
             <div className="text-xs text-gray-500">
-              {currentAccount.account_type === 'agency' ? 'Agency Account' : 'Client Account'}
+              {currentAccount.account_type === 'agency' ? 'Agency Account' : 'Sub-Account'}
             </div>
           </div>
         </div>
@@ -88,9 +92,7 @@ export default function AccountSwitcherDropdown({
                       <div className="text-sm font-medium text-gray-900 truncate">
                         {account.name}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {account.slug}
-                      </div>
+                      <div className="text-xs text-gray-500">{account.slug}</div>
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
@@ -101,7 +103,7 @@ export default function AccountSwitcherDropdown({
             </div>
           )}
 
-          {/* Client Accounts Section */}
+          {/* Sub-Accounts Section */}
           {clientAccounts.length > 0 && (
             <div>
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
@@ -123,9 +125,7 @@ export default function AccountSwitcherDropdown({
                       <div className="text-sm font-medium text-gray-900 truncate">
                         {account.name}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {account.slug}
-                      </div>
+                      <div className="text-xs text-gray-500">{account.slug}</div>
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
@@ -136,12 +136,22 @@ export default function AccountSwitcherDropdown({
             </div>
           )}
 
-          {/* No Accounts */}
           {allAccounts.length === 0 && (
             <div className="px-4 py-6 text-center text-sm text-gray-500">
               No accounts available
             </div>
           )}
+
+          {/* Sign Out — always at the bottom */}
+          <div className="border-t border-gray-200">
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">Sign Out</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

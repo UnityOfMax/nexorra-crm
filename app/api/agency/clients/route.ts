@@ -160,6 +160,137 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-create default pipeline with standard stages
+    if (client) {
+      try {
+        const { data: pipeline } = await supabaseAdmin
+          .from('pipelines')
+          .insert({
+            account_id: client.id,
+            name: 'Sales Pipeline',
+            type: 'sales',
+            is_default: true,
+            position: 0,
+          })
+          .select()
+          .single();
+
+        if (pipeline) {
+          const stages = [
+            { name: 'New Lead',            color: '#3b82f6', position: 0, probability: 10,  is_closed: false, is_won: false },
+            { name: 'Hot Lead',            color: '#f59e0b', position: 1, probability: 30,  is_closed: false, is_won: false },
+            { name: 'Booked Appointment',  color: '#8b5cf6', position: 2, probability: 50,  is_closed: false, is_won: false },
+            { name: 'Closed Deal',         color: '#22c55e', position: 3, probability: 100, is_closed: true,  is_won: true  },
+            { name: 'No Show',             color: '#ef4444', position: 4, probability: 0,   is_closed: true,  is_won: false },
+            { name: 'Long-Term Nurturing', color: '#6b7280', position: 5, probability: 20,  is_closed: false, is_won: false },
+          ].map(s => ({ ...s, pipeline_id: pipeline.id }));
+
+          await supabaseAdmin.from('pipeline_stages').insert(stages);
+        }
+      } catch (pipelineError) {
+        console.error('Error auto-creating pipeline:', pipelineError);
+        // Non-fatal — don't fail account creation
+      }
+    }
+
+    // Auto-create landing page from real-estate template populated with location info
+    if (client) {
+      try {
+        const agentName = fromName || name;
+        const agentEmail = fromEmail || location?.email || '';
+        const agentPhone = location?.phone || '';
+        const agentAddress = location?.address || '';
+        const pageSlug = fromEmail
+          ? fromEmail.split('@')[0]
+          : clientSlug;
+
+        const landingContent = {
+          blocks: [
+            {
+              id: 'block-auto-1',
+              type: 're_hero',
+              order: 0,
+              data: {
+                agentName,
+                title: 'Licensed Real Estate Agent',
+                subtitle: `Helping families find their dream home. Let's find yours.`,
+                profileImageUrl: '',
+                bgColor: '#0f172a',
+                accentColor: '#f59e0b',
+                ctaText: 'View Available Homes',
+              },
+            },
+            {
+              id: 'block-auto-2',
+              type: 're_about',
+              order: 1,
+              data: {
+                heading: `About ${agentName}`,
+                bio: `With years of experience in the real estate market, I specialize in helping first-time buyers, investors, and growing families find the perfect property. My client-first approach means you'll never feel lost in the process.`,
+                agentPhotoUrl: '',
+                yearsExperience: 5,
+                dealsClosed: 50,
+                specialties: ['Luxury Homes', 'First-Time Buyers', 'Investment Properties'],
+                accentColor: '#f59e0b',
+              },
+            },
+            {
+              id: 'block-auto-3',
+              type: 're_reviews',
+              order: 2,
+              data: {
+                heading: 'What My Clients Say',
+                reviews: [
+                  { text: 'Amazing experience from start to finish. Highly recommend!', author: 'Happy Client', location: '', rating: 5 },
+                  { text: 'Professional, knowledgeable, and always available. Could not ask for more.', author: 'Satisfied Buyer', location: '', rating: 5 },
+                ],
+                ctaText: 'Find Your Dream Home',
+                accentColor: '#f59e0b',
+              },
+            },
+            {
+              id: 'block-auto-4',
+              type: 're_location',
+              order: 3,
+              data: {
+                heading: 'Find Me',
+                address: agentAddress,
+                phone: agentPhone,
+                email: agentEmail,
+                mapEmbedUrl: '',
+                accentColor: '#f59e0b',
+              },
+            },
+            {
+              id: 'block-auto-5',
+              type: 're_footer',
+              order: 4,
+              data: {
+                agentName,
+                brokerage: '',
+                phone: agentPhone,
+                email: agentEmail,
+                license: '',
+                accentColor: '#f59e0b',
+              },
+            },
+          ],
+          styles: { fontFamily: 'Inter', primaryColor: '#f59e0b', backgroundColor: '#ffffff' },
+        };
+
+        await supabaseAdmin.from('landing_pages').insert({
+          account_id: client.id,
+          name: `${agentName} - Real Estate`,
+          slug: pageSlug,
+          content: landingContent,
+          published: false,
+        });
+      } catch (pageError) {
+        console.error('Error auto-creating landing page:', pageError);
+        // Non-fatal — don't fail account creation
+      }
+    }
+
     // If user info provided, create an invitation
     if (userInfo?.email && client) {
       try {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Settings, LogOut, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import type { Account } from '@/types';
 
@@ -24,7 +24,6 @@ const allMenuItems = [
   { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare, agencyOnly: false },
   { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false },
   { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false },
-  { id: 'settings', label: 'Settings', icon: Settings, agencyOnly: false },
   { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true },
 ];
 
@@ -57,6 +56,7 @@ function SidebarContent({
           accounts={accounts}
           clientAccounts={clientAccounts}
           onAccountSwitch={(id) => { onAccountSwitch(id); onClose?.(); }}
+          onSignOut={onSignOut}
         />
       </div>
 
@@ -84,13 +84,18 @@ function SidebarContent({
         </ul>
       </nav>
 
+      {/* Settings pinned at bottom */}
       <div className="p-4 border-t border-gray-200">
         <button
-          onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          onClick={() => { onViewChange('settings'); onClose?.(); }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            activeView === 'settings'
+              ? 'bg-primary-50 text-primary-700 font-medium'
+              : 'text-gray-700 hover:bg-gray-50'
+          }`}
         >
-          <LogOut className="w-5 h-5" />
-          <span>Sign Out</span>
+          <Settings className="w-5 h-5 flex-shrink-0" />
+          <span>Settings</span>
         </button>
       </div>
     </>

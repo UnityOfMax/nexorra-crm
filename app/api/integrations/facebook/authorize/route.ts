@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/integrations/facebook/authorize - Start Facebook OAuth flow
