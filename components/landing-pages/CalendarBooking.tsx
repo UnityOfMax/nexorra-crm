@@ -20,9 +20,9 @@ interface TimeSlot {
   dateLabel: string; // e.g. "Mon, Jan 20"
 }
 
-const SLOT_DURATION_MIN = 30; // spacing between slots
-const AVAILABLE_START_H = 9;  // 9am agent local time (we approximate in UTC offset)
-const AVAILABLE_END_H = 17;   // 5pm agent local time
+const SLOT_DURATION_MIN = 30;
+const AVAILABLE_START_H = 9;  // 9am UTC
+const AVAILABLE_END_H = 17;   // 5pm UTC
 
 function getLeadTimezone() {
   try {
@@ -37,15 +37,13 @@ function generateSlots(): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const now = new Date();
 
-  // Generate for the next 14 days (skip today, weekends)
   for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
     const date = new Date(now);
     date.setDate(now.getDate() + dayOffset);
 
-    const dayOfWeek = date.getDay(); // 0=Sun, 6=Sat
+    const dayOfWeek = date.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-    // For each slot from 9am to 4:30pm UTC (approximation — agent configurable later)
     for (let h = AVAILABLE_START_H; h < AVAILABLE_END_H; h++) {
       for (const m of [0, 30]) {
         const slotDate = new Date(Date.UTC(
@@ -55,7 +53,6 @@ function generateSlots(): TimeSlot[] {
           h, m, 0
         ));
 
-        // Format the time in the lead's local timezone
         const display = slotDate.toLocaleTimeString(undefined, {
           hour: 'numeric',
           minute: '2-digit',
@@ -78,7 +75,6 @@ function generateSlots(): TimeSlot[] {
   return slots;
 }
 
-// Group slots by date label
 function groupByDate(slots: TimeSlot[]): Record<string, TimeSlot[]> {
   const groups: Record<string, TimeSlot[]> = {};
   for (const slot of slots) {
@@ -99,6 +95,29 @@ export default function CalendarBooking({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [booking, setBooking] = useState(false);
   const [tz] = useState(() => getLeadTimezone());
+  const [bookedUtcs, setBookedUtcs] = useState<Set<string>>(new Set());
+
+  // Fetch existing meetings to prevent double-booking
+  useEffect(() => {
+    fetch(`/api/activities?accountId=${accountId}&type=meeting`)
+      .then(r => r.json())
+      .then(({ activities }) => {
+        if (!activities?.length) return;
+        const booked = new Set<string>();
+        for (const slot of slots) {
+          const slotMs = new Date(slot.utc).getTime();
+          for (const a of activities) {
+            if (!a.due_date) continue;
+            const diff = Math.abs(new Date(a.due_date).getTime() - slotMs);
+            if (diff < SLOT_DURATION_MIN * 60 * 1000) {
+              booked.add(slot.utc);
+            }
+          }
+        }
+        setBookedUtcs(booked);
+      })
+      .catch(() => {/* non-fatal */});
+  }, [accountId, slots]);
 
   const handleBook = async () => {
     if (!selectedSlot) return;
@@ -120,15 +139,14 @@ export default function CalendarBooking({
       onBooked();
     } catch (err) {
       console.error('Booking error:', err);
-      onBooked(); // proceed even if API call fails
+      onBooked();
     } finally {
       setBooking(false);
     }
   };
 
   const accent = accentColor;
-  const groupedSlots = grouped;
-  const currentSlots = groupedSlots[selectedDate] || [];
+  const currentSlots = grouped[selectedDate] || [];
 
   return (
     <div>
@@ -173,21 +191,35 @@ export default function CalendarBooking({
 
       {/* Time slots grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px', marginBottom: '20px', maxHeight: '220px', overflowY: 'auto' }}>
-        {currentSlots.map(slot => (
-          <button
-            key={slot.utc}
-            onClick={() => setSelectedSlot(slot)}
-            style={{
-              padding: '10px 6px', borderRadius: '10px',
-              border: `2px solid ${selectedSlot?.utc === slot.utc ? accent : '#e5e7eb'}`,
-              background: selectedSlot?.utc === slot.utc ? `${accent}18` : '#fff',
-              cursor: 'pointer', fontWeight: selectedSlot?.utc === slot.utc ? '700' : '500',
-              fontSize: '0.85rem', color: '#111827', transition: 'all 0.12s',
-            }}
-          >
-            {slot.display}
-          </button>
-        ))}
+        {currentSlots.map(slot => {
+          const isBooked = bookedUtcs.has(slot.utc);
+          const isSelected = selectedSlot?.utc === slot.utc;
+          return (
+            <button
+              key={slot.utc}
+              onClick={() => !isBooked && setSelectedSlot(slot)}
+              disabled={isBooked}
+              style={{
+                padding: '10px 6px', borderRadius: '10px',
+                border: isBooked
+                  ? '2px solid #e5e7eb'
+                  : `2px solid ${isSelected ? accent : '#e5e7eb'}`,
+                background: isBooked
+                  ? '#f3f4f6'
+                  : isSelected ? `${accent}18` : '#fff',
+                cursor: isBooked ? 'not-allowed' : 'pointer',
+                fontWeight: isSelected ? '700' : '500',
+                fontSize: '0.85rem',
+                color: isBooked ? '#9ca3af' : '#111827',
+                transition: 'all 0.12s',
+              }}
+            >
+              {isBooked ? (
+                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Booked</span>
+              ) : slot.display}
+            </button>
+          );
+        })}
       </div>
 
       {/* Confirm button */}
