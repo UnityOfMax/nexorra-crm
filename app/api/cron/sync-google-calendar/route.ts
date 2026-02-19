@@ -70,7 +70,6 @@ async function syncGoogleToAccount(accountId: string) {
   const calendar = await getGoogleCalendarClient(accountId);
   if (!calendar) return;
 
-  // Get last sync time
   const { data: account } = await supabaseAdmin
     .from('accounts')
     .select('settings')
@@ -82,25 +81,40 @@ async function syncGoogleToAccount(accountId: string) {
   const gcal = account.settings?.google_calendar as GoogleCalendarSettings | undefined;
   if (!gcal) return;
 
-  const lastSync = gcal.last_sync_at;
-  const syncFrom = lastSync
-    ? new Date(lastSync)
-    : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // Default: 7 days ago
+  // Always fetch from start of current week to 2 years ahead.
+  // Using timeMin/timeMax (not updatedMin) so we never miss existing events.
+  const timeMin = new Date();
+  timeMin.setDate(timeMin.getDate() - timeMin.getDay()); // Sunday of current week
+  timeMin.setHours(0, 0, 0, 0);
 
-  console.log(`[CRON] Syncing account ${accountId} from ${syncFrom.toISOString()}`);
+  const timeMax = new Date();
+  timeMax.setFullYear(timeMax.getFullYear() + 2);
 
-  // Fetch events updated since last sync
+  console.log(`[CRON] Syncing account ${accountId} | ${timeMin.toISOString()} → ${timeMax.toISOString()}`);
+
+  // Fetch ALL events in the range (idempotent — upserts on each run)
   const { data: response } = await calendar.events.list({
     calendarId: gcal.calendar_id || 'primary',
-    updatedMin: syncFrom.toISOString(),
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
     singleEvents: true,
-    orderBy: 'updated',
-    maxResults: 250
+    orderBy: 'startTime',
+    maxResults: 2500,
   });
 
   console.log(`[CRON] Found ${response.items?.length || 0} events for account ${accountId}`);
 
   for (const event of response.items || []) {
+    // Skip events the CRM created — we don't want to create duplicate activities
+    const { data: existingSync } = await supabaseAdmin
+      .from('google_calendar_sync')
+      .select('sync_direction')
+      .eq('google_event_id', event.id!)
+      .eq('account_id', accountId)
+      .maybeSingle();
+
+    if (existingSync?.sync_direction === 'crm_to_google') continue;
+
     await syncGoogleEventToActivity(accountId, event);
   }
 
@@ -112,9 +126,9 @@ async function syncGoogleToAccount(accountId: string) {
         ...account.settings,
         google_calendar: {
           ...gcal,
-          last_sync_at: new Date().toISOString()
-        }
-      }
+          last_sync_at: new Date().toISOString(),
+        },
+      },
     })
     .eq('id', accountId);
 }

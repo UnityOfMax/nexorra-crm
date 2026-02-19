@@ -23,10 +23,10 @@ interface CalendarViewProps {
 
 type ViewMode = 'month' | 'week' | 'day';
 
-// Hours visible in week/day grid (7am – 10pm)
-const HOUR_START = 7;
-const HOUR_END = 22;
-const HOUR_HEIGHT = 64; // px per hour
+// Full 24-hour grid (midnight to midnight)
+const HOUR_START = 0;
+const HOUR_END = 24;
+const HOUR_HEIGHT = 56; // px per hour (slightly tighter for full-day view)
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
 function isSameDay(a: Date, b: Date) {
@@ -641,15 +641,22 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     await fetchFromDb(start, end);
     setLoading(false);
 
-    // Phase 2: pull fresh events from Google Calendar for this date range,
-    // then refresh the DB read so newly synced events appear
+    // Phase 2: pull fresh events from Google Calendar.
+    // Always sync from start-of-current-week to 2 years ahead — not just the
+    // current view — so events outside the current view window are captured too.
     try {
+      const syncStart = new Date();
+      syncStart.setDate(syncStart.getDate() - syncStart.getDay()); // Sunday of current week
+      syncStart.setHours(0, 0, 0, 0);
+      const syncEnd = new Date();
+      syncEnd.setFullYear(syncEnd.getFullYear() + 2);
+
       const res = await fetch(
-        `/api/integrations/google/sync?accountId=${accountId}&start=${start.toISOString()}&end=${end.toISOString()}`
+        `/api/integrations/google/sync?accountId=${accountId}&start=${syncStart.toISOString()}&end=${syncEnd.toISOString()}`
       );
       if (res.ok) {
         const { synced } = await res.json();
-        // If any new events were synced, refresh from DB
+        // Refresh current view from DB if new events were found
         if (synced > 0) {
           await fetchFromDb(start, end);
         }
@@ -662,6 +669,16 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
+
+  // Polling: refresh DB data every 30 seconds so Google Calendar events synced
+  // by the cron (runs every minute) appear without a manual page refresh.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const { start, end } = getDateRange();
+      fetchFromDb(start, end);
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [getDateRange, fetchFromDb]);
 
   // Real-time subscription — no filter so agency users viewing sub-accounts
   // still get live updates. We check accountId in the handler.

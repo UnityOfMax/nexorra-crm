@@ -184,16 +184,19 @@ export async function syncGoogleEventToActivity(accountId: string, event: any) {
       return;
     }
 
-    // Get default user for creating activity
+    // Get any member of this account to attribute the activity to.
+    // Roles vary: 'owner' for sub-accounts, 'agency_owner'/'agency_admin' for agency accounts.
     const { data: member } = await supabaseAdmin
       .from('account_members')
       .select('user_id')
       .eq('account_id', accountId)
-      .eq('role', 'owner')
-      .single();
+      .in('role', ['owner', 'agency_owner', 'agency_admin', 'admin', 'user'])
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
     if (!member) {
-      console.error('No owner found for account:', accountId);
+      console.error('No member found for account:', accountId);
       return;
     }
 
