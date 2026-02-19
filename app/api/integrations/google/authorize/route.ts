@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
+    const userId = searchParams.get('userId') || '';
 
     if (!accountId) {
       return NextResponse.json(
@@ -21,13 +22,16 @@ export async function GET(request: NextRequest) {
       process.env.GOOGLE_REDIRECT_URI
     );
 
+    // Encode accountId and userId in state so callback can store connected_user_id
+    const state = userId ? `${accountId}:${userId}` : accountId;
+
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/calendar.events'
       ],
-      state: accountId,
+      state,
       prompt: 'consent' // Force consent screen to get refresh token
     });
 

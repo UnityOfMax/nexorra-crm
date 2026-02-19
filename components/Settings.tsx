@@ -10,6 +10,7 @@ interface SettingsProps {
   account: Account;
   onUpdate: () => void;
   isAgencyUser?: boolean;
+  userId?: string;
 }
 
 interface TwilioNumber {
@@ -19,7 +20,7 @@ interface TwilioNumber {
   capabilities: { voice: boolean; sms: boolean; mms: boolean };
 }
 
-export default function Settings({ account, onUpdate, isAgencyUser = false }: SettingsProps) {
+export default function Settings({ account, onUpdate, isAgencyUser = false, userId }: SettingsProps) {
   const [loading, setLoading] = useState(false);
   const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [message, setMessage] = useState('');
@@ -619,7 +620,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false }: Se
               Connect Google Calendar to automatically sync meetings between your CRM and calendar.
             </p>
             <button
-              onClick={() => { window.location.href = `/api/integrations/google/authorize?accountId=${account.id}`; }}
+              onClick={() => { window.location.href = `/api/integrations/google/authorize?accountId=${account.id}${userId ? `&userId=${userId}` : ''}`; }}
               className="btn btn-primary flex items-center gap-2"
             >
               <Calendar className="w-4 h-4" />

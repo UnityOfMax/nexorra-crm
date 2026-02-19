@@ -9,8 +9,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
-    const accountId = searchParams.get('state');
+    const rawState = searchParams.get('state') || '';
     const error = searchParams.get('error');
+
+    // State is either "accountId" (legacy) or "accountId:userId"
+    const [accountId, connectedUserId] = rawState.includes(':')
+      ? rawState.split(':')
+      : [rawState, ''];
 
     // Handle OAuth errors
     if (error) {
@@ -75,7 +80,10 @@ export async function GET(request: NextRequest) {
             refresh_token: tokens.refresh_token,
             token_expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : new Date(Date.now() + 3600000).toISOString(),
             calendar_id: primaryCalendar.id || 'primary',
-            last_sync_at: new Date().toISOString()
+            last_sync_at: new Date().toISOString(),
+            // Store who connected Google Calendar — used as created_by fallback
+            // when the account has no direct account_members rows (e.g. agency sub-accounts)
+            ...(connectedUserId ? { connected_user_id: connectedUserId } : {})
           }
         }
       })

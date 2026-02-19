@@ -184,19 +184,53 @@ export async function syncGoogleEventToActivity(accountId: string, event: any) {
       return;
     }
 
-    // Get any member of this account to attribute the activity to.
-    // Roles vary: 'owner' for sub-accounts, 'agency_owner'/'agency_admin' for agency accounts.
-    const { data: member } = await supabaseAdmin
-      .from('account_members')
-      .select('user_id')
-      .eq('account_id', accountId)
-      .in('role', ['owner', 'agency_owner', 'agency_admin', 'admin', 'user'])
-      .order('created_at', { ascending: true })
-      .limit(1)
+    // Resolve a user ID to attribute this activity to.
+    // Sub-accounts managed by an agency often have NO rows in account_members —
+    // the agency owner manages them but is not directly added as a member.
+    // Strategy (in order):
+    //   1. connected_user_id stored in google_calendar settings (set during OAuth)
+    //   2. Any direct member of this account
+    //   3. Any owner/admin of the parent agency account
+    let createdByUserId: string | null = null;
+
+    // Pull account settings + parent_account_id in one query
+    const { data: accountRow } = await supabaseAdmin
+      .from('accounts')
+      .select('settings, parent_account_id')
+      .eq('id', accountId)
       .maybeSingle();
 
-    if (!member) {
-      console.error('No member found for account:', accountId);
+    // Strategy 1: connected_user_id stored when Google Calendar was first connected
+    const connectedUserId = (accountRow?.settings?.google_calendar as any)?.connected_user_id;
+    if (connectedUserId) createdByUserId = connectedUserId;
+
+    // Strategy 2: any direct member of this account
+    if (!createdByUserId) {
+      const { data: directMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (directMember) createdByUserId = directMember.user_id;
+    }
+
+    // Strategy 3: fall back to the parent agency's owner/admin
+    if (!createdByUserId && accountRow?.parent_account_id) {
+      const { data: agencyMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountRow.parent_account_id)
+        .in('role', ['agency_owner', 'agency_admin', 'owner'])
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (agencyMember) createdByUserId = agencyMember.user_id;
+    }
+
+    if (!createdByUserId) {
+      console.error('Could not resolve a user ID for account:', accountId, '— skipping event:', event.id);
       return;
     }
 
@@ -206,7 +240,7 @@ export async function syncGoogleEventToActivity(accountId: string, event: any) {
       subject: event.summary || 'Calendar Event',
       description: event.description || '',
       due_date: event.start?.dateTime || event.start?.date,
-      created_by: member.user_id,
+      created_by: createdByUserId,
       completed: false
     };
 

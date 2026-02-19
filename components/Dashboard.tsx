@@ -277,6 +277,7 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
             account={currentAccount!}
             onUpdate={loadAccounts}
             isAgencyUser={isAgencyUser}
+            userId={user.id}
           />
         );
       case 'pipelines':
