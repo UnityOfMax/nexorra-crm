@@ -47,11 +47,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If meeting with due date, sync to Google Calendar
+    // If meeting with due date, sync to Google Calendar immediately
     if (type === 'meeting' && dueDate) {
-      syncActivityToGoogle(activity.id, accountId).catch(err => {
+      try {
+        await syncActivityToGoogle(activity.id, accountId);
+      } catch (err) {
         console.error('Failed to sync to Google Calendar:', err);
-      });
+        // Non-fatal — activity is already saved
+      }
     }
 
     return NextResponse.json({ activity });

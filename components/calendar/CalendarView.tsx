@@ -611,10 +611,7 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     return { start, end };
   }, [view, currentDate]);
 
-  const loadActivities = useCallback(async () => {
-    setLoading(true);
-    const { start, end } = getDateRange();
-
+  const fetchFromDb = useCallback(async (start: Date, end: Date) => {
     const { data: acts } = await supabase
       .from('activities')
       .select('*')
@@ -637,8 +634,33 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
       setGoogleIds(new Set());
       setActivities(acts || []);
     }
+  }, [accountId]);
+
+  const loadActivities = useCallback(async () => {
+    setLoading(true);
+    const { start, end } = getDateRange();
+
+    // Phase 1: show cached DB data immediately
+    await fetchFromDb(start, end);
     setLoading(false);
-  }, [accountId, getDateRange]);
+
+    // Phase 2: pull fresh events from Google Calendar for this date range,
+    // then refresh the DB read so newly synced events appear
+    try {
+      const res = await fetch(
+        `/api/integrations/google/sync?accountId=${accountId}&start=${start.toISOString()}&end=${end.toISOString()}`
+      );
+      if (res.ok) {
+        const { synced } = await res.json();
+        // If any new events were synced, refresh from DB
+        if (synced > 0) {
+          await fetchFromDb(start, end);
+        }
+      }
+    } catch {
+      // Non-fatal — calendar works without Google sync
+    }
+  }, [accountId, getDateRange, fetchFromDb]);
 
   useEffect(() => {
     loadActivities();
