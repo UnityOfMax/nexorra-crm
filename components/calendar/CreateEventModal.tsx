@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Calendar, Clock, FileText } from 'lucide-react';
+import { X, Clock, FileText } from 'lucide-react';
 
 interface CreateEventModalProps {
   accountId: string;
@@ -9,6 +9,19 @@ interface CreateEventModalProps {
   onClose: () => void;
   onEventCreated: () => void;
   preselectedDate?: Date;
+}
+
+function defaultStart(preselectedDate?: Date): string {
+  const d = preselectedDate ? new Date(preselectedDate) : new Date();
+  // Round to nearest 30 min
+  d.setMinutes(d.getMinutes() < 30 ? 0 : 30, 0, 0);
+  return d.toISOString().slice(0, 16);
+}
+
+function addHour(dateTimeLocal: string): string {
+  const d = new Date(dateTimeLocal);
+  d.setHours(d.getHours() + 1);
+  return d.toISOString().slice(0, 16);
 }
 
 export default function CreateEventModal({
@@ -20,18 +33,37 @@ export default function CreateEventModal({
 }: CreateEventModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const startDefault = defaultStart(preselectedDate);
   const [formData, setFormData] = useState({
     subject: '',
     description: '',
-    dueDate: preselectedDate
-      ? preselectedDate.toISOString().slice(0, 16)
-      : new Date().toISOString().slice(0, 16)
+    startDate: startDefault,
+    endDate: addHour(startDefault),
   });
+
+  const handleStartChange = (val: string) => {
+    const newEnd = addHour(val);
+    setFormData(prev => ({
+      ...prev,
+      startDate: val,
+      // Only auto-adjust end if it was previously exactly start+1h (user hasn't customised it)
+      endDate: prev.endDate === addHour(prev.startDate) ? newEnd : prev.endDate,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    const startMs = new Date(formData.startDate).getTime();
+    const endMs = new Date(formData.endDate).getTime();
+    if (endMs <= startMs) {
+      setError('End time must be after start time.');
+      setLoading(false);
+      return;
+    }
+    const durationMinutes = Math.round((endMs - startMs) / 60000);
 
     try {
       const response = await fetch('/api/activities', {
@@ -42,7 +74,8 @@ export default function CreateEventModal({
           type: 'meeting',
           subject: formData.subject,
           description: formData.description,
-          dueDate: new Date(formData.dueDate).toISOString(),
+          dueDate: new Date(formData.startDate).toISOString(),
+          durationMinutes,
           createdBy: userId
         })
       });
@@ -101,17 +134,35 @@ export default function CreateEventModal({
             </div>
           </div>
 
-          {/* Date/Time */}
+          {/* Start Time */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date & Time *
+              Start Time *
             </label>
             <div className="relative">
               <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="datetime-local"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                value={formData.startDate}
+                onChange={(e) => handleStartChange(e.target.value)}
+                className="input pl-10"
+                required
+              />
+            </div>
+          </div>
+
+          {/* End Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Time *
+            </label>
+            <div className="relative">
+              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="datetime-local"
+                value={formData.endDate}
+                min={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 className="input pl-10"
                 required
               />

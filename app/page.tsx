@@ -12,6 +12,7 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const initialView = searchParams.get('view') || undefined;
+  const initialAccountId = searchParams.get('account') || undefined;
 
   useEffect(() => {
     // Check active sessions
@@ -40,7 +41,7 @@ function HomeContent() {
 
   return (
     <main className="min-h-screen">
-      {!user ? <AuthForm /> : <Dashboard user={user} initialView={initialView} />}
+      {!user ? <AuthForm /> : <Dashboard user={user} initialView={initialView} initialAccountId={initialAccountId} />}
     </main>
   );
 }

@@ -68,7 +68,7 @@ export async function getGoogleCalendarClient(accountId: string) {
 /**
  * Sync a CRM activity to Google Calendar
  */
-export async function syncActivityToGoogle(activityId: string, accountId: string) {
+export async function syncActivityToGoogle(activityId: string, accountId: string, durationMinutes?: number) {
   try {
     const calendar = await getGoogleCalendarClient(accountId);
     if (!calendar) return;
@@ -97,9 +97,10 @@ export async function syncActivityToGoogle(activityId: string, accountId: string
       .eq('activity_id', activityId)
       .single();
 
-    // Calculate end time (default to 1 hour after start)
+    // Calculate end time using provided duration, or default to 1 hour
     const startTime = new Date(activity.due_date);
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    const durationMs = (durationMinutes ?? 60) * 60 * 1000;
+    const endTime = new Date(startTime.getTime() + durationMs);
 
     const eventData = {
       summary: activity.subject || 'CRM Meeting',

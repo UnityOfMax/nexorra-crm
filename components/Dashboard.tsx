@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Account, Contact } from '@/types';
@@ -20,9 +21,11 @@ import type { UserRole } from '@/types/agency';
 interface DashboardProps {
   user: User;
   initialView?: string;
+  initialAccountId?: string;
 }
 
-export default function Dashboard({ user, initialView }: DashboardProps) {
+export default function Dashboard({ user, initialView, initialAccountId }: DashboardProps) {
+  const router = useRouter();
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [agencyAccount, setAgencyAccount] = useState<Account | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -39,6 +42,8 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
   });
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
+  // Track whether initial URL state has been restored (prevent overwriting URL on first load)
+  const urlRestoredRef = useRef(false);
 
   useEffect(() => {
     loadAccounts();
@@ -56,6 +61,17 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
       loadClientAccounts();
     }
   }, [agencyAccount, isAgencyUser]);
+
+  // Persist view + account in URL so page refresh restores state
+  useEffect(() => {
+    if (!urlRestoredRef.current) return; // don't overwrite URL during initial load
+    if (!currentAccount) return;
+    const params = new URLSearchParams();
+    if (activeView && activeView !== 'dashboard') params.set('view', activeView);
+    params.set('account', currentAccount.id);
+    const query = params.toString();
+    router.replace(query ? `/?${query}` : '/');
+  }, [activeView, currentAccount]);
 
   const loadAccounts = async () => {
     const { data, error } = await supabase
@@ -77,7 +93,12 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
       setAccounts(accountsList);
 
       if (accountsList.length > 0) {
-        const firstAccount = accountsList[0];
+        // If URL has an account param, try to find it in the user's own accounts first
+        const urlAccount = initialAccountId
+          ? accountsList.find((a: Account) => a.id === initialAccountId)
+          : null;
+
+        const firstAccount = urlAccount || accountsList[0];
         const membership = data.find((item: any) => item.account_id === firstAccount.id);
 
         setUserRole(membership?.role as UserRole);
@@ -88,9 +109,14 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
 
         if (userIsAgency) {
           setAgencyAccount(firstAccount);
-          setActiveView(initialView || 'dashboard');
-        } else if (initialView) {
-          setActiveView(initialView);
+          // initialView will be applied after client accounts load (see loadClientAccounts)
+          if (!initialAccountId || urlAccount) {
+            setActiveView(initialView || 'dashboard');
+            urlRestoredRef.current = true;
+          }
+        } else {
+          if (initialView) setActiveView(initialView);
+          urlRestoredRef.current = true;
         }
       }
     }
@@ -121,7 +147,19 @@ export default function Dashboard({ user, initialView }: DashboardProps) {
 
       if (response.ok) {
         const data = await response.json();
-        setClientAccounts(data.clients || []);
+        const clients: Account[] = data.clients || [];
+        setClientAccounts(clients);
+
+        // If URL had a sub-account ID, switch to it now that we have the list
+        if (initialAccountId && !urlRestoredRef.current) {
+          const subAccount = clients.find((c) => c.id === initialAccountId);
+          if (subAccount) {
+            setCurrentAccount(subAccount);
+            setIsViewingClient(true);
+          }
+          if (initialView) setActiveView(initialView);
+          urlRestoredRef.current = true;
+        }
       }
     } catch (error) {
       console.error('Error loading client accounts:', error);

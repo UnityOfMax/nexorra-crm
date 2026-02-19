@@ -6,6 +6,16 @@ import { supabase } from '@/lib/supabase';
 import { Activity } from '@/types';
 import CreateEventModal from './CreateEventModal';
 
+// Use the API route (supabaseAdmin) so agency users can see sub-account calendars
+// despite not being in account_members for sub-accounts (RLS bypass).
+async function fetchCalendarData(accountId: string, start: Date, end: Date) {
+  const res = await fetch(
+    `/api/calendar?accountId=${accountId}&start=${start.toISOString()}&end=${end.toISOString()}`
+  );
+  if (!res.ok) throw new Error('Failed to fetch calendar data');
+  return res.json() as Promise<{ activities: Activity[]; googleIds: string[] }>;
+}
+
 interface CalendarViewProps {
   accountId: string;
   userId: string;
@@ -612,27 +622,14 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
   }, [view, currentDate]);
 
   const fetchFromDb = useCallback(async (start: Date, end: Date) => {
-    const { data: acts } = await supabase
-      .from('activities')
-      .select('*')
-      .eq('account_id', accountId)
-      .eq('type', 'meeting')
-      .gte('due_date', start.toISOString())
-      .lte('due_date', end.toISOString())
-      .order('due_date', { ascending: true });
-
-    if (acts && acts.length > 0) {
-      const { data: syncs } = await supabase
-        .from('google_calendar_sync')
-        .select('activity_id')
-        .in('activity_id', acts.map((a: Activity) => a.id))
-        .eq('sync_direction', 'google_to_crm');
-
-      setGoogleIds(new Set((syncs || []).map((s: any) => s.activity_id)));
+    try {
+      const { activities: acts, googleIds: gIds } = await fetchCalendarData(accountId, start, end);
+      setGoogleIds(new Set(gIds));
       setActivities(acts);
-    } else {
+    } catch (err) {
+      console.error('Failed to fetch calendar data:', err);
+      setActivities([]);
       setGoogleIds(new Set());
-      setActivities(acts || []);
     }
   }, [accountId]);
 
@@ -666,16 +663,19 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     loadActivities();
   }, [loadActivities]);
 
-  // Real-time subscription
+  // Real-time subscription — no filter so agency users viewing sub-accounts
+  // still get live updates. We check accountId in the handler.
   useEffect(() => {
     const channel = supabase
-      .channel('calendar-activities')
+      .channel(`calendar-activities-${accountId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'activities',
-        filter: `account_id=eq.${accountId}`,
-      }, () => loadActivities())
+      }, (payload: any) => {
+        const rowAccountId = payload.new?.account_id || payload.old?.account_id;
+        if (rowAccountId === accountId) loadActivities();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [accountId, loadActivities]);

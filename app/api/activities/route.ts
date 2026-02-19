@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
       subject,
       description,
       dueDate,
+      durationMinutes,
       createdBy
     } = await request.json();
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     // If meeting with due date, sync to Google Calendar immediately
     if (type === 'meeting' && dueDate) {
       try {
-        await syncActivityToGoogle(activity.id, accountId);
+        await syncActivityToGoogle(activity.id, accountId, durationMinutes);
       } catch (err) {
         console.error('Failed to sync to Google Calendar:', err);
         // Non-fatal — activity is already saved
