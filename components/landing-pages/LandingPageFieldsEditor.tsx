@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Plus, Trash2, Save, Loader, Star } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Plus, Trash2, Save, Loader, Star, Upload, ImageIcon } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import type { LandingPage } from '@/types';
 
 interface LandingPageFieldsEditorProps {
@@ -14,7 +15,6 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
   const content = page.content || { blocks: [], styles: {} };
   const blocks = content.blocks || [];
 
-  // Pull initial values from blocks
   const heroBlock = blocks.find((b: any) => b.type === 're_hero');
   const aboutBlock = blocks.find((b: any) => b.type === 're_about');
   const reviewsBlock = blocks.find((b: any) => b.type === 're_reviews');
@@ -24,6 +24,7 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'hero' | 'about' | 'reviews' | 'location' | 'footer' | 'form' | 'tracking'>('hero');
+  const [locationAutoFilled, setLocationAutoFilled] = useState(false);
 
   // Hero
   const [agentName, setAgentName] = useState(heroBlock?.data?.agentName || '');
@@ -59,7 +60,7 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
   const [brokerage, setBrokerage] = useState(footerBlock?.data?.brokerage || '');
   const [license, setLicense] = useState(footerBlock?.data?.license || '');
 
-  // Available hours for calendar
+  // Calendar availability
   const [availStart, setAvailStart] = useState(page.content?.calendarSettings?.startHour ?? 9);
   const [availEnd, setAvailEnd] = useState(page.content?.calendarSettings?.endHour ?? 17);
 
@@ -72,11 +73,92 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
     existingPixels.find((p: any) => p.name === 'Custom Scripts')?.code || ''
   );
 
+  // Image upload state
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [uploadingAbout, setUploadingAbout] = useState(false);
+  const profileFileRef = useRef<HTMLInputElement>(null);
+  const aboutFileRef = useRef<HTMLInputElement>(null);
+
+  // On mount: fetch account location info and auto-fill blank / ourlimitedoffer fields
+  useEffect(() => {
+    async function fetchLocationInfo() {
+      if (!page.account_id) return;
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('settings')
+        .eq('id', page.account_id)
+        .single();
+
+      const loc = account?.settings?.location_info || account?.settings?.location;
+      if (!loc) return;
+
+      let filled = false;
+
+      setPhone((prev: string) => {
+        const needsFill = !prev || prev.includes('ourlimitedoffer');
+        if (needsFill && loc.phone) { filled = true; return loc.phone; }
+        return prev;
+      });
+
+      setEmail((prev: string) => {
+        const needsFill = !prev || prev.includes('ourlimitedoffer');
+        if (needsFill && loc.email) { filled = true; return loc.email; }
+        return prev;
+      });
+
+      setAddress((prev: string) => {
+        if (!prev && loc.address) { filled = true; return loc.address; }
+        return prev;
+      });
+
+      if (filled) setLocationAutoFilled(true);
+    }
+    fetchLocationInfo();
+  }, [page.account_id]);
+
+  const resetToAccountInfo = async () => {
+    if (!page.account_id) return;
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('settings')
+      .eq('id', page.account_id)
+      .single();
+    const loc = account?.settings?.location_info || account?.settings?.location;
+    if (!loc) return;
+    if (loc.phone) setPhone(loc.phone);
+    if (loc.email) setEmail(loc.email);
+    if (loc.address) setAddress(loc.address);
+    setLocationAutoFilled(true);
+  };
+
+  const uploadImage = async (
+    file: File,
+    setUrl: (url: string) => void,
+    setUploading: (v: boolean) => void
+  ) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('accountId', page.account_id);
+      const res = await fetch('/api/landing-pages/upload-image', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setUrl(data.url);
+      } else {
+        alert('Upload failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setMessage('');
     try {
-      // Rebuild content with updated block data
       const updatedBlocks = content.blocks.map((block: any) => {
         switch (block.type) {
           case 're_hero':
@@ -101,14 +183,9 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
         calendarSettings: { startHour: availStart, endHour: availEnd },
       };
 
-      // Build tracking_pixels array — only include non-empty entries
       const trackingPixels: any[] = [];
-      if (fbPixelCode.trim()) {
-        trackingPixels.push({ id: 'fb-pixel', name: 'Facebook Pixel', code: fbPixelCode.trim() });
-      }
-      if (customScripts.trim()) {
-        trackingPixels.push({ id: 'custom-scripts', name: 'Custom Scripts', code: customScripts.trim() });
-      }
+      if (fbPixelCode.trim()) trackingPixels.push({ id: 'fb-pixel', name: 'Facebook Pixel', code: fbPixelCode.trim() });
+      if (customScripts.trim()) trackingPixels.push({ id: 'custom-scripts', name: 'Custom Scripts', code: customScripts.trim() });
 
       const res = await fetch(`/api/landing-pages/${page.id}`, {
         method: 'PUT',
@@ -136,14 +213,9 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
     }
   };
 
-  const addReview = () => {
-    setReviews(prev => [...prev, { text: '', author: '', location: '', rating: 5 }]);
-  };
-
-  const updateReview = (i: number, field: string, value: string | number) => {
+  const addReview = () => setReviews(prev => [...prev, { text: '', author: '', location: '', rating: 5 }]);
+  const updateReview = (i: number, field: string, value: string | number) =>
     setReviews(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
-  };
-
   const removeReview = (i: number) => setReviews(prev => prev.filter((_, idx) => idx !== i));
 
   const tabs: { id: typeof activeTab; label: string }[] = [
@@ -193,8 +265,37 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
               <Field label="Agent Name" value={agentName} onChange={setAgentName} placeholder="Jane Smith" />
               <Field label="Title / Role" value={agentTitle} onChange={setAgentTitle} placeholder="Licensed Real Estate Agent" />
               <TextArea label="Subtitle / Tagline" value={subtitle} onChange={setSubtitle} rows={2} placeholder="Helping families find their dream home for over 15 years..." />
-              <Field label="Profile Photo URL" value={profileImageUrl} onChange={setProfileImageUrl} placeholder="https://..." />
-              {profileImageUrl && <img src={profileImageUrl} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />}
+
+              {/* Profile photo */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">Profile Photo</label>
+                <div className="flex items-center gap-3 mb-2">
+                  {profileImageUrl ? (
+                    <img src={profileImageUrl} alt="Profile" className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center flex-shrink-0">
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <button
+                      type="button"
+                      onClick={() => profileFileRef.current?.click()}
+                      disabled={uploadingProfile}
+                      className="btn btn-secondary flex items-center gap-2 text-sm mb-1"
+                    >
+                      {uploadingProfile ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploadingProfile ? 'Uploading…' : 'Upload Photo'}
+                    </button>
+                    <p className="text-xs text-gray-500">JPG, PNG, WebP · max 5 MB</p>
+                  </div>
+                </div>
+                <input ref={profileFileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, setProfileImageUrl, setUploadingProfile); e.target.value = ''; }} />
+                <input type="text" value={profileImageUrl} onChange={e => setProfileImageUrl(e.target.value)}
+                  placeholder="Or paste an image URL…" className="input text-sm" />
+              </div>
+
               <Field label="CTA Button Text" value={ctaText} onChange={setCtaText} placeholder="View Available Homes" />
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -219,7 +320,39 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
             <>
               <Field label="Section Heading" value={aboutHeading} onChange={setAboutHeading} placeholder="About Jane" />
               <TextArea label="Bio" value={bio} onChange={setBio} rows={5} placeholder="Tell your story..." />
-              <Field label="About Photo URL (optional, different from profile)" value={agentPhotoUrl} onChange={setAgentPhotoUrl} placeholder="https://..." />
+
+              {/* About photo */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">
+                  About Section Photo <span className="text-gray-400 font-normal text-xs">(optional · different from hero photo)</span>
+                </label>
+                <div className="flex items-center gap-3 mb-2">
+                  {agentPhotoUrl ? (
+                    <img src={agentPhotoUrl} alt="About" className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200 flex-shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center flex-shrink-0">
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <button
+                      type="button"
+                      onClick={() => aboutFileRef.current?.click()}
+                      disabled={uploadingAbout}
+                      className="btn btn-secondary flex items-center gap-2 text-sm mb-1"
+                    >
+                      {uploadingAbout ? <Loader className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploadingAbout ? 'Uploading…' : 'Upload Photo'}
+                    </button>
+                    <p className="text-xs text-gray-500">JPG, PNG, WebP · max 5 MB</p>
+                  </div>
+                </div>
+                <input ref={aboutFileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, setAgentPhotoUrl, setUploadingAbout); e.target.value = ''; }} />
+                <input type="text" value={agentPhotoUrl} onChange={e => setAgentPhotoUrl(e.target.value)}
+                  placeholder="Or paste an image URL…" className="input text-sm" />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Years of Experience</label>
@@ -241,7 +374,8 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <input value={newSpecialty} onChange={e => setNewSpecialty(e.target.value)} onKeyDown={e => e.key === 'Enter' && addSpecialty()} placeholder="Add specialty..." className="input flex-1" />
+                  <input value={newSpecialty} onChange={e => setNewSpecialty(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addSpecialty()} placeholder="Add specialty..." className="input flex-1" />
                   <button onClick={addSpecialty} className="btn btn-secondary px-3"><Plus className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -281,21 +415,24 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
 
           {activeTab === 'location' && (
             <>
+              {locationAutoFilled && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                  <p className="text-sm text-blue-800">Contact info pre-filled from account location data.</p>
+                  <button onClick={resetToAccountInfo} className="text-xs text-blue-700 font-medium hover:underline ml-3 whitespace-nowrap">
+                    Reset to account info
+                  </button>
+                </div>
+              )}
               <Field label="Section Heading" value={locHeading} onChange={setLocHeading} />
               <Field label="Office Address" value={address} onChange={setAddress} placeholder="123 Main St, Miami, FL 33131" />
               <Field label="Phone Number" value={phone} onChange={setPhone} placeholder="(305) 555-0123" />
               <Field label="Email Address" value={email} onChange={setEmail} placeholder="jane@example.com" />
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Google Maps Embed URL</label>
-                <textarea
-                  value={mapEmbedUrl}
-                  onChange={e => setMapEmbedUrl(e.target.value)}
-                  className="input font-mono text-xs"
-                  rows={3}
-                  placeholder="https://www.google.com/maps/embed?pb=..."
-                />
+                <textarea value={mapEmbedUrl} onChange={e => setMapEmbedUrl(e.target.value)}
+                  className="input font-mono text-xs" rows={3} placeholder="https://www.google.com/maps/embed?pb=..." />
                 <p className="text-xs text-gray-500 mt-1">
-                  Get this from Google Maps → Share → Embed a map → copy the URL from the src attribute
+                  Google Maps → Share → Embed a map → copy the URL from the src attribute
                 </p>
               </div>
             </>
@@ -347,42 +484,23 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
                   Paste your tracking code below and click Save. It will automatically be injected into the page head when leads visit it. The pixel events (ViewContent, Lead, Schedule) fire automatically at the right steps.
                 </p>
               </div>
-
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Facebook Pixel Code
-                </label>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Facebook Pixel Code</label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Go to Facebook Events Manager → your Pixel → Setup → Install code manually → copy the full base code and paste it here.
+                  Facebook Events Manager → your Pixel → Setup → Install code manually → copy the full base code.
                 </p>
-                <textarea
-                  value={fbPixelCode}
-                  onChange={e => setFbPixelCode(e.target.value)}
-                  rows={8}
+                <textarea value={fbPixelCode} onChange={e => setFbPixelCode(e.target.value)} rows={8}
                   className="input font-mono text-xs resize-none"
                   placeholder={`<!-- Meta Pixel Code -->\n<script>\n!function(f,b,e,v,n,t,s){...}\nfbq('init', 'YOUR_PIXEL_ID');\nfbq('track', 'PageView');\n</script>`}
-                  spellCheck={false}
-                />
-                {fbPixelCode.includes('fbq(') && (
-                  <p className="text-xs text-green-600 mt-1">✅ Facebook Pixel code detected</p>
-                )}
+                  spellCheck={false} />
+                {fbPixelCode.includes('fbq(') && <p className="text-xs text-green-600 mt-1">✅ Facebook Pixel code detected</p>}
               </div>
-
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Additional Scripts (optional)
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Google Tag Manager, TikTok Pixel, or any other tracking code.
-                </p>
-                <textarea
-                  value={customScripts}
-                  onChange={e => setCustomScripts(e.target.value)}
-                  rows={5}
+                <label className="text-sm font-medium text-gray-700 block mb-1">Additional Scripts (optional)</label>
+                <p className="text-xs text-gray-500 mb-2">Google Tag Manager, TikTok Pixel, or any other tracking code.</p>
+                <textarea value={customScripts} onChange={e => setCustomScripts(e.target.value)} rows={5}
                   className="input font-mono text-xs resize-none"
-                  placeholder="<!-- Paste any other tracking scripts here -->"
-                  spellCheck={false}
-                />
+                  placeholder="<!-- Paste any other tracking scripts here -->" spellCheck={false} />
               </div>
             </>
           )}
