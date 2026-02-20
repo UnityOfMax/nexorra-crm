@@ -14,7 +14,8 @@ export interface LandingPageBlock {
     | 're_about'
     | 're_reviews'
     | 're_location'
-    | 're_footer';
+    | 're_footer'
+    | 're_properties';
   data: Record<string, any>;
   order: number;
 }

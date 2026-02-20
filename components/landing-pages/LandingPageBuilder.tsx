@@ -188,7 +188,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
             {published ? <><EyeOff className="w-4 h-4" /> Unpublish</> : <><Globe className="w-4 h-4" /> Publish</>}
           </button>
           {published && (
-            <a href={`/p/${pageSlug}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary text-sm flex items-center gap-1">
+            <a href={`https://${pageSlug}.ourlimitedoffer.com`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary text-sm flex items-center gap-1">
               <Eye className="w-4 h-4" /> View
             </a>
           )}
@@ -205,12 +205,19 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           <h3 className="font-semibold text-gray-900 mb-3">Page Settings</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Page Slug</label>
-              <input
-                value={pageSlug}
-                onChange={(e) => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                className="input text-sm"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain / URL</label>
+              <div className="flex items-center gap-1">
+                <input
+                  value={pageSlug}
+                  onChange={(e) => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  className="input text-sm flex-1 min-w-0"
+                  placeholder="yourname"
+                />
+                <span className="text-sm text-gray-400 whitespace-nowrap">.ourlimitedoffer.com</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Live at: <span className="font-mono text-gray-700">{pageSlug}.ourlimitedoffer.com</span>
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>

@@ -189,7 +189,7 @@ export default function LandingPageList({ accountId, isAgencyUser }: LandingPage
                     >
                       {page.name}
                     </h3>
-                    <p className="text-sm text-gray-500">/p/{page.slug}</p>
+                    <p className="text-sm text-gray-500 font-mono">{page.slug}.ourlimitedoffer.com</p>
                   </div>
                   <span className={`ml-2 px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${
                     page.published
@@ -229,7 +229,7 @@ export default function LandingPageList({ accountId, isAgencyUser }: LandingPage
                   </button>
                   {page.published && (
                     <a
-                      href={`/p/${page.slug}`}
+                      href={`https://${page.slug}.ourlimitedoffer.com`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"

@@ -143,39 +143,99 @@ export default function LandingPageRenderer({
 
       case 're_reviews': {
         const accent = block.data.accentColor || styles.primaryColor;
+        const reviews = block.data.reviews || [];
+        // Duplicate for seamless infinite loop: when we reach -50% translateX we're back at start
+        const doubled = [...reviews, ...reviews];
+        const cardW = 300;
+        const cardGap = 20;
         return (
-          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#f9fafb', padding: 'clamp(48px,8vw,72px) 24px' }}>
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#f9fafb', padding: 'clamp(48px,8vw,72px) 0' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', paddingLeft: '24px', paddingRight: '24px' }}>
               <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', textAlign: 'center', marginBottom: '40px' }}>
                 {block.data.heading || 'What My Clients Say'}
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-                {(block.data.reviews || []).map((review: any, i: number) => (
-                  <div key={i} style={{ background: '#fff', borderRadius: '16px', padding: 'clamp(20px,3vw,28px)', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', borderTop: `4px solid ${accent}` }}>
-                    <div style={{ marginBottom: '14px' }}>
+            </div>
+            {/* Marquee — full width, no horizontal padding so cards reach edges */}
+            <div style={{ overflow: 'hidden', width: '100%', marginBottom: '40px' }}>
+              <div
+                style={{ display: 'flex', gap: `${cardGap}px`, width: 'max-content', animation: 're-scroll-left 45s linear infinite' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.animationPlayState = 'paused'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.animationPlayState = 'running'; }}
+              >
+                {doubled.map((review: any, i: number) => (
+                  <div key={i} style={{ background: '#fff', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', borderTop: `4px solid ${accent}`, width: `${cardW}px`, flexShrink: 0 }}>
+                    <div style={{ marginBottom: '12px' }}>
                       {Array.from({ length: review.rating || 5 }).map((_, si) => (
-                        <span key={si} style={{ color: accent, fontSize: '1.1rem' }}>★</span>
+                        <span key={si} style={{ color: accent, fontSize: '1rem' }}>★</span>
                       ))}
                     </div>
-                    <p style={{ color: '#374151', lineHeight: 1.7, fontStyle: 'italic', marginBottom: '16px', fontSize: '0.95rem' }}>
+                    <p style={{ color: '#374151', lineHeight: 1.7, fontStyle: 'italic', marginBottom: '16px', fontSize: '0.9rem' }}>
                       &ldquo;{review.text}&rdquo;
                     </p>
                     <div>
-                      <p style={{ fontWeight: '700', color: '#111827', fontSize: '0.9rem' }}>{review.author}</p>
-                      <p style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{review.location}</p>
+                      <p style={{ fontWeight: '700', color: '#111827', fontSize: '0.875rem' }}>{review.author}</p>
+                      <p style={{ color: '#9ca3af', fontSize: '0.78rem' }}>{review.location}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <button
-                  onClick={isPreview ? undefined : (onCtaClick || undefined)}
-                  style={{ padding: 'clamp(12px,2vw,16px) clamp(28px,5vw,40px)', background: accent, color: '#111827', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: 'clamp(0.95rem,2vw,1.05rem)', cursor: isPreview ? 'default' : 'pointer', boxShadow: `0 4px 20px ${accent}55`, transition: 'transform 0.15s' }}
-                  onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-                >
-                  {block.data.ctaText || 'Find Your Dream Home'}
-                </button>
+            </div>
+            <div style={{ textAlign: 'center', paddingLeft: '24px', paddingRight: '24px' }}>
+              <button
+                onClick={isPreview ? undefined : (onCtaClick || undefined)}
+                style={{ padding: 'clamp(12px,2vw,16px) clamp(28px,5vw,40px)', background: accent, color: '#111827', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: 'clamp(0.95rem,2vw,1.05rem)', cursor: isPreview ? 'default' : 'pointer', boxShadow: `0 4px 20px ${accent}55`, transition: 'transform 0.15s' }}
+                onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+              >
+                {block.data.ctaText || 'Find Your Dream Home'}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      case 're_properties': {
+        const accent = block.data.accentColor || styles.primaryColor;
+        const properties = block.data.properties || [];
+        const doubled = [...properties, ...properties];
+        const propW = 240;
+        const propGap = 16;
+        return (
+          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#fff', padding: 'clamp(48px,8vw,72px) 0' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', paddingLeft: '24px', paddingRight: '24px' }}>
+              <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', marginBottom: '8px' }}>
+                {block.data.heading || 'Recent Sales'}
+              </h2>
+              {block.data.subheading && (
+                <p style={{ color: '#6b7280', marginBottom: '32px', fontSize: '1rem' }}>{block.data.subheading}</p>
+              )}
+            </div>
+            <div style={{ overflow: 'hidden', width: '100%', paddingBottom: '8px' }}>
+              <div
+                style={{ display: 'flex', gap: `${propGap}px`, width: 'max-content', animation: `re-scroll-left ${Math.max(30, properties.length * 6)}s linear infinite` }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.animationPlayState = 'paused'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.animationPlayState = 'running'; }}
+              >
+                {doubled.map((prop: any, i: number) => (
+                  <div key={i} style={{ width: `${propW}px`, flexShrink: 0, background: '#f9fafb', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+                    {prop.imageUrl ? (
+                      <img src={prop.imageUrl} alt={prop.address} style={{ width: '100%', height: '150px', objectFit: 'cover', display: 'block' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '150px', background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🏠</div>
+                    )}
+                    <div style={{ padding: '14px' }}>
+                      <span style={{ display: 'inline-block', padding: '2px 10px', background: accent, color: '#111827', borderRadius: '50px', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        {prop.status || 'Sold'}
+                      </span>
+                      {prop.price && <p style={{ fontWeight: '800', color: '#111827', fontSize: '1rem', marginBottom: '4px' }}>{prop.price}</p>}
+                      <p style={{ color: '#374151', fontSize: '0.8rem', lineHeight: 1.4, marginBottom: '8px' }}>{prop.address}</p>
+                      <p style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                        {[prop.beds && `${prop.beds} bd`, prop.baths && `${prop.baths} ba`, prop.sqft && `${prop.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
+                      </p>
+                      {prop.date && <p style={{ color: '#9ca3af', fontSize: '0.72rem', marginTop: '4px' }}>{prop.date}</p>}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -365,6 +425,12 @@ export default function LandingPageRenderer({
 
   return (
     <div style={{ fontFamily: styles.fontFamily || 'Inter, sans-serif', backgroundColor: styles.backgroundColor || '#ffffff', minHeight: isPreview ? '100%' : '100vh' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes re-scroll-left {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}} />
       {sortedBlocks.length === 0 && isPreview && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: '#9ca3af', fontSize: '1.1rem' }}>
           Add blocks to start building your page
