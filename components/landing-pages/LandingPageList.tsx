@@ -64,10 +64,19 @@ export default function LandingPageList({ accountId, isAgencyUser }: LandingPage
 
   const togglePublish = async (page: LandingPage) => {
     try {
-      const response = await fetch(`/api/landing-pages/${page.id}/publish`, {
-        method: 'POST',
+      // Use full PUT so slug and content are always persisted alongside the publish state
+      const response = await fetch(`/api/landing-pages/${page.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ published: !page.published }),
+        body: JSON.stringify({
+          name: page.name,
+          slug: page.slug,
+          content: page.content,
+          meta_title: page.meta_title,
+          meta_description: page.meta_description,
+          tracking_pixels: page.tracking_pixels,
+          published: !page.published,
+        }),
       });
       if (response.ok) {
         loadPages();

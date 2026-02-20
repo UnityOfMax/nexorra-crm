@@ -22,7 +22,12 @@ export function middleware(request: NextRequest) {
   const remainingPath = url.pathname === '/' ? '' : url.pathname;
   url.pathname = `/p/${subdomain}${remainingPath}`;
 
-  return NextResponse.rewrite(url);
+  const response = NextResponse.rewrite(url);
+  // Prevent any CDN (Vercel edge, Cloudflare, etc.) from caching the
+  // rewritten response so that edits appear immediately after saving.
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+  response.headers.set('Pragma', 'no-cache');
+  return response;
 }
 
 export const config = {
