@@ -137,12 +137,27 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
   const togglePublish = async () => {
     const next = !published;
     setPublished(next);
+    // Full save so slug and all settings are persisted when publishing
     try {
-      await fetch(`/api/landing-pages/${page.id}/publish`, {
-        method: 'POST',
+      const response = await fetch(`/api/landing-pages/${page.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ published: next }),
+        body: JSON.stringify({
+          name: pageName,
+          slug: pageSlug,
+          content,
+          meta_title: metaTitle,
+          meta_description: metaDescription,
+          tracking_pixels: trackingPixels,
+          published: next,
+        }),
       });
+      if (response.ok) {
+        setSaveMessage(next ? 'Published!' : 'Unpublished');
+        setTimeout(() => setSaveMessage(''), 2000);
+      } else {
+        setPublished(!next);
+      }
     } catch {
       setPublished(!next);
     }

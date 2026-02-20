@@ -81,31 +81,38 @@ export default function LandingPageRenderer({
 
       case 're_about': {
         const accent = block.data.accentColor || styles.primaryColor;
+        // Use explicit stats array if provided, otherwise fall back to yearsExperience/dealsClosed
+        const statsItems: { value: string; label: string }[] = block.data.stats?.length
+          ? block.data.stats
+          : [
+              ...(block.data.yearsExperience ? [{ value: `${block.data.yearsExperience}+`, label: 'Years Experience' }] : []),
+              ...(block.data.dealsClosed ? [{ value: `${block.data.dealsClosed}+`, label: 'Homes Closed' }] : []),
+            ];
         return (
-          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#fff', padding: 'clamp(48px,8vw,72px) 24px' }}>
+          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#fff', padding: 'clamp(48px,8vw,72px) clamp(16px,4vw,24px)' }}>
             <div style={{ maxWidth: '960px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(24px,4vw,48px)', alignItems: 'center' }}>
-                <div style={{ flex: '0 0 auto', margin: '0 auto' }}>
+              <div className="re-about-layout" style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(24px,4vw,48px)', alignItems: 'flex-start' }}>
+                <div className="re-about-photo" style={{ flex: '0 0 auto', margin: '0 auto' }}>
                   {block.data.agentPhotoUrl ? (
-                    <img src={block.data.agentPhotoUrl} alt="Agent" style={{ width: 'clamp(160px,30vw,220px)', height: 'clamp(200px,36vw,260px)', objectFit: 'cover', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }} />
+                    <img src={block.data.agentPhotoUrl} alt="Agent" style={{ width: 'clamp(140px,28vw,210px)', height: 'clamp(175px,34vw,260px)', objectFit: 'cover', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', display: 'block' }} />
                   ) : (
-                    <div style={{ width: 'clamp(160px,30vw,220px)', height: 'clamp(180px,32vw,260px)', background: '#f3f4f6', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>👤</div>
+                    <div style={{ width: 'clamp(140px,28vw,210px)', height: 'clamp(175px,34vw,260px)', background: '#f3f4f6', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>👤</div>
                   )}
                 </div>
-                <div style={{ flex: '1 1 260px' }}>
+                <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                   <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.8rem', marginBottom: '12px' }}>About Me</p>
-                  <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', marginBottom: '16px', lineHeight: 1.2 }}>{block.data.heading || 'About Your Agent'}</h2>
-                  <p style={{ color: '#4b5563', lineHeight: 1.75, marginBottom: '28px', fontSize: '1rem' }}>{block.data.bio}</p>
-                  <div style={{ display: 'flex', gap: '32px', marginBottom: '28px', flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ fontSize: '2rem', fontWeight: '800', color: accent }}>{block.data.yearsExperience}+</div>
-                      <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>Years Experience</div>
+                  <h2 style={{ fontSize: 'clamp(1.4rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', marginBottom: '16px', lineHeight: 1.2 }}>{block.data.heading || 'About Your Agent'}</h2>
+                  <p style={{ color: '#4b5563', lineHeight: 1.75, marginBottom: '28px', fontSize: '1rem', whiteSpace: 'pre-line' }}>{block.data.bio}</p>
+                  {statsItems.length > 0 && (
+                    <div style={{ display: 'flex', gap: 'clamp(16px,3vw,32px)', marginBottom: '28px', flexWrap: 'wrap' }}>
+                      {statsItems.map((stat, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: 'clamp(1.4rem,3vw,2rem)', fontWeight: '800', color: accent, lineHeight: 1.1 }}>{stat.value}</div>
+                          <div style={{ fontSize: '0.82rem', color: '#6b7280', fontWeight: '500', marginTop: '2px' }}>{stat.label}</div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <div style={{ fontSize: '2rem', fontWeight: '800', color: accent }}>{block.data.dealsClosed}+</div>
-                      <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>Homes Closed</div>
-                    </div>
-                  </div>
+                  )}
                   {block.data.specialties?.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {block.data.specialties.map((s: string) => (
@@ -115,27 +122,6 @@ export default function LandingPageRenderer({
                   )}
                 </div>
               </div>
-              {block.data.team?.length > 0 && (
-                <div style={{ marginTop: 'clamp(32px,5vw,48px)', borderTop: '1px solid #e5e7eb', paddingTop: 'clamp(28px,4vw,40px)' }}>
-                  <h3 style={{ fontSize: 'clamp(1.1rem,2.5vw,1.5rem)', fontWeight: '700', color: '#111827', marginBottom: '24px' }}>Meet the Team</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-                    {block.data.team.map((member: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#f9fafb', borderRadius: '16px', padding: '16px 20px', flex: '1 1 220px', maxWidth: '320px' }}>
-                        {member.photoUrl ? (
-                          <img src={member.photoUrl} alt={member.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${accent}` }} />
-                        ) : (
-                          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>👤</div>
-                        )}
-                        <div>
-                          <p style={{ fontWeight: '700', color: '#111827', fontSize: '0.95rem', marginBottom: '2px' }}>{member.name}</p>
-                          <p style={{ color: accent, fontSize: '0.78rem', fontWeight: '600', marginBottom: member.phone || member.email ? '4px' : '0' }}>{member.title}</p>
-                          {member.phone && <p style={{ color: '#6b7280', fontSize: '0.78rem' }}>{member.phone}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -429,6 +415,15 @@ export default function LandingPageRenderer({
         @keyframes re-scroll-left {
           0%   { transform: translateX(0); }
           100% { transform: translateX(-50%); }
+        }
+        /* Mobile responsive overrides */
+        @media (max-width: 600px) {
+          .re-about-layout { flex-direction: column !important; align-items: center !important; }
+          .re-about-photo { width: 100% !important; display: flex; justify-content: center; margin-bottom: 8px; }
+          .re-about-photo img, .re-about-photo div {
+            width: clamp(120px,55vw,180px) !important;
+            height: clamp(150px,65vw,220px) !important;
+          }
         }
       `}} />
       {sortedBlocks.length === 0 && isPreview && (
