@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // POST /api/landing-pages/[id]/publish
@@ -19,6 +20,11 @@ export async function POST(
     if (error) {
       console.error('Error toggling publish:', error);
       return NextResponse.json({ error: 'Failed to update publish status' }, { status: 500 });
+    }
+
+    // Purge Vercel Edge Network cache so publish/unpublish takes effect immediately
+    if (data?.slug) {
+      revalidatePath(`/p/${data.slug}`);
     }
 
     return NextResponse.json({ page: data });

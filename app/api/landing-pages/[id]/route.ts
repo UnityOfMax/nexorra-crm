@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // GET /api/landing-pages/[id]
@@ -51,6 +52,17 @@ export async function PUT(
     if (error) {
       console.error('Error updating landing page:', error);
       return NextResponse.json({ error: 'Failed to update page' }, { status: 500 });
+    }
+
+    // Purge Vercel's Edge Network cache for this page so changes appear immediately.
+    // revalidatePath clears both Next.js's Full Route Cache and the Vercel CDN cache
+    // for the path, including requests rewritten from wildcard subdomains.
+    if (data?.slug) {
+      revalidatePath(`/p/${data.slug}`);
+    }
+    // If the slug was changed, also purge the old slug so the old domain 404s cleanly.
+    if (slug && data?.slug !== slug) {
+      revalidatePath(`/p/${slug}`);
     }
 
     return NextResponse.json({ page: data });
