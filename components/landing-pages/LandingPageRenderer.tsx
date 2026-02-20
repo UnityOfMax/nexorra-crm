@@ -51,15 +51,16 @@ export default function LandingPageRenderer({
                   👤
                 </div>
               )}
-              <p style={{ color: accent, fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem', marginBottom: '10px' }}>
-                {block.data.title || 'Licensed Real Estate Agent'}
-              </p>
+              {block.data.title && (
+                <p style={{ color: accent, fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem', marginBottom: '10px' }}>
+                  {block.data.title}
+                </p>
+              )}
               <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 3.2rem)', fontWeight: '800', marginBottom: '16px', lineHeight: 1.15 }}>
                 {block.data.agentName || 'Your Agent Name'}
               </h1>
-              <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', opacity: 0.8, marginBottom: '40px', maxWidth: '560px', lineHeight: 1.65 }}>
-                {block.data.subtitle || 'Your subtitle goes here'}
-              </p>
+              <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', opacity: 0.8, marginBottom: '40px', maxWidth: '560px', lineHeight: 1.65 }}
+                dangerouslySetInnerHTML={{ __html: block.data.subtitle || 'Your subtitle goes here' }} />
               <button
                 onClick={isPreview ? undefined : (onCtaClick || undefined)}
                 style={{ padding: 'clamp(12px,2vw,16px) clamp(24px,4vw,40px)', background: accent, color: '#111827', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: 'clamp(0.95rem,2vw,1.05rem)', cursor: isPreview ? 'default' : 'pointer', boxShadow: `0 4px 20px ${accent}66`, transition: 'transform 0.15s', letterSpacing: '0.02em' }}
@@ -68,6 +69,11 @@ export default function LandingPageRenderer({
               >
                 {block.data.ctaText || 'View Available Homes'}
               </button>
+              {block.data.ctaSubtext && (
+                <p style={{ color: accent, fontSize: '0.78rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '10px', opacity: 0.9 }}>
+                  {block.data.ctaSubtext}
+                </p>
+              )}
             </div>
           </div>
         );
@@ -109,6 +115,27 @@ export default function LandingPageRenderer({
                   )}
                 </div>
               </div>
+              {block.data.team?.length > 0 && (
+                <div style={{ marginTop: 'clamp(32px,5vw,48px)', borderTop: '1px solid #e5e7eb', paddingTop: 'clamp(28px,4vw,40px)' }}>
+                  <h3 style={{ fontSize: 'clamp(1.1rem,2.5vw,1.5rem)', fontWeight: '700', color: '#111827', marginBottom: '24px' }}>Meet the Team</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+                    {block.data.team.map((member: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#f9fafb', borderRadius: '16px', padding: '16px 20px', flex: '1 1 220px', maxWidth: '320px' }}>
+                        {member.photoUrl ? (
+                          <img src={member.photoUrl} alt={member.name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${accent}` }} />
+                        ) : (
+                          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>👤</div>
+                        )}
+                        <div>
+                          <p style={{ fontWeight: '700', color: '#111827', fontSize: '0.95rem', marginBottom: '2px' }}>{member.name}</p>
+                          <p style={{ color: accent, fontSize: '0.78rem', fontWeight: '600', marginBottom: member.phone || member.email ? '4px' : '0' }}>{member.title}</p>
+                          {member.phone && <p style={{ color: '#6b7280', fontSize: '0.78rem' }}>{member.phone}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
