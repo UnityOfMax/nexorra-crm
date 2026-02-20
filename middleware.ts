@@ -17,8 +17,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Rewrite root (and any sub-paths) to /p/[subdomain]
   const url = request.nextUrl.clone();
+
+  // Let API calls and Next.js internals from the subdomain pass through unchanged.
+  // Without this, a client-side fetch to /api/... from lorijackson.ourlimitedoffer.com
+  // would get rewritten to /p/lorijackson/api/... and 404.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
+    return NextResponse.next();
+  }
+
+  // Rewrite root (and any non-API sub-paths) to /p/[subdomain]
   const remainingPath = url.pathname === '/' ? '' : url.pathname;
   url.pathname = `/p/${subdomain}${remainingPath}`;
 
