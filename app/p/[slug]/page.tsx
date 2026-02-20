@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
-import Script from 'next/script';
 import PublicPageClient from '@/components/landing-pages/PublicPageClient';
 
-export const dynamic = 'force-dynamic';
+// Page shell is cacheable – actual content is fetched client-side from
+// /api/landing-pages/public/[slug] which always bypasses the CDN.
+// This means edits appear immediately without any cache invalidation.
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const { data: page } = await supabaseAdmin
@@ -22,33 +22,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function PublicLandingPage({ params }: { params: { slug: string } }) {
-  const { data: page, error } = await supabaseAdmin
-    .from('landing_pages')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('published', true)
-    .single();
-
-  if (error || !page) {
-    notFound();
-  }
-
-  const trackingPixels = page.tracking_pixels || [];
-
-  return (
-    <>
-      <PublicPageClient content={page.content} accountId={page.account_id} />
-      {trackingPixels.map((pixel: any) => (
-        <Script
-          key={pixel.id}
-          id={`pixel-${pixel.id}`}
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: pixel.code.replace(/<\/?script[^>]*>/gi, ''),
-          }}
-        />
-      ))}
-    </>
-  );
+export default function PublicLandingPage({ params }: { params: { slug: string } }) {
+  return <PublicPageClient slug={params.slug} />;
 }
