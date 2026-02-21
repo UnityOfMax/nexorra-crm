@@ -130,6 +130,21 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
             </select>
           </div>
 
+          {/* Form answers from landing page lead capture */}
+          {contact.custom_fields && Object.keys(contact.custom_fields).length > 0 && (
+            <div className="border-t border-gray-200 pt-4 mt-2">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Lead Answers</h4>
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2 max-h-56 overflow-y-auto">
+                {Object.entries(contact.custom_fields).map(([key, value]) => (
+                  <div key={key}>
+                    <span className="block text-xs font-medium text-gray-500 uppercase tracking-wide">{key}</span>
+                    <span className="block text-sm text-gray-900 mt-0.5">{String(value || '—')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
               {error}

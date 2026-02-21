@@ -97,18 +97,18 @@ export default function CalendarBooking({
   const [tz] = useState(() => getLeadTimezone());
   const [bookedUtcs, setBookedUtcs] = useState<Set<string>>(new Set());
 
-  // Fetch existing meetings to prevent double-booking
+  // Fetch busy slots: CRM meetings + Google Calendar FreeBusy across all calendars.
+  // Uses the dedicated busy-slots endpoint which queries both sources server-side.
   useEffect(() => {
-    fetch(`/api/activities?accountId=${accountId}&type=meeting`)
+    fetch(`/api/landing-pages/busy-slots?accountId=${accountId}`)
       .then(r => r.json())
-      .then(({ activities }) => {
-        if (!activities?.length) return;
+      .then(({ busySlots }) => {
+        if (!busySlots?.length) return;
         const booked = new Set<string>();
         for (const slot of slots) {
           const slotMs = new Date(slot.utc).getTime();
-          for (const a of activities) {
-            if (!a.due_date) continue;
-            const diff = Math.abs(new Date(a.due_date).getTime() - slotMs);
+          for (const busyTs of busySlots as string[]) {
+            const diff = Math.abs(new Date(busyTs).getTime() - slotMs);
             if (diff < SLOT_DURATION_MIN * 60 * 1000) {
               booked.add(slot.utc);
             }
