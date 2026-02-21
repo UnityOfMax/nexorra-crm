@@ -87,6 +87,18 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }, [activeView, currentAccount, isViewingClient]);
 
   const loadAccounts = async () => {
+    // Suppress URL persistence while loading to avoid flickering to wrong URL mid-load
+    urlRestoredRef.current = false;
+
+    // Read actual current URL (handles window.history.pushState after initial load),
+    // so re-auth on tab focus restores the correct subaccount.
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    const urlSlug = pathname.startsWith('/account/')
+      ? pathname.replace('/account/', '').split('?')[0].split('/')[0]
+      : null;
+    const effectiveSlug = urlSlug || initialAccountSlug;
+    const effectiveId = initialAccountId;
+
     const { data, error } = await supabase
       .from('account_members')
       .select('account_id, role, status, accounts(*)')
@@ -106,9 +118,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       setAccounts(accountsList);
 
       if (accountsList.length > 0) {
-        // If URL has an account param, try to find it in the user's own accounts first
-        const urlAccount = initialAccountId
-          ? accountsList.find((a: Account) => a.id === initialAccountId)
+        const urlAccount = effectiveId
+          ? accountsList.find((a: Account) => a.id === effectiveId)
           : null;
 
         const firstAccount = urlAccount || accountsList[0];
@@ -122,8 +133,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
         if (userIsAgency) {
           setAgencyAccount(firstAccount);
-          // initialView will be applied after client accounts load (see loadClientAccounts)
-          if ((!initialAccountId && !initialAccountSlug) || urlAccount) {
+          // If no subaccount to restore, mark as ready now; loadClientAccounts handles it otherwise
+          if ((!effectiveId && !effectiveSlug) || urlAccount) {
             setActiveView(initialView || 'dashboard');
             urlRestoredRef.current = true;
           }
@@ -161,10 +172,17 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         const clients: Account[] = data.clients || [];
         setClientAccounts(clients);
 
-        // If URL had a sub-account ID or slug, switch to it now that we have the list
+        // If URL had a sub-account slug/id, switch to it now that we have the list
         if (!urlRestoredRef.current) {
-          const subAccount = initialAccountSlug
-            ? clients.find((c) => (c as any).slug === initialAccountSlug)
+          // Read actual current URL in case pushState updated it since initial render
+          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+          const urlSlug = pathname.startsWith('/account/')
+            ? pathname.replace('/account/', '').split('?')[0].split('/')[0]
+            : null;
+          const effectiveSlug = urlSlug || initialAccountSlug;
+
+          const subAccount = effectiveSlug
+            ? clients.find((c) => (c as any).slug === effectiveSlug)
             : initialAccountId
             ? clients.find((c) => c.id === initialAccountId)
             : null;

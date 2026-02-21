@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
+import { addVercelDomain, removeVercelDomain } from '@/lib/vercel-domains';
 
 // GET /api/landing-pages/[id]
 export async function GET(
@@ -54,19 +54,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update page' }, { status: 500 });
     }
 
-    // Purge Vercel's Edge Network cache for this page so changes appear immediately.
-    // revalidatePath clears both Next.js's Full Route Cache and the Vercel CDN cache
-    // for the path, including requests rewritten from wildcard subdomains.
-    try {
-      if (data?.slug) {
-        revalidatePath(`/p/${data.slug}`);
-      }
-      // If the slug was changed, also purge the old slug so the old domain 404s cleanly.
-      if (slug && data?.slug !== slug) {
-        revalidatePath(`/p/${slug}`);
-      }
-    } catch (revalidateErr) {
-      console.warn('revalidatePath failed (non-fatal):', revalidateErr);
+    // Register the subdomain with Vercel when publishing
+    if (published === true && data?.slug) {
+      addVercelDomain(data.slug).catch((e) =>
+        console.error('[landing-page] Vercel domain add failed:', e)
+      );
     }
 
     return NextResponse.json({ page: data });
@@ -81,14 +73,24 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { error } = await supabaseAdmin
+    // Fetch slug before deleting so we can remove the Vercel domain
+    const { data: deleted, error } = await supabaseAdmin
       .from('landing_pages')
       .delete()
-      .eq('id', params.id);
+      .eq('id', params.id)
+      .select('slug, published')
+      .single();
 
     if (error) {
       console.error('Error deleting landing page:', error);
       return NextResponse.json({ error: 'Failed to delete page' }, { status: 500 });
+    }
+
+    // Remove Vercel subdomain if the page had one
+    if (deleted?.published && deleted?.slug) {
+      removeVercelDomain(deleted.slug).catch((e) =>
+        console.error('[landing-page] Vercel domain remove failed:', e)
+      );
     }
 
     return NextResponse.json({ success: true });
