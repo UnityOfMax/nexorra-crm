@@ -23,8 +23,8 @@ export default function PublicPageClient({ slug }: PublicPageClientProps) {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    // Fetch from uncached API endpoint — bypasses all CDN/edge caching entirely
-    fetch(`/api/landing-pages/public/${slug}`, { cache: 'no-store' })
+    // Fetch from uncached API endpoint — timestamp param busts any residual CDN cache
+    fetch(`/api/landing-pages/public/${slug}?t=${Date.now()}`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) { setNotFound(true); return; }
         const data = await r.json();

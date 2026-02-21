@@ -4,6 +4,30 @@ import { useState, useEffect } from 'react';
 import { Plus, Play, Pause, Edit } from 'lucide-react';
 import { Workflow } from '@/types';
 import WorkflowBuilder from './WorkflowBuilder';
+import AutomationEditor from './AutomationEditor';
+
+type BuiltinAutomationId = 'new_lead' | 'booking_reminders' | 'nurturing';
+
+const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description: string; color: string }[] = [
+  {
+    id: 'new_lead',
+    name: 'New Lead Follow-up',
+    description: '5-step SMS + email sequence starting the moment a lead submits the form. Escalates to nurturing after 5 days if no response.',
+    color: 'blue',
+  },
+  {
+    id: 'booking_reminders',
+    name: 'Booking Reminders',
+    description: 'Confirmation message on booking + reminders at −48h, −24h, and −1h before the call.',
+    color: 'green',
+  },
+  {
+    id: 'nurturing',
+    name: 'Nurturing Sequence',
+    description: '30-day long-term follow-up (12 emails + 4 SMS) for leads who never responded to the initial sequence.',
+    color: 'purple',
+  },
+];
 
 interface WorkflowListProps {
   accountId: string;
@@ -15,6 +39,7 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
   const [loading, setLoading] = useState(true);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [editingAutomationId, setEditingAutomationId] = useState<BuiltinAutomationId | null>(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -88,6 +113,17 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
     }
   };
 
+  // Show automation editor
+  if (editingAutomationId) {
+    return (
+      <AutomationEditor
+        accountId={accountId}
+        automationId={editingAutomationId}
+        onBack={() => setEditingAutomationId(null)}
+      />
+    );
+  }
+
   // Show workflow builder if a workflow is selected
   if (showBuilder) {
     return (
@@ -121,6 +157,37 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
         </button>
       </div>
 
+      {/* ── Built-in Automations ── */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Built-in Automations</h3>
+        <p className="text-sm text-gray-600 mb-4">These run automatically. Click Edit to customise the message templates.</p>
+        <div className="space-y-3">
+          {BUILTIN_AUTOMATIONS.map((auto) => (
+            <div key={auto.id} className="card flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <h4 className="font-semibold text-gray-900">{auto.name}</h4>
+                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    Always On
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{auto.description}</p>
+              </div>
+              <button
+                onClick={() => setEditingAutomationId(auto.id)}
+                className="flex-shrink-0 p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                title="Edit message templates"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Custom Workflows ── */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Custom Workflows</h3>
       {workflows.length === 0 ? (
         <div className="card text-center py-12">
           <div className="text-gray-400 mb-4">
@@ -202,6 +269,7 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

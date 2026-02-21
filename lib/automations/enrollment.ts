@@ -1,11 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { applyTokens } from './templates';
 import {
-  NEW_LEAD_TEMPLATES,
-  BOOKING_TEMPLATES,
-  BOOKING_SWITCH_SMS,
-  NURTURING_TEMPLATES,
-  applyTokens,
-} from './templates';
+  getNewLeadTemplates,
+  getBookingTemplates,
+  getBookingSwitchSms,
+  getNurturingTemplates,
+} from './config';
 
 const D = 24 * 60 * 60 * 1000;
 
@@ -80,7 +80,8 @@ export async function enrollNewLead(params: EnrollNewLeadParams) {
     }
 
     // Schedule all messages
-    const messages = NEW_LEAD_TEMPLATES.map((t) => ({
+    const templates = await getNewLeadTemplates(accountId);
+    const messages = templates.map((t) => ({
       enrollment_id: enrollment.id,
       account_id: accountId,
       contact_id: contactId,
@@ -160,6 +161,10 @@ export async function enrollBookingReminders(params: EnrollBookingParams) {
 
     const messages: any[] = [];
 
+    // Load custom or default templates
+    const bookingTemplates = await getBookingTemplates(accountId);
+    const switchSms = await getBookingSwitchSms(accountId);
+
     // If switched from new_lead, send the "oh great" switch SMS immediately
     if (activeEnrollment?.automation_id === 'new_lead') {
       messages.push({
@@ -169,13 +174,13 @@ export async function enrollBookingReminders(params: EnrollBookingParams) {
         send_at: new Date(now).toISOString(),
         type: 'sms',
         subject: null,
-        body: applyTokens(BOOKING_SWITCH_SMS, tokens),
+        body: applyTokens(switchSms, tokens),
         status: 'pending',
       });
     }
 
     // Schedule booking reminder messages (skip ones already in the past)
-    for (const t of BOOKING_TEMPLATES) {
+    for (const t of bookingTemplates) {
       const sendAt = t.isImmediate ? now : callTimeMs + t.offsetMs;
 
       // Skip past messages (with 30s buffer for immediate sends)
@@ -278,7 +283,8 @@ export async function escalateToNurturing(
     const tokens = buildTokens({ contactName, agentName });
     const now = Date.now();
 
-    const messages = NURTURING_TEMPLATES.map((t) => ({
+    const nurturingTemplates = await getNurturingTemplates(accountId);
+    const messages = nurturingTemplates.map((t) => ({
       enrollment_id: nurturingEnrollment.id,
       account_id: accountId,
       contact_id: contactId,
