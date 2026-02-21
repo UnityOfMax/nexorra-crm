@@ -57,12 +57,16 @@ export async function PUT(
     // Purge Vercel's Edge Network cache for this page so changes appear immediately.
     // revalidatePath clears both Next.js's Full Route Cache and the Vercel CDN cache
     // for the path, including requests rewritten from wildcard subdomains.
-    if (data?.slug) {
-      revalidatePath(`/p/${data.slug}`);
-    }
-    // If the slug was changed, also purge the old slug so the old domain 404s cleanly.
-    if (slug && data?.slug !== slug) {
-      revalidatePath(`/p/${slug}`);
+    try {
+      if (data?.slug) {
+        revalidatePath(`/p/${data.slug}`);
+      }
+      // If the slug was changed, also purge the old slug so the old domain 404s cleanly.
+      if (slug && data?.slug !== slug) {
+        revalidatePath(`/p/${slug}`);
+      }
+    } catch (revalidateErr) {
+      console.warn('revalidatePath failed (non-fatal):', revalidateErr);
     }
 
     return NextResponse.json({ page: data });

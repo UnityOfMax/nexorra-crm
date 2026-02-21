@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import {
-  ArrowLeft, Save, Eye, Globe, EyeOff, Settings, Trash2,
-  GripVertical, Plus, Type, Image, MousePointerClick, FormInput,
-  Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown, Code
+  ArrowLeft, Save, Eye, Globe, Settings, Trash2,
+  Plus, Type, Image, MousePointerClick, FormInput,
+  Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown, Code,
+  Upload, Loader, ImageIcon, Star,
 } from 'lucide-react';
 import LandingPageRenderer from './LandingPageRenderer';
 import TrackingPixelEditor from './TrackingPixelEditor';
@@ -50,6 +51,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
   );
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showPixels, setShowPixels] = useState(false);
@@ -59,6 +61,10 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
   const [metaDescription, setMetaDescription] = useState(page.meta_description || '');
   const [trackingPixels, setTrackingPixels] = useState<TrackingPixel[]>(page.tracking_pixels || []);
   const [published, setPublished] = useState(page.published);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const canPublish = !published || isDirty;
+  const markDirty = () => setIsDirty(true);
 
   const selectedBlock = content.blocks.find(b => b.id === selectedBlockId) || null;
 
@@ -69,11 +75,9 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
       data: getDefaultBlockData(type),
       order: content.blocks.length,
     };
-    setContent(prev => ({
-      ...prev,
-      blocks: [...prev.blocks, newBlock],
-    }));
+    setContent(prev => ({ ...prev, blocks: [...prev.blocks, newBlock] }));
     setSelectedBlockId(newBlock.id);
+    markDirty();
   };
 
   const updateBlock = (blockId: string, data: Record<string, any>) => {
@@ -81,6 +85,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
       ...prev,
       blocks: prev.blocks.map(b => b.id === blockId ? { ...b, data: { ...b.data, ...data } } : b),
     }));
+    markDirty();
   };
 
   const deleteBlock = (blockId: string) => {
@@ -89,6 +94,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
       blocks: prev.blocks.filter(b => b.id !== blockId).map((b, i) => ({ ...b, order: i })),
     }));
     if (selectedBlockId === blockId) setSelectedBlockId(null);
+    markDirty();
   };
 
   const moveBlock = (blockId: string, direction: 'up' | 'down') => {
@@ -102,8 +108,15 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
       }
       return { ...prev, blocks: sorted.map((b, i) => ({ ...b, order: i })) };
     });
+    markDirty();
   };
 
+  const showMsg = (msg: string) => {
+    setSaveMessage(msg);
+    setTimeout(() => setSaveMessage(''), 3000);
+  };
+
+  // Save as draft only — never changes published state
   const handleSave = async () => {
     setSaving(true);
     setSaveMessage('');
@@ -118,26 +131,26 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           meta_title: metaTitle,
           meta_description: metaDescription,
           tracking_pixels: trackingPixels,
-          published,
         }),
       });
       if (response.ok) {
-        setSaveMessage('Saved!');
-        setTimeout(() => setSaveMessage(''), 2000);
+        showMsg('Saved!');
       } else {
-        setSaveMessage('Error saving');
+        const data = await response.json();
+        showMsg('Error: ' + (data.error || 'Save failed'));
       }
     } catch {
-      setSaveMessage('Error saving');
+      showMsg('Error saving');
     } finally {
       setSaving(false);
     }
   };
 
-  const togglePublish = async () => {
-    const next = !published;
-    setPublished(next);
-    // Full save so slug and all settings are persisted when publishing
+  // Publish — saves all content with published: true and resets dirty flag
+  const handlePublish = async () => {
+    if (!canPublish) return;
+    setPublishing(true);
+    setSaveMessage('');
     try {
       const response = await fetch(`/api/landing-pages/${page.id}`, {
         method: 'PUT',
@@ -149,19 +162,25 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           meta_title: metaTitle,
           meta_description: metaDescription,
           tracking_pixels: trackingPixels,
-          published: next,
+          published: true,
         }),
       });
       if (response.ok) {
-        setSaveMessage(next ? 'Published!' : 'Unpublished');
-        setTimeout(() => setSaveMessage(''), 2000);
+        setPublished(true);
+        setIsDirty(false);
+        showMsg('Published!');
       } else {
-        setPublished(!next);
+        const data = await response.json();
+        showMsg('Publish error: ' + (data.error || 'Failed'));
       }
     } catch {
-      setPublished(!next);
+      showMsg('Publish error');
+    } finally {
+      setPublishing(false);
     }
   };
+
+  const isError = saveMessage.startsWith('Error') || saveMessage.startsWith('Publish error');
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)]">
@@ -174,14 +193,14 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           <input
             type="text"
             value={pageName}
-            onChange={(e) => setPageName(e.target.value)}
+            onChange={(e) => { setPageName(e.target.value); markDirty(); }}
             className="text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-0 p-0"
             style={{ width: `${Math.max(pageName.length, 10)}ch` }}
           />
         </div>
         <div className="flex items-center gap-2">
           {saveMessage && (
-            <span className={`text-sm ${saveMessage === 'Saved!' ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`text-sm ${isError ? 'text-red-600' : 'text-green-600'}`}>
               {saveMessage}
             </span>
           )}
@@ -199,15 +218,25 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
             <Settings className="w-4 h-4" />
             Settings
           </button>
-          <button onClick={togglePublish} className={`btn text-sm flex items-center gap-1 ${published ? 'btn-secondary' : 'btn-primary'}`}>
-            {published ? <><EyeOff className="w-4 h-4" /> Unpublish</> : <><Globe className="w-4 h-4" /> Publish</>}
+          <button
+            onClick={handlePublish}
+            disabled={!canPublish || publishing}
+            className={`btn text-sm flex items-center gap-1 ${canPublish ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'}`}
+          >
+            <Globe className="w-4 h-4" />
+            {publishing ? 'Publishing...' : published ? 'Republish' : 'Publish'}
           </button>
           {published && (
-            <a href={`https://${pageSlug}.ourlimitedoffer.com`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary text-sm flex items-center gap-1">
+            <a
+              href={`https://${pageSlug}.ourlimitedoffer.com`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary text-sm flex items-center gap-1"
+            >
               <Eye className="w-4 h-4" /> View
             </a>
           )}
-          <button onClick={handleSave} disabled={saving} className="btn btn-primary text-sm flex items-center gap-1">
+          <button onClick={handleSave} disabled={saving} className="btn btn-secondary text-sm flex items-center gap-1">
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -224,7 +253,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
               <div className="flex items-center gap-1">
                 <input
                   value={pageSlug}
-                  onChange={(e) => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  onChange={(e) => { setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); markDirty(); }}
                   className="input text-sm flex-1 min-w-0"
                   placeholder="yourname"
                 />
@@ -240,23 +269,23 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
                 <input
                   type="color"
                   value={content.styles.primaryColor}
-                  onChange={(e) => setContent(prev => ({ ...prev, styles: { ...prev.styles, primaryColor: e.target.value } }))}
+                  onChange={(e) => { setContent(prev => ({ ...prev, styles: { ...prev.styles, primaryColor: e.target.value } })); markDirty(); }}
                   className="h-9 w-14 rounded border border-gray-300"
                 />
                 <input
                   value={content.styles.primaryColor}
-                  onChange={(e) => setContent(prev => ({ ...prev, styles: { ...prev.styles, primaryColor: e.target.value } }))}
+                  onChange={(e) => { setContent(prev => ({ ...prev, styles: { ...prev.styles, primaryColor: e.target.value } })); markDirty(); }}
                   className="input text-sm flex-1"
                 />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
-              <input value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} className="input text-sm" placeholder="Page title for SEO" />
+              <input value={metaTitle} onChange={(e) => { setMetaTitle(e.target.value); markDirty(); }} className="input text-sm" placeholder="Page title for SEO" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
-              <input value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} className="input text-sm" placeholder="Page description for SEO" />
+              <input value={metaDescription} onChange={(e) => { setMetaDescription(e.target.value); markDirty(); }} className="input text-sm" placeholder="Page description for SEO" />
             </div>
           </div>
         </div>
@@ -265,7 +294,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
       {/* Tracking Pixels Panel */}
       {showPixels && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-          <TrackingPixelEditor pixels={trackingPixels} onChange={setTrackingPixels} />
+          <TrackingPixelEditor pixels={trackingPixels} onChange={(px) => { setTrackingPixels(px); markDirty(); }} />
         </div>
       )}
 
@@ -308,7 +337,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
         <div className="w-72 bg-white border border-gray-200 rounded-lg overflow-y-auto flex-shrink-0">
           <div className="p-3 border-b border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900">
-              {selectedBlock ? `Edit: ${selectedBlock.type.charAt(0).toUpperCase() + selectedBlock.type.slice(1)}` : 'Properties'}
+              {selectedBlock ? `Edit: ${selectedBlock.type}` : 'Properties'}
             </h3>
           </div>
           {selectedBlock ? (
@@ -331,6 +360,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
                 block={selectedBlock}
                 onUpdate={(data) => updateBlock(selectedBlock.id, data)}
                 primaryColor={content.styles.primaryColor}
+                accountId={accountId}
               />
             </div>
           ) : (
@@ -344,18 +374,101 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
   );
 }
 
-function BlockPropertyEditor({ block, onUpdate, primaryColor }: {
+// ---- Image Upload Field ----
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+  accountId,
+  rounded = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+  accountId: string;
+  rounded?: boolean;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('accountId', accountId);
+      const res = await fetch('/api/landing-pages/upload-image', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        onChange(data.url);
+      } else {
+        alert('Upload failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      alert('Upload error: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <div className="flex items-center gap-2 mb-1">
+        {value ? (
+          <img
+            src={value}
+            alt=""
+            className={`w-12 h-12 object-cover border border-gray-200 flex-shrink-0 ${rounded ? 'rounded-full' : 'rounded'}`}
+          />
+        ) : (
+          <div className={`w-12 h-12 bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center flex-shrink-0 ${rounded ? 'rounded-full' : 'rounded'}`}>
+            <ImageIcon className="w-4 h-4 text-gray-400" />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="btn btn-secondary text-xs flex items-center gap-1 px-2 py-1"
+        >
+          {uploading ? <Loader className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+          {uploading ? 'Uploading…' : 'Upload'}
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input text-xs"
+        placeholder="Or paste image URL…"
+      />
+    </div>
+  );
+}
+
+// ---- Block Property Editor ----
+function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
   block: LandingPageBlock;
   onUpdate: (data: Record<string, any>) => void;
   primaryColor: string;
+  accountId: string;
 }) {
   const { data } = block;
+  const [specialtyInput, setSpecialtyInput] = useState('');
 
-  const textInput = (label: string, key: string, placeholder?: string, type?: string) => (
+  const textInput = (label: string, key: string, placeholder?: string) => (
     <div key={key}>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <input
-        type={type || 'text'}
+        type="text"
         value={data[key] || ''}
         onChange={(e) => onUpdate({ [key]: e.target.value })}
         className="input text-sm"
@@ -433,7 +546,7 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor }: {
             <option value="center">Center</option>
             <option value="right">Right</option>
           </select>
-        </div>
+        </div>,
       ]}</>;
 
     case 'cta':
@@ -447,7 +560,7 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor }: {
             <option value="normal">Normal</option>
             <option value="large">Large</option>
           </select>
-        </div>
+        </div>,
       ]}</>;
 
     case 'form':
@@ -472,7 +585,7 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor }: {
               </label>
             ))}
           </div>
-        </div>
+        </div>,
       ]}</>;
 
     case 'video':
@@ -534,6 +647,247 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor }: {
 
     case 'spacer':
       return <>{[numberInput('Height (px)', 'height')]}</>;
+
+    // ---- Real Estate Blocks ----
+
+    case 're_hero':
+      return (
+        <div className="space-y-3">
+          {textInput('Agent Name', 'agentName', 'Jane Smith')}
+          {textInput('Title / Role', 'title', 'Licensed Real Estate Agent')}
+          {textArea('Subtitle / Tagline', 'subtitle', 2)}
+          <ImageUploadField
+            label="Profile Photo"
+            value={data.profileImageUrl || ''}
+            onChange={(url) => onUpdate({ profileImageUrl: url })}
+            accountId={accountId}
+            rounded
+          />
+          {textInput('CTA Button Text', 'ctaText', 'View Available Homes')}
+          {textInput('CTA Sub-text', 'ctaSubtext', '')}
+          {colorInput('Background Color', 'bgColor')}
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_about':
+      return (
+        <div className="space-y-3">
+          {textInput('Section Heading', 'heading', 'About Jane')}
+          {textArea('Bio', 'bio', 4)}
+          <ImageUploadField
+            label="About Section Photo"
+            value={data.agentPhotoUrl || ''}
+            onChange={(url) => onUpdate({ agentPhotoUrl: url })}
+            accountId={accountId}
+          />
+          {numberInput('Years of Experience', 'yearsExperience')}
+          {numberInput('Homes Closed', 'dealsClosed')}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Specialties</label>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {(data.specialties || []).map((s: string, i: number) => (
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">
+                  {s}
+                  <button
+                    onClick={() => onUpdate({ specialties: (data.specialties || []).filter((_: string, j: number) => j !== i) })}
+                    className="hover:text-red-600"
+                  >×</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              <input
+                className="input text-xs flex-1"
+                placeholder="Add specialty, press Enter…"
+                value={specialtyInput}
+                onChange={(e) => setSpecialtyInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && specialtyInput.trim()) {
+                    onUpdate({ specialties: [...(data.specialties || []), specialtyInput.trim()] });
+                    setSpecialtyInput('');
+                    e.preventDefault();
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (specialtyInput.trim()) {
+                    onUpdate({ specialties: [...(data.specialties || []), specialtyInput.trim()] });
+                    setSpecialtyInput('');
+                  }
+                }}
+                className="btn btn-secondary px-2 py-1 text-xs"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_reviews':
+      return (
+        <div className="space-y-3">
+          {textInput('Section Heading', 'heading', 'What My Clients Say')}
+          {textInput('CTA Button Text', 'ctaText', 'Find Your Dream Home')}
+          <label className="block text-xs font-medium text-gray-600">Reviews</label>
+          {(data.reviews || []).map((review: any, i: number) => (
+            <div key={i} className="border border-gray-200 rounded p-2 space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => {
+                        const reviews = [...(data.reviews || [])];
+                        reviews[i] = { ...reviews[i], rating: star };
+                        onUpdate({ reviews });
+                      }}
+                    >
+                      <Star className={`w-4 h-4 ${star <= (review.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => onUpdate({ reviews: (data.reviews || []).filter((_: any, j: number) => j !== i) })}
+                  className="text-red-400 hover:text-red-600"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+              <textarea
+                value={review.text || ''}
+                onChange={(e) => { const r = [...(data.reviews || [])]; r[i] = { ...r[i], text: e.target.value }; onUpdate({ reviews: r }); }}
+                className="input text-xs"
+                rows={2}
+                placeholder="What the client said..."
+              />
+              <input
+                value={review.author || ''}
+                onChange={(e) => { const r = [...(data.reviews || [])]; r[i] = { ...r[i], author: e.target.value }; onUpdate({ reviews: r }); }}
+                className="input text-xs"
+                placeholder="Client name"
+              />
+              <input
+                value={review.location || ''}
+                onChange={(e) => { const r = [...(data.reviews || [])]; r[i] = { ...r[i], location: e.target.value }; onUpdate({ reviews: r }); }}
+                className="input text-xs"
+                placeholder="Location (e.g. Miami, FL)"
+              />
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ reviews: [...(data.reviews || []), { text: '', author: '', location: '', rating: 5 }] })}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            + Add Review
+          </button>
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_properties':
+      return (
+        <div className="space-y-3">
+          {textInput('Section Heading', 'heading', 'Featured Properties')}
+          {textInput('Subheading', 'subheading', '')}
+          <label className="block text-xs font-medium text-gray-600">Properties</label>
+          {(data.properties || []).map((prop: any, i: number) => (
+            <div key={i} className="border border-gray-200 rounded p-2 space-y-1">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-500">Property {i + 1}</span>
+                <button
+                  onClick={() => onUpdate({ properties: (data.properties || []).filter((_: any, j: number) => j !== i) })}
+                  className="text-red-400 hover:text-red-600"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+              <input
+                value={prop.address || ''}
+                onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], address: e.target.value }; onUpdate({ properties: p }); }}
+                className="input text-xs"
+                placeholder="123 Main St, City, FL"
+              />
+              <input
+                value={prop.price || ''}
+                onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], price: e.target.value }; onUpdate({ properties: p }); }}
+                className="input text-xs"
+                placeholder="$450,000"
+              />
+              <div className="grid grid-cols-3 gap-1">
+                <input
+                  value={prop.beds || ''}
+                  onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], beds: e.target.value }; onUpdate({ properties: p }); }}
+                  className="input text-xs"
+                  placeholder="Beds"
+                />
+                <input
+                  value={prop.baths || ''}
+                  onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], baths: e.target.value }; onUpdate({ properties: p }); }}
+                  className="input text-xs"
+                  placeholder="Baths"
+                />
+                <input
+                  value={prop.sqft || ''}
+                  onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], sqft: e.target.value }; onUpdate({ properties: p }); }}
+                  className="input text-xs"
+                  placeholder="SqFt"
+                />
+              </div>
+              <select
+                value={prop.status || 'For Sale'}
+                onChange={(e) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], status: e.target.value }; onUpdate({ properties: p }); }}
+                className="input text-xs"
+              >
+                <option>For Sale</option>
+                <option>For Rent</option>
+                <option>Sold</option>
+                <option>Pending</option>
+              </select>
+              <ImageUploadField
+                label="Property Photo"
+                value={prop.imageUrl || ''}
+                onChange={(url) => { const p = [...(data.properties || [])]; p[i] = { ...p[i], imageUrl: url }; onUpdate({ properties: p }); }}
+                accountId={accountId}
+              />
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ properties: [...(data.properties || []), { address: '', price: '', beds: '', baths: '', sqft: '', status: 'For Sale', imageUrl: '' }] })}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            + Add Property
+          </button>
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_location':
+      return (
+        <div className="space-y-3">
+          {textInput('Section Heading', 'heading', 'Find Me')}
+          {textInput('Office Address', 'address', '123 Main St, City, FL')}
+          {textInput('Phone', 'phone', '(305) 555-0123')}
+          {textInput('Email', 'email', 'agent@example.com')}
+          {textArea('Google Maps Embed URL', 'mapEmbedUrl', 2)}
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_footer':
+      return (
+        <div className="space-y-3">
+          {textInput('Agent Name', 'agentName', 'Jane Smith')}
+          {textInput('Brokerage / Company', 'brokerage', 'Sunshine Realty Group')}
+          {textInput('Email', 'email', 'jane@example.com')}
+          {textInput('Phone', 'phone', '(305) 555-0123')}
+          {textInput('License Number', 'license', 'License #FL-3456789')}
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
 
     default:
       return <p className="text-sm text-gray-500">No properties for this block type</p>;

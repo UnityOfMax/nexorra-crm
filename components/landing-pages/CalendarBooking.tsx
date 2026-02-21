@@ -37,7 +37,7 @@ function generateSlots(): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const now = new Date();
 
-  for (let dayOffset = 1; dayOffset <= 14; dayOffset++) {
+  for (let dayOffset = 0; dayOffset <= 4; dayOffset++) {
     const date = new Date(now);
     date.setDate(now.getDate() + dayOffset);
 
@@ -52,6 +52,9 @@ function generateSlots(): TimeSlot[] {
           date.getUTCDate(),
           h, m, 0
         ));
+
+        // For today, skip slots within 30 min of now
+        if (dayOffset === 0 && slotDate.getTime() < Date.now() + 30 * 60 * 1000) continue;
 
         const display = slotDate.toLocaleTimeString(undefined, {
           hour: 'numeric',

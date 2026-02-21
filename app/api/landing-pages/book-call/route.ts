@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
+import { enrollBookingReminders } from '@/lib/automations/enrollment';
 
 // POST /api/landing-pages/book-call
 export async function POST(request: NextRequest) {
@@ -133,6 +134,18 @@ ${answerSummary}`;
     // ── Sync to Google Calendar if connected (non-blocking) ───────────────────
     syncActivityToGoogle(activity.id, accountId).catch(err => {
       console.error('[book-call] Failed to sync to Google Calendar:', err);
+    });
+
+    // ── Trigger booking reminders automation (non-blocking) ───────────────────
+    enrollBookingReminders({
+      accountId,
+      contactId: contactId || '',
+      contactName: contactName || 'there',
+      agentName: agentName || 'Your Agent',
+      callTimeUtc: slotUtc,
+      callTimeDisplay: slotDisplay,
+    }).catch(err => {
+      console.error('[book-call] automation enrollment error:', err);
     });
 
     return NextResponse.json({ success: true, activityId: activity.id });

@@ -107,7 +107,7 @@ export default function HomeSearchForm({
   };
 
   const handleSubmit = async () => {
-    if (!formData.first_name.trim() || !formData.phone.trim()) return;
+    if (!formData.first_name.trim() || !formData.phone.trim() || !formData.email.trim()) return;
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -120,6 +120,7 @@ export default function HomeSearchForm({
           last_name: formData.last_name.trim(),
           phone: formData.phone.trim(),
           email: formData.email.trim(),
+          agentName,
           source: 'Real Estate Landing Page',
           custom_fields: {
             'Intent': formData.intent,
@@ -361,7 +362,7 @@ export default function HomeSearchForm({
                 <input type="text" placeholder="Last Name" value={formData.last_name} onChange={e => setFormData(p => ({ ...p, last_name: e.target.value }))} style={inputSt} />
               </div>
               <input type="tel" placeholder="Phone Number *" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} style={inputSt} />
-              <input type="email" placeholder="Email Address" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={inputSt} />
+              <input type="email" placeholder="Email Address *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={inputSt} />
               {submitError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '0.85rem' }}>
                   {submitError}
@@ -369,8 +370,8 @@ export default function HomeSearchForm({
               )}
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !formData.first_name.trim() || !formData.phone.trim()}
-                style={{ ...ctaBtnStyle(accent), opacity: !formData.first_name.trim() || !formData.phone.trim() ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                disabled={submitting || !formData.first_name.trim() || !formData.phone.trim() || !formData.email.trim()}
+                style={{ ...ctaBtnStyle(accent), opacity: !formData.first_name.trim() || !formData.phone.trim() || !formData.email.trim() ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 {submitting ? <Loader style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : 'See Available Times →'}
               </button>

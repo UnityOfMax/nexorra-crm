@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // POST /api/ai/send
-// Generates an AI response and sends it via the appropriate channel
+// Generates an AI response and sends it via the appropriate channel.
+// Also manages the follow-up queue: cancels any pending follow-up, schedules a new one.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accountId, contactId, channel } = body;
+    const { accountId, contactId, channel, isFollowUp, followUpCount } = body;
 
     if (!accountId || !contactId || !channel) {
       return NextResponse.json({ error: 'accountId, contactId, and channel required' }, { status: 400 });
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const generateRes = await fetch(`${baseUrl}/api/ai/generate-response`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId, contactId, channel }),
+      body: JSON.stringify({ accountId, contactId, channel, isFollowUp, followUpCount }),
     });
 
     if (!generateRes.ok) {
@@ -39,8 +40,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Send via appropriate channel
-    let sendResult;
-
     if (channel === 'sms') {
       if (!contact.phone) {
         return NextResponse.json({ error: 'Contact has no phone number' }, { status: 400 });
@@ -57,8 +56,7 @@ export async function POST(request: NextRequest) {
         }),
       });
 
-      sendResult = await smsRes.json();
-
+      const sendResult = await smsRes.json();
       if (!smsRes.ok) {
         return NextResponse.json({ error: sendResult.error || 'Failed to send SMS' }, { status: 500 });
       }
@@ -80,8 +78,7 @@ export async function POST(request: NextRequest) {
         }),
       });
 
-      sendResult = await emailRes.json();
-
+      const sendResult = await emailRes.json();
       if (!emailRes.ok) {
         return NextResponse.json({ error: sendResult.error || 'Failed to send email' }, { status: 500 });
       }
@@ -90,7 +87,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 4: Mark the last outbound message as AI-generated
-    // Find the most recent outbound message for this contact
     const { data: lastMessage } = await supabaseAdmin
       .from('messages')
       .select('id')
@@ -106,9 +102,33 @@ export async function POST(request: NextRequest) {
         .from('messages')
         .update({
           is_ai_generated: true,
-          ai_metadata: { model: 'claude-sonnet-4-20250514', channel },
+          ai_metadata: { model: 'claude-sonnet-4-6', channel },
         })
         .eq('id', lastMessage.id);
+    }
+
+    // Step 5: Manage follow-up queue
+    // Cancel existing pending follow-up for this contact+channel, then schedule a new one.
+    // This means every AI outbound message resets the 24h follow-up timer.
+    await supabaseAdmin
+      .from('ai_follow_up_queue')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('account_id', accountId)
+      .eq('contact_id', contactId)
+      .eq('channel', channel)
+      .eq('status', 'pending');
+
+    // Only schedule follow-up if this is not already the 3rd follow-up (no infinite loop)
+    const currentFollowUpCount = followUpCount ?? 0;
+    if (!isFollowUp || currentFollowUpCount < 3) {
+      await supabaseAdmin.from('ai_follow_up_queue').insert({
+        account_id: accountId,
+        contact_id: contactId,
+        channel,
+        follow_up_count: isFollowUp ? currentFollowUpCount + 1 : 0,
+        next_follow_up_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        status: 'pending',
+      });
     }
 
     return NextResponse.json({

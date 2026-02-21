@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { enrollNewLead } from '@/lib/automations/enrollment';
 
 // POST /api/landing-pages/form-submit
 // Creates or updates a contact from landing page form submission
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
       email,
       source,
       custom_fields,
+      agentName,
     } = body;
 
     if (!accountId || (!phone && !email)) {
@@ -83,6 +85,15 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
       contactId = data.id;
     }
+
+    // Trigger new lead automation (non-blocking)
+    const contactName = [first_name, last_name].filter(Boolean).join(' ') || 'there';
+    enrollNewLead({
+      accountId,
+      contactId,
+      contactName,
+      agentName: agentName || 'Your Agent',
+    }).catch((err) => console.error('[form-submit] automation enrollment error:', err));
 
     return NextResponse.json({ success: true, contactId });
   } catch (error: any) {

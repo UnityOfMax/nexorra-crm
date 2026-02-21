@@ -144,7 +144,18 @@ export async function POST(request: NextRequest) {
 
     console.log('=== WEBHOOK COMPLETED SUCCESSFULLY ===');
 
-    // Trigger AI auto-respond if enabled for this account (fire-and-forget)
+    // Cancel any pending AI follow-up for this contact (they replied)
+    Promise.resolve(
+      supabaseAdmin
+        .from('ai_follow_up_queue')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('account_id', account.id)
+        .eq('contact_id', contact.id)
+        .eq('channel', 'sms')
+        .eq('status', 'pending')
+    ).catch((err: unknown) => console.error('[webhook] cancel follow-up error:', err));
+
+    // Debounced AI auto-respond: batch messages within 15-second window
     if (contact) {
       const { data: aiConfig } = await supabaseAdmin
         .from('ai_agent_configs')
@@ -153,16 +164,37 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (aiConfig?.enabled && aiConfig?.mode === 'auto' && aiConfig?.channels?.sms) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
-        fetch(`${baseUrl}/api/ai/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accountId: account.id,
-            contactId: contact.id,
-            channel: 'sms',
-          }),
-        }).catch((err) => console.error('AI auto-respond error:', err));
+        const processAfter = new Date(Date.now() + 15_000).toISOString();
+        const newMsg = { body, received_at: new Date().toISOString() };
+
+        // Check for existing pending batch for this contact
+        const { data: existing } = await supabaseAdmin
+          .from('ai_sms_batches')
+          .select('id, messages')
+          .eq('account_id', account.id)
+          .eq('contact_id', contact.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (existing) {
+          // Extend the debounce timer and append the new message
+          await supabaseAdmin
+            .from('ai_sms_batches')
+            .update({
+              messages: [...(existing.messages as any[]), newMsg],
+              process_after: processAfter,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id);
+        } else {
+          // Create a new pending batch
+          await supabaseAdmin.from('ai_sms_batches').insert({
+            account_id: account.id,
+            contact_id: contact.id,
+            messages: [newMsg],
+            process_after: processAfter,
+          });
+        }
       }
     }
 

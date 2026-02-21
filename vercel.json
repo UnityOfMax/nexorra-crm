@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/sync-google-calendar",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/process-automations",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/process-ai-batches",
+      "schedule": "* * * * *"
     }
   ]
 }

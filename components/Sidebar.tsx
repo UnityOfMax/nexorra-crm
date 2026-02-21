@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import type { Account } from '@/types';
+import type { UserRole } from '@/types/agency';
+
+const OWNER_ADMIN_ROLES: UserRole[] = ['agency_owner', 'agency_admin', 'client_owner', 'client_admin'];
 
 interface SidebarProps {
   activeView: string;
@@ -14,17 +17,19 @@ interface SidebarProps {
   clientAccounts: Account[];
   onAccountSwitch: (accountId: string) => void;
   isViewingClient?: boolean;
+  userRole?: UserRole | null;
 }
 
 const allMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, agencyOnly: false },
-  { id: 'contacts', label: 'Contacts', icon: Users, agencyOnly: false },
-  { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false },
-  { id: 'calendar', label: 'Calendar', icon: Calendar, agencyOnly: false },
-  { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare, agencyOnly: false },
-  { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false },
-  { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false },
-  { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'contacts', label: 'Contacts', icon: Users, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'calendar', label: 'Calendar', icon: Calendar, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'ai-agent', label: 'AI Agent', icon: Bot, agencyOnly: false, ownerAdminOnly: true },
+  { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true, ownerAdminOnly: false },
 ];
 
 function SidebarContent({
@@ -38,7 +43,7 @@ function SidebarContent({
   onAccountSwitch,
   onClose,
 }: {
-  menuItems: typeof allMenuItems;
+  menuItems: (typeof allMenuItems)[number][];
   activeView: string;
   onViewChange: (view: string) => void;
   onSignOut: () => void;
@@ -111,11 +116,13 @@ export default function Sidebar({
   clientAccounts,
   onAccountSwitch,
   isViewingClient = false,
+  userRole,
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const menuItems = allMenuItems.filter(item => {
     if (item.agencyOnly && isViewingClient) return false;
+    if (item.ownerAdminOnly && userRole && !OWNER_ADMIN_ROLES.includes(userRole)) return false;
     return true;
   });
 

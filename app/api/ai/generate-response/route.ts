@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
+import { buildAIContext, updateSummary } from '@/lib/ai/context';
 
 // POST /api/ai/generate-response
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accountId, contactId, channel } = body;
+    const { accountId, contactId, channel, isFollowUp, followUpCount } = body;
 
     if (!accountId || !contactId) {
       return NextResponse.json({ error: 'accountId and contactId required' }, { status: 400 });
@@ -45,19 +46,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AI disabled for this contact' }, { status: 400 });
     }
 
-    // Load recent message history (last 20)
-    const { data: messages } = await supabaseAdmin
-      .from('messages')
-      .select('*')
-      .eq('account_id', accountId)
-      .eq('contact_id', contactId)
-      .order('created_at', { ascending: false })
-      .limit(20);
+    // Build memory-efficient context: rolling summary + last 10 messages (all channels)
+    const { summary, recentMessages } = await buildAIContext(accountId, contactId);
 
-    const reversedMessages = (messages || []).reverse();
-
-    // Build conversation for Claude
-    const conversationMessages: Anthropic.MessageParam[] = reversedMessages.map((msg) => ({
+    // Build Claude messages array from recent history
+    const conversationMessages: Anthropic.MessageParam[] = recentMessages.map((msg) => ({
       role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
       content: msg.content,
     }));
@@ -75,8 +68,12 @@ export async function POST(request: NextRequest) {
       toneInstructions[config.tone] || toneInstructions.professional,
       config.business_context ? `Business context: ${config.business_context}` : '',
       `Contact info: ${contact.first_name || ''} ${contact.last_name || ''}, Email: ${contact.email || 'N/A'}, Phone: ${contact.phone || 'N/A'}, Status: ${contact.status}`,
+      summary ? `Conversation summary so far: ${summary}` : '',
       channel === 'sms' ? 'Keep responses concise and suitable for SMS (under 160 characters when possible).' : '',
       channel === 'email' ? 'Format the response appropriately for email. You may include a greeting and sign-off.' : '',
+      isFollowUp
+        ? `This is a follow-up message because the contact hasn't replied yet. Keep it brief and friendly, reference something from the conversation summary if available, and gently nudge without being pushy. This is follow-up #${(followUpCount ?? 0) + 1} of 3.`
+        : '',
       'Respond only with the message text. Do not include any meta-commentary or labels.',
     ].filter(Boolean).join('\n\n');
 
@@ -89,7 +86,7 @@ export async function POST(request: NextRequest) {
     const anthropic = new Anthropic({ apiKey });
 
     const aiResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: config.max_tokens || 500,
       system: systemParts,
       messages: conversationMessages.length > 0 ? conversationMessages : [
@@ -105,19 +102,24 @@ export async function POST(request: NextRequest) {
     // Generate subject for email if needed
     let subject: string | undefined;
     if (channel === 'email') {
-      const lastInbound = reversedMessages.find(m => m.direction === 'inbound');
-      const lastSubject = lastInbound?.metadata?.subject;
+      const lastInbound = recentMessages.find(m => m.direction === 'inbound');
+      const lastSubject = (lastInbound as any)?.metadata?.subject;
       if (lastSubject) {
         subject = lastSubject.startsWith('Re:') ? lastSubject : `Re: ${lastSubject}`;
       } else {
-        subject = 'Follow-up';
+        subject = isFollowUp ? 'Following up' : 'Follow-up';
       }
     }
+
+    // Async: update rolling summary (non-blocking)
+    updateSummary(accountId, contactId).catch(err =>
+      console.error('[generate-response] updateSummary error:', err)
+    );
 
     return NextResponse.json({
       response: responseText,
       subject,
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       tokens_used: aiResponse.usage?.output_tokens || 0,
     });
   } catch (error: any) {

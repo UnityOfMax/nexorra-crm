@@ -16,15 +16,17 @@ import PipelineManager from './pipelines/PipelineManager';
 import WorkflowList from './workflows/WorkflowList';
 import CalendarView from './calendar/CalendarView';
 import LandingPageList from './landing-pages/LandingPageList';
+import AIAgent from './AIAgent';
 import type { UserRole } from '@/types/agency';
 
 interface DashboardProps {
   user: User;
   initialView?: string;
   initialAccountId?: string;
+  initialAccountSlug?: string;
 }
 
-export default function Dashboard({ user, initialView, initialAccountId }: DashboardProps) {
+export default function Dashboard({ user, initialView, initialAccountId, initialAccountSlug }: DashboardProps) {
   const router = useRouter();
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [agencyAccount, setAgencyAccount] = useState<Account | null>(null);
@@ -66,12 +68,22 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
   useEffect(() => {
     if (!urlRestoredRef.current) return; // don't overwrite URL during initial load
     if (!currentAccount) return;
-    const params = new URLSearchParams();
-    if (activeView && activeView !== 'dashboard') params.set('view', activeView);
-    params.set('account', currentAccount.id);
-    const query = params.toString();
-    router.replace(query ? `/?${query}` : '/');
-  }, [activeView, currentAccount]);
+
+    const slug = (currentAccount as any).slug;
+    if (isViewingClient && slug) {
+      // Sub-account: use /account/[slug]?view=...
+      const params = new URLSearchParams();
+      if (activeView && activeView !== 'dashboard') params.set('view', activeView);
+      const query = params.toString();
+      router.replace(query ? `/account/${slug}?${query}` : `/account/${slug}`);
+    } else {
+      // Agency account: use /?view=...
+      const params = new URLSearchParams();
+      if (activeView && activeView !== 'dashboard') params.set('view', activeView);
+      const query = params.toString();
+      router.replace(query ? `/?${query}` : '/');
+    }
+  }, [activeView, currentAccount, isViewingClient]);
 
   const loadAccounts = async () => {
     const { data, error } = await supabase
@@ -110,7 +122,7 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
         if (userIsAgency) {
           setAgencyAccount(firstAccount);
           // initialView will be applied after client accounts load (see loadClientAccounts)
-          if (!initialAccountId || urlAccount) {
+          if ((!initialAccountId && !initialAccountSlug) || urlAccount) {
             setActiveView(initialView || 'dashboard');
             urlRestoredRef.current = true;
           }
@@ -148,9 +160,13 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
         const clients: Account[] = data.clients || [];
         setClientAccounts(clients);
 
-        // If URL had a sub-account ID, switch to it now that we have the list
-        if (initialAccountId && !urlRestoredRef.current) {
-          const subAccount = clients.find((c) => c.id === initialAccountId);
+        // If URL had a sub-account ID or slug, switch to it now that we have the list
+        if (!urlRestoredRef.current) {
+          const subAccount = initialAccountSlug
+            ? clients.find((c) => (c as any).slug === initialAccountSlug)
+            : initialAccountId
+            ? clients.find((c) => c.id === initialAccountId)
+            : null;
           if (subAccount) {
             setCurrentAccount(subAccount);
             setIsViewingClient(true);
@@ -179,10 +195,15 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
     if (selectedAccount.account_type === 'agency') {
       setIsViewingClient(false);
       setActiveView('dashboard');
+      router.push('/');
     } else {
-      // Agency owner viewing a sub-account — keep full navigation
+      // Agency owner viewing a sub-account — navigate to slug URL for persistence
       setIsViewingClient(true);
       setActiveView('dashboard');
+      const slug = (selectedAccount as any).slug;
+      if (slug) {
+        router.push(`/account/${slug}`);
+      }
     }
   };
 
@@ -301,6 +322,10 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
       case 'pages':
         return (
           <LandingPageList accountId={currentAccount?.id || ''} isAgencyUser={isAgencyUser} />
+        );
+      case 'ai-agent':
+        return (
+          <AIAgent accountId={currentAccount?.id || ''} />
         );
       default:
         // Unified dashboard
@@ -499,6 +524,7 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
           clientAccounts={clientAccounts}
           onAccountSwitch={handleAccountSwitch}
           isViewingClient={isViewingClient}
+          userRole={userRole}
         />
       ) : (
         <ClientSidebar
