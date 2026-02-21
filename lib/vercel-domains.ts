@@ -61,3 +61,25 @@ export async function removeVercelDomain(slug: string): Promise<void> {
     console.error('[vercel-domains] Failed to remove domain:', domain, body);
   }
 }
+
+// Remove the wildcard *.ourlimitedoffer.com domain from the Vercel project (one-time cleanup)
+export async function removeWildcardDomain(): Promise<void> {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return;
+
+  const wildcard = `*.${BASE_DOMAIN}`;
+  const encoded = encodeURIComponent(wildcard);
+  const res = await fetch(
+    `https://api.vercel.com/v9/projects/${projectId}/domains/${encoded}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  if (!res.ok && res.status !== 404) {
+    const body = await res.json().catch(() => ({}));
+    console.warn('[vercel-domains] Wildcard removal responded with:', res.status, body);
+  }
+}

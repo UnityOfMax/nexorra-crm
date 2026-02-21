@@ -5,6 +5,7 @@ import { Plus, ArrowLeft, Settings } from 'lucide-react';
 import { Pipeline, PipelineStage } from '@/types';
 import CreatePipelineModal from './CreatePipelineModal';
 import PipelineBoard from './PipelineBoard';
+import AddOpportunityModal from './AddOpportunityModal';
 
 interface PipelineManagerProps {
   accountId: string;
@@ -14,6 +15,8 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
   const [pipelines, setPipelines] = useState<(Pipeline & { pipeline_stages: PipelineStage[] })[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<(Pipeline & { pipeline_stages: PipelineStage[] }) | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddOpportunity, setShowAddOpportunity] = useState(false);
+  const [boardRefreshKey, setBoardRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -110,13 +113,31 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
             <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
               <Settings className="w-5 h-5" />
             </button>
+
+            <button
+              onClick={() => setShowAddOpportunity(true)}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Opportunity
+            </button>
           </div>
         </div>
 
         {/* Kanban Board */}
         <div className="flex-1 overflow-hidden">
-          <PipelineBoard pipeline={selectedPipeline} accountId={accountId} />
+          <PipelineBoard pipeline={selectedPipeline} accountId={accountId} refreshKey={boardRefreshKey} />
         </div>
+
+        {showAddOpportunity && (
+          <AddOpportunityModal
+            accountId={accountId}
+            pipelineId={selectedPipeline.id}
+            stages={selectedPipeline.pipeline_stages}
+            onClose={() => setShowAddOpportunity(false)}
+            onSuccess={() => { setShowAddOpportunity(false); setBoardRefreshKey(k => k + 1); }}
+          />
+        )}
       </div>
     );
   }
@@ -126,8 +147,8 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Pipelines</h2>
-          <p className="text-gray-600 mt-1">Manage your sales pipelines and stages</p>
+          <h2 className="text-2xl font-bold text-gray-900">Opportunities</h2>
+          <p className="text-gray-600 mt-1">Manage your pipelines and opportunities</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -145,7 +166,7 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No pipelines yet</h3>
           <p className="text-gray-600 mb-6">
-            Create your first pipeline to start organizing your sales process.
+            Create your first pipeline to start tracking opportunities.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}

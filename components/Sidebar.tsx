@@ -25,7 +25,7 @@ const allMenuItems = [
   { id: 'contacts', label: 'Contacts', icon: Users, agencyOnly: false, ownerAdminOnly: false },
   { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false, ownerAdminOnly: false },
   { id: 'calendar', label: 'Calendar', icon: Calendar, agencyOnly: false, ownerAdminOnly: false },
-  { id: 'pipelines', label: 'Pipelines', icon: KanbanSquare, agencyOnly: false, ownerAdminOnly: false },
+  { id: 'pipelines', label: 'Opportunities', icon: KanbanSquare, agencyOnly: false, ownerAdminOnly: false },
   { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false, ownerAdminOnly: false },
   { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false, ownerAdminOnly: false },
   { id: 'ai-agent', label: 'AI Agent', icon: Bot, agencyOnly: false, ownerAdminOnly: true },

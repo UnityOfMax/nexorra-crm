@@ -2,23 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Plus } from 'lucide-react';
 import { Pipeline, PipelineStage, DealExtended } from '@/types';
 import DealCard from './DealCard';
 
 interface PipelineBoardProps {
   pipeline: Pipeline & { pipeline_stages: PipelineStage[] };
   accountId: string;
+  refreshKey?: number;
 }
 
-export default function PipelineBoard({ pipeline, accountId }: PipelineBoardProps) {
+export default function PipelineBoard({ pipeline, accountId, refreshKey }: PipelineBoardProps) {
   const [deals, setDeals] = useState<DealExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [stageDeals, setStageDeals] = useState<Record<string, DealExtended[]>>({});
 
   useEffect(() => {
     loadDeals();
-  }, [pipeline.id]);
+  }, [pipeline.id, refreshKey]);
 
   const loadDeals = async () => {
     setLoading(true);
@@ -201,11 +201,6 @@ export default function PipelineBoard({ pipeline, accountId }: PipelineBoardProp
                         {provided.placeholder}
                       </div>
 
-                      {/* Add Deal Button */}
-                      <button className="mt-2 w-full p-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-1">
-                        <Plus className="w-4 h-4" />
-                        Add Deal
-                      </button>
                     </div>
                   )}
                 </Droppable>

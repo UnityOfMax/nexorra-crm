@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Account } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, Bot, User, MapPin } from 'lucide-react';
+import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, MapPin } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
 interface SettingsProps {
@@ -47,18 +47,6 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     logo_url: '',
   });
 
-  // AI config
-  const [aiConfig, setAiConfig] = useState({
-    enabled: false,
-    mode: 'suggest' as 'suggest' | 'auto',
-    system_prompt: '',
-    tone: 'professional',
-    max_tokens: 500,
-    channels: { sms: true, email: true },
-    business_context: '',
-  });
-  const [aiSaving, setAiSaving] = useState(false);
-  const [aiTesting, setAiTesting] = useState(false);
 
   useEffect(() => {
     if (account.settings) {
@@ -82,7 +70,6 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     }
     loadTwilioNumbers();
     loadFacebookIntegration();
-    loadAiConfig();
   }, [account]);
 
   const loadFacebookIntegration = async () => {
@@ -98,75 +85,6 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     }
   };
 
-  const loadAiConfig = async () => {
-    try {
-      const res = await fetch(`/api/ai/config?accountId=${account.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.config) {
-          setAiConfig({
-            enabled: data.config.enabled ?? false,
-            mode: data.config.mode || 'suggest',
-            system_prompt: data.config.system_prompt || '',
-            tone: data.config.tone || 'professional',
-            max_tokens: data.config.max_tokens || 500,
-            channels: data.config.channels || { sms: true, email: true },
-            business_context: data.config.business_context || '',
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error loading AI config:', error);
-    }
-  };
-
-  const saveAiConfig = async () => {
-    setAiSaving(true);
-    try {
-      const res = await fetch('/api/ai/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id, ...aiConfig }),
-      });
-      if (res.ok) setMessage('AI agent settings saved!');
-      else setMessage('Failed to save AI settings');
-    } catch (error: any) {
-      setMessage('Error: ' + error.message);
-    } finally {
-      setAiSaving(false);
-    }
-  };
-
-  const testAiResponse = async () => {
-    setAiTesting(true);
-    setMessage('');
-    try {
-      await saveAiConfig();
-      const { data: contacts } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('account_id', account.id)
-        .limit(1)
-        .single();
-      if (!contacts) { setMessage('No contacts found. Add a contact first to test AI.'); return; }
-      const res = await fetch('/api/ai/generate-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id, contactId: contacts.id, channel: 'sms' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessage(`AI Test Response: "${data.response}"`);
-      } else {
-        const data = await res.json();
-        setMessage('AI Test Failed: ' + (data.error || 'Unknown error'));
-      }
-    } catch (error: any) {
-      setMessage('Error: ' + error.message);
-    } finally {
-      setAiTesting(false);
-    }
-  };
 
   const loadTwilioNumbers = async () => {
     setLoadingNumbers(true);
@@ -710,125 +628,6 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         </div>
       )}
 
-      {/* ── AI AGENT ── */}
-      {isAgencyUser && (
-        <div className="card mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-violet-100 rounded-lg">
-              <Bot className="w-6 h-6 text-violet-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900">AI Agent</h3>
-              <p className="text-sm text-gray-600">AI-powered responses for conversations</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={aiConfig.enabled}
-                onChange={(e) => setAiConfig({ ...aiConfig, enabled: e.target.checked })}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
-              <span className="ml-2 text-sm font-medium text-gray-700">{aiConfig.enabled ? 'On' : 'Off'}</span>
-            </label>
-          </div>
-
-          {aiConfig.enabled ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Response Mode</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(['suggest', 'auto'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setAiConfig({ ...aiConfig, mode })}
-                      className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                        aiConfig.mode === mode ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <p className="font-medium text-gray-900 text-sm">{mode === 'suggest' ? 'Suggest Only' : 'Auto-Respond'}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {mode === 'suggest' ? 'AI drafts responses for you to review' : 'AI automatically sends responses'}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tone</label>
-                <select value={aiConfig.tone} onChange={(e) => setAiConfig({ ...aiConfig, tone: e.target.value })} className="input">
-                  <option value="professional">Professional</option>
-                  <option value="casual">Casual</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="formal">Formal</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
-                <textarea
-                  value={aiConfig.system_prompt}
-                  onChange={(e) => setAiConfig({ ...aiConfig, system_prompt: e.target.value })}
-                  className="input font-mono text-sm"
-                  rows={4}
-                  placeholder="You are a helpful assistant for our business..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business Context</label>
-                <textarea
-                  value={aiConfig.business_context}
-                  onChange={(e) => setAiConfig({ ...aiConfig, business_context: e.target.value })}
-                  className="input text-sm"
-                  rows={3}
-                  placeholder="We are a real estate agency open Mon-Fri..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Active Channels</label>
-                <div className="flex gap-4">
-                  {(['sms', 'email'] as const).map((ch) => (
-                    <label key={ch} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={aiConfig.channels[ch]}
-                        onChange={(e) => setAiConfig({ ...aiConfig, channels: { ...aiConfig.channels, [ch]: e.target.checked } })}
-                        className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-                      />
-                      <span className="text-sm text-gray-700 capitalize">{ch}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Response Length: {aiConfig.max_tokens} tokens
-                </label>
-                <input
-                  type="range" min={100} max={2000} step={100}
-                  value={aiConfig.max_tokens}
-                  onChange={(e) => setAiConfig({ ...aiConfig, max_tokens: parseInt(e.target.value) })}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-400"><span>Short</span><span>Long</span></div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={saveAiConfig} disabled={aiSaving} className="btn btn-primary flex items-center gap-2">
-                  {aiSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save AI Settings
-                </button>
-                <button onClick={testAiResponse} disabled={aiTesting} className="btn btn-secondary flex items-center gap-2">
-                  {aiTesting ? <Loader className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
-                  Test AI
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              Enable the AI agent to automatically generate or suggest responses to inbound messages.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

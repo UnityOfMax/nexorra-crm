@@ -193,12 +193,6 @@ export default function ContactsList({
                         >
                           <Mail className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => onContactClick?.(contact.id)}
-                          className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          Message
-                        </button>
                       </div>
                     </td>
                   </tr>

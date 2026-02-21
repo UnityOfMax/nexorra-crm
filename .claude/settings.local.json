@@ -5,7 +5,19 @@
       "Bash(npm audit:*)",
       "Bash(npx next:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(node -e \":*)",
+      "WebFetch(domain:www.charliekiers.com)",
+      "WebFetch(domain:actionjacksonrealestate.com)",
+      "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node:*)",
+      "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node -e:*)",
+      "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node -e \":*)",
+      "Bash(grep:*)"
     ]
   }
 }
