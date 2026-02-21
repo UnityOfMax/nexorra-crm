@@ -29,6 +29,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# One-time data scripts (may contain env vars / secrets)
+scripts/update-pages.mjs
+scripts/update-pages2.mjs
+scripts/create-test-page.mjs
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

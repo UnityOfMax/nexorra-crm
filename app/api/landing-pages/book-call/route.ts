@@ -61,6 +61,30 @@ export async function POST(request: NextRequest) {
       if (agencyMember) createdByUserId = agencyMember.user_id;
     }
 
+    // Strategy 4: any member of the parent agency (no role filter)
+    if (!createdByUserId && accountRow?.parent_account_id) {
+      const { data: anyMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountRow.parent_account_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (anyMember) createdByUserId = anyMember.user_id;
+    }
+
+    // Strategy 5: any member of THIS account (no role filter, catches admin accounts)
+    if (!createdByUserId) {
+      const { data: anyDirectMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (anyDirectMember) createdByUserId = anyDirectMember.user_id;
+    }
+
     if (!createdByUserId) {
       console.error('[book-call] Could not resolve a user ID for account:', accountId);
       return NextResponse.json(

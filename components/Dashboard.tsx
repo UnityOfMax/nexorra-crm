@@ -125,14 +125,12 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
   const loadContacts = async () => {
     if (!currentAccount) return;
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('account_id', currentAccount.id)
-      .order('created_at', { ascending: false });
-
-    if (data && !error) {
-      setContacts(data);
+    // Use supabaseAdmin-backed API route so agency users can see sub-account contacts
+    // (direct supabase client is blocked by RLS for accounts the user isn't a member of)
+    const res = await fetch(`/api/contacts?accountId=${currentAccount.id}`);
+    if (res.ok) {
+      const { contacts: data } = await res.json();
+      setContacts(data || []);
     }
   };
 
@@ -191,10 +189,10 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
   const loadStats = async () => {
     if (!currentAccount) return;
 
-    const { data: contactsData } = await supabase
-      .from('contacts')
-      .select('id, status')
-      .eq('account_id', currentAccount.id);
+    // Use admin-backed API for the same RLS bypass reason as loadContacts
+    const contactsRes = await fetch(`/api/contacts?accountId=${currentAccount.id}`);
+    const contactsJson = contactsRes.ok ? await contactsRes.json() : {};
+    const contactsData: { id: string; status: string }[] = contactsJson.contacts || [];
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
