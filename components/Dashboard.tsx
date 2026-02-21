@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Account, Contact } from '@/types';
@@ -27,7 +26,6 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, initialView, initialAccountId, initialAccountSlug }: DashboardProps) {
-  const router = useRouter();
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [agencyAccount, setAgencyAccount] = useState<Account | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -64,25 +62,28 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     }
   }, [agencyAccount, isAgencyUser]);
 
-  // Persist view + account in URL so page refresh restores state
+  // Persist view + account in URL so page refresh restores state.
+  // Uses window.history.replaceState instead of router.replace to avoid Next.js
+  // page navigations that would remount Dashboard and reset all state.
   useEffect(() => {
     if (!urlRestoredRef.current) return; // don't overwrite URL during initial load
     if (!currentAccount) return;
 
     const slug = (currentAccount as any).slug;
+    const params = new URLSearchParams();
+    if (activeView && activeView !== 'dashboard') params.set('view', activeView);
+    const query = params.toString();
+
     if (isViewingClient && slug) {
       // Sub-account: use /account/[slug]?view=...
-      const params = new URLSearchParams();
-      if (activeView && activeView !== 'dashboard') params.set('view', activeView);
-      const query = params.toString();
-      router.replace(query ? `/account/${slug}?${query}` : `/account/${slug}`);
-    } else {
+      const url = query ? `/account/${slug}?${query}` : `/account/${slug}`;
+      window.history.replaceState(null, '', url);
+    } else if (!isViewingClient) {
       // Agency account: use /?view=...
-      const params = new URLSearchParams();
-      if (activeView && activeView !== 'dashboard') params.set('view', activeView);
-      const query = params.toString();
-      router.replace(query ? `/?${query}` : '/');
+      const url = query ? `/?${query}` : '/';
+      window.history.replaceState(null, '', url);
     }
+    // If isViewingClient but no slug, don't touch the URL
   }, [activeView, currentAccount, isViewingClient]);
 
   const loadAccounts = async () => {
@@ -195,14 +196,15 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     if (selectedAccount.account_type === 'agency') {
       setIsViewingClient(false);
       setActiveView('dashboard');
-      router.push('/');
+      // Update URL without Next.js navigation so Dashboard stays mounted
+      window.history.pushState(null, '', '/');
     } else {
-      // Agency owner viewing a sub-account — navigate to slug URL for persistence
+      // Agency owner viewing a sub-account
       setIsViewingClient(true);
       setActiveView('dashboard');
       const slug = (selectedAccount as any).slug;
       if (slug) {
-        router.push(`/account/${slug}`);
+        window.history.pushState(null, '', `/account/${slug}`);
       }
     }
   };

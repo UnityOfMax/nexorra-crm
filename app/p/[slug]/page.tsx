@@ -1,9 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import PublicPageClient from '@/components/landing-pages/PublicPageClient';
 
-// Page shell is cacheable – actual content is fetched client-side from
-// /api/landing-pages/public/[slug] which always bypasses the CDN.
-// This means edits appear immediately without any cache invalidation.
+// Always render fresh so edits appear immediately — no CDN or Full Route Cache.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const { data: page } = await supabaseAdmin
