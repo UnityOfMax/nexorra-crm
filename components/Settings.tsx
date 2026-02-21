@@ -36,6 +36,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     phone: '',
     address: '',
   });
+  const [timezone, setTimezone] = useState('');
 
   // Service settings
   const [settings, setSettings] = useState({
@@ -77,6 +78,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           address: account.settings.location.address || '',
         });
       }
+      setTimezone(account.settings.timezone || '');
     }
     loadTwilioNumbers();
     loadFacebookIntegration();
@@ -200,6 +202,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           settings: {
             ...account.settings,
             location,
+            timezone: timezone || undefined,
             from_email: fromEmail,
             from_name: fromName,
           },
@@ -354,6 +357,34 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                 className="input"
                 placeholder="123 Main St, Miami, FL 33131"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default Calendar Timezone</label>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="input"
+              >
+                <option value="">Browser default</option>
+                <option value="UTC">UTC</option>
+                <option value="America/New_York">Eastern (ET)</option>
+                <option value="America/Chicago">Central (CT)</option>
+                <option value="America/Denver">Mountain (MT)</option>
+                <option value="America/Los_Angeles">Pacific (PT)</option>
+                <option value="America/Anchorage">Alaska</option>
+                <option value="Pacific/Honolulu">Hawaii</option>
+                <option value="America/Halifax">Atlantic (AT)</option>
+                <option value="America/Vancouver">Vancouver (PT)</option>
+                <option value="America/Toronto">Toronto (ET)</option>
+                <option value="Europe/London">London (GMT/BST)</option>
+                <option value="Europe/Paris">Paris (CET)</option>
+                <option value="Asia/Dubai">Dubai (GST)</option>
+                <option value="Asia/Kolkata">Mumbai (IST)</option>
+                <option value="Asia/Singapore">Singapore (SGT)</option>
+                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                <option value="Australia/Sydney">Sydney (AEST)</option>
+                <option value="Pacific/Auckland">Auckland (NZST)</option>
+              </select>
             </div>
             {location.first_name && location.last_name && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">

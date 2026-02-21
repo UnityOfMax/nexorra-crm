@@ -29,6 +29,7 @@ export default function CreateSubAccountModal({
     name: '',
     slug: '',
     domain: '',
+    timezone: '',
     // Primary user (optional)
     user_first_name: '',
     user_email: '',
@@ -89,6 +90,7 @@ export default function CreateSubAccountModal({
             phone: formData.location_phone || undefined,
             address: formData.location_address || undefined,
           },
+          timezone: formData.timezone || undefined,
           userInfo: formData.user_email ? {
             first_name: formData.user_first_name,
             email: formData.user_email,
@@ -293,6 +295,36 @@ export default function CreateSubAccountModal({
                     />
                   </div>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Default Calendar Timezone
+                </label>
+                <select
+                  value={formData.timezone}
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                  className="input"
+                >
+                  <option value="">Browser default</option>
+                  <option value="UTC">UTC</option>
+                  <option value="America/New_York">Eastern (ET)</option>
+                  <option value="America/Chicago">Central (CT)</option>
+                  <option value="America/Denver">Mountain (MT)</option>
+                  <option value="America/Los_Angeles">Pacific (PT)</option>
+                  <option value="America/Anchorage">Alaska</option>
+                  <option value="Pacific/Honolulu">Hawaii</option>
+                  <option value="America/Halifax">Atlantic (AT)</option>
+                  <option value="America/Vancouver">Vancouver (PT)</option>
+                  <option value="America/Toronto">Toronto (ET)</option>
+                  <option value="Europe/London">London (GMT/BST)</option>
+                  <option value="Europe/Paris">Paris (CET)</option>
+                  <option value="Asia/Dubai">Dubai (GST)</option>
+                  <option value="Asia/Kolkata">Mumbai (IST)</option>
+                  <option value="Asia/Singapore">Singapore (SGT)</option>
+                  <option value="Asia/Tokyo">Tokyo (JST)</option>
+                  <option value="Australia/Sydney">Sydney (AEST)</option>
+                  <option value="Pacific/Auckland">Auckland (NZST)</option>
+                </select>
               </div>
             </div>
           </div>

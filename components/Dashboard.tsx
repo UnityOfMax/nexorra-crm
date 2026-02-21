@@ -252,6 +252,14 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
               setSelectedContactId(contactId);
               setActiveView('conversations');
             }}
+            onSmsClick={(contact) => {
+              setSelectedContactId(contact.id);
+              setActiveView('conversations');
+            }}
+            onEmailClick={(contact) => {
+              setSelectedContactId(contact.id);
+              setActiveView('conversations');
+            }}
           />
         );
       case 'conversations':
@@ -267,6 +275,7 @@ export default function Dashboard({ user, initialView, initialAccountId }: Dashb
           <CalendarView
             accountId={currentAccount?.id || ''}
             userId={user.id}
+            defaultTimezone={currentAccount?.settings?.timezone}
           />
         );
       case 'settings':

@@ -229,6 +229,30 @@ export async function syncGoogleEventToActivity(accountId: string, event: any) {
       if (agencyMember) createdByUserId = agencyMember.user_id;
     }
 
+    // Strategy 4: any member of the parent agency (no role filter)
+    if (!createdByUserId && accountRow?.parent_account_id) {
+      const { data: anyAgencyMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountRow.parent_account_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (anyAgencyMember) createdByUserId = anyAgencyMember.user_id;
+    }
+
+    // Strategy 5: any member of this account (no role filter)
+    if (!createdByUserId) {
+      const { data: anyDirectMember } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (anyDirectMember) createdByUserId = anyDirectMember.user_id;
+    }
+
     if (!createdByUserId) {
       console.error('Could not resolve a user ID for account:', accountId, '— skipping event:', event.id);
       return;

@@ -24,3 +24,31 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ contacts: data || [] });
 }
+
+// PATCH /api/contacts?id=X&accountId=Y
+export async function PATCH(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get('id');
+  const accountId = request.nextUrl.searchParams.get('accountId');
+  if (!id || !accountId) {
+    return NextResponse.json({ error: 'id and accountId required' }, { status: 400 });
+  }
+
+  const updates = await request.json();
+  // Strip fields that shouldn't be updated directly
+  const { id: _id, account_id: _aid, created_at: _ca, ...safeUpdates } = updates;
+
+  const { data, error } = await supabaseAdmin
+    .from('contacts')
+    .update(safeUpdates)
+    .eq('id', id)
+    .eq('account_id', accountId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Contact update error:', error);
+    return NextResponse.json({ error: 'Failed to update contact' }, { status: 500 });
+  }
+
+  return NextResponse.json({ contact: data });
+}

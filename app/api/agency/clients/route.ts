@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       domain,
       location,
       userInfo,
+      timezone,
     } = await request.json();
 
     if (!agencyId || !userId || !name) {
@@ -135,6 +136,9 @@ export async function POST(request: NextRequest) {
     if (fromEmail) {
       accountSettings.from_email = fromEmail;
       accountSettings.from_name = fromName;
+    }
+    if (timezone) {
+      accountSettings.timezone = timezone;
     }
 
     // Create client account

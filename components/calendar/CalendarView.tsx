@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Check, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Activity } from '@/types';
 import CreateEventModal from './CreateEventModal';
@@ -19,6 +19,7 @@ async function fetchCalendarData(accountId: string, start: Date, end: Date) {
 interface CalendarViewProps {
   accountId: string;
   userId: string;
+  defaultTimezone?: string;
 }
 
 type ViewMode = 'month' | 'week' | 'day';
@@ -26,21 +27,84 @@ type ViewMode = 'month' | 'week' | 'day';
 // Full 24-hour grid (midnight to midnight)
 const HOUR_START = 0;
 const HOUR_END = 24;
-const HOUR_HEIGHT = 56; // px per hour (slightly tighter for full-day view)
+const HOUR_HEIGHT = 56;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+const COMMON_TIMEZONES = [
+  { label: 'Browser default', value: '' },
+  { label: 'UTC', value: 'UTC' },
+  { label: 'Eastern (ET)', value: 'America/New_York' },
+  { label: 'Central (CT)', value: 'America/Chicago' },
+  { label: 'Mountain (MT)', value: 'America/Denver' },
+  { label: 'Pacific (PT)', value: 'America/Los_Angeles' },
+  { label: 'Alaska', value: 'America/Anchorage' },
+  { label: 'Hawaii', value: 'Pacific/Honolulu' },
+  { label: 'Atlantic (AT)', value: 'America/Halifax' },
+  { label: 'Vancouver (PT)', value: 'America/Vancouver' },
+  { label: 'Toronto (ET)', value: 'America/Toronto' },
+  { label: 'London (GMT/BST)', value: 'Europe/London' },
+  { label: 'Paris (CET)', value: 'Europe/Paris' },
+  { label: 'Dubai (GST)', value: 'Asia/Dubai' },
+  { label: 'Mumbai (IST)', value: 'Asia/Kolkata' },
+  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+  { label: 'Sydney (AEST)', value: 'Australia/Sydney' },
+  { label: 'Auckland (NZST)', value: 'Pacific/Auckland' },
+];
+
+// ─── Timezone-aware helpers ──────────────────────────────────────────────────
+
+function getEffectiveTz(tz: string): string {
+  return tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
+
+function getDateParts(date: Date, tz: string) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: getEffectiveTz(tz),
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', hour12: false,
+  });
+  const obj: Record<string, string> = {};
+  for (const p of fmt.formatToParts(date)) obj[p.type] = p.value;
+  const hour = parseInt(obj.hour) === 24 ? 0 : parseInt(obj.hour);
+  return {
+    year: parseInt(obj.year),
+    month: parseInt(obj.month), // 1-based
+    day: parseInt(obj.day),
+    hour,
+    minute: parseInt(obj.minute),
+  };
+}
+
+function isSameDayTz(a: Date, b: Date, tz: string): boolean {
+  const pa = getDateParts(a, tz);
+  const pb = getDateParts(b, tz);
+  return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
+}
+
+function getEventTopPctTz(dateStr: string, tz: string): number {
+  const parts = getDateParts(new Date(dateStr), tz);
+  const minutes = parts.hour * 60 + parts.minute;
+  return Math.max(0, ((minutes - HOUR_START * 60) / (TOTAL_HOURS * 60)) * 100);
+}
+
+function formatTimeTz(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', hour12: true,
+    timeZone: getEffectiveTz(tz),
+  });
+}
+
+function getCurrentMinutesInTz(tz: string): number {
+  const parts = getDateParts(new Date(), tz);
+  return parts.hour * 60 + parts.minute;
+}
+
+// ─── Unchanged pure helpers ──────────────────────────────────────────────────
 
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
+  d.setDate(d.getDate() - d.getDay());
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -58,59 +122,30 @@ function formatHour(h: number): string {
   return `${h - 12} PM`;
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
-function getEventTopPct(dateStr: string): number {
-  const d = new Date(dateStr);
-  const minutes = d.getHours() * 60 + d.getMinutes();
-  const startMin = HOUR_START * 60;
-  return Math.max(0, ((minutes - startMin) / (TOTAL_HOURS * 60)) * 100);
-}
-
 function getEventHeightPct(durationMin: number): number {
   return Math.max((durationMin / (TOTAL_HOURS * 60)) * 100, 1.5);
 }
 
-// ─── Event Block (week/day grid) ────────────────────────────────────────────
+// ─── Event Block (week/day grid) ─────────────────────────────────────────────
 function EventBlock({
-  activity,
-  isGoogle,
-  columnWidth,
-  onClick,
+  activity, isGoogle, timezone, onClick,
 }: {
   activity: Activity;
   isGoogle: boolean;
-  columnWidth: number;
+  timezone: string;
   onClick: () => void;
 }) {
   if (!activity.due_date) return null;
-  const topPct = getEventTopPct(activity.due_date);
-  const heightPct = getEventHeightPct(60); // default 1 hour duration
+  const topPct = getEventTopPctTz(activity.due_date, timezone);
+  const heightPct = getEventHeightPct(60);
 
   if (isGoogle) {
     return (
-      <div
-        style={{
-          position: 'absolute',
-          top: `${topPct}%`,
-          height: `${heightPct}%`,
-          left: 2,
-          right: 2,
-          background: '#f3f4f6',
-          border: '1.5px dashed #9ca3af',
-          borderRadius: 6,
-          padding: '2px 6px',
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      >
+      <div style={{
+        position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`,
+        left: 2, right: 2, background: '#f3f4f6', border: '1.5px dashed #9ca3af',
+        borderRadius: 6, padding: '2px 6px', overflow: 'hidden', pointerEvents: 'none', zIndex: 1,
+      }}>
         <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 500 }}>Busy</span>
       </div>
     );
@@ -120,22 +155,14 @@ function EventBlock({
     <div
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       style={{
-        position: 'absolute',
-        top: `${topPct}%`,
-        height: `${heightPct}%`,
-        left: 2,
-        right: 2,
-        background: '#3b82f6',
-        borderRadius: 6,
-        padding: '3px 7px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        zIndex: 2,
+        position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`,
+        left: 2, right: 2, background: '#3b82f6', borderRadius: 6,
+        padding: '3px 7px', overflow: 'hidden', cursor: 'pointer', zIndex: 2,
         boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
       }}
     >
       <p style={{ fontSize: '0.72rem', color: '#fff', fontWeight: 600, lineHeight: 1.3, margin: 0 }}>
-        {formatTime(activity.due_date)}
+        {formatTimeTz(activity.due_date, timezone)}
       </p>
       <p style={{ fontSize: '0.72rem', color: '#dbeafe', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {activity.subject || 'Meeting'}
@@ -146,39 +173,19 @@ function EventBlock({
 
 // ─── Event Detail Popover ────────────────────────────────────────────────────
 function EventPopover({
-  activity,
-  onClose,
-  onMarkComplete,
+  activity, timezone, onClose, onMarkComplete,
 }: {
   activity: Activity;
+  timezone: string;
   onClose: () => void;
   onMarkComplete: (id: string, completed: boolean) => void;
 }) {
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.25)',
-        padding: 16,
-      }}
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)', padding: 16 }}
       onClick={onClose}
     >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          width: '100%',
-          maxWidth: 340,
-          padding: 20,
-        }}
-      >
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', width: '100%', maxWidth: 340, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0, paddingRight: 8 }}>
             {activity.subject || 'Meeting'}
@@ -190,7 +197,11 @@ function EventPopover({
 
         {activity.due_date && (
           <p style={{ fontSize: '0.85rem', color: '#4b5563', marginBottom: 8 }}>
-            🕐 {new Date(activity.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {formatTime(activity.due_date)}
+            🕐 {new Date(activity.due_date).toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric',
+              timeZone: getEffectiveTz(timezone),
+            })} at {formatTimeTz(activity.due_date, timezone)}
+            {timezone && <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: 4 }}>({timezone})</span>}
           </p>
         )}
 
@@ -201,36 +212,13 @@ function EventPopover({
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '3px 10px',
-            borderRadius: 20,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: activity.completed ? '#f3f4f6' : '#dcfce7',
-            color: activity.completed ? '#6b7280' : '#15803d',
-          }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, background: activity.completed ? '#f3f4f6' : '#dcfce7', color: activity.completed ? '#6b7280' : '#15803d' }}>
             {activity.completed ? 'Completed' : 'Confirmed'}
           </span>
-
           {!activity.completed && (
             <button
               onClick={() => onMarkComplete(activity.id, true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 12px',
-                borderRadius: 8,
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                color: '#15803d',
-                fontWeight: 600,
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', cursor: 'pointer', fontSize: '0.8rem', color: '#15803d', fontWeight: 600 }}
             >
               <Check size={14} /> Mark Complete
             </button>
@@ -243,27 +231,21 @@ function EventPopover({
 
 // ─── Time Grid (shared between week & day) ───────────────────────────────────
 function TimeGrid({
-  days,
-  activities,
-  googleIds,
-  today,
-  onCellClick,
-  onEventClick,
+  days, activities, googleIds, today, timezone, onCellClick, onEventClick,
 }: {
   days: Date[];
   activities: Activity[];
   googleIds: Set<string>;
   today: Date;
+  timezone: string;
   onCellClick: (date: Date) => void;
   onEventClick: (a: Activity) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i);
-  const now = new Date();
-  const currentMinFromStart = now.getHours() * 60 + now.getMinutes() - HOUR_START * 60;
+  const currentMinFromStart = getCurrentMinutesInTz(timezone) - HOUR_START * 60;
   const currentTimePct = (currentMinFromStart / (TOTAL_HOURS * 60)) * 100;
 
-  // Auto-scroll to current time on mount
   useEffect(() => {
     if (scrollRef.current) {
       const scrollTarget = (currentMinFromStart / (TOTAL_HOURS * 60)) * scrollRef.current.scrollHeight;
@@ -289,12 +271,11 @@ function TimeGrid({
 
         {/* Day columns */}
         {days.map((day, di) => {
-          const dayActivities = activities.filter(a => a.due_date && isSameDay(new Date(a.due_date), day));
-          const isToday = isSameDay(day, today);
+          const dayActivities = activities.filter(a => a.due_date && isSameDayTz(new Date(a.due_date), day, timezone));
+          const isToday = isSameDayTz(day, today, timezone);
 
           return (
             <div key={di} style={{ flex: 1, position: 'relative', borderLeft: '1px solid #f0f0f0' }}>
-              {/* Hour lines */}
               {hours.map((h, i) => (
                 <div
                   key={h}
@@ -303,12 +284,7 @@ function TimeGrid({
                     d.setHours(h, 0, 0, 0);
                     onCellClick(d);
                   }}
-                  style={{
-                    height: HOUR_HEIGHT,
-                    borderTop: i === 0 ? 'none' : '1px solid #f0f0f0',
-                    cursor: 'pointer',
-                    transition: 'background 0.1s',
-                  }}
+                  style={{ height: HOUR_HEIGHT, borderTop: i === 0 ? 'none' : '1px solid #f0f0f0', cursor: 'pointer', transition: 'background 0.1s' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 />
@@ -316,37 +292,17 @@ function TimeGrid({
 
               {/* Current time indicator */}
               {isToday && currentTimePct >= 0 && currentTimePct <= 100 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: `${currentTimePct}%`,
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    background: '#ef4444',
-                    zIndex: 3,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    left: -4,
-                    top: -4,
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: '#ef4444',
-                  }} />
+                <div style={{ position: 'absolute', top: `${currentTimePct}%`, left: 0, right: 0, height: 2, background: '#ef4444', zIndex: 3, pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', left: -4, top: -4, width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
                 </div>
               )}
 
-              {/* Events */}
               {dayActivities.map(a => (
                 <EventBlock
                   key={a.id}
                   activity={a}
                   isGoogle={googleIds.has(a.id)}
-                  columnWidth={0}
+                  timezone={timezone}
                   onClick={() => onEventClick(a)}
                 />
               ))}
@@ -360,17 +316,13 @@ function TimeGrid({
 
 // ─── Week View ───────────────────────────────────────────────────────────────
 function WeekView({
-  weekStart,
-  activities,
-  googleIds,
-  today,
-  onCellClick,
-  onEventClick,
+  weekStart, activities, googleIds, today, timezone, onCellClick, onEventClick,
 }: {
   weekStart: Date;
   activities: Activity[];
   googleIds: Set<string>;
   today: Date;
+  timezone: string;
   onCellClick: (date: Date) => void;
   onEventClick: (a: Activity) => void;
 }) {
@@ -379,29 +331,16 @@ function WeekView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
-      {/* Day header */}
       <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
         <div style={{ width: 52, flexShrink: 0 }} />
         {days.map((day, i) => {
-          const isToday = isSameDay(day, today);
+          const isToday = isSameDayTz(day, today, timezone);
           return (
             <div key={i} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderLeft: '1px solid #f0f0f0' }}>
               <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {dayNames[day.getDay()]}
               </div>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: isToday ? '#3b82f6' : 'transparent',
-                color: isToday ? '#fff' : '#111827',
-                fontWeight: isToday ? 700 : 600,
-                fontSize: '0.85rem',
-                marginTop: 2,
-              }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: isToday ? '#3b82f6' : 'transparent', color: isToday ? '#fff' : '#111827', fontWeight: isToday ? 700 : 600, fontSize: '0.85rem', marginTop: 2 }}>
                 {day.getDate()}
               </div>
             </div>
@@ -409,72 +348,48 @@ function WeekView({
         })}
       </div>
 
-      <TimeGrid
-        days={days}
-        activities={activities}
-        googleIds={googleIds}
-        today={today}
-        onCellClick={onCellClick}
-        onEventClick={onEventClick}
-      />
+      <TimeGrid days={days} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={onCellClick} onEventClick={onEventClick} />
     </div>
   );
 }
 
 // ─── Day View ────────────────────────────────────────────────────────────────
 function DayView({
-  date,
-  activities,
-  googleIds,
-  today,
-  onCellClick,
-  onEventClick,
+  date, activities, googleIds, today, timezone, onCellClick, onEventClick,
 }: {
   date: Date;
   activities: Activity[];
   googleIds: Set<string>;
   today: Date;
+  timezone: string;
   onCellClick: (date: Date) => void;
   onEventClick: (a: Activity) => void;
 }) {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const isToday = isSameDay(date, today);
+  const isToday = isSameDayTz(date, today, timezone);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
-      {/* Day header */}
       <div style={{ borderBottom: '1px solid #e5e7eb', padding: '8px 0 8px 52px', flexShrink: 0 }}>
         <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isToday ? '#3b82f6' : '#111827' }}>
           {dayNames[date.getDay()]}, {date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
         </span>
         {isToday && <span style={{ marginLeft: 8, fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600 }}>Today</span>}
       </div>
-
-      <TimeGrid
-        days={[date]}
-        activities={activities}
-        googleIds={googleIds}
-        today={today}
-        onCellClick={onCellClick}
-        onEventClick={onEventClick}
-      />
+      <TimeGrid days={[date]} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={onCellClick} onEventClick={onEventClick} />
     </div>
   );
 }
 
 // ─── Month View ──────────────────────────────────────────────────────────────
 function MonthView({
-  currentDate,
-  activities,
-  googleIds,
-  today,
-  onDayClick,
-  onEventClick,
+  currentDate, activities, googleIds, today, timezone, onDayClick, onEventClick,
 }: {
   currentDate: Date;
   activities: Activity[];
   googleIds: Set<string>;
   today: Date;
+  timezone: string;
   onDayClick: (date: Date) => void;
   onEventClick: (a: Activity) => void;
 }) {
@@ -487,13 +402,13 @@ function MonthView({
   const getForDay = (day: number) =>
     activities.filter(a => {
       if (!a.due_date) return false;
-      const d = new Date(a.due_date);
-      return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+      const parts = getDateParts(new Date(a.due_date), timezone);
+      // month in getDateParts is 1-based; JS month is 0-based
+      return parts.day === day && parts.month === month + 1 && parts.year === year;
     });
 
   return (
     <div>
-      {/* Day name headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #e5e7eb', marginBottom: 4 }}>
         {dayNames.map(d => (
           <div key={d} style={{ textAlign: 'center', padding: '8px 0', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -503,48 +418,27 @@ function MonthView({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#e5e7eb' }}>
-        {/* Empty cells */}
         {Array.from({ length: firstDay }).map((_, i) => (
           <div key={`e${i}`} style={{ background: '#fafafa', minHeight: 90 }} />
         ))}
 
-        {/* Day cells */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const dayActivities = getForDay(day);
           const date = new Date(year, month, day);
-          const isToday = isSameDay(date, today);
+          const isToday = isSameDayTz(date, today, timezone);
 
           return (
             <div
               key={day}
               onClick={() => onDayClick(date)}
-              style={{
-                background: '#fff',
-                minHeight: 90,
-                padding: '6px 4px',
-                cursor: 'pointer',
-                transition: 'background 0.1s',
-              }}
+              style={{ background: '#fff', minHeight: 90, padding: '6px 4px', cursor: 'pointer', transition: 'background 0.1s' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
               onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
             >
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: isToday ? '#3b82f6' : 'transparent',
-                color: isToday ? '#fff' : '#111827',
-                fontWeight: isToday ? 700 : 500,
-                fontSize: '0.8rem',
-                marginBottom: 4,
-              }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: isToday ? '#3b82f6' : 'transparent', color: isToday ? '#fff' : '#111827', fontWeight: isToday ? 700 : 500, fontSize: '0.8rem', marginBottom: 4 }}>
                 {day}
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {dayActivities.slice(0, 3).map(a => {
                   const isGoogle = googleIds.has(a.id);
@@ -552,19 +446,7 @@ function MonthView({
                     <div
                       key={a.id}
                       onClick={e => { e.stopPropagation(); if (!isGoogle) onEventClick(a); }}
-                      style={{
-                        fontSize: '0.68rem',
-                        padding: '1px 5px',
-                        borderRadius: 4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        background: isGoogle ? '#f3f4f6' : '#dbeafe',
-                        color: isGoogle ? '#9ca3af' : '#1d4ed8',
-                        border: isGoogle ? '1px dashed #9ca3af' : 'none',
-                        fontWeight: 500,
-                        cursor: isGoogle ? 'default' : 'pointer',
-                      }}
+                      style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: isGoogle ? '#f3f4f6' : '#dbeafe', color: isGoogle ? '#9ca3af' : '#1d4ed8', border: isGoogle ? '1px dashed #9ca3af' : 'none', fontWeight: 500, cursor: isGoogle ? 'default' : 'pointer' }}
                     >
                       {isGoogle ? 'Busy' : (a.subject || 'Meeting')}
                     </div>
@@ -585,7 +467,7 @@ function MonthView({
 }
 
 // ─── Main CalendarView ───────────────────────────────────────────────────────
-export default function CalendarView({ accountId, userId }: CalendarViewProps) {
+export default function CalendarView({ accountId, userId, defaultTimezone }: CalendarViewProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [googleIds, setGoogleIds] = useState<Set<string>>(new Set());
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -594,7 +476,14 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [preselectedDate, setPreselectedDate] = useState<Date | undefined>(undefined);
+  const [timezone, setTimezone] = useState<string>(defaultTimezone || '');
+  const [showTzSelect, setShowTzSelect] = useState(false);
   const today = new Date();
+
+  // Update timezone when defaultTimezone prop changes
+  useEffect(() => {
+    if (defaultTimezone) setTimezone(defaultTimezone);
+  }, [defaultTimezone]);
 
   // Default to day view on mobile
   useEffect(() => {
@@ -613,7 +502,6 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
       end.setHours(23, 59, 59);
       return { start, end };
     }
-    // day
     const start = new Date(currentDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(currentDate);
@@ -636,17 +524,12 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
   const loadActivities = useCallback(async () => {
     setLoading(true);
     const { start, end } = getDateRange();
-
-    // Phase 1: show cached DB data immediately
     await fetchFromDb(start, end);
     setLoading(false);
 
-    // Phase 2: pull fresh events from Google Calendar.
-    // Always sync from start-of-current-week to 2 years ahead — not just the
-    // current view — so events outside the current view window are captured too.
     try {
       const syncStart = new Date();
-      syncStart.setDate(syncStart.getDate() - syncStart.getDay()); // Sunday of current week
+      syncStart.setDate(syncStart.getDate() - syncStart.getDay());
       syncStart.setHours(0, 0, 0, 0);
       const syncEnd = new Date();
       syncEnd.setFullYear(syncEnd.getFullYear() + 2);
@@ -656,22 +539,15 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
       );
       if (res.ok) {
         const { synced } = await res.json();
-        // Refresh current view from DB if new events were found
-        if (synced > 0) {
-          await fetchFromDb(start, end);
-        }
+        if (synced > 0) await fetchFromDb(start, end);
       }
     } catch {
-      // Non-fatal — calendar works without Google sync
+      // Non-fatal
     }
   }, [accountId, getDateRange, fetchFromDb]);
 
-  useEffect(() => {
-    loadActivities();
-  }, [loadActivities]);
+  useEffect(() => { loadActivities(); }, [loadActivities]);
 
-  // Polling: refresh DB data every 30 seconds so Google Calendar events synced
-  // by the cron (runs every minute) appear without a manual page refresh.
   useEffect(() => {
     const interval = setInterval(() => {
       const { start, end } = getDateRange();
@@ -680,16 +556,10 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     return () => clearInterval(interval);
   }, [getDateRange, fetchFromDb]);
 
-  // Real-time subscription — no filter so agency users viewing sub-accounts
-  // still get live updates. We check accountId in the handler.
   useEffect(() => {
     const channel = supabase
       .channel(`calendar-activities-${accountId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'activities',
-      }, (payload: any) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload: any) => {
         const rowAccountId = payload.new?.account_id || payload.old?.account_id;
         if (rowAccountId === accountId) loadActivities();
       })
@@ -703,7 +573,6 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     setSelectedActivity(prev => prev?.id === id ? { ...prev, completed } : prev);
   };
 
-  // Navigation
   const navigate = (dir: -1 | 1) => {
     setCurrentDate(prev => {
       const d = new Date(prev);
@@ -726,7 +595,6 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     setView('day');
   };
 
-  // Header date label
   const getDateLabel = () => {
     if (view === 'month') return currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
     if (view === 'week') {
@@ -740,31 +608,52 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
     return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   };
 
+  const tzLabel = timezone
+    ? (COMMON_TIMEZONES.find(t => t.value === timezone)?.label || timezone)
+    : 'Browser TZ';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}
-          >
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}>
             <ChevronLeft size={16} />
           </button>
-          <button
-            onClick={() => navigate(1)}
-            style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}
-          >
+          <button onClick={() => navigate(1)} style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}>
             <ChevronRight size={16} />
           </button>
           <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>{getDateLabel()}</h2>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={goToToday}
-            style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#374151' }}
-          >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Timezone selector */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowTzSelect(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer', color: '#374151' }}
+            >
+              <Globe size={13} />
+              {tzLabel}
+            </button>
+            {showTzSelect && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', zIndex: 100, minWidth: 220, maxHeight: 280, overflowY: 'auto' }}>
+                {COMMON_TIMEZONES.map(tz => (
+                  <button
+                    key={tz.value}
+                    onClick={() => { setTimezone(tz.value); setShowTzSelect(false); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: timezone === tz.value ? '#eff6ff' : 'transparent', color: timezone === tz.value ? '#1d4ed8' : '#374151', fontSize: '0.82rem', border: 'none', cursor: 'pointer', fontWeight: timezone === tz.value ? 600 : 400 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = timezone === tz.value ? '#eff6ff' : '#f9fafb')}
+                    onMouseLeave={e => (e.currentTarget.style.background = timezone === tz.value ? '#eff6ff' : 'transparent')}
+                  >
+                    {tz.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={goToToday} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
             Today
           </button>
 
@@ -774,17 +663,7 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                style={{
-                  padding: '5px 12px',
-                  background: view === v ? '#3b82f6' : '#fff',
-                  color: view === v ? '#fff' : '#374151',
-                  border: 'none',
-                  borderLeft: v !== 'day' ? '1px solid #e5e7eb' : 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  transition: 'all 0.15s',
-                }}
+                style={{ padding: '5px 12px', background: view === v ? '#3b82f6' : '#fff', color: view === v ? '#fff' : '#374151', border: 'none', borderLeft: v !== 'day' ? '1px solid #e5e7eb' : 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s' }}
               >
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </button>
@@ -793,17 +672,17 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
 
           <button
             onClick={() => { setPreselectedDate(undefined); setShowCreateModal(true); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 14px', borderRadius: 8, border: 'none',
-              background: '#3b82f6', color: '#fff', fontSize: '0.82rem',
-              fontWeight: 600, cursor: 'pointer',
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <Plus size={14} /> New Event
           </button>
         </div>
       </div>
+
+      {/* Close timezone dropdown when clicking outside */}
+      {showTzSelect && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowTzSelect(false)} />
+      )}
 
       {/* ── Calendar Body ── */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', flex: 1 }}>
@@ -812,32 +691,11 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
             Loading calendar…
           </div>
         ) : view === 'month' ? (
-          <MonthView
-            currentDate={currentDate}
-            activities={activities}
-            googleIds={googleIds}
-            today={today}
-            onDayClick={handleDayClick}
-            onEventClick={setSelectedActivity}
-          />
+          <MonthView currentDate={currentDate} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onDayClick={handleDayClick} onEventClick={setSelectedActivity} />
         ) : view === 'week' ? (
-          <WeekView
-            weekStart={startOfWeek(currentDate)}
-            activities={activities}
-            googleIds={googleIds}
-            today={today}
-            onCellClick={handleCellClick}
-            onEventClick={setSelectedActivity}
-          />
+          <WeekView weekStart={startOfWeek(currentDate)} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={handleCellClick} onEventClick={setSelectedActivity} />
         ) : (
-          <DayView
-            date={currentDate}
-            activities={activities}
-            googleIds={googleIds}
-            today={today}
-            onCellClick={handleCellClick}
-            onEventClick={setSelectedActivity}
-          />
+          <DayView date={currentDate} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={handleCellClick} onEventClick={setSelectedActivity} />
         )}
       </div>
 
@@ -855,12 +713,19 @@ export default function CalendarView({ accountId, userId }: CalendarViewProps) {
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }} />
           <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Current time</span>
         </div>
+        {timezone && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Globe size={12} style={{ color: '#6b7280' }} />
+            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{timezone}</span>
+          </div>
+        )}
       </div>
 
       {/* ── Event Popover ── */}
       {selectedActivity && !googleIds.has(selectedActivity.id) && (
         <EventPopover
           activity={selectedActivity}
+          timezone={timezone}
           onClose={() => setSelectedActivity(null)}
           onMarkComplete={handleMarkComplete}
         />
