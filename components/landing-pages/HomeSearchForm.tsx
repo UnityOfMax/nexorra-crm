@@ -67,6 +67,7 @@ export default function HomeSearchForm({
 }: HomeSearchFormProps) {
   const [step, setStep] = useState<Step>('intent');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [submittedContactId, setSubmittedContactId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     intent: '', situation: '', timeline: '', budget: '', wishlist: '',
@@ -79,6 +80,7 @@ export default function HomeSearchForm({
     if (isOpen) {
       setStep('intent');
       setSubmittedContactId(null);
+      setSubmitError('');
       setFormData({
         intent: '', situation: '', timeline: '', budget: '', wishlist: '',
         sell_also: '', employment: '', income: '', call_time: '', serious: '',
@@ -107,6 +109,7 @@ export default function HomeSearchForm({
   const handleSubmit = async () => {
     if (!formData.first_name.trim() || !formData.phone.trim()) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       const res = await fetch('/api/landing-pages/form-submit', {
         method: 'POST',
@@ -133,14 +136,16 @@ export default function HomeSearchForm({
         }),
       });
       const data = await res.json();
-      if (data.contactId) setSubmittedContactId(data.contactId);
-
-      // Fire Lead pixel event
-      fireFbq('Lead', { content_name: 'Real Estate Form' });
-
-      setStep('calendar');
+      if (res.ok && data.contactId) {
+        setSubmittedContactId(data.contactId);
+        fireFbq('Lead', { content_name: 'Real Estate Form' });
+        setStep('calendar');
+      } else {
+        setSubmitError(data.error || 'Something went wrong. Please try again.');
+      }
     } catch (err) {
       console.error('Submit error:', err);
+      setSubmitError('Network error. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -357,6 +362,11 @@ export default function HomeSearchForm({
               </div>
               <input type="tel" placeholder="Phone Number *" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} style={inputSt} />
               <input type="email" placeholder="Email Address" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={inputSt} />
+              {submitError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '0.85rem' }}>
+                  {submitError}
+                </div>
+              )}
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !formData.first_name.trim() || !formData.phone.trim()}

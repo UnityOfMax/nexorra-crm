@@ -94,6 +94,7 @@ export default function CalendarBooking({
   const [selectedDate, setSelectedDate] = useState<string>(Object.keys(groupByDate(generateSlots()))[0] || '');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [booking, setBooking] = useState(false);
+  const [bookingError, setBookingError] = useState('');
   const [tz] = useState(() => getLeadTimezone());
   const [bookedUtcs, setBookedUtcs] = useState<Set<string>>(new Set());
 
@@ -122,8 +123,9 @@ export default function CalendarBooking({
   const handleBook = async () => {
     if (!selectedSlot) return;
     setBooking(true);
+    setBookingError('');
     try {
-      await fetch('/api/landing-pages/book-call', {
+      const res = await fetch('/api/landing-pages/book-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,10 +138,15 @@ export default function CalendarBooking({
           formAnswers,
         }),
       });
-      onBooked();
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setBookingError(data.error || 'Booking failed. Please try again.');
+      } else {
+        onBooked();
+      }
     } catch (err) {
       console.error('Booking error:', err);
-      onBooked();
+      setBookingError('Network error. Please check your connection and try again.');
     } finally {
       setBooking(false);
     }
@@ -221,6 +228,13 @@ export default function CalendarBooking({
           );
         })}
       </div>
+
+      {/* Booking error */}
+      {bookingError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', color: '#dc2626', fontSize: '0.85rem' }}>
+          {bookingError}
+        </div>
+      )}
 
       {/* Confirm button */}
       <button
