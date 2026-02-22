@@ -12,17 +12,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Legacy: *.ourlimitedoffer.com → /p/[slug] (backward compat) ──
+  // ── Wildcard: *.ourlimitedoffer.com → resolve slug → /account/[accountSlug]/landing-pages/[pageId] ──
   if (host.endsWith(`.${LEGACY_BASE_DOMAIN}`)) {
     const subdomain = host.replace(`.${LEGACY_BASE_DOMAIN}`, '');
     if (subdomain && subdomain !== 'www') {
-      const url = request.nextUrl.clone();
-      const remainingPath = pathname === '/' ? '' : pathname;
-      url.pathname = `/p/${subdomain}${remainingPath}`;
-      const response = NextResponse.rewrite(url);
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
-      response.headers.set('Pragma', 'no-cache');
-      return response;
+      try {
+        const apiUrl = `https://${APP_DOMAIN}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
+        const res = await fetch(apiUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const { pageId, accountSlug } = await res.json();
+          const url = request.nextUrl.clone();
+          url.pathname = `/account/${accountSlug}/landing-pages/${pageId}`;
+          const response = NextResponse.rewrite(url);
+          response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+          response.headers.set('Pragma', 'no-cache');
+          return response;
+        }
+      } catch {
+        // Slug not found — fall through
+      }
     }
     return NextResponse.next();
   }
