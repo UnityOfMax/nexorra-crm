@@ -20,12 +20,12 @@ const AUTOMATION_META: Record<string, { name: string; triggerLabel: string; trig
   new_lead: {
     name: 'New Lead Follow-up',
     triggerLabel: 'New Lead Form Submitted',
-    triggerStepType: 'form_submitted',
+    triggerStepType: 'contact_created',
   },
   booking_reminders: {
     name: 'Booking Reminders',
     triggerLabel: 'Booking Confirmed',
-    triggerStepType: 'deal_stage_changed',
+    triggerStepType: 'booking_created',
   },
   nurturing: {
     name: 'Nurturing Sequence',
@@ -38,23 +38,62 @@ export function getAutomationMeta(automationId: string) {
   return AUTOMATION_META[automationId] ?? AUTOMATION_META.new_lead;
 }
 
+// Normalize any template format (MessageTemplate / BookingTemplate / NurturingTemplate)
+// into a flat shape the converter can iterate uniformly.
+interface NormalizedStep {
+  type: 'sms' | 'email';
+  delayMs: number;
+  subject?: string;
+  body: string;
+}
+
+function normalizeTemplates(templates: any[]): NormalizedStep[] {
+  const out: NormalizedStep[] = [];
+  for (const t of templates) {
+    // Skip escalation markers
+    if (t.type === 'nurturing_escalation') continue;
+
+    let delayMs: number;
+    if (typeof t.delayMs === 'number') {
+      // MessageTemplate — delayMs is relative to enrollment start
+      delayMs = t.delayMs;
+    } else if (typeof t.offsetMs === 'number') {
+      // BookingTemplate — isImmediate means 0, negative offset = before call
+      delayMs = t.isImmediate ? 0 : Math.abs(t.offsetMs);
+    } else if (typeof t.dayOffset === 'number') {
+      // NurturingTemplate — dayOffset is days from enrollment start
+      delayMs = t.dayOffset * D;
+    } else {
+      delayMs = 0;
+    }
+
+    out.push({
+      type: t.type as 'sms' | 'email',
+      delayMs,
+      subject: t.subject,
+      body: t.body ?? '',
+    });
+  }
+  return out;
+}
+
 /**
- * Convert a flat MessageTemplate array into ReactFlow nodes + edges.
+ * Convert a flat template array (any supported format) into ReactFlow nodes + edges.
  * Layout: vertical column, trigger at top.
- * A Delay node is inserted when the delay value changes between consecutive templates.
- * nurturing_escalation entries are rendered as a special action node.
+ * A Delay node is inserted when the delay value changes between consecutive steps.
  */
 export function automationToWorkflowDefinition(
   automationId: string,
-  templates: MessageTemplate[]
+  templates: any[]
 ): WorkflowDefinitionShape {
   const meta = getAutomationMeta(automationId);
+  const steps = normalizeTemplates(templates);
   const nodes: any[] = [];
   const edges: any[] = [];
   const x = 300;
   let y = 0;
 
-  // Trigger
+  // Trigger node
   nodes.push({
     id: 'trigger-1',
     type: 'trigger',
@@ -65,17 +104,14 @@ export function automationToWorkflowDefinition(
   let lastDelayMs = -1;
   y += 150;
 
-  for (let i = 0; i < templates.length; i++) {
-    const tmpl = templates[i];
-
-    // Skip nurturing_escalation in the visual (it's a control flow signal, not a message)
-    if (tmpl.type === 'nurturing_escalation') continue;
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
 
     // Insert a Delay node when delay changes and is > 0
-    if (tmpl.delayMs !== lastDelayMs && tmpl.delayMs > 0) {
+    if (step.delayMs !== lastDelayMs && step.delayMs > 0) {
       const delayId = `delay-${i}`;
-      const d = tmpl.delayMs / D;
-      const h = tmpl.delayMs / H;
+      const d = step.delayMs / D;
+      const h = step.delayMs / H;
       const isDays = Number.isInteger(d) && d >= 1;
 
       nodes.push({
@@ -85,7 +121,12 @@ export function automationToWorkflowDefinition(
         data: {
           label: isDays ? `Wait ${d}d` : `Wait ${h}h`,
           stepType: 'wait_delay',
-          config: { unit: isDays ? 'days' : 'hours', value: isDays ? d : h },
+          config: {
+            delayType: 'duration',
+            days: isDays ? d : 0,
+            hours: isDays ? 0 : h,
+            minutes: 0,
+          },
         },
       });
       edges.push({ id: `e-${prevId}-${delayId}`, source: prevId, target: delayId });
@@ -93,10 +134,10 @@ export function automationToWorkflowDefinition(
       y += 120;
     }
 
-    lastDelayMs = tmpl.delayMs;
+    lastDelayMs = step.delayMs;
 
     const actionId = `action-${i}`;
-    const isSMS = tmpl.type === 'sms';
+    const isSMS = step.type === 'sms';
 
     nodes.push({
       id: actionId,
@@ -105,7 +146,9 @@ export function automationToWorkflowDefinition(
       data: {
         label: isSMS ? 'Send SMS' : 'Send Email',
         stepType: isSMS ? 'send_sms' : 'send_email',
-        config: { message: tmpl.body, subject: tmpl.subject ?? '' },
+        config: isSMS
+          ? { message: step.body }
+          : { body: step.body, subject: step.subject ?? '' },
       },
     });
     edges.push({ id: `e-${prevId}-${actionId}`, source: prevId, target: actionId });
@@ -148,11 +191,17 @@ export function workflowDefinitionToTemplates(
     if (!node) break;
 
     if (node.type === 'delay') {
-      const { value = 0, unit = 'hours' } = node.data?.config ?? {};
-      currentDelayMs =
-        unit === 'days' ? value * D :
-        unit === 'hours' ? value * H :
-        value * 60 * 1000;
+      const cfg = node.data?.config ?? {};
+      // Support both { delayType, days, hours, minutes } and { unit, value } formats
+      if (cfg.unit && cfg.value !== undefined) {
+        currentDelayMs =
+          cfg.unit === 'days' ? cfg.value * D :
+          cfg.unit === 'hours' ? cfg.value * H :
+          cfg.value * 60 * 1000;
+      } else {
+        currentDelayMs =
+          ((cfg.days || 0) * 24 * 60 + (cfg.hours || 0) * 60 + (cfg.minutes || 0)) * 60 * 1000;
+      }
     } else if (node.type === 'action') {
       const { stepType, config } = node.data ?? {};
       if (stepType === 'send_sms') {
@@ -162,7 +211,8 @@ export function workflowDefinitionToTemplates(
           type: 'email',
           delayMs: currentDelayMs,
           subject: config?.subject ?? '',
-          body: config?.message ?? '',
+          // Support both 'body' key (from EmailActionConfig) and legacy 'message' key
+          body: config?.body ?? config?.message ?? '',
         });
       }
     }

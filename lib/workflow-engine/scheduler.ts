@@ -2,12 +2,18 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { WorkflowContext } from './types';
 
 interface DelayConfig {
-  delayType: 'duration' | 'until';
+  // Format A: { delayType: 'duration', days?, hours?, minutes? }  (from DelayConfig panel)
+  // Format B: { unit: 'days'|'hours'|'minutes', value: number }   (from to-workflow-definition)
+  // Format C: { delayType: 'until', specificDate, specificTime }   (from DelayConfig panel)
+  delayType?: 'duration' | 'until';
   days?: number;
   hours?: number;
   minutes?: number;
   specificDate?: string;
   specificTime?: string;
+  // Format B fields
+  unit?: 'days' | 'hours' | 'minutes';
+  value?: number;
 }
 
 export async function scheduleDelayedExecution(
@@ -20,18 +26,24 @@ export async function scheduleDelayedExecution(
 ): Promise<void> {
   let scheduledAt: Date;
 
-  if (delayConfig.delayType === 'duration') {
-    // Calculate delay duration
+  if (delayConfig.unit !== undefined && delayConfig.value !== undefined) {
+    // Format B: unit/value (from to-workflow-definition.ts)
+    const ms =
+      delayConfig.unit === 'days'  ? delayConfig.value * 24 * 60 * 60 * 1000 :
+      delayConfig.unit === 'hours' ? delayConfig.value * 60 * 60 * 1000 :
+                                     delayConfig.value * 60 * 1000;
+    scheduledAt = new Date(Date.now() + ms);
+  } else if (delayConfig.delayType === 'until') {
+    // Format C: specific date/time
+    const dateTimeString = `${delayConfig.specificDate}T${delayConfig.specificTime}`;
+    scheduledAt = new Date(dateTimeString);
+  } else {
+    // Format A: duration (default)
     const totalMinutes =
       (delayConfig.days || 0) * 24 * 60 +
       (delayConfig.hours || 0) * 60 +
       (delayConfig.minutes || 0);
-
     scheduledAt = new Date(Date.now() + totalMinutes * 60 * 1000);
-  } else {
-    // Specific date/time
-    const dateTimeString = `${delayConfig.specificDate}T${delayConfig.specificTime}`;
-    scheduledAt = new Date(dateTimeString);
   }
 
   // Insert delayed job into database

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addVercelDomain, removeVercelDomain } from '@/lib/vercel-domains';
 
@@ -61,6 +62,9 @@ export async function PUT(
         console.error('[publish] addVercelDomain failed:', err)
       );
     }
+
+    // Revalidate the public API route so new content is always served fresh
+    revalidatePath(`/api/landing-pages/public-by-id/${params.id}`);
 
     return NextResponse.json({ page: data });
   } catch (error: any) {

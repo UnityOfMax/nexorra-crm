@@ -77,11 +77,14 @@ export async function executeWorkflow(
         })
         .eq('id', execution.id);
 
-      // Update workflow stats
-      await supabaseAdmin.rpc('increment_workflow_execution', {
-        workflow_id: workflowId,
-        success: true,
-      });
+      // Update workflow stats (best-effort — RPC may not exist yet)
+      void (async () => {
+        try {
+          await supabaseAdmin.rpc('increment_workflow_execution', { workflow_id: workflowId, success: true });
+        } catch (err: any) {
+          console.warn('[workflow] increment_workflow_execution:', err?.message);
+        }
+      })();
 
       console.log(`Workflow ${workflowId} execution ${execution.id} completed successfully`);
       return execution.id;
@@ -96,11 +99,14 @@ export async function executeWorkflow(
         })
         .eq('id', execution.id);
 
-      // Update workflow stats
-      await supabaseAdmin.rpc('increment_workflow_execution', {
-        workflow_id: workflowId,
-        success: false,
-      });
+      // Update workflow stats (best-effort — RPC may not exist yet)
+      void (async () => {
+        try {
+          await supabaseAdmin.rpc('increment_workflow_execution', { workflow_id: workflowId, success: false });
+        } catch (err: any) {
+          console.warn('[workflow] increment_workflow_execution:', err?.message);
+        }
+      })();
 
       throw error;
     }
