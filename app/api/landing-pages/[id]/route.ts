@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { addVercelDomain, removeVercelDomain } from '@/lib/vercel-domains';
 
 // GET /api/landing-pages/[id]
 export async function GET(
@@ -54,6 +55,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update page' }, { status: 500 });
     }
 
+    // Register [slug].ourlimitedoffer.com in Vercel when publishing
+    if (published && data?.slug) {
+      addVercelDomain(data.slug).catch(err =>
+        console.error('[publish] addVercelDomain failed:', err)
+      );
+    }
+
     return NextResponse.json({ page: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -66,6 +74,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Fetch slug before deleting so we can remove the Vercel domain
+    const { data: existing } = await supabaseAdmin
+      .from('landing_pages')
+      .select('slug, published')
+      .eq('id', params.id)
+      .single();
+
     const { error } = await supabaseAdmin
       .from('landing_pages')
       .delete()
@@ -74,6 +89,13 @@ export async function DELETE(
     if (error) {
       console.error('Error deleting landing page:', error);
       return NextResponse.json({ error: 'Failed to delete page' }, { status: 500 });
+    }
+
+    // Remove domain from Vercel if it was published
+    if (existing?.published && existing?.slug) {
+      removeVercelDomain(existing.slug).catch(err =>
+        console.error('[delete] removeVercelDomain failed:', err)
+      );
     }
 
     return NextResponse.json({ success: true });
