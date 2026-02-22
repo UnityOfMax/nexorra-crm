@@ -341,7 +341,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         );
       case 'pages':
         return (
-          <LandingPageList accountId={currentAccount?.id || ''} isAgencyUser={isAgencyUser} />
+          <LandingPageList accountId={currentAccount?.id || ''} accountSlug={(currentAccount as any)?.slug || ''} isAgencyUser={isAgencyUser} />
         );
       case 'ai-agent':
         return (

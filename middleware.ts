@@ -1,44 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BASE_DOMAIN = 'ourlimitedoffer.com';
+const APP_DOMAIN = 'app.ainexorra.com';
+const LEGACY_BASE_DOMAIN = 'ourlimitedoffer.com';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
+  const { pathname } = request.nextUrl;
 
-  // Only act on subdomains of ourlimitedoffer.com
-  if (!host.endsWith(`.${BASE_DOMAIN}`)) {
+  // Pass through Next.js internals and API calls regardless of host
+  if (pathname.startsWith('/_next/') || pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  const subdomain = host.replace(`.${BASE_DOMAIN}`, '');
-
-  // Skip www or empty
-  if (!subdomain || subdomain === 'www') {
+  // ── Legacy: *.ourlimitedoffer.com → /p/[slug] (backward compat) ──
+  if (host.endsWith(`.${LEGACY_BASE_DOMAIN}`)) {
+    const subdomain = host.replace(`.${LEGACY_BASE_DOMAIN}`, '');
+    if (subdomain && subdomain !== 'www') {
+      const url = request.nextUrl.clone();
+      const remainingPath = pathname === '/' ? '' : pathname;
+      url.pathname = `/p/${subdomain}${remainingPath}`;
+      const response = NextResponse.rewrite(url);
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+      response.headers.set('Pragma', 'no-cache');
+      return response;
+    }
     return NextResponse.next();
   }
 
-  const url = request.nextUrl.clone();
-
-  // Let API calls and Next.js internals from the subdomain pass through unchanged.
-  // Without this, a client-side fetch to /api/... from lorijackson.ourlimitedoffer.com
-  // would get rewritten to /p/lorijackson/api/... and 404.
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
-    return NextResponse.next();
+  // ── Custom domains: not the app domain, not a Vercel preview URL ──
+  // e.g. lori.ourlimitedoffer.com individually registered in Vercel with
+  // custom_domain set in the CRM landing page settings.
+  if (
+    host !== APP_DOMAIN &&
+    !host.endsWith('.ainexorra.com') &&
+    !host.endsWith('.vercel.app') &&
+    !host.includes('localhost')
+  ) {
+    try {
+      // Resolve which landing page owns this domain
+      const apiUrl = `https://${APP_DOMAIN}/api/landing-pages/by-domain?domain=${encodeURIComponent(host)}`;
+      const res = await fetch(apiUrl, { cache: 'no-store' });
+      if (res.ok) {
+        const { pageId, accountSlug } = await res.json();
+        const url = request.nextUrl.clone();
+        url.pathname = `/account/${accountSlug}/landing-pages/${pageId}`;
+        const response = NextResponse.rewrite(url);
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+        return response;
+      }
+    } catch {
+      // Domain not mapped — fall through to normal app
+    }
   }
 
-  // Rewrite root (and any non-API sub-paths) to /p/[subdomain]
-  const remainingPath = url.pathname === '/' ? '' : url.pathname;
-  url.pathname = `/p/${subdomain}${remainingPath}`;
-
-  const response = NextResponse.rewrite(url);
-  // Prevent any CDN (Vercel edge, Cloudflare, etc.) from caching the
-  // rewritten response so that edits appear immediately after saving.
-  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
-  response.headers.set('Pragma', 'no-cache');
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  // Run on all paths except Next.js internals and static assets
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

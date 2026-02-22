@@ -109,6 +109,7 @@ export interface LandingPage {
   meta_title?: string;
   meta_description?: string;
   tracking_pixels?: TrackingPixel[];
+  custom_domain?: string;
   created_at: string;
   updated_at: string;
 }

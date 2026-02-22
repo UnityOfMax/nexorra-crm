@@ -5,8 +5,10 @@ import LandingPageRenderer from './LandingPageRenderer';
 import HomeSearchForm from './HomeSearchForm';
 import type { LandingPageContent } from '@/lib/landing-page-templates';
 
+// Pass either slug (legacy /p/[slug] route) or pageId (new /account/[s]/landing-pages/[id] route)
 interface PublicPageClientProps {
-  slug: string;
+  slug?: string;
+  pageId?: string;
 }
 
 declare global {
@@ -15,7 +17,7 @@ declare global {
   }
 }
 
-export default function PublicPageClient({ slug }: PublicPageClientProps) {
+export default function PublicPageClient({ slug, pageId }: PublicPageClientProps) {
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [accountId, setAccountId] = useState('');
   const [trackingPixels, setTrackingPixels] = useState<any[]>([]);
@@ -23,8 +25,11 @@ export default function PublicPageClient({ slug }: PublicPageClientProps) {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    // Fetch from uncached API endpoint — timestamp param busts any residual CDN cache
-    fetch(`/api/landing-pages/public/${slug}?t=${Date.now()}`, { cache: 'no-store' })
+    const url = pageId
+      ? `/api/landing-pages/public-by-id/${pageId}?t=${Date.now()}`
+      : `/api/landing-pages/public/${slug}?t=${Date.now()}`;
+
+    fetch(url, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) { setNotFound(true); return; }
         const data = await r.json();
@@ -33,7 +38,7 @@ export default function PublicPageClient({ slug }: PublicPageClientProps) {
         setTrackingPixels(data.tracking_pixels || []);
       })
       .catch(() => setNotFound(true));
-  }, [slug]);
+  }, [slug, pageId]);
 
   // Inject tracking pixel scripts once content is loaded
   useEffect(() => {

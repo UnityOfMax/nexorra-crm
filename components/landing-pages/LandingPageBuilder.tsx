@@ -15,6 +15,7 @@ import type { LandingPageBlock, LandingPageContent } from '@/lib/landing-page-te
 interface LandingPageBuilderProps {
   page: LandingPage;
   accountId: string;
+  accountSlug: string;
   onBack: () => void;
 }
 
@@ -45,7 +46,7 @@ function getDefaultBlockData(type: string): Record<string, any> {
   }
 }
 
-export default function LandingPageBuilder({ page, accountId, onBack }: LandingPageBuilderProps) {
+export default function LandingPageBuilder({ page, accountId, accountSlug, onBack }: LandingPageBuilderProps) {
   const [content, setContent] = useState<LandingPageContent>(
     page.content || { blocks: [], styles: { fontFamily: 'Inter', primaryColor: '#0ea5e9' } }
   );
@@ -60,6 +61,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
   const [metaTitle, setMetaTitle] = useState(page.meta_title || '');
   const [metaDescription, setMetaDescription] = useState(page.meta_description || '');
   const [trackingPixels, setTrackingPixels] = useState<TrackingPixel[]>(page.tracking_pixels || []);
+  const [customDomain, setCustomDomain] = useState(page.custom_domain || '');
   const [published, setPublished] = useState(page.published);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -131,6 +133,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           meta_title: metaTitle,
           meta_description: metaDescription,
           tracking_pixels: trackingPixels,
+          custom_domain: customDomain.trim() || null,
         }),
       });
       if (response.ok) {
@@ -162,6 +165,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           meta_title: metaTitle,
           meta_description: metaDescription,
           tracking_pixels: trackingPixels,
+          custom_domain: customDomain.trim() || null,
           published: true,
         }),
       });
@@ -228,7 +232,7 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           </button>
           {published && (
             <a
-              href={`https://${pageSlug}.ourlimitedoffer.com`}
+              href={`https://app.ainexorra.com/account/${accountSlug}/landing-pages/${page.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary text-sm flex items-center gap-1"
@@ -249,18 +253,21 @@ export default function LandingPageBuilder({ page, accountId, onBack }: LandingP
           <h3 className="font-semibold text-gray-900 mb-3">Page Settings</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain / URL</label>
-              <div className="flex items-center gap-1">
-                <input
-                  value={pageSlug}
-                  onChange={(e) => { setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); markDirty(); }}
-                  className="input text-sm flex-1 min-w-0"
-                  placeholder="yourname"
-                />
-                <span className="text-sm text-gray-400 whitespace-nowrap">.ourlimitedoffer.com</span>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Page URL (stable)</label>
+              <p className="text-xs font-mono text-gray-700 bg-gray-50 rounded p-2 break-all select-all">
+                https://app.ainexorra.com/account/{accountSlug}/landing-pages/{page.id}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Domain (optional)</label>
+              <input
+                value={customDomain}
+                onChange={(e) => { setCustomDomain(e.target.value.toLowerCase().trim()); markDirty(); }}
+                className="input text-sm"
+                placeholder="lori.ourlimitedoffer.com"
+              />
               <p className="text-xs text-gray-500 mt-1">
-                Live at: <span className="font-mono text-gray-700">{pageSlug}.ourlimitedoffer.com</span>
+                Add this domain to your Vercel project, then add a CNAME record pointing it to <span className="font-mono">cname.vercel-dns.com</span>
               </p>
             </div>
             <div>
