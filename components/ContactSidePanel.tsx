@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Mail, MessageSquare, Phone, Building2, Tag, Save, Loader } from 'lucide-react';
+import { X, Mail, MessageSquare, Phone, Building2, Tag, Save, Loader, Trash2 } from 'lucide-react';
 import { Contact } from '@/types';
 
 interface ContactSidePanelProps {
@@ -9,6 +9,7 @@ interface ContactSidePanelProps {
   accountId: string;
   onClose: () => void;
   onSave: (updated: Contact) => void;
+  onDelete?: (contactId: string) => void;
   onSmsClick: (contact: Contact) => void;
   onEmailClick: (contact: Contact) => void;
 }
@@ -20,12 +21,15 @@ export default function ContactSidePanel({
   accountId,
   onClose,
   onSave,
+  onDelete,
   onSmsClick,
   onEmailClick,
 }: ContactSidePanelProps) {
   const [form, setForm] = useState<Partial<Contact>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (contact) {
@@ -62,6 +66,23 @@ export default function ContactSidePanel({
       setSaveError('Network error. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/contacts?id=${contact.id}&accountId=${accountId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      onDelete?.(contact.id);
+      onClose();
+    } catch {
+      setSaveError('Failed to delete contact.');
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -223,14 +244,14 @@ export default function ContactSidePanel({
           </div>
         </div>
 
-        {/* Footer: save */}
-        <div className="px-5 py-4 border-t border-gray-200">
+        {/* Footer: save + delete */}
+        <div className="px-5 py-4 border-t border-gray-200 space-y-2">
           {saveError && (
-            <p className="text-xs text-red-600 mb-2">{saveError}</p>
+            <p className="text-xs text-red-600 mb-1">{saveError}</p>
           )}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || deleting}
             className="btn btn-primary w-full flex items-center justify-center gap-2"
           >
             {saving ? (
@@ -239,6 +260,30 @@ export default function ContactSidePanel({
               <><Save className="w-4 h-4" /> Save Changes</>
             )}
           </button>
+          {!confirmDelete ? (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-full flex items-center justify-center gap-2 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete contact
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Yes, delete'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

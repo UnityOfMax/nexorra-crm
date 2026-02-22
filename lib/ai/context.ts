@@ -11,14 +11,21 @@ export interface AIContext {
     content: string;
     created_at: string;
   }>;
+  upcomingSlots: string; // compact human-readable calendar availability
 }
 
 /**
- * Build AI context for a contact: summary (if any) + last 10 messages (all channels).
- * This keeps token usage bounded regardless of conversation length.
+ * Build AI context for a contact:
+ *   - rolling summary (compressed notes on older messages)
+ *   - last 5 messages (inbound + outbound, all channels)
+ *   - upcoming booked calendar slots for the next 5 business days
  */
 export async function buildAIContext(accountId: string, contactId: string): Promise<AIContext> {
-  const [summaryResult, messagesResult] = await Promise.all([
+  const now = new Date();
+  // Look 60 days ahead to catch any future bookings for this contact
+  const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+  const [summaryResult, messagesResult, calendarResult] = await Promise.all([
     supabaseAdmin
       .from('ai_conversation_summaries')
       .select('summary')
@@ -31,13 +38,36 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
       .eq('account_id', accountId)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false })
-      .limit(10),
+      .limit(5),
+    // Filter by contact_id so we see THIS contact's scheduled calls
+    supabaseAdmin
+      .from('activities')
+      .select('subject, due_date')
+      .eq('account_id', accountId)
+      .eq('contact_id', contactId)
+      .eq('type', 'meeting')
+      .eq('completed', false)
+      .gte('due_date', now.toISOString())
+      .lte('due_date', sixtyDaysOut.toISOString())
+      .order('due_date', { ascending: true })
+      .limit(5),
   ]);
 
   const summary = summaryResult.data?.summary ?? '';
   const recentMessages = (messagesResult.data ?? []).reverse() as AIContext['recentMessages'];
 
-  return { summary, recentMessages };
+  // Format upcoming slots as compact human-readable text
+  const slots = calendarResult.data ?? [];
+  const upcomingSlots = slots.length > 0
+    ? slots
+        .map((s) => {
+          const d = new Date(s.due_date);
+          return `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}${s.subject ? ` (${s.subject})` : ''}`;
+        })
+        .join(', ')
+    : '';
+
+  return { summary, recentMessages, upcomingSlots };
 }
 
 /**

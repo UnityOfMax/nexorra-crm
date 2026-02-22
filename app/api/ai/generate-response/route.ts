@@ -46,8 +46,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AI disabled for this contact' }, { status: 400 });
     }
 
-    // Build memory-efficient context: rolling summary + last 10 messages (all channels)
-    const { summary, recentMessages } = await buildAIContext(accountId, contactId);
+    // Load account name for context
+    const { data: accountRow } = await supabaseAdmin
+      .from('accounts')
+      .select('name')
+      .eq('id', accountId)
+      .maybeSingle();
+
+    // Build memory-efficient context: rolling summary + last 5 messages + contact calendar slots
+    const { summary, recentMessages, upcomingSlots } = await buildAIContext(accountId, contactId);
 
     // Build Claude messages array from recent history
     const conversationMessages: Anthropic.MessageParam[] = recentMessages.map((msg) => ({
@@ -63,12 +70,30 @@ export async function POST(request: NextRequest) {
       formal: 'Use formal language with proper business etiquette.',
     };
 
+    // Use email-specific agent config when channel is email (falls back to SMS config)
+    const isEmail = channel === 'email';
+    const agentName = (isEmail && config.email_agent_name) ? config.email_agent_name : (config.agent_name || '');
+    const agentRepresents = (isEmail && config.email_agent_represents) ? config.email_agent_represents : (config.agent_represents || '');
+    const systemPrompt = (isEmail && config.email_system_prompt) ? config.email_system_prompt : (config.system_prompt || '');
+    const maxTokens = (isEmail && config.email_max_tokens) ? config.email_max_tokens : (config.max_tokens || 500);
+
     const systemParts = [
-      config.system_prompt || 'You are a helpful business assistant responding to customer messages.',
+      systemPrompt || 'You are a helpful business assistant responding to customer messages.',
       toneInstructions[config.tone] || toneInstructions.professional,
+      agentName ? `Your name is ${agentName}.` : '',
+      agentRepresents ? `You work on behalf of ${agentRepresents}.` : '',
       config.business_context ? `Business context: ${config.business_context}` : '',
-      `Contact info: ${contact.first_name || ''} ${contact.last_name || ''}, Email: ${contact.email || 'N/A'}, Phone: ${contact.phone || 'N/A'}, Status: ${contact.status}`,
-      summary ? `Conversation summary so far: ${summary}` : '',
+      accountRow?.name ? `Account/business name: ${accountRow.name}` : '',
+      // Compact contact snapshot
+      `Contact: ${[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'} | Phone: ${contact.phone || 'N/A'} | Email: ${contact.email || 'N/A'} | Status: ${contact.status}`,
+      // Form answers (from landing page lead capture) compressed into one line
+      contact.custom_fields && Object.keys(contact.custom_fields).length > 0
+        ? `Lead form answers: ${Object.entries(contact.custom_fields as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(' | ')}`
+        : '',
+      summary ? `Conversation notes (compressed): ${summary}` : '',
+      upcomingSlots
+        ? `This contact's booked call: ${upcomingSlots}`
+        : '',
       channel === 'sms' ? 'Keep responses concise and suitable for SMS (under 160 characters when possible).' : '',
       channel === 'email' ? 'Format the response appropriately for email. You may include a greeting and sign-off.' : '',
       isFollowUp
@@ -86,8 +111,8 @@ export async function POST(request: NextRequest) {
     const anthropic = new Anthropic({ apiKey });
 
     const aiResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: config.max_tokens || 500,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
       system: systemParts,
       messages: conversationMessages.length > 0 ? conversationMessages : [
         { role: 'user', content: 'Hello' },
@@ -119,7 +144,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: responseText,
       subject,
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       tokens_used: aiResponse.usage?.output_tokens || 0,
     });
   } catch (error: any) {

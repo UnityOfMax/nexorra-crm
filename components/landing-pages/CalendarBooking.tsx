@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader } from 'lucide-react';
+import { Loader, ArrowLeft, CheckCircle } from 'lucide-react';
 
 interface CalendarBookingProps {
   accountId: string;
@@ -20,7 +20,7 @@ interface TimeSlot {
   dateLabel: string; // e.g. "Mon, Jan 20"
 }
 
-const SLOT_DURATION_MIN = 30;
+const SLOT_DURATION_MIN = 15;
 const AVAILABLE_START_H = 9;  // 9am UTC
 const AVAILABLE_END_H = 17;   // 5pm UTC
 
@@ -45,7 +45,7 @@ function generateSlots(): TimeSlot[] {
     if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
     for (let h = AVAILABLE_START_H; h < AVAILABLE_END_H; h++) {
-      for (const m of [0, 30]) {
+      for (const m of [0, 15, 30, 45]) {
         const slotDate = new Date(Date.UTC(
           date.getUTCFullYear(),
           date.getUTCMonth(),
@@ -87,6 +87,12 @@ function groupByDate(slots: TimeSlot[]): Record<string, TimeSlot[]> {
   return groups;
 }
 
+const inputSt: React.CSSProperties = {
+  width: '100%', padding: '12px 14px', border: '2px solid #e5e7eb',
+  borderRadius: '10px', fontSize: '0.95rem', boxSizing: 'border-box',
+  outline: 'none', fontFamily: 'inherit', color: '#111827', background: '#fff',
+};
+
 export default function CalendarBooking({
   accountId, contactId, contactName, agentName, agentPhoto,
   accentColor, formAnswers, onBooked,
@@ -96,13 +102,30 @@ export default function CalendarBooking({
   const [dateKeys] = useState(() => Object.keys(grouped));
   const [selectedDate, setSelectedDate] = useState<string>(Object.keys(groupByDate(generateSlots()))[0] || '');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  // Confirmation step state
+  const [confirmStep, setConfirmStep] = useState(false);
+  const [confirmInfo, setConfirmInfo] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+  });
   const [booking, setBooking] = useState(false);
   const [bookingError, setBookingError] = useState('');
   const [tz] = useState(() => getLeadTimezone());
   const [bookedUtcs, setBookedUtcs] = useState<Set<string>>(new Set());
 
-  // Fetch busy slots: CRM meetings + Google Calendar FreeBusy across all calendars.
-  // Uses the dedicated busy-slots endpoint which queries both sources server-side.
+  // Pre-fill confirmInfo from formAnswers when component mounts
+  useEffect(() => {
+    setConfirmInfo({
+      first_name: formAnswers.first_name || contactName || '',
+      last_name: formAnswers.last_name || '',
+      email: formAnswers.email || '',
+      phone: formAnswers.phone || '',
+    });
+  }, [formAnswers, contactName]);
+
+  // Fetch busy slots
   useEffect(() => {
     fetch(`/api/landing-pages/busy-slots?accountId=${accountId}`)
       .then(r => r.json())
@@ -123,8 +146,18 @@ export default function CalendarBooking({
       .catch(() => {/* non-fatal */});
   }, [accountId, slots]);
 
+  const handleConfirmSlot = () => {
+    if (!selectedSlot) return;
+    setBookingError('');
+    setConfirmStep(true);
+  };
+
   const handleBook = async () => {
     if (!selectedSlot) return;
+    if (!confirmInfo.first_name.trim()) {
+      setBookingError('Please enter your first name.');
+      return;
+    }
     setBooking(true);
     setBookingError('');
     try {
@@ -134,11 +167,12 @@ export default function CalendarBooking({
         body: JSON.stringify({
           accountId,
           contactId,
-          contactName,
+          contactName: `${confirmInfo.first_name.trim()} ${confirmInfo.last_name.trim()}`.trim() || contactName,
           slotUtc: selectedSlot.utc,
           slotDisplay: `${selectedSlot.dateLabel} at ${selectedSlot.display} (${tz})`,
           agentName,
           formAnswers,
+          contactInfo: confirmInfo,
         }),
       });
       const data = await res.json();
@@ -158,6 +192,109 @@ export default function CalendarBooking({
   const accent = accentColor;
   const currentSlots = grouped[selectedDate] || [];
 
+  // ── Confirmation step ─────────────────────────────────────────────────────────
+  if (confirmStep && selectedSlot) {
+    return (
+      <div>
+        <button
+          onClick={() => { setConfirmStep(false); setBookingError(''); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', color: '#6b7280', padding: '0 0 16px 0', fontSize: '0.85rem' }}
+        >
+          <ArrowLeft style={{ width: 16, height: 16 }} />
+          Back to calendar
+        </button>
+
+        {/* Selected slot summary */}
+        <div style={{ background: `${accent}18`, border: `2px solid ${accent}44`, borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckCircle style={{ width: 20, height: 20, color: accent, flexShrink: 0 }} />
+          <div>
+            <p style={{ fontWeight: '700', color: '#111827', fontSize: '0.95rem' }}>
+              {selectedSlot.dateLabel} at {selectedSlot.display}
+            </p>
+            <p style={{ color: '#6b7280', fontSize: '0.78rem', marginTop: '2px' }}>
+              15-minute call · {tz}
+            </p>
+          </div>
+        </div>
+
+        <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111827', marginBottom: '6px' }}>Confirm your details</h3>
+        <p style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: '18px' }}>Make sure everything looks right before we lock in your call.</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>First Name *</label>
+              <input
+                type="text"
+                value={confirmInfo.first_name}
+                onChange={e => setConfirmInfo(p => ({ ...p, first_name: e.target.value }))}
+                style={inputSt}
+                placeholder="First name"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Last Name</label>
+              <input
+                type="text"
+                value={confirmInfo.last_name}
+                onChange={e => setConfirmInfo(p => ({ ...p, last_name: e.target.value }))}
+                style={inputSt}
+                placeholder="Last name"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Phone Number</label>
+            <input
+              type="tel"
+              value={confirmInfo.phone}
+              onChange={e => setConfirmInfo(p => ({ ...p, phone: e.target.value }))}
+              style={inputSt}
+              placeholder="Your phone number"
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Email Address</label>
+            <input
+              type="email"
+              value={confirmInfo.email}
+              onChange={e => setConfirmInfo(p => ({ ...p, email: e.target.value }))}
+              style={inputSt}
+              placeholder="Your email"
+            />
+          </div>
+
+          {bookingError && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '0.85rem' }}>
+              {bookingError}
+            </div>
+          )}
+
+          <button
+            onClick={handleBook}
+            disabled={booking || !confirmInfo.first_name.trim()}
+            style={{
+              width: '100%', padding: '15px', background: confirmInfo.first_name.trim() ? accent : '#e5e7eb',
+              color: confirmInfo.first_name.trim() ? '#111827' : '#9ca3af', border: 'none', borderRadius: '12px',
+              fontWeight: '700', fontSize: '1rem', cursor: confirmInfo.first_name.trim() ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.15s',
+              opacity: booking ? 0.7 : 1,
+            }}
+          >
+            {booking
+              ? <><Loader style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Booking your call...</>
+              : `Confirm Booking — ${selectedSlot.dateLabel} at ${selectedSlot.display}`}
+          </button>
+          <p style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>No spam. Your information is kept private.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Calendar step ─────────────────────────────────────────────────────────────
   return (
     <div>
       {/* Agent header */}
@@ -177,7 +314,7 @@ export default function CalendarBooking({
       </div>
 
       <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '6px', marginBottom: '16px', fontSize: '0.75rem', color: '#6b7280', textAlign: 'center' }}>
-        📍 Times shown in your timezone: <strong>{tz}</strong> &nbsp;·&nbsp; 10-minute phone call
+        📍 Times shown in your timezone: <strong>{tz}</strong> &nbsp;·&nbsp; 15-minute phone call
       </div>
 
       {/* Date picker row */}
@@ -200,7 +337,7 @@ export default function CalendarBooking({
       </div>
 
       {/* Time slots grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px', marginBottom: '20px', maxHeight: '220px', overflowY: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px', marginBottom: '20px', maxHeight: '240px', overflowY: 'auto' }}>
         {currentSlots.map(slot => {
           const isBooked = bookedUtcs.has(slot.utc);
           const isSelected = selectedSlot?.utc === slot.utc;
@@ -219,13 +356,13 @@ export default function CalendarBooking({
                   : isSelected ? `${accent}18` : '#fff',
                 cursor: isBooked ? 'not-allowed' : 'pointer',
                 fontWeight: isSelected ? '700' : '500',
-                fontSize: '0.85rem',
+                fontSize: '0.82rem',
                 color: isBooked ? '#9ca3af' : '#111827',
                 transition: 'all 0.12s',
               }}
             >
               {isBooked ? (
-                <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Booked</span>
+                <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>Booked</span>
               ) : slot.display}
             </button>
           );
@@ -239,10 +376,10 @@ export default function CalendarBooking({
         </div>
       )}
 
-      {/* Confirm button */}
+      {/* Confirm button → goes to info step */}
       <button
-        onClick={handleBook}
-        disabled={!selectedSlot || booking}
+        onClick={handleConfirmSlot}
+        disabled={!selectedSlot}
         style={{
           width: '100%', padding: '15px', background: selectedSlot ? accent : '#e5e7eb',
           color: selectedSlot ? '#111827' : '#9ca3af', border: 'none', borderRadius: '12px',
@@ -250,10 +387,8 @@ export default function CalendarBooking({
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.15s',
         }}
       >
-        {booking
-          ? <><Loader style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> Booking...</>
-          : selectedSlot
-          ? `Confirm — ${selectedSlot.dateLabel} at ${selectedSlot.display}`
+        {selectedSlot
+          ? `Next — ${selectedSlot.dateLabel} at ${selectedSlot.display} →`
           : 'Select a time above'}
       </button>
     </div>

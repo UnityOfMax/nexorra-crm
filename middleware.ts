@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const APP_DOMAIN = 'app.ainexorra.com';
-const LEGACY_BASE_DOMAIN = 'ourlimitedoffer.com';
+// In production these default to the live domains.
+// Set BASE_DOMAIN and INTERNAL_API_BASE in .env.local to test locally.
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'app.ainexorra.com';
+const LEGACY_BASE_DOMAIN = process.env.BASE_DOMAIN || 'ourlimitedoffer.com';
+const INTERNAL_API_BASE = process.env.INTERNAL_API_BASE || `https://${APP_DOMAIN}`;
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
@@ -17,7 +20,7 @@ export async function middleware(request: NextRequest) {
     const subdomain = host.replace(`.${LEGACY_BASE_DOMAIN}`, '');
     if (subdomain && subdomain !== 'www') {
       try {
-        const apiUrl = `https://${APP_DOMAIN}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
+        const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
         const res = await fetch(apiUrl, { cache: 'no-store' });
         if (res.ok) {
           const { pageId, accountSlug } = await res.json();
@@ -46,7 +49,7 @@ export async function middleware(request: NextRequest) {
   ) {
     try {
       // Resolve which landing page owns this domain
-      const apiUrl = `https://${APP_DOMAIN}/api/landing-pages/by-domain?domain=${encodeURIComponent(host)}`;
+      const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-domain?domain=${encodeURIComponent(host)}`;
       const res = await fetch(apiUrl, { cache: 'no-store' });
       if (res.ok) {
         const { pageId, accountSlug } = await res.json();

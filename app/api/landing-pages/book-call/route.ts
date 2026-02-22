@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
+import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
 
 // POST /api/landing-pages/book-call
 export async function POST(request: NextRequest) {
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
       slotDisplay,
       agentName,
       formAnswers,
+      contactInfo, // optional: { first_name, last_name, email, phone } from confirmation step
     } = body;
 
     if (!accountId || !slotUtc) {
@@ -94,6 +96,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Update contact with confirmed info (if user edited in confirmation step) ─
+    if (contactId && contactInfo) {
+      const contactUpdate: Record<string, string> = {};
+      if (contactInfo.first_name?.trim()) contactUpdate.first_name = contactInfo.first_name.trim();
+      if (contactInfo.last_name?.trim()) contactUpdate.last_name = contactInfo.last_name.trim();
+      if (contactInfo.email?.trim()) contactUpdate.email = contactInfo.email.trim();
+      if (contactInfo.phone?.trim()) contactUpdate.phone = contactInfo.phone.trim();
+      if (Object.keys(contactUpdate).length > 0) {
+        await supabaseAdmin
+          .from('contacts')
+          .update({ ...contactUpdate, updated_at: new Date().toISOString() })
+          .eq('id', contactId)
+          .eq('account_id', accountId);
+      }
+    }
+
     // ── Build description with all form answers ───────────────────────────────
     const answerSummary = Object.entries(formAnswers || {})
       .filter(([k]) => !['first_name', 'last_name', 'phone', 'email'].includes(k))
@@ -147,6 +165,13 @@ ${answerSummary}`;
     }).catch(err => {
       console.error('[book-call] automation enrollment error:', err);
     });
+
+    // ── Trigger custom workflows for booking_created (non-blocking) ────────────
+    if (contactId) {
+      triggerBookingCreated(accountId, contactId, activity.id, slotUtc, slotDisplay).catch(err => {
+        console.error('[book-call] workflow trigger error:', err);
+      });
+    }
 
     return NextResponse.json({ success: true, activityId: activity.id });
   } catch (error: any) {

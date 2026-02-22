@@ -16,17 +16,22 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !data) {
-      // Return default config if none exists
       return NextResponse.json({
         config: {
           account_id: accountId,
           enabled: false,
           mode: 'suggest',
           system_prompt: '',
+          agent_name: '',
+          agent_represents: '',
           tone: 'professional',
           max_tokens: 500,
           channels: { sms: true, email: true },
           business_context: '',
+          email_agent_name: '',
+          email_agent_represents: '',
+          email_system_prompt: '',
+          email_max_tokens: 500,
         }
       });
     }
@@ -41,7 +46,10 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accountId, enabled, mode, system_prompt, tone, max_tokens, channels, business_context } = body;
+    const {
+      accountId, enabled, mode, system_prompt, agent_name, agent_represents, tone, max_tokens, channels, business_context,
+      email_agent_name, email_agent_represents, email_system_prompt, email_max_tokens,
+    } = body;
 
     if (!accountId) {
       return NextResponse.json({ error: 'accountId required' }, { status: 400 });
@@ -55,10 +63,16 @@ export async function PUT(request: NextRequest) {
         enabled: enabled ?? false,
         mode: mode || 'suggest',
         system_prompt: system_prompt || '',
+        agent_name: agent_name || '',
+        agent_represents: agent_represents || '',
         tone: tone || 'professional',
         max_tokens: max_tokens || 500,
         channels: channels || { sms: true, email: true },
         business_context: business_context || '',
+        email_agent_name: email_agent_name || '',
+        email_agent_represents: email_agent_represents || '',
+        email_system_prompt: email_system_prompt || '',
+        email_max_tokens: email_max_tokens || 500,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'account_id' })
       .select()

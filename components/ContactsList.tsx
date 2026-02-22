@@ -66,6 +66,12 @@ export default function ContactsList({
     onRefresh();
   };
 
+  const handlePanelDelete = (contactId: string) => {
+    setLocalContacts((prev) => prev.filter((c) => c.id !== contactId));
+    setPanelContact(null);
+    onRefresh();
+  };
+
   const filteredContacts = localContacts.filter((contact) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -209,6 +215,7 @@ export default function ContactsList({
         accountId={accountId}
         onClose={() => setPanelContact(null)}
         onSave={handlePanelSave}
+        onDelete={handlePanelDelete}
         onSmsClick={(c) => { setPanelContact(null); onSmsClick?.(c); }}
         onEmailClick={(c) => { setPanelContact(null); onEmailClick?.(c); }}
       />

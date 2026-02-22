@@ -29,8 +29,22 @@ import WorkflowSidebar from './WorkflowSidebar';
 import NodeConfigPanel from './panels/NodeConfigPanel';
 import WorkflowExecutionLog from './WorkflowExecutionLog';
 
+// Built-in automation support
+import {
+  automationToWorkflowDefinition,
+  workflowDefinitionToTemplates,
+  getAutomationMeta,
+} from '@/lib/automations/to-workflow-definition';
+import {
+  NEW_LEAD_TEMPLATES,
+  BOOKING_TEMPLATES,
+  NURTURING_TEMPLATES,
+} from '@/lib/automations/templates';
+
 interface WorkflowBuilderProps {
   workflowId?: string;
+  /** When set, loads/saves a built-in automation instead of a custom workflow */
+  builtinAutomationId?: string;
   accountId: string;
   userId: string;
   onBack: () => void;
@@ -44,7 +58,14 @@ const nodeTypes: NodeTypes = {
   delay: DelayNode,
 };
 
-export default function WorkflowBuilder({ workflowId, accountId, userId, onBack }: WorkflowBuilderProps) {
+const BUILTIN_DEFAULT_TEMPLATES: Record<string, any[]> = {
+  new_lead: NEW_LEAD_TEMPLATES,
+  booking_reminders: BOOKING_TEMPLATES,
+  nurturing: NURTURING_TEMPLATES,
+};
+
+export default function WorkflowBuilder({ workflowId, builtinAutomationId, accountId, userId, onBack }: WorkflowBuilderProps) {
+  const isBuiltin = !!builtinAutomationId;
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
@@ -55,12 +76,42 @@ export default function WorkflowBuilder({ workflowId, accountId, userId, onBack 
   const [isTesting, setIsTesting] = useState(false);
   const [showExecutionLog, setShowExecutionLog] = useState(false);
 
-  // Load existing workflow if editing
+  // Load existing workflow or built-in automation
   useEffect(() => {
-    if (workflowId) {
+    if (builtinAutomationId) {
+      loadBuiltinAutomation();
+    } else if (workflowId) {
       loadWorkflow();
     }
-  }, [workflowId]);
+  }, [workflowId, builtinAutomationId]);
+
+  const loadBuiltinAutomation = async () => {
+    const meta = getAutomationMeta(builtinAutomationId!);
+    setWorkflowName(meta.name);
+    setWorkflowTriggerType(meta.triggerStepType);
+
+    try {
+      const res = await fetch(
+        `/api/automations/configs?accountId=${accountId}&automationId=${builtinAutomationId}`
+      );
+      const data = await res.json();
+      const customTemplates = data?.config?.templates;
+      const templates =
+        Array.isArray(customTemplates) && customTemplates.length > 0
+          ? customTemplates
+          : BUILTIN_DEFAULT_TEMPLATES[builtinAutomationId!] ?? [];
+
+      const { nodes: n, edges: e } = automationToWorkflowDefinition(builtinAutomationId!, templates);
+      setNodes(n);
+      setEdges(e);
+    } catch {
+      // Fall back to defaults
+      const defaults = BUILTIN_DEFAULT_TEMPLATES[builtinAutomationId!] ?? [];
+      const { nodes: n, edges: e } = automationToWorkflowDefinition(builtinAutomationId!, defaults);
+      setNodes(n);
+      setEdges(e);
+    }
+  };
 
   const loadWorkflow = async () => {
     try {
@@ -187,30 +238,50 @@ export default function WorkflowBuilder({ workflowId, accountId, userId, onBack 
       return;
     }
 
-    // Find trigger node
-    const triggerNode = nodes.find((n) => n.type === 'trigger');
-    if (!triggerNode) {
-      alert('Workflow must have a trigger node');
+    setIsSaving(true);
+
+    // ── Built-in automation: save templates extracted from the graph ──
+    if (isBuiltin) {
+      try {
+        const templates = workflowDefinitionToTemplates({ nodes, edges });
+        const res = await fetch('/api/automations/configs', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId,
+            automationId: builtinAutomationId,
+            templates,
+          }),
+        });
+        if (!res.ok) throw new Error('Failed to save');
+        alert('Automation saved!');
+      } catch (error) {
+        console.error('Error saving automation:', error);
+        alert('Failed to save automation. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
-    setIsSaving(true);
+    // ── Custom workflow ──
+    const triggerNode = nodes.find((n) => n.type === 'trigger');
+    if (!triggerNode) {
+      alert('Workflow must have a trigger node');
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const workflowData = {
         accountId,
         name: workflowName,
         triggerType: workflowTriggerType,
-        workflowDefinition: {
-          nodes,
-          edges,
-        },
+        workflowDefinition: { nodes, edges },
         isActive,
       };
 
-      const url = workflowId
-        ? `/api/workflows/${workflowId}`
-        : '/api/workflows';
-
+      const url = workflowId ? `/api/workflows/${workflowId}` : '/api/workflows';
       const method = workflowId ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -219,14 +290,11 @@ export default function WorkflowBuilder({ workflowId, accountId, userId, onBack 
         body: JSON.stringify(workflowData),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save workflow');
-      }
+      if (!response.ok) throw new Error('Failed to save workflow');
 
       const { data } = await response.json();
       alert(`Workflow ${workflowId ? 'updated' : 'created'} successfully!`);
 
-      // If creating new workflow, redirect to edit mode
       if (!workflowId && data?.id) {
         window.location.href = `?workflow=${data.id}`;
       }
@@ -311,62 +379,78 @@ export default function WorkflowBuilder({ workflowId, accountId, userId, onBack 
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
-              <input
-                type="text"
-                value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
-                className="text-lg font-semibold text-gray-900 border-none focus:outline-none focus:ring-0 bg-transparent"
-                placeholder="Workflow name"
-              />
-              <div className="flex items-center gap-2 mt-1">
-                <label className="text-xs text-gray-600">Trigger:</label>
-                <select
-                  value={workflowTriggerType}
-                  onChange={(e) => setWorkflowTriggerType(e.target.value)}
-                  className="text-xs border border-gray-300 rounded px-2 py-1"
-                >
-                  <option value="contact_created">Contact Created</option>
-                  <option value="contact_updated">Contact Updated</option>
-                  <option value="deal_created">Deal Created</option>
-                  <option value="deal_stage_changed">Deal Stage Changed</option>
-                  <option value="deal_won">Deal Won</option>
-                  <option value="deal_lost">Deal Lost</option>
-                  <option value="manual">Manual Trigger</option>
-                </select>
-              </div>
+              {isBuiltin ? (
+                <>
+                  <p className="text-lg font-semibold text-gray-900">{workflowName}</p>
+                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
+                    Always On
+                  </span>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={workflowName}
+                    onChange={(e) => setWorkflowName(e.target.value)}
+                    className="text-lg font-semibold text-gray-900 border-none focus:outline-none focus:ring-0 bg-transparent"
+                    placeholder="Workflow name"
+                  />
+                  <div className="flex items-center gap-2 mt-1">
+                    <label className="text-xs text-gray-600">Trigger:</label>
+                    <select
+                      value={workflowTriggerType}
+                      onChange={(e) => setWorkflowTriggerType(e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="contact_created">Contact Created</option>
+                      <option value="contact_updated">Contact Updated</option>
+                      <option value="booking_created">Booking Created</option>
+                      <option value="deal_created">Deal Created</option>
+                      <option value="deal_stage_changed">Deal Stage Changed</option>
+                      <option value="deal_won">Deal Won</option>
+                      <option value="deal_lost">Deal Lost</option>
+                      <option value="manual">Manual Trigger</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowExecutionLog(true)}
-              disabled={!workflowId}
-              className="btn btn-secondary flex items-center gap-2"
-              title="View execution history"
-            >
-              <History className="w-4 h-4" />
-              History
-            </button>
-            <button
-              onClick={testWorkflow}
-              disabled={isTesting || !workflowId}
-              className="btn btn-secondary flex items-center gap-2"
-            >
-              <Play className="w-4 h-4" />
-              {isTesting ? 'Testing...' : 'Test'}
-            </button>
-            <button
-              onClick={toggleActive}
-              disabled={!workflowId}
-              className={`btn flex items-center gap-2 ${
-                isActive
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'btn-secondary'
-              }`}
-            >
-              <Power className="w-4 h-4" />
-              {isActive ? 'Active' : 'Inactive'}
-            </button>
+            {!isBuiltin && (
+              <>
+                <button
+                  onClick={() => setShowExecutionLog(true)}
+                  disabled={!workflowId}
+                  className="btn btn-secondary flex items-center gap-2"
+                  title="View execution history"
+                >
+                  <History className="w-4 h-4" />
+                  History
+                </button>
+                <button
+                  onClick={testWorkflow}
+                  disabled={isTesting || !workflowId}
+                  className="btn btn-secondary flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  {isTesting ? 'Testing...' : 'Test'}
+                </button>
+                <button
+                  onClick={toggleActive}
+                  disabled={!workflowId}
+                  className={`btn flex items-center gap-2 ${
+                    isActive
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'btn-secondary'
+                  }`}
+                >
+                  <Power className="w-4 h-4" />
+                  {isActive ? 'Active' : 'Inactive'}
+                </button>
+              </>
+            )}
             <button
               onClick={saveWorkflow}
               disabled={isSaving}

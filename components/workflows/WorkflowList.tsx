@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Plus, Play, Pause, Edit } from 'lucide-react';
 import { Workflow } from '@/types';
 import WorkflowBuilder from './WorkflowBuilder';
-import AutomationEditor from './AutomationEditor';
 
 type BuiltinAutomationId = 'new_lead' | 'booking_reminders' | 'nurturing';
 
@@ -113,18 +112,19 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
     }
   };
 
-  // Show automation editor
+  // Show built-in automation in the drag-and-drop builder
   if (editingAutomationId) {
     return (
-      <AutomationEditor
+      <WorkflowBuilder
+        builtinAutomationId={editingAutomationId}
         accountId={accountId}
-        automationId={editingAutomationId}
+        userId={userId}
         onBack={() => setEditingAutomationId(null)}
       />
     );
   }
 
-  // Show workflow builder if a workflow is selected
+  // Show workflow builder for custom workflows
   if (showBuilder) {
     return (
       <WorkflowBuilder

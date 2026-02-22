@@ -52,3 +52,25 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ contact: data });
 }
+
+// DELETE /api/contacts?id=X&accountId=Y
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get('id');
+  const accountId = request.nextUrl.searchParams.get('accountId');
+  if (!id || !accountId) {
+    return NextResponse.json({ error: 'id and accountId required' }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('contacts')
+    .delete()
+    .eq('id', id)
+    .eq('account_id', accountId);
+
+  if (error) {
+    console.error('Contact delete error:', error);
+    return NextResponse.json({ error: 'Failed to delete contact' }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

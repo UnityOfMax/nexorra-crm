@@ -78,3 +78,13 @@ export async function triggerDealWon(accountId: string, dealId: string, contactI
 export async function triggerDealLost(accountId: string, dealId: string, contactId?: string): Promise<void> {
   await triggerWorkflows(accountId, 'deal_lost', { dealId, contactId });
 }
+
+export async function triggerBookingCreated(
+  accountId: string,
+  contactId: string,
+  activityId: string,
+  slotUtc: string,
+  slotDisplay: string,
+): Promise<void> {
+  await triggerWorkflows(accountId, 'booking_created', { contactId, activityId, slotUtc, slotDisplay });
+}

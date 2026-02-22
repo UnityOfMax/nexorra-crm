@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { unstable_noStore as noStore } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import PublicPageClient from '@/components/landing-pages/PublicPageClient';
 
@@ -6,7 +7,8 @@ import PublicPageClient from '@/components/landing-pages/PublicPageClient';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
-  headers(); // marks route as dynamic, prevents edge caching
+  noStore();
+  headers();
 
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
@@ -25,6 +27,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default function LandingPageByIdPage({ params }: { params: { id: string } }) {
-  headers(); // prevent edge caching
+  noStore();
+  headers();
   return <PublicPageClient pageId={params.id} />;
 }
