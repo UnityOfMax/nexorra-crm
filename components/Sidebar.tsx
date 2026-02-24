@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
-import ThemeToggle from './ThemeToggle';
 import type { Account } from '@/types';
 import type { UserRole } from '@/types/agency';
 
@@ -106,9 +105,6 @@ function SidebarContent({
           <Settings className={`w-[18px] h-[18px] flex-shrink-0 ${activeView === 'settings' ? 'text-primary-600 dark:text-primary-400' : ''}`} />
           <span>Settings</span>
         </button>
-        <div className="flex items-center justify-end px-1 pt-1">
-          <ThemeToggle />
-        </div>
       </div>
     </>
   );

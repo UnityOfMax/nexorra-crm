@@ -52,7 +52,7 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose, acc
         return <DelayConfig node={node} onUpdate={onUpdate} />;
       default:
         return (
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             <p>Node Type: {node.type}</p>
             <p className="mt-2">Step Type: {stepType}</p>
             <p className="mt-4 text-xs">Configuration panel for this node type coming soon.</p>
@@ -62,22 +62,22 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose, acc
   };
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-80 bg-white dark:bg-[#2c2c2e] border-l border-gray-200 flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-200 p-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">Node Settings</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Node Settings</h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors"
         >
-          <X className="w-4 h-4 text-gray-600" />
+          <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
         </button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
         <div className="mb-3">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Label
           </label>
           <input

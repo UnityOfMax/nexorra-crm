@@ -1,6 +1,6 @@
 // ============================================================
 // Automation message templates
-// Tokens: {{name}}, {{agentName}}, {{callTime}}
+// Tokens: {{contact.first_name}}, {{user.firstname}}, {{callTime}}
 // ============================================================
 
 export interface MessageTemplate {
@@ -10,122 +10,122 @@ export interface MessageTemplate {
   body: string;
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+// -- Helpers --------------------------------------------------
 const H = 60 * 60 * 1000;
 const D = 24 * H;
 
 // Apply token replacements
 export function applyTokens(
   text: string,
-  tokens: { name: string; agentName: string; callTime?: string }
+  tokens: { contactFirstName: string; userFirstName: string; callTime?: string }
 ): string {
   return text
-    .replace(/{{name}}/g, tokens.name)
-    .replace(/{{agentName}}/g, tokens.agentName)
-    .replace(/{{callTime}}/g, tokens.callTime || '');
+    .replace(/\{\{contact\.first_name\}\}/g, tokens.contactFirstName)
+    .replace(/\{\{user\.firstname\}\}/g, tokens.userFirstName)
+    .replace(/\{\{callTime\}\}/g, tokens.callTime || '');
 }
 
-// ── New Lead ──────────────────────────────────────────────────
+// -- New Lead -------------------------------------------------
 export const NEW_LEAD_TEMPLATES: MessageTemplate[] = [
-  // Step 1 — immediate
+  // Step 1 -- immediate
   {
     type: 'sms',
     delayMs: 0,
-    body: `Hey {{name}}! Just saw your request come through — I'm already pulling together some homes you'll love. When's a good time for a quick call? 😊`,
+    body: `Hi {{contact.first_name}}, I saw your request come in. I am putting together some options for you now. When is a good time for a quick call?`,
   },
   {
     type: 'email',
     delayMs: 0,
-    subject: 'Got your request! 🏡',
-    body: `Hey {{name}}!
+    subject: 'Got your request',
+    body: `Hi {{contact.first_name}},
 
-Just saw you pop up — super exciting! I'm already starting to put together a list of homes based on what you're looking for.
+I saw your request come through and I am already putting together a list of homes based on what you are looking for.
 
-When would work for a quick 10-minute call? Doesn't have to be long, I just want to make sure I've got the right homes on the list for you.
+Do you have 10 minutes for a quick call? I want to make sure I have the right properties lined up for you.
 
-Hit reply whenever works!
+Just reply with a time that works.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Step 2 — +2h
+  // Step 2 -- +2h
   {
     type: 'sms',
     delayMs: 2 * H,
-    body: `Hey, just checking in! Happy to chat whenever works for you — even a quick 5 minutes is great 📞`,
+    body: `Hi {{contact.first_name}}, just following up. Happy to chat whenever works for you, even 5 minutes helps.`,
   },
   {
     type: 'email',
     delayMs: 2 * H,
-    subject: `Still here!`,
-    body: `Hey {{name}},
+    subject: `Following up`,
+    body: `Hi {{contact.first_name}},
 
-Just making sure my last message didn't get lost! Totally get it, life gets busy.
+Wanted to make sure my earlier message didn't slip through. I know things get busy.
 
-Whenever you're ready for a quick chat, just hit reply 😊
+Whenever you have a moment, just reply and we can set up a quick call.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Step 3 — +1 day
+  // Step 3 -- +1 day
   {
     type: 'sms',
     delayMs: 1 * D,
-    body: `Still got homes to show you {{name}} 🏡 What does your schedule look like this week?`,
+    body: `Hi {{contact.first_name}}, I still have some properties to show you. What does your schedule look like this week?`,
   },
   {
     type: 'email',
     delayMs: 1 * D,
-    subject: `Still got homes for you...`,
-    body: `Hey {{name}},
+    subject: `Properties matching your search`,
+    body: `Hi {{contact.first_name}},
 
-I've been keeping an eye out and honestly some really good stuff is coming up that matches what you're looking for.
+I have been keeping an eye on listings and there are some strong options coming up that match what you described.
 
-Would love to jump on a quick call — even just 10 minutes. When works?
+Would you be available for a quick call this week? Even 10 minutes would be enough to go over them.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Step 4 — +2 days
+  // Step 4 -- +2 days
   {
     type: 'sms',
     delayMs: 2 * D,
-    body: `Hey! Found some great homes I'd hate for you to miss. Any chance we could connect today? 🙌`,
+    body: `Hi {{contact.first_name}}, I found some homes I think you would like. Any chance we could connect today?`,
   },
   {
     type: 'email',
     delayMs: 2 * D,
-    subject: `Don't want you to miss this...`,
-    body: `Hey {{name}},
+    subject: `A few homes worth seeing`,
+    body: `Hi {{contact.first_name}},
 
-Just keeping this on your radar — I've got some homes that I think are a really good fit and I don't want them to slip past you.
+Just keeping this on your radar. I have a few properties that look like a strong fit and I would hate for them to go before you get a chance to see them.
 
-If now's a better time, just reply or we can keep it super short. Happy to work around your schedule!
+If now works better, just reply and I will work around your schedule.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Step 5 — +3 days
+  // Step 5 -- +3 days
   {
     type: 'sms',
     delayMs: 3 * D,
-    body: `Hey {{name}}, last check-in from me for a while! No worries if timing isn't right — I'll be in touch soon 🏡`,
+    body: `Hi {{contact.first_name}}, this is my last check-in for a bit. No worries if the timing is not right. I will be around when you are ready.`,
   },
   {
     type: 'email',
     delayMs: 3 * D,
-    subject: `My last check-in for now`,
-    body: `Hey {{name}},
+    subject: `Last check-in for now`,
+    body: `Hi {{contact.first_name}},
 
-I promise I won't keep bugging you! Just wanted to do one last check-in before I give you some breathing room.
+I will give you some space after this one. Just wanted to reach out one more time in case the timing works better now.
 
-If anything changes or you're ready to chat, I'm always here. You can reach out anytime — no pressure at all.
+If anything changes or you are ready to talk, I am here. No pressure at all.
 
-Hope to connect soon!
-{{agentName}}`,
+Talk soon,
+{{user.firstname}}`,
   },
 
-  // Nurturing escalation at +5 days (not a real message — triggers escalation)
+  // Nurturing escalation at +5 days (not a real message -- triggers escalation)
   {
     type: 'nurturing_escalation',
     delayMs: 5 * D,
@@ -133,7 +133,7 @@ Hope to connect soon!
   },
 ];
 
-// ── Booking Reminders ────────────────────────────────────────
+// -- Booking Reminders ----------------------------------------
 // Delays are relative to callTimeUtc (negative = before call)
 export interface BookingTemplate {
   type: 'sms' | 'email';
@@ -149,93 +149,89 @@ export const BOOKING_TEMPLATES: BookingTemplate[] = [
     type: 'sms',
     offsetMs: 0,
     isImmediate: true,
-    body: `You're booked! 🎉 Looking forward to our call on {{callTime}}, {{name}}. I'll have a list of homes ready just for you!`,
+    body: `Call confirmed for {{callTime}}, {{contact.first_name}}. I will have a list of homes ready for you.`,
   },
   {
     type: 'email',
     offsetMs: 0,
     isImmediate: true,
-    subject: `Call confirmed 📅`,
-    body: `Hey {{name}}!
+    subject: `Call confirmed`,
+    body: `Hi {{contact.first_name}},
 
-You're all booked — so excited to connect with you!
+You are all set. Your call is scheduled for:
+{{callTime}}
 
-Your call is scheduled for:
-📅 {{callTime}}
+I will spend some time before our call putting together properties that match what you are looking for.
 
-I'm going to spend some time before our call pulling together homes that match exactly what you're looking for. You're going to love what I've found.
-
-Talk soon!
-{{agentName}}`,
+Talk soon,
+{{user.firstname}}`,
   },
 
   // 48h before
   {
     type: 'sms',
     offsetMs: -48 * H,
-    body: `Quick heads up {{name}} — our call is in 2 days on {{callTime}}. Can't wait to show you what I've found! 🏡`,
+    body: `Hi {{contact.first_name}}, just a reminder that our call is in 2 days on {{callTime}}.`,
   },
   {
     type: 'email',
     offsetMs: -48 * H,
-    subject: `2 days to go!`,
-    body: `Hey {{name}},
+    subject: `Your call is in 2 days`,
+    body: `Hi {{contact.first_name}},
 
-Just a quick reminder that our call is coming up in 2 days:
-📅 {{callTime}}
+Quick reminder that our call is coming up in 2 days:
+{{callTime}}
 
-I've been doing some prep work and I think you're going to love what I've put together. See you then!
+I have been doing some prep work and have some good options to go over with you. See you then.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
   // 24h before
   {
     type: 'sms',
     offsetMs: -24 * H,
-    body: `Tomorrow's the day! 😊 Our call is at {{callTime}}, {{name}}. Can't wait to chat!`,
+    body: `Hi {{contact.first_name}}, our call is tomorrow at {{callTime}}. Looking forward to it.`,
   },
   {
     type: 'email',
     offsetMs: -24 * H,
-    subject: `Tomorrow's your call!`,
-    body: `Hey {{name}},
+    subject: `Call tomorrow`,
+    body: `Hi {{contact.first_name}},
 
-Just a reminder — our call is tomorrow!
+Just a reminder that our call is tomorrow:
+{{callTime}}
 
-📅 {{callTime}}
+Looking forward to going through everything with you.
 
-Looking forward to going through everything with you. See you then!
-
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
   // 1h before
   {
     type: 'sms',
     offsetMs: -1 * H,
-    body: `One hour to go ⏰ Our call starts at {{callTime}}, {{name}}. Talk soon!`,
+    body: `Hi {{contact.first_name}}, our call starts in one hour at {{callTime}}. Talk soon.`,
   },
   {
     type: 'email',
     offsetMs: -1 * H,
-    subject: `1 hour away!`,
-    body: `Hey {{name}},
+    subject: `Call in 1 hour`,
+    body: `Hi {{contact.first_name}},
 
-We're almost there — just one hour until our call!
+Just a heads up, our call is in one hour:
+{{callTime}}
 
-📅 {{callTime}}
+I will be ready to go. Talk soon.
 
-I'll be ready to go. Talk soon!
-
-{{agentName}}`,
+{{user.firstname}}`,
   },
 ];
 
 // Switch message when contact books while in new_lead
-export const BOOKING_SWITCH_SMS = `Oh nice! Just saw you pop up in my calendar 😄 Looking forward to our call on {{callTime}}, {{name}}!`;
+export const BOOKING_SWITCH_SMS = `Great, I see you booked a call for {{callTime}}, {{contact.first_name}}. Looking forward to it.`;
 
-// ── Nurturing (30-day) ────────────────────────────────────────
+// -- Nurturing (30-day) ---------------------------------------
 export interface NurturingTemplate {
   type: 'sms' | 'email';
   dayOffset: number;
@@ -244,200 +240,196 @@ export interface NurturingTemplate {
 }
 
 export const NURTURING_TEMPLATES: NurturingTemplate[] = [
-  // Day 1 — email + SMS
+  // Day 1 -- email + SMS
   {
     type: 'email',
     dayOffset: 1,
-    subject: `Still thinking about that home? 🏡`,
-    body: `Hey {{name}}!
+    subject: `Still thinking about finding a home?`,
+    body: `Hi {{contact.first_name}},
 
-Just popping in to say hi. Still here whenever you're ready to take a look at some homes.
+Just checking in. I am still here whenever you are ready to take a look at some properties.
 
-No pressure — your timeline, your pace.
+No pressure at all -- your timeline, your pace.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
   {
     type: 'sms',
     dayOffset: 1,
-    body: `Hey {{name}}! Still here whenever you're ready to find your home 🏡 No rush, just wanted to check in!`,
+    body: `Hi {{contact.first_name}}, just checking in. Still here whenever you are ready to start your home search. No rush.`,
   },
 
-  // Day 2 — email only
+  // Day 2 -- email only
   {
     type: 'email',
     dayOffset: 2,
-    subject: `Quick question... 🤔`,
-    body: `Hey {{name}},
+    subject: `Quick question`,
+    body: `Hi {{contact.first_name}},
 
-If you could describe your perfect home in 3 words, what would they be?
+If you could describe your ideal home in three words, what would they be?
 
-I ask everyone and the answers always surprise me. (It also helps me know exactly what to look for!)
+I ask everyone this and it really helps me narrow down what to look for. Just hit reply -- I am curious to hear.
 
-Just hit reply — I'm curious 😊
-
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 3 — email only
+  // Day 3 -- email only
   {
     type: 'email',
     dayOffset: 3,
-    subject: `Real talk 🙏`,
-    body: `Hey {{name}},
+    subject: `No need to have it all figured out`,
+    body: `Hi {{contact.first_name}},
 
-I know home-buying can feel overwhelming. There's so much to figure out — finances, timing, what you actually want.
+I know the home-buying process can feel like a lot. There is a lot to think about -- finances, timing, what you actually want.
 
-But honestly? That's exactly what I'm here for. You don't need to have it all figured out before we talk.
+That is exactly what I am here to help with. You do not need to have it all sorted before we talk.
 
-Whenever you're ready, just reply. I'm happy to listen first, help second.
+Whenever you are ready, just reply. Happy to listen first and go from there.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 5 — email only
+  // Day 5 -- email only
   {
     type: 'email',
     dayOffset: 5,
-    subject: `Did you know... 👀`,
-    body: `Hey {{name}},
+    subject: `Something worth thinking about`,
+    body: `Hi {{contact.first_name}},
 
 Most buyers I work with say the biggest thing they regret is waiting too long.
 
-I'm not saying jump in before you're ready — I'm saying don't let hesitation be the only thing holding you back.
+I am not saying rush into anything -- just that hesitation alone is not a great reason to hold off.
 
-If you ever want to just talk through where you're at, I'm happy to listen. No agenda.
+If you ever want to talk through where you are at, I am happy to listen. No agenda.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 10 — email + SMS
+  // Day 10 -- email + SMS
   {
     type: 'email',
     dayOffset: 10,
-    subject: `Still in your corner 🙌`,
-    body: `Hey {{name}}!
+    subject: `Still keeping an eye out for you`,
+    body: `Hi {{contact.first_name}},
 
-Just a quick note to let you know I'm still thinking about finding you the right home.
+Just a quick note to let you know I am still watching for properties that match what you are looking for.
 
-Market's been interesting lately — some really good stuff popping up. Worth a quick chat if you're even a little curious.
+The market has been active lately and there are some solid options. Worth a quick chat if you are even a little curious.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
   {
     type: 'sms',
     dayOffset: 10,
-    body: `Hey {{name}}! Just a quick check-in — still got my eyes open for homes that'd be perfect for you 🏡 Whenever you're ready!`,
+    body: `Hi {{contact.first_name}}, just a quick check-in. Still keeping an eye on listings for you. Let me know when you are ready to take a look.`,
   },
 
-  // Day 15 — email only
+  // Day 15 -- email only
   {
     type: 'email',
     dayOffset: 15,
-    subject: `Half a month later... 👀`,
-    body: `Hey {{name}},
+    subject: `Checking in`,
+    body: `Hi {{contact.first_name}},
 
-Can't believe it's been a couple of weeks! Life moves fast.
+Hard to believe it has been a couple of weeks already.
 
-I'm still here, still got my eyes open for you. Whenever the timing feels right, just say the word.
+I am still here and still watching the market for you. Whenever the timing feels right, just say the word.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 20 — email + SMS
+  // Day 20 -- email + SMS
   {
     type: 'email',
     dayOffset: 20,
-    subject: `Something to think about 🏡`,
-    body: `Hey {{name}},
+    subject: `Where do you see yourself in a year?`,
+    body: `Hi {{contact.first_name}},
 
-Here's a question I love asking people who are on the fence:
+Here is a question I like to ask: where do you see yourself in a year?
 
-"Where do you see yourself in a year?"
+For a lot of people, the answer involves a place of their own. If that sounds like you, let's make it happen.
 
-For a lot of people, the answer involves a home of their own. If that's you — let's make it happen.
-
-{{agentName}}`,
+{{user.firstname}}`,
   },
   {
     type: 'sms',
     dayOffset: 20,
-    body: `Hey {{name}}! Where do you see yourself in a year? Still happy to help you find your home whenever you're ready 🏡`,
+    body: `Hi {{contact.first_name}}, where do you see yourself in a year? If owning a home is part of the plan, I am here to help whenever you are ready.`,
   },
 
-  // Day 25 — email only
+  // Day 25 -- email only
   {
     type: 'email',
     dayOffset: 25,
-    subject: `Quick check-in ✌️`,
-    body: `Hey {{name}}!
+    subject: `Quick hello`,
+    body: `Hi {{contact.first_name}},
 
-Hope you've been well. Just a quick hello from me.
+Hope you have been well. Just a quick hello from me.
 
-Still here if you ever want to revisit the home search. No agenda — just genuinely want to help when you're ready.
+Still here if you ever want to revisit your home search. No agenda -- just genuinely want to help when you are ready.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 27 — email only
+  // Day 27 -- email only
   {
     type: 'email',
     dayOffset: 27,
-    subject: `Good feeling about this 🎯`,
-    body: `Hey {{name}},
+    subject: `The right home is out there`,
+    body: `Hi {{contact.first_name}},
 
-I've got a good feeling you're going to find something you love — it just might need a little more time.
+I have a feeling you are going to find something you love. It might just need a little more time.
 
-When that day comes, I want to be the one who helps you get there. Reach out anytime!
+When that day comes, I want to be the one helping you get there. Reach out anytime.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 28 — email only
+  // Day 28 -- email only
   {
     type: 'email',
     dayOffset: 28,
-    subject: `Real quick... 🙏`,
-    body: `Hey {{name}},
+    subject: `Anything holding you back?`,
+    body: `Hi {{contact.first_name}},
 
-Is there anything specific that's been holding you back? Sometimes just talking it through makes all the difference.
+Is there anything specific that has been holding you back? Sometimes just talking it through makes all the difference.
 
-Feel free to reply and let me know what's going on. I promise I won't bite! 😄
+Feel free to reply and let me know what is going on. I am happy to help however I can.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 29 — email only
+  // Day 29 -- email only
   {
     type: 'email',
     dayOffset: 29,
-    subject: `Almost done bugging you 😴`,
-    body: `Hey {{name}},
+    subject: `One more check-in`,
+    body: `Hi {{contact.first_name}},
 
-Tomorrow's the last time I'll check in for this round — I want to respect your space!
+Tomorrow will be my last message for this round. I want to respect your space.
 
-But if you're even a little curious about what's available right now, just say the word.
+But if you are even a little curious about what is available right now, just say the word.
 
-{{agentName}}`,
+{{user.firstname}}`,
   },
 
-  // Day 30 — email + SMS
+  // Day 30 -- email + SMS
   {
     type: 'email',
     dayOffset: 30,
-    subject: `Last one, I promise 👋`,
-    body: `Hey {{name}},
+    subject: `Last message for now`,
+    body: `Hi {{contact.first_name}},
 
-This is my last scheduled check-in! I've genuinely enjoyed keeping your search in mind.
+This is my last scheduled check-in. I have enjoyed keeping your search in mind.
 
-Whenever you're ready — whether it's tomorrow or next year — I'll be here.
+Whenever you are ready -- whether it is next week or next year -- I will be here.
 
-Take care!
-{{agentName}}`,
+Take care,
+{{user.firstname}}`,
   },
   {
     type: 'sms',
     dayOffset: 30,
-    body: `Hey {{name}}, last message from me for now! Whenever you're ready to find your home, I'm here 🏡 Take care!`,
+    body: `Hi {{contact.first_name}}, last message from me for now. Whenever you are ready to find your home, I am here. Take care.`,
   },
 ];

@@ -334,6 +334,15 @@ export interface Message {
   updated_at: string;
 }
 
+// Notification Preferences
+export interface NotificationPreferences {
+  reports: boolean;
+  new_leads: boolean;
+  no_bookings: boolean;
+  new_texts: boolean;
+  new_emails: boolean;
+}
+
 // Google Calendar Integration
 export interface GoogleCalendarSyncMapping {
   id: string;

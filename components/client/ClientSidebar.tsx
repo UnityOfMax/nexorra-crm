@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, MessageSquare, Calendar, KanbanSquare, Settings, ChevronDown, Check, LogOut, Building2 } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
-
 interface ClientSidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
@@ -128,9 +126,6 @@ export default function ClientSidebar({
           <Settings className={`w-[18px] h-[18px] flex-shrink-0 ${activeView === 'settings' ? 'text-primary-600 dark:text-primary-400' : ''}`} />
           <span>Settings</span>
         </button>
-        <div className="flex items-center justify-end px-1 pt-1">
-          <ThemeToggle />
-        </div>
       </div>
     </aside>
   );

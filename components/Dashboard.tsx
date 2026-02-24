@@ -8,7 +8,7 @@ import Sidebar from './Sidebar';
 import ClientSidebar from './client/ClientSidebar';
 import SubAccountsView from './agency/SubAccountsView';
 import ContactsList from './ContactsList';
-import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare } from 'lucide-react';
+import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign } from 'lucide-react';
 import Settings from './Settings';
 import Conversations from './Conversations';
 import PipelineManager from './pipelines/PipelineManager';
@@ -41,6 +41,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     totalLeads: 0,
     totalCustomers: 0,
     activeDeals: 0,
+    emailsSent: 0,
+    textsSent: 0,
+    bookings: 0,
+    closings: 0,
+    revenue: 0,
   });
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
@@ -258,12 +263,47 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       .eq('account_id', currentAccount.id)
       .eq('status', 'open');
 
+    // New stats: emails sent, texts sent, bookings, closings, revenue
+    const { count: emailsSent } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('account_id', currentAccount.id)
+      .eq('type', 'email')
+      .eq('direction', 'outbound');
+
+    const { count: textsSent } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('account_id', currentAccount.id)
+      .eq('type', 'sms')
+      .eq('direction', 'outbound');
+
+    const { count: bookingsCount } = await supabase
+      .from('activities')
+      .select('*', { count: 'exact', head: true })
+      .eq('account_id', currentAccount.id)
+      .eq('type', 'meeting');
+
+    const { data: wonDeals } = await supabase
+      .from('deals')
+      .select('value')
+      .eq('account_id', currentAccount.id)
+      .eq('status', 'won');
+
+    const closingsCount = wonDeals?.length || 0;
+    const totalRevenue = wonDeals?.reduce((sum, d) => sum + (d.value || 0), 0) || 0;
+
     if (contactsData) {
       setStats({
         totalContacts: contactsData.length,
         totalLeads: activeLeads,
         totalCustomers: contactsData.filter((c) => c.status === 'customer').length,
         activeDeals: dealsData?.length || 0,
+        emailsSent: emailsSent || 0,
+        textsSent: textsSent || 0,
+        bookings: bookingsCount || 0,
+        closings: closingsCount,
+        revenue: totalRevenue,
       });
     }
   };
@@ -328,6 +368,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
             onUpdate={loadAccounts}
             isAgencyUser={isAgencyUser}
             userId={user.id}
+            userRole={userRole}
           />
         );
       case 'pipelines':
@@ -357,13 +398,13 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
             {/* Viewing sub-account banner */}
             {isViewingClient && isAgencyUser && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
-                <Building2 className="w-5 h-5 text-blue-600" />
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
                     Viewing: {currentAccount?.name}
                   </p>
-                  <p className="text-xs text-blue-700">
+                  <p className="text-xs text-blue-700 dark:text-blue-400">
                     You are managing this sub-account as an agency owner
                   </p>
                 </div>
@@ -375,7 +416,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                       setActiveView('dashboard');
                     }
                   }}
-                  className="text-sm text-blue-700 hover:text-blue-900 font-medium"
+                  className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 font-medium"
                 >
                   Back to Agency
                 </button>
@@ -388,11 +429,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="card">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Sub-Accounts</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-1">{clientAccounts.length}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Sub-Accounts</p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{clientAccounts.length}</p>
                     </div>
-                    <div className="p-3 bg-indigo-100 rounded-xl">
-                      <Building2 className="w-6 h-6 text-indigo-600" />
+                    <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                      <Building2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                     </div>
                   </div>
                 </div>
@@ -400,13 +441,13 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="card">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Total Users</p>
-                      <p className="text-3xl font-bold text-gray-900 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
                         {clientAccounts.reduce((sum: number, c: any) => sum + (c.members?.[0]?.count || 0), 0)}
                       </p>
                     </div>
-                    <div className="p-3 bg-green-100 rounded-xl">
-                      <Users className="w-6 h-6 text-green-600" />
+                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                      <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
                     </div>
                   </div>
                 </div>
@@ -414,7 +455,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="card cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveView('sub-accounts')}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Manage Accounts</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Manage Accounts</p>
                       <p className="text-sm font-medium text-primary-600 mt-2">View Sub-Accounts →</p>
                     </div>
                     <div className="p-3 bg-primary-100 rounded-xl">
@@ -426,12 +467,12 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
             )}
 
             {/* Stats cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Total Contacts</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalContacts}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Contacts</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalContacts}</p>
                   </div>
                   <div className="p-3 bg-primary-100 rounded-xl">
                     <Users className="w-6 h-6 text-primary-600" />
@@ -442,23 +483,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Active Leads</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalLeads}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Active Leads</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalLeads}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-xl">
-                    <TrendingUp className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Customers</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalCustomers}</p>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <Mail className="w-6 h-6 text-blue-600" />
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                    <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
                   </div>
                 </div>
               </div>
@@ -466,11 +495,88 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
               <div className="card">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Active Deals</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{stats.activeDeals}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Customers</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalCustomers}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-xl">
-                    <Phone className="w-6 h-6 text-purple-600" />
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Active Deals</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.activeDeals}</p>
+                  </div>
+                  <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                    <Phone className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Extended stats */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Emails Sent</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.emailsSent}</p>
+                  </div>
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Texts Sent</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.textsSent}</p>
+                  </div>
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                    <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Bookings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.bookings}</p>
+                  </div>
+                  <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                    <CalendarCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Closings</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.closings}</p>
+                  </div>
+                  <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
+                    <Award className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                      ${stats.revenue.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                    <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                 </div>
               </div>
@@ -478,9 +584,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
             {/* Recent Contacts */}
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Contacts</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Contacts</h3>
               {contacts.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <p>No contacts yet. Add your first contact to get started!</p>
                 </div>
               ) : (
@@ -488,15 +594,15 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   {contacts.slice(0, 5).map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
                           {contact.first_name} {contact.last_name}
                         </p>
-                        <p className="text-sm text-gray-600">{contact.email}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{contact.email}</p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        contact.status === 'customer' ? 'bg-green-100 text-green-700' :
-                        contact.status === 'lead' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
+                        contact.status === 'customer' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' :
+                        contact.status === 'lead' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' :
+                        'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300'
                       }`}>
                         {contact.status}
                       </span>

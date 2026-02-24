@@ -351,7 +351,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const isAiActive = aiConfig?.enabled && contactAiEnabled;
 
   return (
-    <div className="h-[calc(100vh-180px)] flex bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="h-[calc(100vh-180px)] flex bg-white dark:bg-[#2c2c2e] rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
       <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200 flex-col`}>
         {/* Search */}
@@ -363,7 +363,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
               placeholder="Search conversations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-white/5 dark:text-gray-100"
             />
           </div>
         </div>
@@ -371,7 +371,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         {/* Contacts List */}
         <div className="flex-1 overflow-y-auto">
           {filteredContacts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 text-sm">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
               No contacts found
             </div>
           ) : (
@@ -379,7 +379,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
               <button
                 key={contact.id}
                 onClick={() => setSelectedContact(contact)}
-                className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${
+                className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 ${
                   selectedContact?.id === contact.id ? 'bg-primary-50' : ''
                 }`}
               >
@@ -390,10 +390,10 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
                 {/* Contact Info */}
                 <div className="flex-1 text-left overflow-hidden">
-                  <div className="font-medium text-gray-900 truncate">
+                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
                     {contact.first_name} {contact.last_name}
                   </div>
-                  <div className="text-sm text-gray-500 truncate">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {contact.phone || contact.email || 'No contact info'}
                   </div>
                 </div>
@@ -405,23 +405,23 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
       {/* Right Side - Conversation (full width on mobile when contact selected) */}
       {!selectedContact ? (
-        <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50">
+        <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50 dark:bg-white/5">
           <div className="text-center">
             <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
-            <p className="text-gray-500">Choose a contact to view messages</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Select a conversation</h3>
+            <p className="text-gray-500 dark:text-gray-400">Choose a contact to view messages</p>
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-w-0">
           {/* Conversation Header */}
-          <div className="p-3 md:p-4 border-b border-gray-200 bg-white">
+          <div className="p-3 md:p-4 border-b border-gray-200 bg-white dark:bg-[#2c2c2e]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-3">
                 {/* Back button on mobile */}
                 <button
                   onClick={() => setSelectedContact(null)}
-                  className="md:hidden p-1 text-gray-500 hover:text-gray-700"
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                   aria-label="Back"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -430,10 +430,10 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                   {selectedContact.first_name?.[0]}{selectedContact.last_name?.[0]}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                     {selectedContact.first_name} {selectedContact.last_name}
                   </h3>
-                  <p className="text-sm text-gray-500">{selectedContact.phone || selectedContact.email}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedContact.phone || selectedContact.email}</p>
                 </div>
               </div>
 
@@ -444,8 +444,8 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                     onClick={toggleContactAi}
                     className={`p-2 rounded-lg transition-colors ${
                       contactAiEnabled
-                        ? 'bg-violet-100 text-violet-700'
-                        : 'hover:bg-gray-100 text-gray-400'
+                        ? 'bg-violet-100 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
+                        : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400'
                     }`}
                     title={contactAiEnabled ? `AI Active (${aiConfig.mode})` : 'AI Disabled for this contact'}
                   >
@@ -457,7 +457,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                 <button
                   onClick={() => setMessageType('sms')}
                   className={`p-2 rounded-lg transition-colors ${
-                    messageType === 'sms' ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100 text-gray-600'
+                    messageType === 'sms' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400'
                   }`}
                   title="SMS"
                   disabled={!selectedContact.phone}
@@ -470,14 +470,14 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                     setShowEmailComposer(true);
                   }}
                   className={`p-2 rounded-lg transition-colors ${
-                    messageType === 'email' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'
+                    messageType === 'email' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400'
                   }`}
                   title="Email"
                   disabled={!selectedContact.email}
                 >
                   <Mail className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600" title="Call" disabled>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400" title="Call" disabled>
                   <Phone className="w-5 h-5" />
                 </button>
               </div>
@@ -485,7 +485,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-white/5">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader className="w-8 h-8 text-gray-400 animate-spin" />
@@ -494,7 +494,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No messages yet</p>
+                  <p className="text-gray-500 dark:text-gray-400">No messages yet</p>
                   <p className="text-sm text-gray-400 mt-1">Send your first message below</p>
                 </div>
               </div>
@@ -510,16 +510,16 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                       <div
                         className={`max-w-[75%] rounded-lg border ${
                           message.is_ai_generated
-                            ? 'border-violet-300 bg-violet-50'
+                            ? 'border-violet-300 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-700'
                             : message.direction === 'outbound'
-                            ? 'bg-white border-gray-300 shadow-sm'
-                            : 'bg-gray-50 border-gray-200'
+                            ? 'bg-white dark:bg-[#2c2c2e] border-gray-300 shadow-sm'
+                            : 'bg-gray-50 dark:bg-white/5 border-gray-200'
                         }`}
                       >
                         <div className="px-4 py-3 border-b border-gray-200">
                           <div className="flex items-center gap-2 text-sm">
                             <Mail className="w-4 h-4 text-gray-500" />
-                            <span className="font-semibold text-gray-900">
+                            <span className="font-semibold text-gray-900 dark:text-gray-100">
                               {message.metadata?.subject || '(No Subject)'}
                             </span>
                             {message.is_ai_generated && (
@@ -530,13 +530,13 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                           </div>
                         </div>
                         <div className="px-4 py-3">
-                          <div className="text-gray-700 whitespace-pre-wrap line-clamp-3">
+                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap line-clamp-3">
                             {message.content.substring(0, 150)}
                             {message.content.length > 150 && '...'}
                           </div>
                         </div>
-                        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
-                          <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-t border-gray-200">
+                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                             <span>
                               {message.direction === 'outbound' ? 'To: ' : 'From: '}
                               {message.direction === 'outbound' ? message.to_address : message.from_address}
@@ -553,7 +553,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                             ? 'bg-violet-500 text-white rounded-br-sm'
                             : message.direction === 'outbound'
                             ? 'bg-blue-500 text-white rounded-br-sm'
-                            : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-200'
+                            : 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm border border-gray-200'
                         }`}
                       >
                         {message.is_ai_generated && (
@@ -584,7 +584,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-gray-200 bg-white">
+          <div className="p-4 border-t border-gray-200 bg-white dark:bg-[#2c2c2e]">
             {messageType === 'email' && showEmailComposer ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
@@ -598,7 +598,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                       setMessageType('sms');
                       setEmailSubject('');
                     }}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -608,13 +608,13 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/5 dark:text-gray-100"
                 />
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Write your email..."
-                  className="w-full resize-none border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                  className="w-full resize-none border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] dark:bg-white/5 dark:text-gray-100"
                 />
                 <div className="flex gap-2">
                   <button
@@ -658,7 +658,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                 </div>
               </div>
             ) : !selectedContact.phone && !selectedContact.email ? (
-              <div className="text-center text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+              <div className="text-center text-sm text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
                 This contact doesn't have a phone number or email. Add contact info to send messages.
               </div>
             ) : (
@@ -673,7 +673,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                       setShowEmailComposer(true);
                     }
                   }}
-                  className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 max-h-32"
+                  className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 max-h-32 dark:bg-white/5 dark:text-gray-100"
                   rows={1}
                   style={{
                     minHeight: '42px',

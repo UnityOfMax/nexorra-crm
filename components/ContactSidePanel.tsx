@@ -102,28 +102,28 @@ export default function ContactSidePanel({
 
       {/* Panel */}
       <div
-        className="fixed right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl z-50 flex flex-col"
+        className="fixed right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-[#2c2c2e] shadow-2xl z-50 flex flex-col"
         style={{ borderLeft: '1px solid #e5e7eb' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {contact.first_name} {contact.last_name}
             </h2>
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 contact.status === 'customer'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
                   : contact.status === 'lead'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400'
               }`}
             >
               {contact.status}
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -132,7 +132,7 @@ export default function ContactSidePanel({
         <div className="flex gap-3 px-5 py-4 border-b border-gray-100">
           <button
             onClick={() => onSmsClick(contact)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
             title="Send SMS"
           >
             <MessageSquare className="w-4 h-4 text-primary-600" />
@@ -140,7 +140,7 @@ export default function ContactSidePanel({
           </button>
           <button
             onClick={() => onEmailClick(contact)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
             title="Send Email"
           >
             <Mail className="w-4 h-4 text-primary-600" />
@@ -152,7 +152,7 @@ export default function ContactSidePanel({
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">First Name</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">First Name</label>
               <input
                 className="input text-sm"
                 value={form.first_name || ''}
@@ -160,7 +160,7 @@ export default function ContactSidePanel({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Last Name</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Last Name</label>
               <input
                 className="input text-sm"
                 value={form.last_name || ''}
@@ -170,7 +170,7 @@ export default function ContactSidePanel({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
               <Mail className="w-3 h-3" /> Email
             </label>
             <input
@@ -182,7 +182,7 @@ export default function ContactSidePanel({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
               <Phone className="w-3 h-3" /> Phone
             </label>
             <input
@@ -194,7 +194,7 @@ export default function ContactSidePanel({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
               <Building2 className="w-3 h-3" /> Company
             </label>
             <input
@@ -206,7 +206,7 @@ export default function ContactSidePanel({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
               <Tag className="w-3 h-3" /> Status
             </label>
             <select
@@ -230,9 +230,9 @@ export default function ContactSidePanel({
               </h3>
               <div className="space-y-2">
                 {customFields.map(([key, value]) => (
-                  <div key={key} className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="text-xs text-gray-500 capitalize">{key.replace(/_/g, ' ')}</p>
-                    <p className="text-sm text-gray-800">{String(value)}</p>
+                  <div key={key} className="bg-gray-50 dark:bg-white/5 rounded-lg px-3 py-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{key.replace(/_/g, ' ')}</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-200">{String(value)}</p>
                   </div>
                 ))}
               </div>
@@ -271,7 +271,7 @@ export default function ContactSidePanel({
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                className="flex-1 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 Cancel
               </button>

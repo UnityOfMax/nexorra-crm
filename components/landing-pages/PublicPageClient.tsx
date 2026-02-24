@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import LandingPageRenderer from './LandingPageRenderer';
 import HomeSearchForm from './HomeSearchForm';
-import { FB_PIXEL_ID, fbPixelScriptBody } from '@/lib/pixel';
+import { fbPixelScriptBody } from '@/lib/pixel';
 import type { LandingPageContent } from '@/lib/landing-page-templates';
 
 // Pass either slug (legacy /p/[slug] route) or pageId (new /account/[s]/landing-pages/[id] route)
@@ -22,6 +22,7 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [accountId, setAccountId] = useState('');
   const [connectPixel, setConnectPixel] = useState(false);
+  const [pixelId, setPixelId] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -37,19 +38,20 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         setContent(data.content);
         setAccountId(data.account_id);
         setConnectPixel(data.connect_pixel === true);
+        if (data.pixel_id) setPixelId(data.pixel_id);
       })
       .catch(() => setNotFound(true));
   }, [slug, pageId]);
 
-  // Inject Facebook Pixel when connect_pixel is enabled
+  // Inject Facebook Pixel when connect_pixel is enabled and a pixel ID is available
   useEffect(() => {
-    if (!connectPixel) return;
+    if (!connectPixel || !pixelId) return;
     if (document.getElementById('fb-pixel')) return;
     const s = document.createElement('script');
     s.id = 'fb-pixel';
-    s.innerHTML = fbPixelScriptBody(FB_PIXEL_ID);
+    s.innerHTML = fbPixelScriptBody(pixelId);
     document.head.appendChild(s);
-  }, [connectPixel]);
+  }, [connectPixel, pixelId]);
 
   if (notFound) {
     return (

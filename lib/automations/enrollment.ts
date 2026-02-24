@@ -30,11 +30,10 @@ interface EnrollBookingParams {
 // ── Helpers ──────────────────────────────────────────────────
 
 function buildTokens(params: { contactName: string; agentName: string; callTimeDisplay?: string }) {
-  // Use first name only for casual feel
   const firstName = params.contactName.split(' ')[0] || params.contactName;
   return {
-    name: firstName,
-    agentName: params.agentName,
+    contactFirstName: firstName,
+    userFirstName: params.agentName,
     callTime: params.callTimeDisplay || '',
   };
 }

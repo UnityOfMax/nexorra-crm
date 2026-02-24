@@ -46,13 +46,13 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div className="modal-overlay">
+      <div className="modal-content max-w-md w-full mx-4">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-gray-900">Edit Contact</h3>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Edit Contact</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -61,7 +61,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 First Name *
               </label>
               <input
@@ -73,7 +73,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Last Name *
               </label>
               <input
@@ -87,7 +87,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
             <input
               type="email"
               value={formData.email}
@@ -97,7 +97,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
             <input
               type="tel"
               value={formData.phone}
@@ -108,7 +108,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company</label>
             <input
               type="text"
               value={formData.company}
@@ -118,7 +118,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value as 'lead' | 'customer' | 'lost' })}
@@ -133,12 +133,12 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           {/* Form answers from landing page lead capture */}
           {contact.custom_fields && Object.keys(contact.custom_fields).length > 0 && (
             <div className="border-t border-gray-200 pt-4 mt-2">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Lead Answers</h4>
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2 max-h-56 overflow-y-auto">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Lead Answers</h4>
+              <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 space-y-2 max-h-56 overflow-y-auto">
                 {Object.entries(contact.custom_fields).map(([key, value]) => (
                   <div key={key}>
-                    <span className="block text-xs font-medium text-gray-500 uppercase tracking-wide">{key}</span>
-                    <span className="block text-sm text-gray-900 mt-0.5">{String(value || '—')}</span>
+                    <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{key}</span>
+                    <span className="block text-sm text-gray-900 dark:text-gray-100 mt-0.5">{String(value || '—')}</span>
                   </div>
                 ))}
               </div>
@@ -146,7 +146,7 @@ export default function EditContactModal({ contact, onClose, onSave }: EditConta
           )}
 
           {error && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm">
               {error}
             </div>
           )}
