@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Public endpoint – no auth required, used by the client-side landing page renderer.
-// Always returns fresh data (Cache-Control: no-store) so CDN caching is bypassed entirely.
-export const dynamic = 'force-dynamic';
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: { slug: string } }
@@ -22,8 +19,7 @@ export async function GET(
 
   return NextResponse.json(data, {
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
+      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
     },
   });
 }

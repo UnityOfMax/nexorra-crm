@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/client';
+import type Anthropic from '@anthropic-ai/sdk';
 
 // POST /api/ai/test-chat
 // Simulates the AI agent responding to a message. No contact DB lookup — uses
@@ -26,8 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No AI config found for this account' }, { status: 404 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    if (!anthropicClient) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
     }
 
@@ -48,9 +48,7 @@ export async function POST(request: NextRequest) {
       'Respond only with the message text. Do not include any meta-commentary or labels.',
     ].filter(Boolean).join('\n\n');
 
-    const anthropic = new Anthropic({ apiKey });
-
-    const aiResponse = await anthropic.messages.create({
+    const aiResponse = await anthropicClient.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system: systemParts,

@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
       .from('landing_pages')
       .select('*')
       .eq('account_id', accountId)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error('Error fetching landing pages:', error);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -22,13 +23,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Find the account whose from_email matches the 'to' address
-    const { data: accounts } = await supabaseAdmin
+    const { data: account } = await supabaseAdmin
       .from('accounts')
-      .select('id, settings');
-
-    const account = accounts?.find(
-      (acc) => acc.settings?.email_config?.from_email?.toLowerCase() === toEmail
-    );
+      .select('id, settings')
+      .filter('settings->email_config->>from_email', 'ilike', toEmail)
+      .maybeSingle();
 
     if (!account) {
       console.warn('[resend-inbound] No account found for email:', toEmail);
@@ -100,15 +99,10 @@ export async function POST(req: NextRequest) {
       aiConfig?.channels?.email &&
       contact.ai_enabled !== false
     ) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
-      fetch(`${baseUrl}/api/ai/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: account.id,
-          contactId: contact.id,
-          channel: 'email',
-        }),
+      generateAndSendAI({
+        accountId: account.id,
+        contactId: contact.id,
+        channel: 'email',
       }).catch((err) => console.error('[resend-inbound] AI auto-respond error:', err));
     }
 

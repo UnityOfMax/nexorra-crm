@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import twilio from 'twilio';
+import { twilio } from '@/lib/twilio/client';
+
+const DEBUG = process.env.NODE_ENV === 'development';
 
 export async function POST(request: NextRequest) {
-  console.log('=== WEBHOOK CALLED ===');
-  console.log('Time:', new Date().toISOString());
+  if (DEBUG) console.log('=== WEBHOOK CALLED ===', new Date().toISOString());
 
   try {
     const formData = await request.formData();
-    console.log('Form Data received:', Object.fromEntries(formData.entries()));
+    if (DEBUG) console.log('Form Data received:', Object.fromEntries(formData.entries()));
 
     const from = formData.get('From') as string;
     const to = formData.get('To') as string;
     const body = formData.get('Body') as string;
     const messageSid = formData.get('MessageSid') as string;
 
-    console.log('Parsed data:', { from, to, body, messageSid });
+    if (DEBUG) console.log('Parsed data:', { from, to, body, messageSid });
 
     if (!from || !to || !body) {
       console.error('Missing required fields:', { from, to, body });
@@ -23,29 +24,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the account that has this Twilio number selected
-    console.log('Querying accounts...');
-    const { data: accounts, error: accountsError } = await supabaseAdmin
+    const { data: account, error: accountsError } = await supabaseAdmin
       .from('accounts')
-      .select('id, settings');
+      .select('id, settings')
+      .filter('settings->>twilio_phone_number', 'eq', to)
+      .maybeSingle();
 
-    console.log('Accounts error:', accountsError);
-
-    if (!accounts || accounts.length === 0) {
-      console.error('No accounts found in database');
-      return new NextResponse('No accounts found', { status: 404 });
+    if (accountsError) {
+      console.error('Accounts query error:', accountsError);
     }
-
-    const account = accounts?.find(
-      (acc) => acc.settings?.twilio_phone_number === to
-    );
-
-    console.log('Looking for account with number:', to);
-    console.log('Found account:', account?.id);
 
     if (!account) {
       console.error('No account found for Twilio number:', to);
       return new NextResponse('Account not found for this number', { status: 404 });
     }
+
+    if (DEBUG) console.log('Found account:', account.id);
 
     // Validate Twilio signature before processing
     const twilioSignature = request.headers.get('X-Twilio-Signature') || '';
@@ -68,10 +62,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('Found account:', account.id);
-
     // Find or create contact by phone number
-    console.log('Looking for contact with phone:', from);
+    if (DEBUG) console.log('Looking for contact with phone:', from);
     let { data: contact, error: contactError } = await supabaseAdmin
       .from('contacts')
       .select('id')
@@ -79,11 +71,10 @@ export async function POST(request: NextRequest) {
       .eq('phone', from)
       .single();
 
-    console.log('Contact query result:', contact);
-    console.log('Contact query error:', contactError);
+    if (DEBUG) console.log('Contact query result:', contact, 'error:', contactError);
 
     if (!contact) {
-      console.log('Creating new contact for:', from);
+      if (DEBUG) console.log('Creating new contact for:', from);
       // Create new contact
       const { data: newContact, error: createError } = await supabaseAdmin
         .from('contacts')
@@ -95,9 +86,6 @@ export async function POST(request: NextRequest) {
         })
         .select('id')
         .single();
-
-      console.log('New contact created:', newContact);
-      console.log('Create error:', createError);
 
       if (createError) {
         console.error('Error creating contact:', createError);
@@ -111,10 +99,9 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Failed to create contact', { status: 500 });
     }
 
-    console.log('Contact ID:', contact.id);
+    if (DEBUG) console.log('Contact ID:', contact.id);
 
     // Save incoming message
-    console.log('Saving message to database...');
     const { data: savedMessage, error: messageError } = await supabaseAdmin
       .from('messages')
       .insert({
@@ -130,18 +117,14 @@ export async function POST(request: NextRequest) {
       })
       .select();
 
-    console.log('Message save result:', savedMessage);
-    console.log('Message save error:', messageError);
-
     if (messageError) {
       console.error('Error saving message:', messageError);
       return new NextResponse('Error saving message: ' + messageError.message, { status: 500 });
-    } else {
-      console.log('✅ Message saved successfully!');
     }
 
+    if (DEBUG) console.log('Message saved successfully');
+
     // Also log as activity
-    console.log('Logging activity...');
     const { data: ownerMember } = await supabaseAdmin
       .from('account_members')
       .select('user_id')
@@ -165,7 +148,7 @@ export async function POST(request: NextRequest) {
       console.error('Activity error:', activityError);
     }
 
-    console.log('=== WEBHOOK COMPLETED SUCCESSFULLY ===');
+    if (DEBUG) console.log('=== WEBHOOK COMPLETED SUCCESSFULLY ===');
 
     // Cancel any pending AI follow-up for this contact (they replied)
     Promise.resolve(

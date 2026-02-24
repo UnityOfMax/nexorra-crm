@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import { resendClient } from '@/lib/resend/client';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
@@ -22,10 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Resend API key from environment
-    const resendApiKey = process.env.RESEND_API_KEY;
-
-    if (!resendApiKey) {
+    if (!resendClient) {
       return NextResponse.json(
         { error: 'Resend not configured. Please add RESEND_API_KEY to environment variables.' },
         { status: 500 }
@@ -54,11 +51,8 @@ export async function POST(request: NextRequest) {
     console.log('From:', `${fromName} <${fromEmail}>`);
     console.log('To:', to);
 
-    // Initialize Resend
-    const resend = new Resend(resendApiKey);
-
     // Send email
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resendClient.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to: [to],
       subject: subject,

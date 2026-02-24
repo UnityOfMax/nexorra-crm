@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 
 function authOk(req: NextRequest): boolean {
   const auth = req.headers.get('authorization') || '';
@@ -70,24 +69,13 @@ async function handler(req: NextRequest) {
         continue;
       }
 
-      // Call ai/send — the generate-response will load the now-saved messages from DB for context
-      const res = await fetch(`${BASE_URL}/api/ai/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: batch.account_id,
-          contactId: batch.contact_id,
-          channel: 'sms',
-        }),
+      // Call generateAndSendAI directly — no HTTP round-trip
+      await generateAndSendAI({
+        accountId: batch.account_id,
+        contactId: batch.contact_id,
+        channel: 'sms',
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error('[process-ai-batches] SMS batch send failed:', err);
-        results.errors++;
-      } else {
-        results.smsBatches++;
-      }
+      results.smsBatches++;
 
       await supabaseAdmin
         .from('ai_sms_batches')
@@ -143,25 +131,14 @@ async function handler(req: NextRequest) {
       .eq('id', entry.id);
 
     try {
-      const res = await fetch(`${BASE_URL}/api/ai/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: entry.account_id,
-          contactId: entry.contact_id,
-          channel: entry.channel,
-          isFollowUp: true,
-          followUpCount: entry.follow_up_count,
-        }),
+      await generateAndSendAI({
+        accountId: entry.account_id,
+        contactId: entry.contact_id,
+        channel: entry.channel,
+        isFollowUp: true,
+        followUpCount: entry.follow_up_count,
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error('[process-ai-batches] Follow-up send failed:', err);
-        results.errors++;
-      } else {
-        results.followUps++;
-      }
+      results.followUps++;
     } catch (err) {
       console.error('[process-ai-batches] Follow-up error:', err);
       results.errors++;

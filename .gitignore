@@ -39,3 +39,4 @@ scripts/create-test-page.mjs
 next-env.d.ts
 
 .vercel
+.env*.local

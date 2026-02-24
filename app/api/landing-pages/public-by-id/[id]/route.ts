@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -20,8 +18,7 @@ export async function GET(
 
   return NextResponse.json(data, {
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
+      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
     },
   });
 }

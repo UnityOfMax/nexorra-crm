@@ -6,6 +6,25 @@ const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'app.ainexorra.com';
 const LEGACY_BASE_DOMAIN = process.env.BASE_DOMAIN || 'ourlimitedoffer.com';
 const INTERNAL_API_BASE = process.env.INTERNAL_API_BASE || `https://${APP_DOMAIN}`;
 
+// In-memory cache for domain resolution (persists per edge isolate)
+const domainCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL = 60_000; // 60 seconds
+
+function getCached(key: string) {
+  const entry = domainCache.get(key);
+  if (entry && entry.expiry > Date.now()) return entry.data;
+  domainCache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any) {
+  if (domainCache.size > 500) {
+    const oldest = domainCache.keys().next().value;
+    if (oldest) domainCache.delete(oldest);
+  }
+  domainCache.set(key, { data, expiry: Date.now() + CACHE_TTL });
+}
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const { pathname } = request.nextUrl;
@@ -20,10 +39,18 @@ export async function middleware(request: NextRequest) {
     const subdomain = host.replace(`.${LEGACY_BASE_DOMAIN}`, '');
     if (subdomain && subdomain !== 'www') {
       try {
-        const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
-        const res = await fetch(apiUrl, { cache: 'no-store' });
-        if (res.ok) {
-          const { pageId, accountSlug } = await res.json();
+        const cacheKey = `slug:${subdomain}`;
+        let resolved = getCached(cacheKey);
+        if (!resolved) {
+          const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
+          const res = await fetch(apiUrl, { cache: 'no-store' });
+          if (res.ok) {
+            resolved = await res.json();
+            setCache(cacheKey, resolved);
+          }
+        }
+        if (resolved) {
+          const { pageId, accountSlug } = resolved;
           const url = request.nextUrl.clone();
           url.pathname = `/account/${accountSlug}/landing-pages/${pageId}`;
           const response = NextResponse.rewrite(url);
@@ -49,10 +76,18 @@ export async function middleware(request: NextRequest) {
   ) {
     try {
       // Resolve which landing page owns this domain
-      const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-domain?domain=${encodeURIComponent(host)}`;
-      const res = await fetch(apiUrl, { cache: 'no-store' });
-      if (res.ok) {
-        const { pageId, accountSlug } = await res.json();
+      const cacheKey = `domain:${host}`;
+      let resolved = getCached(cacheKey);
+      if (!resolved) {
+        const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-domain?domain=${encodeURIComponent(host)}`;
+        const res = await fetch(apiUrl, { cache: 'no-store' });
+        if (res.ok) {
+          resolved = await res.json();
+          setCache(cacheKey, resolved);
+        }
+      }
+      if (resolved) {
+        const { pageId, accountSlug } = resolved;
         const url = request.nextUrl.clone();
         url.pathname = `/account/${accountSlug}/landing-pages/${pageId}`;
         const response = NextResponse.rewrite(url);

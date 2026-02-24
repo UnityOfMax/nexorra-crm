@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/client';
+import type Anthropic from '@anthropic-ai/sdk';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
 
 // POST /api/ai/generate-response
@@ -103,14 +104,11 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join('\n\n');
 
     // Call Anthropic API
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    if (!anthropicClient) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
     }
 
-    const anthropic = new Anthropic({ apiKey });
-
-    const aiResponse = await anthropic.messages.create({
+    const aiResponse = await anthropicClient.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system: systemParts,

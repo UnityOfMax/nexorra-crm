@@ -1,18 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    serverComponentsExternalPackages: [
+      'googleapis',
+      'google-auth-library',
+      'twilio',
+      '@anthropic-ai/sdk',
+      'resend',
+      'web-push',
+    ],
+  },
   images: {
     domains: ['localhost', 'app.ainexorra.com'],
   },
   async headers() {
     return [
       {
-        // Public landing pages must never be cached by CDN or browser
-        // so that edits appear immediately after saving
         source: '/p/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0' },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Surrogate-Control', value: 'no-store' },
+          { key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=60' },
         ],
       },
       {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { escalateToNurturing } from '@/lib/automations/enrollment';
-import twilio from 'twilio';
-import { Resend } from 'resend';
+import { twilioClient } from '@/lib/twilio/client';
+import { resendClient } from '@/lib/resend/client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -111,16 +111,13 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-          const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-          if (!twilioSid || !twilioToken) {
+          if (!twilioClient) {
             await markFailed(msg.id, 'Twilio credentials not configured');
             continue;
           }
 
           try {
-            const client = twilio(twilioSid, twilioToken);
-            await client.messages.create({
+            await twilioClient.messages.create({
               body: msg.body,
               from: fromPhone,
               to: toPhone,
@@ -144,8 +141,7 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          const resendKey = process.env.RESEND_API_KEY;
-          if (!resendKey) {
+          if (!resendClient) {
             await markFailed(msg.id, 'Resend API key not configured');
             continue;
           }
@@ -154,8 +150,7 @@ export async function GET(request: NextRequest) {
           const fromName = settings?.email_config?.from_name || enrollment.metadata?.agentName || 'Your Agent';
 
           try {
-            const resend = new Resend(resendKey);
-            await resend.emails.send({
+            await resendClient.emails.send({
               from: `${fromName} <${fromEmail}>`,
               to: [toEmail],
               subject: msg.subject || '(no subject)',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import twilio from 'twilio';
+import { twilioClient } from '@/lib/twilio/client';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
@@ -18,11 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Twilio credentials from environment
-    const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
-    const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-
-    if (!twilioAccountSid || !twilioAuthToken) {
+    if (!twilioClient) {
       return NextResponse.json(
         { error: 'Twilio not configured. Please add credentials to environment variables.' },
         { status: 500 }
@@ -52,11 +48,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Twilio client
-    const client = twilio(twilioAccountSid, twilioAuthToken);
-
     // Send SMS
-    const twilioMessage = await client.messages.create({
+    const twilioMessage = await twilioClient.messages.create({
       body: message,
       from: twilioPhoneNumber,
       to: to,

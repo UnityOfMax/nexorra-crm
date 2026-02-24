@@ -86,6 +86,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { busySlots },
-    { headers: { 'Cache-Control': 'no-store' } }
+    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
   );
 }

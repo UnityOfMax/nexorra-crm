@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import twilio from 'twilio';
+import { twilioClient } from '@/lib/twilio/client';
 
 export async function GET(request: NextRequest) {
   try {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-    if (!accountSid || !authToken) {
+    if (!twilioClient) {
       return NextResponse.json(
         { error: 'Twilio credentials not configured in environment' },
         { status: 500 }
       );
     }
 
-    const client = twilio(accountSid, authToken);
-
     // Fetch all phone numbers from Twilio
-    const phoneNumbers = await client.incomingPhoneNumbers.list();
+    const phoneNumbers = await twilioClient.incomingPhoneNumbers.list();
 
     const numbers = phoneNumbers.map((num) => ({
       sid: num.sid,

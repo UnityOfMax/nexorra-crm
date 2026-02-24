@@ -2,19 +2,19 @@
   "crons": [
     {
       "path": "/api/cron/process-delayed-jobs",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/sync-google-calendar",
-      "schedule": "* * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/process-automations",
-      "schedule": "* * * * *"
+      "schedule": "*/2 * * * *"
     },
     {
       "path": "/api/cron/process-ai-batches",
-      "schedule": "* * * * *"
+      "schedule": "*/2 * * * *"
     }
   ]
 }

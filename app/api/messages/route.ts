@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('account_id', accountId)
       .eq('contact_id', contactId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(200);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     // Get all accounts with Google Calendar enabled
     const { data: accounts, error: accountsError } = await supabaseAdmin
       .from('accounts')
-      .select('id, settings');
+      .select('id, settings')
+      .filter('settings->google_calendar->>enabled', 'eq', 'true');
 
     if (accountsError) {
       console.error('[CRON] Error fetching accounts:', accountsError);
@@ -104,17 +105,19 @@ async function syncGoogleToAccount(accountId: string) {
 
   console.log(`[CRON] Found ${response.items?.length || 0} events for account ${accountId}`);
 
-  for (const event of response.items || []) {
-    // Skip events the CRM created — we don't want to create duplicate activities
-    const { data: existingSync } = await supabaseAdmin
-      .from('google_calendar_sync')
-      .select('sync_direction')
-      .eq('google_event_id', event.id!)
-      .eq('account_id', accountId)
-      .maybeSingle();
+  const events = response.items || [];
+  // Pre-fetch all sync records in one query instead of N+1
+  const { data: existingSyncs } = await supabaseAdmin
+    .from('google_calendar_sync')
+    .select('google_event_id, sync_direction')
+    .eq('account_id', accountId);
 
-    if (existingSync?.sync_direction === 'crm_to_google') continue;
+  const syncMap = new Map(
+    (existingSyncs || []).map(s => [s.google_event_id, s.sync_direction])
+  );
 
+  for (const event of events) {
+    if (syncMap.get(event.id!) === 'crm_to_google') continue;
     await syncGoogleEventToActivity(accountId, event);
   }
 
