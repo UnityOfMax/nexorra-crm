@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { CheckCircle, AlertCircle, Loader, Eye, EyeOff } from 'lucide-react';
 
 function ActivateAccountContent() {

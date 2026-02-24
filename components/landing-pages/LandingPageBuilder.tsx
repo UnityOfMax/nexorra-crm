@@ -269,7 +269,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
                   type="color"
                   value={content.styles.primaryColor}
                   onChange={(e) => { setContent(prev => ({ ...prev, styles: { ...prev.styles, primaryColor: e.target.value } })); markDirty(); }}
-                  className="h-9 w-14 rounded border border-gray-300"
+                  className="h-10 w-10 rounded-xl border-2 border-gray-200 p-0 overflow-hidden"
                 />
                 <input
                   value={content.styles.primaryColor}
@@ -501,7 +501,7 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
           type="color"
           value={data[key] || primaryColor}
           onChange={(e) => onUpdate({ [key]: e.target.value })}
-          className="h-9 w-12 rounded border border-gray-300"
+          className="h-10 w-10 rounded-xl border-2 border-gray-200 p-0 overflow-hidden"
         />
         <input
           value={data[key] || ''}

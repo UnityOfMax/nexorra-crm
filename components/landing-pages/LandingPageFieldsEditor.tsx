@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Save, Loader, Star, Upload, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import type { LandingPage } from '@/types';
 
 interface LandingPageFieldsEditorProps {
@@ -288,14 +288,14 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Background Color</label>
                   <div className="flex gap-2 items-center">
-                    <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-10 rounded border border-gray-300 cursor-pointer" />
+                    <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-10 rounded-xl border-2 border-gray-200 cursor-pointer p-0 overflow-hidden" />
                     <input type="text" value={bgColor} onChange={e => setBgColor(e.target.value)} className="input flex-1 font-mono text-sm" />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Accent Color</label>
                   <div className="flex gap-2 items-center">
-                    <input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="w-10 h-10 rounded border border-gray-300 cursor-pointer" />
+                    <input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="w-10 h-10 rounded-xl border-2 border-gray-200 cursor-pointer p-0 overflow-hidden" />
                     <input type="text" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="input flex-1 font-mono text-sm" />
                   </div>
                 </div>

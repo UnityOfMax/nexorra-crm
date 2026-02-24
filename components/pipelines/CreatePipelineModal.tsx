@@ -204,7 +204,7 @@ export default function CreatePipelineModal({ accountId, onClose, onSuccess }: C
                     type="color"
                     value={stage.color}
                     onChange={(e) => updateStage(stage.id, 'color', e.target.value)}
-                    className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                    className="w-10 h-10 rounded-xl border-2 border-gray-200 cursor-pointer p-0 overflow-hidden"
                     title="Stage color"
                   />
                   <button

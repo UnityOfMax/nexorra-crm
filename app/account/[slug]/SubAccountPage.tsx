@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { User } from '@supabase/supabase-js';
 import AuthForm from '@/components/AuthForm';
 import Dashboard from '@/components/Dashboard';

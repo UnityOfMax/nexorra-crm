@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Check, Globe } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { Activity } from '@/types';
 import CreateEventModal from './CreateEventModal';
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Account } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, MapPin } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
@@ -478,7 +478,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                   type="color"
                   value={settings.primary_color}
                   onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })}
-                  className="h-10 w-20 rounded border border-gray-300"
+                  className="h-10 w-10 rounded-xl border-2 border-gray-200 p-0 overflow-hidden"
                 />
                 <input
                   type="text"

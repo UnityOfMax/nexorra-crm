@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { Account, Contact } from '@/types';
 import Sidebar from './Sidebar';
 import ClientSidebar from './client/ClientSidebar';

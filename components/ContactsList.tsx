@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Contact } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { Plus, Mail, Phone, Search, Filter, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import ContactSidePanel from './ContactSidePanel';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Contact } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { Send, MessageSquare, Phone, Loader } from 'lucide-react';
 
 interface SMSViewProps {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Contact } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-browser';
 import { X, Save } from 'lucide-react';
 
 interface EditContactModalProps {
