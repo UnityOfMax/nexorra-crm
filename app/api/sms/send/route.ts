@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { twilioClient } from '@/lib/twilio/client';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAccountAccess } from '@/lib/auth/require-account-access';
+import { normalizePhone } from '@/lib/utils/phone';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,11 +49,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Normalize the destination number to E.164
+    const normalizedTo = normalizePhone(to);
+
     // Send SMS
     const twilioMessage = await twilioClient.messages.create({
       body: message,
       from: twilioPhoneNumber,
-      to: to,
+      to: normalizedTo,
     });
 
     // Save message to messages table
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
         type: 'sms',
         content: message,
         from_address: twilioPhoneNumber,
-        to_address: to,
+        to_address: normalizedTo,
         status: twilioMessage.status,
         external_id: twilioMessage.sid,
       });
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
         account_id: accountId,
         contact_id: contactId || null,
         type: 'sms',
-        subject: `SMS to ${to}`,
+        subject: `SMS to ${normalizedTo}`,
         description: message,
         completed: true,
         created_by: userId,

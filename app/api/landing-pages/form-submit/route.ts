@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { enrollNewLead } from '@/lib/automations/enrollment';
 import { triggerContactCreated } from '@/lib/workflow-engine/triggers';
 import { sendPushToAccountOwner } from '@/lib/push/send-notification';
+import { normalizePhone, phoneVariants } from '@/lib/utils/phone';
 
 // POST /api/landing-pages/form-submit
 // Creates or updates a contact from landing page form submission
@@ -24,16 +25,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'accountId and phone or email required' }, { status: 400 });
     }
 
+    // Normalize phone to E.164 so lookups match regardless of input format
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
+
     // Check if contact already exists by phone or email
     let existingContact = null;
 
-    if (phone) {
+    if (normalizedPhone) {
+      const variants = phoneVariants(phone);
+      const orFilter = variants.map((v) => `phone.eq.${v}`).join(',');
       const { data } = await supabaseAdmin
         .from('contacts')
         .select('id, custom_fields')
         .eq('account_id', accountId)
-        .eq('phone', phone)
-        .single();
+        .or(orFilter)
+        .limit(1)
+        .maybeSingle();
       existingContact = data;
     }
 
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
         .update({
           first_name: first_name || undefined,
           last_name: last_name || undefined,
-          phone: phone || undefined,
+          phone: normalizedPhone || undefined,
           email: email || undefined,
           source: source || 'Landing Page',
           custom_fields: mergedFields,
@@ -75,7 +82,7 @@ export async function POST(request: NextRequest) {
           account_id: accountId,
           first_name: first_name || null,
           last_name: last_name || null,
-          phone: phone || null,
+          phone: normalizedPhone || null,
           email: email || null,
           status: 'lead',
           source: source || 'Landing Page',
