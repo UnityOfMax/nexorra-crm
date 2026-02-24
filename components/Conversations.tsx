@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Contact } from '@/types';
-import { supabase } from '@/lib/supabase-browser';
 import { Send, MessageSquare, Phone, Mail, Loader, Search, X, Bot, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -116,45 +115,52 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     }
   }, [selectedContactId, contacts]);
 
-  // Load messages when contact is selected
+  // Track last known message id to detect genuinely new inbound messages
+  const lastKnownMsgId = useRef<string | null>(null);
+  const initialLoadDone = useRef(false);
+
+  // Load messages when contact is selected + poll every 5s (bypasses RLS via API route)
   useEffect(() => {
     if (selectedContact) {
+      initialLoadDone.current = false;
+      lastKnownMsgId.current = null;
       loadMessages();
-      // Set up real-time subscription for new messages
-      const channel = supabase
-        .channel(`messages-${selectedContact.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `contact_id=eq.${selectedContact.id}`,
-          },
-          (payload) => {
-            const newMsg = payload.new as Message;
-            setMessages((prev) => [...prev, newMsg]);
 
-            // AI auto-respond / suggest on inbound messages
-            if (newMsg.direction === 'inbound' && aiConfig?.enabled && contactAiEnabled) {
-              const channel = newMsg.type === 'email' ? 'email' : 'sms';
-              if (aiConfig.channels[channel]) {
-                if (aiConfig.mode === 'auto') {
-                  // Auto-respond: generate and send
-                  handleAiAutoRespond(channel);
-                } else {
-                  // Suggest: generate draft
-                  handleAiSuggest(channel);
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/messages?accountId=${accountId}&contactId=${selectedContact.id}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const fetched: Message[] = data.messages || [];
+
+          setMessages((prev) => {
+            if (fetched.length === prev.length && fetched[fetched.length - 1]?.id === prev[prev.length - 1]?.id) {
+              return prev; // no change
+            }
+            return fetched;
+          });
+
+          // Detect new inbound message for AI auto-respond / suggest
+          if (initialLoadDone.current && fetched.length > 0) {
+            const last = fetched[fetched.length - 1];
+            if (last.id !== lastKnownMsgId.current && last.direction === 'inbound') {
+              if (aiConfig?.enabled && contactAiEnabled) {
+                const ch: MessageType = last.type === 'email' ? 'email' : 'sms';
+                if (aiConfig.channels[ch]) {
+                  if (aiConfig.mode === 'auto') {
+                    handleAiAutoRespond(ch);
+                  } else {
+                    handleAiSuggest(ch);
+                  }
                 }
               }
             }
+            lastKnownMsgId.current = last.id;
           }
-        )
-        .subscribe();
+        } catch {}
+      }, 5000);
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => clearInterval(interval);
     }
   }, [selectedContact, aiConfig, contactAiEnabled, accountId]);
 
@@ -167,15 +173,19 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     if (!selectedContact) return;
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('account_id', accountId)
-      .eq('contact_id', selectedContact.id)
-      .order('created_at', { ascending: true });
-
-    if (data && !error) {
-      setMessages(data);
+    try {
+      const res = await fetch(`/api/messages?accountId=${accountId}&contactId=${selectedContact.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const msgs: Message[] = data.messages || [];
+        setMessages(msgs);
+        if (msgs.length > 0) {
+          lastKnownMsgId.current = msgs[msgs.length - 1].id;
+        }
+        initialLoadDone.current = true;
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
     }
     setLoading(false);
   };

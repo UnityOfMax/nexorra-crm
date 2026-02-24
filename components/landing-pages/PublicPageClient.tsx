@@ -74,6 +74,19 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
   const agentName = heroBlock?.data?.agentName || 'Your Agent';
   const agentPhoto = heroBlock?.data?.profileImageUrl || '';
   const accentColor = heroBlock?.data?.accentColor || content.styles?.primaryColor || '#f59e0b';
+  const faviconUrl = content.styles?.faviconUrl || heroBlock?.data?.logoUrl || '';
+
+  // Set dynamic favicon and page title from landing page content
+  useEffect(() => {
+    if (faviconUrl) {
+      let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+      if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+      link.href = faviconUrl;
+    }
+    if (agentName && agentName !== 'Your Agent') {
+      document.title = agentName;
+    }
+  }, [faviconUrl, agentName]);
 
   return (
     <>

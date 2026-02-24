@@ -56,9 +56,17 @@ export default function LandingPageRenderer({
                   {block.data.title}
                 </p>
               )}
-              <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 3.2rem)', fontWeight: '800', marginBottom: '16px', lineHeight: 1.15 }}>
+              {block.data.logoUrl && (
+                <img src={block.data.logoUrl} alt="Logo" style={{ maxHeight: '60px', maxWidth: '240px', objectFit: 'contain', marginBottom: '16px' }} />
+              )}
+              <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 3.2rem)', fontWeight: '800', marginBottom: block.data.corporationText ? '6px' : '16px', lineHeight: 1.15 }}>
                 {block.data.agentName || 'Your Agent Name'}
               </h1>
+              {block.data.corporationText && (
+                <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '16px', letterSpacing: '0.03em' }}>
+                  {block.data.corporationText}
+                </p>
+              )}
               <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', opacity: 0.8, marginBottom: '40px', maxWidth: '560px', lineHeight: 1.65 }}
                 dangerouslySetInnerHTML={{ __html: block.data.subtitle || 'Your subtitle goes here' }} />
               <button
@@ -220,6 +228,40 @@ export default function LandingPageRenderer({
                       </p>
                       {prop.date && <p style={{ color: '#9ca3af', fontSize: '0.72rem', marginTop: '4px' }}>{prop.date}</p>}
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      case 're_team': {
+        const accent = block.data.accentColor || styles.primaryColor;
+        const members = block.data.members || [];
+        return (
+          <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#fff', padding: 'clamp(48px,8vw,72px) 24px' }}>
+            <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center' }}>
+              <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', marginBottom: '40px' }}>
+                {block.data.heading || 'Meet The Team'}
+              </h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 'clamp(24px,4vw,48px)' }}>
+                {members.map((member: any, i: number) => (
+                  <div key={i} style={{ flex: '0 1 280px', textAlign: 'center' }}>
+                    {member.photoUrl ? (
+                      <img src={member.photoUrl} alt={member.name} style={{ width: 'clamp(120px,20vw,160px)', height: 'clamp(120px,20vw,160px)', borderRadius: '50%', objectFit: 'cover', border: `4px solid ${accent}`, margin: '0 auto 16px', display: 'block', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                    ) : (
+                      <div style={{ width: 'clamp(120px,20vw,160px)', height: 'clamp(120px,20vw,160px)', borderRadius: '50%', background: `${accent}18`, border: `4px solid ${accent}`, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
+                        👤
+                      </div>
+                    )}
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>{member.name}</h3>
+                    {member.title && (
+                      <p style={{ color: accent, fontWeight: '600', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>{member.title}</p>
+                    )}
+                    {member.bio && (
+                      <p style={{ color: '#4b5563', fontSize: '0.9rem', lineHeight: 1.65, maxWidth: '280px', margin: '0 auto' }}>{member.bio}</p>
+                    )}
                   </div>
                 ))}
               </div>

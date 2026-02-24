@@ -15,7 +15,8 @@ export interface LandingPageBlock {
     | 're_reviews'
     | 're_location'
     | 're_footer'
-    | 're_properties';
+    | 're_properties'
+    | 're_team';
   data: Record<string, any>;
   order: number;
 }
@@ -26,6 +27,7 @@ export interface LandingPageContent {
     fontFamily: string;
     primaryColor: string;
     backgroundColor?: string;
+    faviconUrl?: string;
   };
   calendarSettings?: {
     startHour?: number;

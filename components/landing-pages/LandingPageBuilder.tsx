@@ -5,7 +5,7 @@ import {
   ArrowLeft, Save, Eye, Globe, Settings, Trash2,
   Plus, Type, Image, MousePointerClick, FormInput,
   Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown,
-  Upload, Loader, ImageIcon, Star,
+  Upload, Loader, ImageIcon, Star, Users,
 } from 'lucide-react';
 import LandingPageRenderer from './LandingPageRenderer';
 import type { LandingPage } from '@/types';
@@ -29,6 +29,7 @@ const BLOCK_TYPES = [
   { type: 'testimonial', label: 'Testimonial', icon: Quote, description: 'Customer quote' },
   { type: 'features', label: 'Features', icon: LayoutList, description: 'Feature grid' },
   { type: 'spacer', label: 'Spacer', icon: Minus, description: 'Vertical space' },
+  { type: 're_team', label: 'Team', icon: Users, description: 'Team members' },
 ] as const;
 
 function getDefaultBlockData(type: string): Record<string, any> {
@@ -42,6 +43,7 @@ function getDefaultBlockData(type: string): Record<string, any> {
     case 'testimonial': return { quote: 'Customer testimonial goes here...', author: 'Customer Name', role: '' };
     case 'features': return { heading: 'Our Features', items: [{ title: 'Feature 1', description: 'Description' }, { title: 'Feature 2', description: 'Description' }, { title: 'Feature 3', description: 'Description' }] };
     case 'spacer': return { height: 40 };
+    case 're_team': return { heading: 'Meet The Team', members: [{ name: 'Team Member', title: 'Role', bio: '', photoUrl: '' }], accentColor: '' };
     default: return {};
   }
 }
@@ -658,6 +660,7 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
       return (
         <div className="space-y-3">
           {textInput('Agent Name', 'agentName', 'Jane Smith')}
+          {textInput('Corporation / Subtitle', 'corporationText', 'Personal Real Estate Corporation')}
           {textInput('Title / Role', 'title', 'Licensed Real Estate Agent')}
           {textArea('Subtitle / Tagline', 'subtitle', 2)}
           <ImageUploadField
@@ -666,6 +669,12 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
             onChange={(url) => onUpdate({ profileImageUrl: url })}
             accountId={accountId}
             rounded
+          />
+          <ImageUploadField
+            label="Logo"
+            value={data.logoUrl || ''}
+            onChange={(url) => onUpdate({ logoUrl: url })}
+            accountId={accountId}
           />
           {textInput('CTA Button Text', 'ctaText', 'View Available Homes')}
           {textInput('CTA Sub-text', 'ctaSubtext', '')}
@@ -864,6 +873,60 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
             className="text-xs text-primary-600 hover:text-primary-700 font-medium"
           >
             + Add Property
+          </button>
+          {colorInput('Accent Color', 'accentColor')}
+        </div>
+      );
+
+    case 're_team':
+      return (
+        <div className="space-y-3">
+          {textInput('Section Heading', 'heading', 'Meet The Team')}
+          <label className="block text-xs font-medium text-gray-600">Team Members</label>
+          {(data.members || []).map((member: any, i: number) => (
+            <div key={i} className="border border-gray-200 rounded p-2 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium text-gray-500">Member {i + 1}</span>
+                <button
+                  onClick={() => onUpdate({ members: (data.members || []).filter((_: any, j: number) => j !== i) })}
+                  className="text-red-400 hover:text-red-600"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+              <input
+                value={member.name || ''}
+                onChange={(e) => { const m = [...(data.members || [])]; m[i] = { ...m[i], name: e.target.value }; onUpdate({ members: m }); }}
+                className="input text-xs"
+                placeholder="Name"
+              />
+              <input
+                value={member.title || ''}
+                onChange={(e) => { const m = [...(data.members || [])]; m[i] = { ...m[i], title: e.target.value }; onUpdate({ members: m }); }}
+                className="input text-xs"
+                placeholder="Title / Role"
+              />
+              <textarea
+                value={member.bio || ''}
+                onChange={(e) => { const m = [...(data.members || [])]; m[i] = { ...m[i], bio: e.target.value }; onUpdate({ members: m }); }}
+                className="input text-xs"
+                rows={2}
+                placeholder="Short bio (optional)"
+              />
+              <ImageUploadField
+                label="Photo"
+                value={member.photoUrl || ''}
+                onChange={(url) => { const m = [...(data.members || [])]; m[i] = { ...m[i], photoUrl: url }; onUpdate({ members: m }); }}
+                accountId={accountId}
+                rounded
+              />
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ members: [...(data.members || []), { name: 'New Member', title: '', bio: '', photoUrl: '' }] })}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            + Add Member
           </button>
           {colorInput('Accent Color', 'accentColor')}
         </div>
