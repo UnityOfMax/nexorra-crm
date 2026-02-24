@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+
     const { data: deal, error } = await supabaseAdmin
       .from('deals')
       .insert({
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
         contact_id: contactId,
         title,
         value: value || 0,
+        stage: 'pipeline',
         pipeline_id: pipelineId,
         pipeline_stage_id: pipelineStageId,
         probability: probability !== undefined ? probability : 50,

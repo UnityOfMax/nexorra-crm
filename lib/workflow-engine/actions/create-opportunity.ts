@@ -71,6 +71,7 @@ export const createOpportunityAction: ActionHandler = async (context, config) =>
         account_id: context.accountId,
         contact_id: context.contactId,
         title: dealTitle,
+        stage: 'pipeline',
         pipeline_id: resolvedPipelineId,
         pipeline_stage_id: resolvedStageId || null,
         status: 'open',

@@ -26,14 +26,14 @@ export async function assignUserAction(
       }
       assignedUserId = userId;
     } else if (assignmentType === 'round_robin') {
-      // Get all users for the account and find the one with least recent assignment
-      const { data: users } = await supabaseAdmin
-        .from('users')
-        .select('id')
+      // Get all members for the account
+      const { data: members } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
         .eq('account_id', context.accountId)
         .order('created_at', { ascending: true });
 
-      if (!users || users.length === 0) {
+      if (!members || members.length === 0) {
         return {
           success: false,
           error: 'No users available for round robin assignment',
@@ -48,16 +48,14 @@ export async function assignUserAction(
         .not('assigned_to', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!lastAssignment?.assigned_to) {
-        // No previous assignments, assign to first user
-        assignedUserId = users[0].id;
+        assignedUserId = members[0].user_id;
       } else {
-        // Find current user index and assign to next
-        const currentIndex = users.findIndex((u) => u.id === lastAssignment.assigned_to);
-        const nextIndex = (currentIndex + 1) % users.length;
-        assignedUserId = users[nextIndex].id;
+        const currentIndex = members.findIndex((m) => m.user_id === lastAssignment.assigned_to);
+        const nextIndex = (currentIndex + 1) % members.length;
+        assignedUserId = members[nextIndex].user_id;
       }
     } else if (assignmentType === 'least_busy') {
       // Count contacts per user and assign to the one with least
@@ -67,12 +65,12 @@ export async function assignUserAction(
         .eq('account_id', context.accountId)
         .not('assigned_to', 'is', null);
 
-      const { data: allUsers } = await supabaseAdmin
-        .from('users')
-        .select('id')
+      const { data: allMembers } = await supabaseAdmin
+        .from('account_members')
+        .select('user_id')
         .eq('account_id', context.accountId);
 
-      if (!allUsers || allUsers.length === 0) {
+      if (!allMembers || allMembers.length === 0) {
         return {
           success: false,
           error: 'No users available for assignment',
@@ -81,14 +79,14 @@ export async function assignUserAction(
 
       // Count assignments per user
       const counts: Record<string, number> = {};
-      allUsers.forEach((u) => (counts[u.id] = 0));
+      allMembers.forEach((m) => (counts[m.user_id] = 0));
       userCounts?.forEach((c) => {
         if (c.assigned_to) counts[c.assigned_to] = (counts[c.assigned_to] || 0) + 1;
       });
 
       // Find user with minimum count
       let minCount = Infinity;
-      let leastBusyUserId = allUsers[0].id;
+      let leastBusyUserId = allMembers[0].user_id;
       Object.entries(counts).forEach(([uid, count]) => {
         if (count < minCount) {
           minCount = count;
