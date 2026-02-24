@@ -104,29 +104,33 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     }
   };
 
+  const saveAccountSettings = async (patch: Record<string, any>) => {
+    const response = await fetch(`/api/accounts/${account.id}/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: patch }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to save');
+    }
+  };
+
   const handleSaveLocation = async () => {
     setLocationSaving(true);
     setMessage('');
     try {
-      // Auto-update from_email and from_name when location changes
       const firstName = location.first_name.toLowerCase().replace(/\s+/g, '');
       const lastName = location.last_name.toLowerCase().replace(/\s+/g, '');
       const fromEmail = firstName && lastName ? `${firstName}${lastName}@contact.ourlimitedoffer.com` : account.settings?.from_email || '';
       const fromName = [location.first_name, location.last_name].filter(Boolean).join(' ') || account.settings?.from_name || '';
 
-      const { error } = await supabase
-        .from('accounts')
-        .update({
-          settings: {
-            ...account.settings,
-            location,
-            timezone: timezone || undefined,
-            from_email: fromEmail,
-            from_name: fromName,
-          },
-        })
-        .eq('id', account.id);
-      if (error) throw error;
+      await saveAccountSettings({
+        location,
+        timezone: timezone || undefined,
+        from_email: fromEmail,
+        from_name: fromName,
+      });
       setMessage('✅ Account info saved!');
       onUpdate();
     } catch (error: any) {
@@ -140,22 +144,15 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     setLoading(true);
     setMessage('');
     try {
-      const { error } = await supabase
-        .from('accounts')
-        .update({
-          settings: {
-            ...account.settings,
-            twilio_phone_number: settings.twilio_phone_number,
-            from_email: settings.from_email,
-            from_name: settings.from_name,
-            branding: {
-              primary_color: settings.primary_color,
-              logo_url: settings.logo_url,
-            },
-          },
-        })
-        .eq('id', account.id);
-      if (error) throw error;
+      await saveAccountSettings({
+        twilio_phone_number: settings.twilio_phone_number,
+        from_email: settings.from_email,
+        from_name: settings.from_name,
+        branding: {
+          primary_color: settings.primary_color,
+          logo_url: settings.logo_url,
+        },
+      });
       setMessage('✅ Settings saved successfully!');
       onUpdate();
     } catch (error: any) {
