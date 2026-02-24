@@ -83,6 +83,7 @@ export interface Contact {
   source?: string;
   tags?: string[];
   custom_fields?: Record<string, any>;
+  ai_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }

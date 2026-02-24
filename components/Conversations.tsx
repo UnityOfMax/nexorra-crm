@@ -83,7 +83,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       if (savedSubject) setEmailSubject(savedSubject);
 
       // Load per-contact AI setting
-      setContactAiEnabled((selectedContact as any).ai_enabled !== false);
+      setContactAiEnabled(selectedContact.ai_enabled !== false);
     } else {
       setNewMessage('');
       setEmailSubject('');
@@ -240,10 +240,11 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     const newValue = !contactAiEnabled;
     setContactAiEnabled(newValue);
 
-    await supabase
-      .from('contacts')
-      .update({ ai_enabled: newValue })
-      .eq('id', selectedContact.id);
+    await fetch(`/api/contacts/${selectedContact.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_enabled: newValue }),
+    });
   };
 
   const handleSendSMS = async () => {

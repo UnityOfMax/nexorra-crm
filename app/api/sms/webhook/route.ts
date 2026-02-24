@@ -142,15 +142,24 @@ export async function POST(request: NextRequest) {
 
     // Also log as activity
     console.log('Logging activity...');
-    const { error: activityError } = await supabaseAdmin.from('activities').insert({
-      account_id: account.id,
-      contact_id: contact.id,
-      type: 'sms',
-      subject: `SMS from ${from}`,
-      description: body,
-      completed: true,
-      created_by: account.id,
-    });
+    const { data: ownerMember } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', account.id)
+      .eq('role', 'owner')
+      .single();
+
+    const { error: activityError } = ownerMember?.user_id
+      ? await supabaseAdmin.from('activities').insert({
+          account_id: account.id,
+          contact_id: contact.id,
+          type: 'sms',
+          subject: `SMS from ${from}`,
+          description: body,
+          completed: true,
+          created_by: ownerMember.user_id,
+        })
+      : { error: null };
 
     if (activityError) {
       console.error('Activity error:', activityError);

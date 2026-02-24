@@ -189,7 +189,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
   const loadWorkflow = async () => {
     try {
       const response = await fetch(`/api/workflows/${workflowId}?accountId=${accountId}`);
-      const { data } = await response.json();
+      const { workflow: data } = await response.json();
 
       if (data) {
         setWorkflowName(data.name);
@@ -356,6 +356,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
         triggerType: workflowTriggerType,
         workflowDefinition: { nodes, edges },
         isActive,
+        createdBy: userId,
       };
 
       const url = workflowId ? `/api/workflows/${workflowId}` : '/api/workflows';
@@ -369,7 +370,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
       if (!response.ok) throw new Error('Failed to save workflow');
 
-      const { data } = await response.json();
+      const { workflow: data } = await response.json();
       setIsDirty(false);
       toast.success(`Workflow ${workflowId ? 'updated' : 'created'} successfully!`);
 
