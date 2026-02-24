@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -20,6 +21,11 @@ module.exports = {
           800: '#075985',
           900: '#0c4a6e',
         },
+      },
+      boxShadow: {
+        card: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
+        'card-hover': '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.10)',
+        modal: '0 8px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)',
       },
     },
   },

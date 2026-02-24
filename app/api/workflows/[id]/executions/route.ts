@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/workflows/[id]/executions - Get workflow execution history
 export async function GET(
@@ -11,12 +12,8 @@ export async function GET(
     const accountId = searchParams.get('accountId');
     const workflowId = params.id;
 
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId is required' },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     // Get executions with step details
     const { data: executions, error } = await supabaseAdmin

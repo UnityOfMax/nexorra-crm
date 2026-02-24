@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // POST /api/activities - Create activity
 export async function POST(request: NextRequest) {
@@ -16,6 +17,9 @@ export async function POST(request: NextRequest) {
       durationMinutes,
       createdBy
     } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !type || !createdBy) {
       return NextResponse.json(
@@ -77,16 +81,15 @@ export async function GET(request: NextRequest) {
     const dealId = searchParams.get('dealId');
     const type = searchParams.get('type');
 
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId is required' },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+
+    const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
+    const offset = Number(searchParams.get('offset') ?? 0);
 
     let query = supabaseAdmin
       .from('activities')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('account_id', accountId);
 
     if (contactId) {
@@ -101,7 +104,9 @@ export async function GET(request: NextRequest) {
       query = query.eq('type', type);
     }
 
-    const { data: activities, error } = await query.order('created_at', { ascending: false });
+    const { data: activities, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error fetching activities:', error);
@@ -111,7 +116,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ activities });
+    return NextResponse.json({ activities, total: count ?? 0, limit, offset });
   } catch (error: any) {
     console.error('Activity fetch error:', error);
     return NextResponse.json(

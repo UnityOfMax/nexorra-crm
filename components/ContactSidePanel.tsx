@@ -278,7 +278,7 @@ export default function ContactSidePanel({
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex-1 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                className="btn btn-danger flex-1 text-sm"
               >
                 {deleting ? 'Deleting...' : 'Yes, delete'}
               </button>

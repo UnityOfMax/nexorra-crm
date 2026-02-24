@@ -15,59 +15,49 @@ interface DelayNodeProps {
 export default function DelayNode({ data, selected }: DelayNodeProps) {
   const formatDelayConfig = () => {
     if (!data.config) return null;
-
-    const { days, hours, minutes } = data.config;
+    const { days, hours, minutes, unit, value } = data.config;
+    // Format B: { unit, value }
+    if (unit && value !== undefined) return `${value} ${unit}`;
+    // Format A: { days, hours, minutes }
     const parts: string[] = [];
-
     if (days) parts.push(`${days}d`);
     if (hours) parts.push(`${hours}h`);
     if (minutes) parts.push(`${minutes}m`);
-
-    return parts.join(' ') || 'Configure delay';
+    return parts.join(' ') || null;
   };
 
+  const delayStr = formatDelayConfig();
+
   return (
-    <div className="relative">
-      {/* Input Handle */}
+    <div className="relative flex flex-col items-center">
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-orange-500 !w-3 !h-3 !border-2 !border-white"
+        className="!bg-orange-400 !w-2.5 !h-2.5 !border-2 !border-white"
       />
 
-      {/* Circular container */}
       <div
-        className={`relative px-6 py-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-full min-w-[160px] transition-shadow ${
-          selected ? 'shadow-lg' : 'shadow-md'
+        className={`px-4 py-2 rounded-full border bg-orange-50 min-w-[120px] text-center ${
+          selected ? 'border-orange-500 shadow-md ring-1 ring-orange-300' : 'border-orange-300 shadow-sm'
         }`}
-        style={{
-          border: selected ? '3px solid #f97316' : '2px solid #fb923c',
-        }}
       >
-        {/* Content */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="p-2 bg-orange-500 rounded-full">
-            <Clock className="w-5 h-5 text-white" />
-          </div>
-          <div className="text-center">
-            <div className="text-xs font-medium text-orange-700 uppercase tracking-wide">
+        <div className="flex items-center justify-center gap-1.5">
+          <Clock className="w-3 h-3 text-orange-500 shrink-0" />
+          <div>
+            <div className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide leading-none">
               Wait
             </div>
-            <div className="text-sm font-semibold text-gray-900">{data.label}</div>
-            {data.config && (
-              <div className="text-xs text-orange-600 mt-1">
-                {formatDelayConfig()}
-              </div>
+            {delayStr && (
+              <div className="text-xs font-semibold text-gray-800">{delayStr}</div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-orange-500 !w-3 !h-3 !border-2 !border-white"
+        className="!bg-orange-400 !w-2.5 !h-2.5 !border-2 !border-white"
       />
     </div>
   );

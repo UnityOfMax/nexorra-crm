@@ -93,10 +93,12 @@ CREATE TABLE public.landing_pages (
   meta_title TEXT,
   meta_description TEXT,
   tracking_pixels JSONB DEFAULT '[]'::jsonb,
+  connect_pixel BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   UNIQUE(account_id, slug)
 );
+-- Run in production: ALTER TABLE public.landing_pages ADD COLUMN IF NOT EXISTS connect_pixel BOOLEAN DEFAULT false;
 
 -- Create email_campaigns table
 CREATE TABLE public.email_campaigns (
@@ -273,3 +275,20 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ── Push Notification Infrastructure ─────────────────────────────────────────
+
+-- Stores browser push subscriptions (one per user per browser/device)
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  account_id UUID REFERENCES public.accounts(id) ON DELETE CASCADE NOT NULL,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+  UNIQUE(user_id, endpoint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subs_user ON public.push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subs_account ON public.push_subscriptions(account_id);

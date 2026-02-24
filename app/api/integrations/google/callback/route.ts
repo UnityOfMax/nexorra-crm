@@ -4,6 +4,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { supabaseAdmin } from '@/lib/supabase';
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
 // GET /api/integrations/google/callback - Handle Google OAuth callback
 export async function GET(request: NextRequest) {
   try {
@@ -12,23 +14,38 @@ export async function GET(request: NextRequest) {
     const rawState = searchParams.get('state') || '';
     const error = searchParams.get('error');
 
-    // State is either "accountId" (legacy) or "accountId:userId"
-    const [accountId, connectedUserId] = rawState.includes(':')
-      ? rawState.split(':')
-      : [rawState, ''];
-
     // Handle OAuth errors
     if (error) {
       console.error('Google OAuth error:', error);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&calendar=error&message=${encodeURIComponent(error)}`
+        `${APP_URL}/?view=settings&calendar=error&message=${encodeURIComponent(error)}`
+      );
+    }
+
+    // State format: "nonce:accountId:userId"
+    const stateParts = rawState.split(':');
+    if (stateParts.length < 2) {
+      return NextResponse.redirect(
+        `${APP_URL}/?view=settings&calendar=error&message=Invalid+state`
+      );
+    }
+
+    const [stateNonce, accountId, connectedUserId] = stateParts.length === 3
+      ? stateParts
+      : ['', stateParts[0], ''];
+
+    // CSRF check: verify the nonce matches the cookie
+    const storedNonce = request.cookies.get('oauth_state_nonce')?.value;
+    if (!storedNonce || stateNonce !== storedNonce) {
+      console.error('[google/callback] CSRF check failed — nonce mismatch');
+      return NextResponse.redirect(
+        `${APP_URL}/?view=settings&calendar=error&message=CSRF+check+failed`
       );
     }
 
     if (!code || !accountId) {
-      return NextResponse.json(
-        { error: 'Missing code or accountId' },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${APP_URL}/?view=settings&calendar=error&message=Missing+code+or+accountId`
       );
     }
 
@@ -82,7 +99,6 @@ export async function GET(request: NextRequest) {
             calendar_id: primaryCalendar.id || 'primary',
             last_sync_at: new Date().toISOString(),
             // Store who connected Google Calendar — used as created_by fallback
-            // when the account has no direct account_members rows (e.g. agency sub-accounts)
             ...(connectedUserId ? { connected_user_id: connectedUserId } : {})
           }
         }
@@ -96,14 +112,16 @@ export async function GET(request: NextRequest) {
 
     console.log('Google Calendar connected successfully for account:', accountId);
 
-    // Redirect back to main page with settings view
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&calendar=connected`
+    // Redirect back to main page and clear the nonce cookie
+    const response = NextResponse.redirect(
+      `${APP_URL}/?view=settings&calendar=connected`
     );
+    response.cookies.set('oauth_state_nonce', '', { maxAge: 0, path: '/' });
+    return response;
   } catch (error: any) {
     console.error('Error in Google OAuth callback:', error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&calendar=error&message=${encodeURIComponent(error.message)}`
+      `${APP_URL}/?view=settings&calendar=error&message=${encodeURIComponent(error.message)}`
     );
   }
 }

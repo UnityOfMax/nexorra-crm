@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Play, Pause, Edit } from 'lucide-react';
+import { Plus, Play, Pause, Edit, Users, Activity, MapPin } from 'lucide-react';
+import { SkeletonWorkflowCard } from '@/components/ui/SkeletonLoader';
+import { toast } from 'sonner';
 import { Workflow } from '@/types';
 import WorkflowBuilder from './WorkflowBuilder';
+import WorkflowTrackingView from './WorkflowTrackingView';
 
 type BuiltinAutomationId = 'new_lead' | 'booking_reminders' | 'nurturing';
 
@@ -28,6 +31,12 @@ const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description:
   },
 ];
 
+interface WorkflowStats {
+  in_progress: number;
+  completed: number;
+  failed: number;
+}
+
 interface WorkflowListProps {
   accountId: string;
   userId: string;
@@ -39,6 +48,8 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingAutomationId, setEditingAutomationId] = useState<BuiltinAutomationId | null>(null);
+  const [workflowStats, setWorkflowStats] = useState<Record<string, WorkflowStats>>({});
+  const [trackingWorkflow, setTrackingWorkflow] = useState<Workflow | null>(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -51,12 +62,28 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
       const data = await response.json();
       if (data.workflows) {
         setWorkflows(data.workflows);
+        fetchAllStats(data.workflows);
       }
     } catch (error) {
       console.error('Error loading workflows:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllStats = async (wfs: Workflow[]) => {
+    const results = await Promise.allSettled(
+      wfs.map(async (w) => {
+        const res = await fetch(`/api/workflows/${w.id}/stats`);
+        const d = await res.json();
+        return { id: w.id, stats: d as WorkflowStats };
+      })
+    );
+    const statsMap: Record<string, WorkflowStats> = {};
+    for (const r of results) {
+      if (r.status === 'fulfilled') statsMap[r.value.id] = r.value.stats;
+    }
+    setWorkflowStats(statsMap);
   };
 
   const getTriggerLabel = (triggerType: string) => {
@@ -70,6 +97,7 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
       tag_added: 'Tag Added',
       tag_removed: 'Tag Removed',
       form_submitted: 'Form Submitted',
+      booking_created: 'Booking Created',
       manual: 'Manual Trigger',
     };
     return labels[triggerType] || triggerType;
@@ -88,7 +116,7 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
   const handleCloseBuilder = () => {
     setShowBuilder(false);
     setSelectedWorkflowId(null);
-    loadWorkflows(); // Reload workflows after closing builder
+    loadWorkflows();
   };
 
   const handleToggleActive = async (workflowId: string, currentState: boolean) => {
@@ -96,23 +124,17 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
       await fetch(`/api/workflows/${workflowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId,
-          isActive: !currentState,
-        }),
+        body: JSON.stringify({ accountId, isActive: !currentState }),
       });
-
-      // Update local state
       setWorkflows(workflows.map(w =>
         w.id === workflowId ? { ...w, is_active: !currentState } : w
       ));
     } catch (error) {
       console.error('Error toggling workflow:', error);
-      alert('Failed to update workflow status');
+      toast.error('Failed to update workflow status');
     }
   };
 
-  // Show built-in automation in the drag-and-drop builder
   if (editingAutomationId) {
     return (
       <WorkflowBuilder
@@ -124,7 +146,6 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
     );
   }
 
-  // Show workflow builder for custom workflows
   if (showBuilder) {
     return (
       <WorkflowBuilder
@@ -138,8 +159,10 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading workflows...</div>
+      <div className="space-y-3 py-4">
+        <SkeletonWorkflowCard />
+        <SkeletonWorkflowCard />
+        <SkeletonWorkflowCard />
       </div>
     );
   }
@@ -188,88 +211,109 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
       {/* ── Custom Workflows ── */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Custom Workflows</h3>
-      {workflows.length === 0 ? (
-        <div className="card text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <Plus className="w-16 h-16 mx-auto" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No workflows yet</h3>
-          <p className="text-gray-600 mb-6">
-            Create your first workflow to start automating your business processes.
-          </p>
-          <button onClick={handleCreateWorkflow} className="btn btn-primary">
-            Create Your First Workflow
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {workflows.map((workflow) => (
-            <div key={workflow.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-start justify-between">
-                <div className="flex-1" onClick={() => handleEditWorkflow(workflow.id)}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{workflow.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      workflow.is_active
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {workflow.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  {workflow.description && (
-                    <p className="text-sm text-gray-600 mb-3">{workflow.description}</p>
-                  )}
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <span className="font-medium">Trigger:</span>
-                      {getTriggerLabel(workflow.trigger_type)}
-                    </span>
-                    <span>•</span>
-                    <span>{workflow.total_executions} executions</span>
-                    {workflow.total_executions > 0 && (
-                      <>
-                        <span>•</span>
-                        <span className="text-green-600">
-                          {Math.round((workflow.successful_executions / workflow.total_executions) * 100)}% success rate
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditWorkflow(workflow.id)}
-                    className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    title="Edit workflow"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleActive(workflow.id, workflow.is_active);
-                    }}
-                    className={`p-2 rounded-lg transition-colors ${
-                      workflow.is_active
-                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                        : 'bg-green-50 text-green-600 hover:bg-green-100'
-                    }`}
-                    title={workflow.is_active ? 'Pause workflow' : 'Activate workflow'}
-                  >
-                    {workflow.is_active ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
+        {workflows.length === 0 ? (
+          <div className="card text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Plus className="w-16 h-16 mx-auto" />
             </div>
-          ))}
-        </div>
-      )}
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No workflows yet</h3>
+            <p className="text-gray-600 mb-6">
+              Create your first workflow to start automating your business processes.
+            </p>
+            <button onClick={handleCreateWorkflow} className="btn btn-primary">
+              Create Your First Workflow
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {workflows.map((workflow) => {
+              const stats = workflowStats[workflow.id];
+              return (
+                <div key={workflow.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1" onClick={() => handleEditWorkflow(workflow.id)}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{workflow.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          workflow.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {workflow.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      {workflow.description && (
+                        <p className="text-sm text-gray-600 mb-3">{workflow.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                        <span>
+                          <span className="font-medium">Trigger:</span>{' '}
+                          {getTriggerLabel(workflow.trigger_type)}
+                        </span>
+                        {stats && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                              <Activity className="w-3.5 h-3.5" />
+                              {stats.in_progress} in progress
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-green-600 font-medium">
+                              <Users className="w-3.5 h-3.5" />
+                              {stats.completed} completed
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTrackingWorkflow(workflow);
+                        }}
+                        className="p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                        title="Track contacts"
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditWorkflow(workflow.id)}
+                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Edit workflow"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleActive(workflow.id, workflow.is_active);
+                        }}
+                        className={`p-2 rounded-lg transition-colors ${
+                          workflow.is_active
+                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                            : 'bg-green-50 text-green-600 hover:bg-green-100'
+                        }`}
+                        title={workflow.is_active ? 'Pause workflow' : 'Activate workflow'}
+                      >
+                        {workflow.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Contact Tracking Modal */}
+      {trackingWorkflow && (
+        <WorkflowTrackingView
+          workflowId={trackingWorkflow.id}
+          workflowName={trackingWorkflow.name}
+          accountId={accountId}
+          onClose={() => setTrackingWorkflow(null)}
+        />
+      )}
     </div>
   );
 }

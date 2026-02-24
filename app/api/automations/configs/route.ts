@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/automations/configs?accountId=xxx&automationId=xxx
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const accountId = searchParams.get('accountId');
   const automationId = searchParams.get('automationId');
+
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
 
   if (!accountId || !automationId) {
     return NextResponse.json({ error: 'accountId and automationId required' }, { status: 400 });
@@ -25,6 +29,9 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { accountId, automationId, templates } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !automationId || !Array.isArray(templates)) {
       return NextResponse.json({ error: 'accountId, automationId, templates required' }, { status: 400 });
@@ -54,15 +61,19 @@ export async function DELETE(request: NextRequest) {
   const accountId = searchParams.get('accountId');
   const automationId = searchParams.get('automationId');
 
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
+
   if (!accountId || !automationId) {
     return NextResponse.json({ error: 'accountId and automationId required' }, { status: 400 });
   }
 
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('automation_configs')
     .delete()
     .eq('account_id', accountId)
     .eq('automation_id', automationId);
 
+  if (error) return NextResponse.json({ error: 'Failed to reset' }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

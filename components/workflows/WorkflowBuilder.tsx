@@ -15,7 +15,8 @@ import ReactFlow, {
   Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Save, Play, Power, ArrowLeft, History } from 'lucide-react';
+import { Save, Play, Power, ArrowLeft, History, ChevronDown, ChevronRight, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Workflow } from '@/types';
 
 // Import custom nodes
@@ -28,6 +29,7 @@ import DelayNode from './nodes/DelayNode';
 import WorkflowSidebar from './WorkflowSidebar';
 import NodeConfigPanel from './panels/NodeConfigPanel';
 import WorkflowExecutionLog from './WorkflowExecutionLog';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Built-in automation support
 import {
@@ -75,13 +77,84 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [showExecutionLog, setShowExecutionLog] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Load existing workflow or built-in automation
+  // Inline execution logs panel
+  const [showInlineLogs, setShowInlineLogs] = useState(false);
+  const [inlineExecutions, setInlineExecutions] = useState<any[]>([]);
+  const [inlineLogsLoading, setInlineLogsLoading] = useState(false);
+  const [expandedInlineId, setExpandedInlineId] = useState<string | null>(null);
+
+  const loadInlineLogs = async () => {
+    if (!workflowId) return;
+    setInlineLogsLoading(true);
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}/executions?accountId=${accountId}`);
+      const data = await res.json();
+      setInlineExecutions((data.executions || []).slice(0, 10));
+    } catch {
+      // silently fail
+    } finally {
+      setInlineLogsLoading(false);
+    }
+  };
+
+  const inlineStatusIcon = (status: string) => {
+    if (status === 'completed') return <CheckCircle className="w-3.5 h-3.5 text-green-600" />;
+    if (status === 'failed') return <XCircle className="w-3.5 h-3.5 text-red-600" />;
+    if (status === 'running') return <Clock className="w-3.5 h-3.5 text-blue-600 animate-spin" />;
+    return <AlertCircle className="w-3.5 h-3.5 text-gray-400" />;
+  };
+
+  const inlineStatusBadge = (status: string) => {
+    if (status === 'completed') return 'bg-green-100 text-green-700';
+    if (status === 'failed') return 'bg-red-100 text-red-700';
+    if (status === 'running') return 'bg-blue-100 text-blue-700';
+    return 'bg-gray-100 text-gray-600';
+  };
+
+  const fmtDate = (d: string) =>
+    new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const fmtDuration = (start: string, end?: string) => {
+    const ms = (end ? new Date(end) : new Date()).getTime() - new Date(start).getTime();
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  };
+
+  // Load existing workflow or built-in automation; initialise defaults for new workflows
   useEffect(() => {
     if (builtinAutomationId) {
       loadBuiltinAutomation();
     } else if (workflowId) {
       loadWorkflow();
+    } else {
+      // New custom workflow — pre-populate trigger + assign_user + create_opportunity
+      const triggerNode: Node = {
+        id: 'trigger-default',
+        type: 'trigger',
+        position: { x: 250, y: 50 },
+        data: { label: 'Contact Created', stepType: 'contact_created', config: {} },
+      };
+      const assignNode: Node = {
+        id: 'action-assign-default',
+        type: 'action',
+        position: { x: 250, y: 180 },
+        data: { label: 'Assign User', stepType: 'assign_user', config: { assignmentType: 'specific', userId } },
+      };
+      const opportunityNode: Node = {
+        id: 'action-opportunity-default',
+        type: 'action',
+        position: { x: 250, y: 310 },
+        data: { label: 'Create Opportunity', stepType: 'create_opportunity', config: {} },
+      };
+      setNodes([triggerNode, assignNode, opportunityNode]);
+      setEdges([
+        { id: 'e-trigger-assign', source: 'trigger-default', target: 'action-assign-default', type: 'smoothstep' },
+        { id: 'e-assign-opportunity', source: 'action-assign-default', target: 'action-opportunity-default', type: 'smoothstep' },
+      ]);
     }
   }, [workflowId, builtinAutomationId]);
 
@@ -130,13 +203,14 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
       }
     } catch (error) {
       console.error('Error loading workflow:', error);
-      alert('Failed to load workflow');
+      toast.error('Failed to load workflow');
     }
   };
 
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => addEdge(params, eds));
+      setIsDirty(true);
     },
     [setEdges]
   );
@@ -189,6 +263,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
   const updateNodeData = useCallback(
     (nodeId: string, newData: any) => {
+      setIsDirty(true);
       setNodes((nds) =>
         nds.map((node) => {
           if (node.id === nodeId) {
@@ -220,6 +295,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
   const deleteNode = useCallback(
     (nodeId: string) => {
+      setIsDirty(true);
       setNodes((nds) => nds.filter((node) => node.id !== nodeId));
       setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
       setSelectedNode(null);
@@ -229,12 +305,12 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
   const saveWorkflow = async () => {
     if (!workflowName.trim()) {
-      alert('Please enter a workflow name');
+      toast.error('Please enter a workflow name');
       return;
     }
 
     if (nodes.length === 0) {
-      alert('Please add at least one node to the workflow');
+      toast.error('Please add at least one node to the workflow');
       return;
     }
 
@@ -254,10 +330,11 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
           }),
         });
         if (!res.ok) throw new Error('Failed to save');
-        alert('Automation saved!');
+        setIsDirty(false);
+        toast.success('Automation saved!');
       } catch (error) {
         console.error('Error saving automation:', error);
-        alert('Failed to save automation. Please try again.');
+        toast.error('Failed to save automation. Please try again.');
       } finally {
         setIsSaving(false);
       }
@@ -267,7 +344,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
     // ── Custom workflow ──
     const triggerNode = nodes.find((n) => n.type === 'trigger');
     if (!triggerNode) {
-      alert('Workflow must have a trigger node');
+      toast.error('Workflow must have a trigger node');
       setIsSaving(false);
       return;
     }
@@ -293,14 +370,15 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
       if (!response.ok) throw new Error('Failed to save workflow');
 
       const { data } = await response.json();
-      alert(`Workflow ${workflowId ? 'updated' : 'created'} successfully!`);
+      setIsDirty(false);
+      toast.success(`Workflow ${workflowId ? 'updated' : 'created'} successfully!`);
 
       if (!workflowId && data?.id) {
         window.location.href = `?workflow=${data.id}`;
       }
     } catch (error) {
       console.error('Error saving workflow:', error);
-      alert('Failed to save workflow. Please try again.');
+      toast.error('Failed to save workflow. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -308,7 +386,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
   const testWorkflow = async () => {
     if (!workflowId) {
-      alert('Please save the workflow before testing');
+      toast.error('Please save the workflow before testing');
       return;
     }
 
@@ -325,10 +403,10 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
       }
 
       const { data } = await response.json();
-      alert(`Workflow test completed! Execution ID: ${data.executionId}`);
+      toast.success(`Test triggered — execution ID: ${data.executionId}`);
     } catch (error) {
       console.error('Error testing workflow:', error);
-      alert('Failed to test workflow. Make sure it is saved first.');
+      toast.error('Failed to test workflow. Make sure it is saved first.');
     } finally {
       setIsTesting(false);
     }
@@ -336,7 +414,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
   const toggleActive = async () => {
     if (!workflowId) {
-      alert('Please save the workflow before activating');
+      toast.error('Please save the workflow before activating');
       return;
     }
 
@@ -353,11 +431,11 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
         }),
       });
 
-      alert(`Workflow ${newActiveState ? 'activated' : 'deactivated'} successfully!`);
+      toast.success(`Workflow ${newActiveState ? 'activated' : 'deactivated'}`);
     } catch (error) {
       console.error('Error toggling workflow:', error);
       setIsActive(!newActiveState); // Revert on error
-      alert('Failed to update workflow status');
+      toast.error('Failed to update workflow status');
     }
   };
 
@@ -372,9 +450,13 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
         <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={onBack}
+              onClick={() => {
+                if (isDirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
+                onBack();
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="Back to workflows"
+              aria-label="Back to workflows"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
@@ -451,6 +533,9 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
                 </button>
               </>
             )}
+            {isDirty && (
+              <span className="text-xs text-amber-600 font-medium">Unsaved changes</span>
+            )}
             <button
               onClick={saveWorkflow}
               disabled={isSaving}
@@ -464,6 +549,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
         {/* ReactFlow Canvas */}
         <div className="flex-1 bg-gray-50" onDragOver={onDragOver} onDrop={onDrop}>
+          <ErrorBoundary label="ReactFlow canvas">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -495,7 +581,93 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
               }}
             />
           </ReactFlow>
+          </ErrorBoundary>
         </div>
+
+        {/* Inline Execution Logs Panel */}
+        {!isBuiltin && workflowId && (
+          <div className="border-t border-gray-200 bg-white shrink-0">
+            <button
+              onClick={() => {
+                const next = !showInlineLogs;
+                setShowInlineLogs(next);
+                if (next && inlineExecutions.length === 0) loadInlineLogs();
+              }}
+              className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-gray-500" />
+                <span>Execution Logs</span>
+                {inlineExecutions.length > 0 && (
+                  <span className="text-xs text-gray-400">({inlineExecutions.length})</span>
+                )}
+              </div>
+              {showInlineLogs
+                ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {showInlineLogs && (
+              <div className="h-56 overflow-y-auto border-t border-gray-100">
+                {inlineLogsLoading ? (
+                  <div className="p-4 text-center text-sm text-gray-500">Loading...</div>
+                ) : inlineExecutions.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">No executions yet. Test or trigger this workflow to see logs.</div>
+                ) : (
+                  <div className="p-3 space-y-2">
+                    {inlineExecutions.map((ex) => (
+                      <div key={ex.id} className="border border-gray-200 rounded-lg overflow-hidden text-sm">
+                        <div
+                          className="px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 flex items-center justify-between"
+                          onClick={() => setExpandedInlineId(expandedInlineId === ex.id ? null : ex.id)}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {inlineStatusIcon(ex.status)}
+                            <span className="font-medium text-gray-800 shrink-0">{fmtDate(ex.started_at)}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${inlineStatusBadge(ex.status)}`}>
+                              {ex.status}
+                            </span>
+                            <span className="text-gray-400 text-xs shrink-0">{fmtDuration(ex.started_at, ex.completed_at)}</span>
+                          </div>
+                          {expandedInlineId === ex.id
+                            ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                        </div>
+                        {expandedInlineId === ex.id && (
+                          <div className="px-3 py-2 space-y-1.5 bg-white border-t border-gray-100">
+                            {ex.workflow_step_executions?.length === 0 ? (
+                              <p className="text-xs text-gray-500">No steps recorded.</p>
+                            ) : (
+                              ex.workflow_step_executions?.map((step: any, i: number) => (
+                                <div key={`${step.step_id}-${i}`} className="flex items-start gap-2 p-1.5 bg-gray-50 rounded">
+                                  <div className="mt-0.5 shrink-0">
+                                    {step.status === 'completed'
+                                      ? <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                                      : step.status === 'failed'
+                                      ? <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                      : <Clock className="w-3.5 h-3.5 text-gray-400" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-medium text-gray-800 capitalize">
+                                      {step.step_type?.replace(/_/g, ' ')}
+                                    </div>
+                                    {step.error && (
+                                      <div className="text-xs text-red-600 mt-0.5">{step.error}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right Sidebar - Node Configuration */}
@@ -505,6 +677,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
           onUpdate={(data) => updateNodeData(selectedNode.id, data)}
           onDelete={() => deleteNode(selectedNode.id)}
           onClose={() => setSelectedNode(null)}
+          accountId={accountId}
         />
       )}
 

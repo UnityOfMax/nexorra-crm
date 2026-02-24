@@ -6,6 +6,7 @@ import { updateContactAction } from './update-contact';
 import { moveDealStageAction } from './move-deal-stage';
 import { assignUserAction } from './assign-user';
 import { aiRespondAction } from './ai-respond';
+import { createOpportunityAction } from './create-opportunity';
 
 export const actionHandlers: Record<string, ActionHandler> = {
   send_email: sendEmailAction,
@@ -15,6 +16,7 @@ export const actionHandlers: Record<string, ActionHandler> = {
   move_deal_stage: moveDealStageAction,
   assign_user: assignUserAction,
   ai_respond: aiRespondAction,
+  create_opportunity: createOpportunityAction,
 };
 
 export function getActionHandler(stepType: string): ActionHandler | undefined {

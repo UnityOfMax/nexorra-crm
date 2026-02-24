@@ -58,15 +58,24 @@ export async function updateContactAction(
     }
 
     // Log activity
-    await supabaseAdmin.from('activities').insert({
-      account_id: context.accountId,
-      contact_id: context.contactId,
-      type: 'note',
-      subject: 'Contact Updated',
-      description: `Updated fields via workflow: ${changedFields.join(', ')}`,
-      completed: true,
-      created_by: context.accountId,
-    });
+    const { data: ownerMember } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', context.accountId)
+      .eq('role', 'owner')
+      .single();
+    const createdBy = ownerMember?.user_id;
+    if (createdBy) {
+      await supabaseAdmin.from('activities').insert({
+        account_id: context.accountId,
+        contact_id: context.contactId,
+        type: 'note',
+        subject: 'Contact Updated',
+        description: `Updated fields via workflow: ${changedFields.join(', ')}`,
+        completed: true,
+        created_by: createdBy,
+      });
+    }
 
     return {
       success: true,

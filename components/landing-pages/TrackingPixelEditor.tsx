@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { Plus, Trash2, Facebook, BarChart3, Code } from 'lucide-react';
-import type { TrackingPixel } from '@/types';
+interface TrackingPixel {
+  id: string;
+  name: string;
+  type: 'facebook' | 'google' | 'linkedin' | 'custom';
+  code: string;
+}
 
 interface TrackingPixelEditorProps {
   pixels: TrackingPixel[];

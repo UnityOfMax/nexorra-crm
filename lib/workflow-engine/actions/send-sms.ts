@@ -1,5 +1,6 @@
 import { WorkflowContext, ExecutionResult } from '../types';
 import { replaceVariables } from '../conditions';
+import { fetchWithRetry } from '@/lib/utils/retry';
 
 export async function sendSMSAction(
   context: WorkflowContext,
@@ -27,17 +28,20 @@ export async function sendSMSAction(
     // Replace variables in message
     const processedMessage = replaceVariables(message, context);
 
-    // Call the SMS API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/sms/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        accountId: context.accountId,
-        to: contactPhone,
-        message: processedMessage,
-        contactId: context.contactId,
-      }),
-    });
+    // Call the SMS API (with retry + 15s timeout)
+    const response = await fetchWithRetry(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/sms/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: context.accountId,
+          to: contactPhone,
+          message: processedMessage,
+          contactId: context.contactId,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();

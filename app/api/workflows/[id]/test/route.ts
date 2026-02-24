@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeWorkflow } from '@/lib/workflow-engine/executor';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // POST /api/workflows/[id]/test - Test workflow execution
 export async function POST(
@@ -11,12 +12,8 @@ export async function POST(
     const { accountId } = await request.json();
     const workflowId = params.id;
 
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId is required' },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     // Get workflow to check trigger type
     const { data: workflow } = await supabaseAdmin

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { toast } from 'sonner';
 import { Pipeline, PipelineStage, DealExtended } from '@/types';
 import DealCard from './DealCard';
 
@@ -37,7 +38,7 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
     }
   };
 
-  const organizeDeals = (dealsData: DealExtended[]) => {
+  const organizeDeals = useCallback((dealsData: DealExtended[]) => {
     const organized: Record<string, DealExtended[]> = {};
 
     // Initialize all stages with empty arrays
@@ -53,7 +54,7 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
     });
 
     setStageDeals(organized);
-  };
+  }, [pipeline.pipeline_stages]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -117,18 +118,24 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
       console.error('Error moving deal:', error);
       // Revert optimistic update on error
       organizeDeals(deals);
-      alert('Failed to move deal. Please try again.');
+      toast.error('Failed to move deal. Please try again.');
     }
   };
 
-  const calculateStageValue = (stageId: string): number => {
-    return stageDeals[stageId]?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
-  };
+  const stageValues = useMemo(() => {
+    const values: Record<string, number> = {};
+    for (const stageId of Object.keys(stageDeals)) {
+      values[stageId] = stageDeals[stageId]?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+    }
+    return values;
+  }, [stageDeals]);
+
+  const calculateStageValue = (stageId: string): number => stageValues[stageId] ?? 0;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading pipeline...</div>
+        <div className="w-6 h-6 border-2 border-gray-200 border-t-primary-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -147,7 +154,7 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex-1 overflow-x-auto">
           <div className="flex gap-4 min-h-full pb-4">
-            {pipeline.pipeline_stages
+            {[...pipeline.pipeline_stages]
               .sort((a, b) => a.position - b.position)
               .map(stage => (
                 <Droppable key={stage.id} droppableId={stage.id}>

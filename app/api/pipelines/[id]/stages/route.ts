@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/pipelines/[id]/stages - Get all stages for a pipeline
 export async function GET(
@@ -8,6 +9,19 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+
+    const { data: pipelineInfo } = await supabaseAdmin
+      .from('pipelines')
+      .select('account_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!pipelineInfo) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, pipelineInfo.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     const { data: stages, error } = await supabaseAdmin
       .from('pipeline_stages')
@@ -40,6 +54,20 @@ export async function POST(
 ) {
   try {
     const { id: pipelineId } = params;
+
+    const { data: pipelineInfo } = await supabaseAdmin
+      .from('pipelines')
+      .select('account_id')
+      .eq('id', pipelineId)
+      .maybeSingle();
+
+    if (!pipelineInfo) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, pipelineInfo.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     const { name, description, color, position, probability, isClosed, isWon } = await request.json();
 
     if (!name) {
@@ -104,6 +132,20 @@ export async function PUT(
 ) {
   try {
     const { id: pipelineId } = params;
+
+    const { data: pipelineInfo } = await supabaseAdmin
+      .from('pipelines')
+      .select('account_id')
+      .eq('id', pipelineId)
+      .maybeSingle();
+
+    if (!pipelineInfo) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, pipelineInfo.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     const { stages } = await request.json();
 
     if (!Array.isArray(stages)) {

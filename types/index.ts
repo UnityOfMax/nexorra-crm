@@ -1,3 +1,7 @@
+import type { LandingPageContent as _LandingPageContent } from '@/lib/landing-page-templates';
+export type { LandingPageContent } from '@/lib/landing-page-templates';
+type LandingPageContent = _LandingPageContent;
+
 export interface User {
   id: string;
   email: string;
@@ -15,7 +19,7 @@ export interface Account {
   parent_account_id?: string;
   created_at: string;
   updated_at: string;
-  settings?: any;
+  settings?: AccountSettings;
 }
 
 export interface LocationInfo {
@@ -46,11 +50,24 @@ export interface AccountSettings {
   google_calendar?: {
     enabled: boolean;
     user_email: string;
+    connected_user_id?: string;
     access_token: string;
     refresh_token: string;
     token_expiry: string;
     calendar_id: string;
     last_sync_at?: string;
+  };
+  // Flat settings used by the Settings component
+  timezone?: string;
+  from_email?: string;
+  from_name?: string;
+  twilio_phone_number?: string;
+  location?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
   };
 }
 
@@ -104,21 +121,14 @@ export interface LandingPage {
   account_id: string;
   name: string;
   slug: string;
-  content: any; // JSON structure for page builder
+  content: LandingPageContent;
   published: boolean;
   meta_title?: string;
   meta_description?: string;
-  tracking_pixels?: TrackingPixel[];
+  connect_pixel?: boolean;
   custom_domain?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface TrackingPixel {
-  id: string;
-  name: string;
-  type: 'facebook' | 'google' | 'linkedin' | 'custom';
-  code: string;
 }
 
 export interface EmailCampaign {

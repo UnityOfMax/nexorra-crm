@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // PUT /api/activities/[id] - Update activity
 export async function PUT(
@@ -24,6 +25,9 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const auth = await requireAccountAccess(request, existingActivity.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     // Update activity
     const updates: any = {};
@@ -71,6 +75,19 @@ export async function DELETE(
 ) {
   try {
     const { id: activityId } = params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('activities')
+      .select('account_id')
+      .eq('id', activityId)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     // Delete activity (cascade will handle google_calendar_sync)
     const { error } = await supabaseAdmin

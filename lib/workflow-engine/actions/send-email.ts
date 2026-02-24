@@ -1,5 +1,6 @@
 import { WorkflowContext, ExecutionResult } from '../types';
 import { replaceVariables } from '../conditions';
+import { fetchWithRetry } from '@/lib/utils/retry';
 
 export async function sendEmailAction(
   context: WorkflowContext,
@@ -28,19 +29,22 @@ export async function sendEmailAction(
     const processedSubject = replaceVariables(subject, context);
     const processedBody = replaceVariables(body, context);
 
-    // Call the email API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        accountId: context.accountId,
-        to: contactEmail,
-        subject: processedSubject,
-        htmlContent: processedBody,
-        fromName: fromName || undefined,
-        contactId: context.contactId,
-      }),
-    });
+    // Call the email API (with retry + 15s timeout)
+    const response = await fetchWithRetry(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: context.accountId,
+          to: contactEmail,
+          subject: processedSubject,
+          htmlContent: processedBody,
+          fromName: fromName || undefined,
+          contactId: context.contactId,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();

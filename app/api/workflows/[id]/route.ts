@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/workflows/[id] - Get a single workflow
 export async function GET(
@@ -22,6 +23,9 @@ export async function GET(
       );
     }
 
+    const auth = await requireAccountAccess(request, workflow.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     return NextResponse.json({ workflow });
   } catch (error: any) {
     console.error('Workflow GET error:', error);
@@ -39,6 +43,20 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('workflows')
+      .select('account_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     const {
       name,
       description,
@@ -112,6 +130,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('workflows')
+      .select('account_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     const { error } = await supabaseAdmin
       .from('workflows')

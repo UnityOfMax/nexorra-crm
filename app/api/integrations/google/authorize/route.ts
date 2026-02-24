@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
 
 // GET /api/integrations/google/authorize - Start Google OAuth flow
 export async function GET(request: NextRequest) {
@@ -22,8 +23,11 @@ export async function GET(request: NextRequest) {
       process.env.GOOGLE_REDIRECT_URI
     );
 
-    // Encode accountId and userId in state so callback can store connected_user_id
-    const state = userId ? `${accountId}:${userId}` : accountId;
+    // Generate a random nonce to prevent CSRF attacks on the callback
+    const nonce = crypto.randomUUID();
+
+    // Encode nonce, accountId and userId in state
+    const state = `${nonce}:${accountId}:${userId}`;
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -35,7 +39,17 @@ export async function GET(request: NextRequest) {
       prompt: 'consent' // Force consent screen to get refresh token
     });
 
-    return NextResponse.redirect(authUrl);
+    // Redirect to Google and set the nonce in an HttpOnly cookie
+    const response = NextResponse.redirect(authUrl);
+    response.cookies.set('oauth_state_nonce', nonce, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600, // 10 minutes
+      path: '/',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Error starting Google OAuth:', error);
     return NextResponse.json(

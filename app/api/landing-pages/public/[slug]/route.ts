@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { data, error } = await supabaseAdmin
     .from('landing_pages')
-    .select('content, account_id, tracking_pixels')
+    .select('content, account_id, connect_pixel')
     .eq('slug', params.slug)
     .eq('published', true)
     .single();

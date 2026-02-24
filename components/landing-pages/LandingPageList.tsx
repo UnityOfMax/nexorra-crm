@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, FileText, Globe, Pencil, Trash2, Eye, Search, LayoutTemplate, Settings2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Plus, FileText, Globe, Pencil, Trash2, Eye, Search, LayoutTemplate, Settings2, X } from 'lucide-react';
+import { SkeletonCard } from '@/components/ui/SkeletonLoader';
 import LandingPageBuilder from './LandingPageBuilder';
 import LandingPageFieldsEditor from './LandingPageFieldsEditor';
 import { templates, getEmptyContent } from '@/lib/landing-page-templates';
@@ -21,6 +23,8 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
   const [editingFieldsPage, setEditingFieldsPage] = useState<LandingPage | null>(null);
   const [showCreateChoice, setShowCreateChoice] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<typeof templates[0] | null>(null);
 
   useEffect(() => {
     loadPages();
@@ -41,7 +45,7 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
     }
   };
 
-  const createPage = async (name: string, slug: string, content?: any) => {
+  const createPage = async (name: string, slug: string, content?: any, connectPixel?: boolean) => {
     try {
       const response = await fetch('/api/landing-pages', {
         method: 'POST',
@@ -51,15 +55,19 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
           name,
           slug,
           content: content || getEmptyContent(),
+          connect_pixel: connectPixel === true,
         }),
       });
       const data = await response.json();
       if (response.ok) {
         setEditingPage(data.page);
         loadPages();
+      } else {
+        toast.error('Failed to create page');
       }
     } catch (error) {
       console.error('Error creating page:', error);
+      toast.error('Failed to create page');
     }
   };
 
@@ -74,7 +82,7 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
           content: page.content,
           meta_title: page.meta_title,
           meta_description: page.meta_description,
-          tracking_pixels: page.tracking_pixels,
+          connect_pixel: page.connect_pixel,
           published: true,
         }),
       });
@@ -91,10 +99,14 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
     try {
       const response = await fetch(`/api/landing-pages/${page.id}`, { method: 'DELETE' });
       if (response.ok) {
+        toast.success('Page deleted');
         loadPages();
+      } else {
+        toast.error('Failed to delete page');
       }
     } catch (error) {
       console.error('Error deleting page:', error);
+      toast.error('Failed to delete page');
     }
   };
 
@@ -153,7 +165,11 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
 
       {/* Pages Grid */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading pages...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       ) : filteredPages.length === 0 ? (
         <div className="card p-12 text-center">
           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -201,13 +217,18 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
                     </h3>
                     <p className="text-sm text-gray-500 font-mono truncate">app.ainexorra.com/account/{accountSlug}/landing-pages/{page.id}</p>
                   </div>
-                  <span className={`ml-2 px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${
-                    page.published
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {page.published ? 'Published' : 'Draft'}
-                  </span>
+                  <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                    {page.connect_pixel && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Pixel</span>
+                    )}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      page.published
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {page.published ? 'Published' : 'Draft'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
@@ -269,11 +290,8 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
         <CreateChoiceModal
           onFromScratch={() => {
             setShowCreateChoice(false);
-            const name = prompt('Page name:');
-            if (name) {
-              const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-              createPage(name, slug);
-            }
+            setPendingTemplate(null);
+            setCreateModalOpen(true);
           }}
           onFromTemplate={() => {
             setShowCreateChoice(false);
@@ -288,13 +306,24 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
         <TemplatePicker
           onSelect={(template) => {
             setShowTemplates(false);
-            const name = prompt('Page name:', template.name);
-            if (name) {
-              const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-              createPage(name, slug, template.content);
-            }
+            setPendingTemplate(template);
+            setCreateModalOpen(true);
           }}
           onClose={() => setShowTemplates(false)}
+        />
+      )}
+
+      {/* Create Page Name Modal */}
+      {createModalOpen && (
+        <CreatePageNameModal
+          defaultName={pendingTemplate?.name || ''}
+          onConfirm={(name, connectPixel) => {
+            setCreateModalOpen(false);
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            createPage(name, slug, pendingTemplate?.content, connectPixel);
+            setPendingTemplate(null);
+          }}
+          onClose={() => { setCreateModalOpen(false); setPendingTemplate(null); }}
         />
       )}
 
@@ -341,6 +370,65 @@ function CreateChoiceModal({ onFromScratch, onFromTemplate, onClose }: {
           </button>
         </div>
         <button onClick={onClose} className="btn btn-secondary w-full mt-4">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function CreatePageNameModal({ defaultName, onConfirm, onClose }: {
+  defaultName: string;
+  onConfirm: (name: string, connectPixel: boolean) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(defaultName);
+  const [connectPixel, setConnectPixel] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onConfirm(trimmed, connectPixel);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Name Your Page</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Page Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input w-full"
+              placeholder="My Landing Page"
+              autoFocus
+            />
+          </div>
+          <div className="flex items-center justify-between py-2 border-t border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Connect to Facebook Pixel</p>
+              <p className="text-xs text-gray-500">Track PageView, Lead &amp; Schedule</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConnectPixel(p => !p)}
+              className={`relative inline-flex h-6 w-11 rounded-full transition-colors flex-shrink-0 ${connectPixel ? 'bg-primary-600' : 'bg-gray-200'}`}
+            >
+              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${connectPixel ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="btn btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={!name.trim()} className="btn btn-primary flex-1">Create</button>
+          </div>
+        </form>
       </div>
     </div>
   );

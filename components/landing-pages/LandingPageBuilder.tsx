@@ -4,13 +4,13 @@ import { useState, useRef } from 'react';
 import {
   ArrowLeft, Save, Eye, Globe, Settings, Trash2,
   Plus, Type, Image, MousePointerClick, FormInput,
-  Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown, Code,
+  Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown,
   Upload, Loader, ImageIcon, Star,
 } from 'lucide-react';
 import LandingPageRenderer from './LandingPageRenderer';
-import TrackingPixelEditor from './TrackingPixelEditor';
-import type { LandingPage, TrackingPixel } from '@/types';
+import type { LandingPage } from '@/types';
 import type { LandingPageBlock, LandingPageContent } from '@/lib/landing-page-templates';
+import { toast } from 'sonner';
 
 interface LandingPageBuilderProps {
   page: LandingPage;
@@ -55,12 +55,11 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
   const [publishing, setPublishing] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [showPixels, setShowPixels] = useState(false);
   const [pageName, setPageName] = useState(page.name);
   const [pageSlug, setPageSlug] = useState(page.slug);
   const [metaTitle, setMetaTitle] = useState(page.meta_title || '');
   const [metaDescription, setMetaDescription] = useState(page.meta_description || '');
-  const [trackingPixels, setTrackingPixels] = useState<TrackingPixel[]>(page.tracking_pixels || []);
+  const [connectPixel, setConnectPixel] = useState(page.connect_pixel ?? false);
   const [customDomain, setCustomDomain] = useState(page.custom_domain || '');
   const [published, setPublished] = useState(page.published);
   const [isDirty, setIsDirty] = useState(false);
@@ -132,7 +131,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           content,
           meta_title: metaTitle,
           meta_description: metaDescription,
-          tracking_pixels: trackingPixels,
+          connect_pixel: connectPixel,
           custom_domain: customDomain.trim() || null,
         }),
       });
@@ -164,7 +163,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           content,
           meta_title: metaTitle,
           meta_description: metaDescription,
-          tracking_pixels: trackingPixels,
+          connect_pixel: connectPixel,
           custom_domain: customDomain.trim() || null,
           published: true,
         }),
@@ -208,13 +207,6 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
               {saveMessage}
             </span>
           )}
-          <button
-            onClick={() => setShowPixels(!showPixels)}
-            className={`btn btn-secondary text-sm flex items-center gap-1 ${showPixels ? 'bg-gray-200' : ''}`}
-          >
-            <Code className="w-4 h-4" />
-            Pixels
-          </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={`btn btn-secondary text-sm flex items-center gap-1 ${showSettings ? 'bg-gray-200' : ''}`}
@@ -295,13 +287,18 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
               <input value={metaDescription} onChange={(e) => { setMetaDescription(e.target.value); markDirty(); }} className="input text-sm" placeholder="Page description for SEO" />
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tracking Pixels Panel */}
-      {showPixels && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-          <TrackingPixelEditor pixels={trackingPixels} onChange={(px) => { setTrackingPixels(px); markDirty(); }} />
+          <div className="flex items-center justify-between py-3 mt-2 border-t border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Facebook Pixel</p>
+              <p className="text-xs text-gray-500">Track PageView, Lead &amp; Schedule events</p>
+            </div>
+            <button
+              onClick={() => { setConnectPixel(p => !p); markDirty(); }}
+              className={`relative inline-flex h-6 w-11 rounded-full transition-colors flex-shrink-0 ${connectPixel ? 'bg-primary-600' : 'bg-gray-200'}`}
+            >
+              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${connectPixel ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -409,10 +406,10 @@ function ImageUploadField({
       if (res.ok && data.url) {
         onChange(data.url);
       } else {
-        alert('Upload failed: ' + (data.error || 'Unknown error'));
+        toast.error('Upload failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err: any) {
-      alert('Upload error: ' + err.message);
+      toast.error('Upload error: ' + err.message);
     } finally {
       setUploading(false);
     }

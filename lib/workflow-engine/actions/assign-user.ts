@@ -120,15 +120,24 @@ export async function assignUserAction(
     }
 
     // Log activity
-    await supabaseAdmin.from('activities').insert({
-      account_id: context.accountId,
-      contact_id: context.contactId,
-      type: 'note',
-      subject: 'User Assigned',
-      description: `Contact assigned to user via workflow (${assignmentType})`,
-      completed: true,
-      created_by: context.accountId,
-    });
+    const { data: ownerMember } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', context.accountId)
+      .eq('role', 'owner')
+      .single();
+    const createdBy = ownerMember?.user_id;
+    if (createdBy) {
+      await supabaseAdmin.from('activities').insert({
+        account_id: context.accountId,
+        contact_id: context.contactId,
+        type: 'note',
+        subject: 'User Assigned',
+        description: `Contact assigned to user via workflow (${assignmentType})`,
+        completed: true,
+        created_by: createdBy,
+      });
+    }
 
     return {
       success: true,

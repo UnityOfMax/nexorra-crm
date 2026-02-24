@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 export async function POST(request: NextRequest) {
   try {
     const { accountId, to, message, contactId } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     if (!accountId || !to || !message) {
       return NextResponse.json(
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
         subject: `SMS to ${to}`,
         description: message,
         completed: true,
-        created_by: accountId,
+        created_by: userId,
       });
 
     if (activityError) {

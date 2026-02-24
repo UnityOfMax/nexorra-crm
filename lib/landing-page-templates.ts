@@ -27,6 +27,10 @@ export interface LandingPageContent {
     primaryColor: string;
     backgroundColor?: string;
   };
+  calendarSettings?: {
+    startHour?: number;
+    endHour?: number;
+  };
 }
 
 export interface PageTemplate {

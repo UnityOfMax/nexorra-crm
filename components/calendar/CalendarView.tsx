@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Check, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Activity } from '@/types';
@@ -315,7 +315,7 @@ function TimeGrid({
 }
 
 // ─── Week View ───────────────────────────────────────────────────────────────
-function WeekView({
+const WeekView = memo(function WeekView({
   weekStart, activities, googleIds, today, timezone, onCellClick, onEventClick,
 }: {
   weekStart: Date;
@@ -351,10 +351,10 @@ function WeekView({
       <TimeGrid days={days} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={onCellClick} onEventClick={onEventClick} />
     </div>
   );
-}
+});
 
 // ─── Day View ────────────────────────────────────────────────────────────────
-function DayView({
+const DayView = memo(function DayView({
   date, activities, googleIds, today, timezone, onCellClick, onEventClick,
 }: {
   date: Date;
@@ -379,10 +379,10 @@ function DayView({
       <TimeGrid days={[date]} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={onCellClick} onEventClick={onEventClick} />
     </div>
   );
-}
+});
 
 // ─── Month View ──────────────────────────────────────────────────────────────
-function MonthView({
+const MonthView = memo(function MonthView({
   currentDate, activities, googleIds, today, timezone, onDayClick, onEventClick,
 }: {
   currentDate: Date;
@@ -464,7 +464,7 @@ function MonthView({
       </div>
     </div>
   );
-}
+});
 
 // ─── Main CalendarView ───────────────────────────────────────────────────────
 export default function CalendarView({ accountId, userId, defaultTimezone }: CalendarViewProps) {
@@ -499,13 +499,13 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
     if (view === 'week') {
       const start = startOfWeek(currentDate);
       const end = addDays(start, 6);
-      end.setHours(23, 59, 59);
+      end.setHours(23, 59, 59, 999);
       return { start, end };
     }
     const start = new Date(currentDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(currentDate);
-    end.setHours(23, 59, 59);
+    end.setHours(23, 59, 59, 999);
     return { start, end };
   }, [view, currentDate]);
 

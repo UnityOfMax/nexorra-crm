@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 export async function POST(request: NextRequest) {
   console.log('=== EMAIL SEND API CALLED ===');
@@ -9,6 +10,10 @@ export async function POST(request: NextRequest) {
     const { accountId, to, subject, htmlContent, textContent, contactId } = await request.json();
 
     console.log('Email request:', { accountId, to, subject, contactId });
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     if (!accountId || !to || !subject || (!htmlContent && !textContent)) {
       return NextResponse.json(
@@ -42,15 +47,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fromEmail = account.settings?.from_email;
+    const fromEmail = account.settings?.from_email || 'test@email.ourlimitedoffer.com';
     const fromName = account.settings?.from_name || 'CRM System';
-
-    if (!fromEmail) {
-      return NextResponse.json(
-        { error: 'No "from" email configured. Please add it in Settings.' },
-        { status: 400 }
-      );
-    }
 
     console.log('Sending via Resend...');
     console.log('From:', `${fromName} <${fromEmail}>`);
@@ -106,7 +104,7 @@ export async function POST(request: NextRequest) {
       subject: subject,
       description: textContent || htmlContent.substring(0, 500),
       completed: true,
-      created_by: accountId,
+      created_by: userId,
     });
 
     console.log('=== EMAIL SENT SUCCESSFULLY ===');

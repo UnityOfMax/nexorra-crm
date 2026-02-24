@@ -93,6 +93,14 @@ function getFieldValue(context: WorkflowContext, field: string): any {
     return variables.deal[parts[1]];
   }
 
+  if (parts[0] === 'user' && variables.user) {
+    return variables.user[parts[1]];
+  }
+
+  if (parts[0] === 'account' && variables.account) {
+    return variables.account[parts[1]];
+  }
+
   // Fallback to direct variable access
   return variables[field];
 }

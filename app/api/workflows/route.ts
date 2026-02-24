@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
-// GET /api/workflows?accountId=xxx - List all workflows for an account
+// GET /api/workflows?accountId=xxx&limit=50&offset=0 - List all workflows for an account
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
 
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId is required' },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
-    const { data: workflows, error } = await supabaseAdmin
+    const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
+    const offset = Number(searchParams.get('offset') ?? 0);
+
+    const { data: workflows, error, count } = await supabaseAdmin
       .from('workflows')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('account_id', accountId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error fetching workflows:', error);
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ workflows: workflows || [] });
+    return NextResponse.json({ workflows: workflows || [], total: count ?? 0, limit, offset });
   } catch (error: any) {
     console.error('Workflow GET error:', error);
     return NextResponse.json(
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
       isActive,
       createdBy,
     } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !name || !triggerType || !workflowDefinition || !createdBy) {
       return NextResponse.json(

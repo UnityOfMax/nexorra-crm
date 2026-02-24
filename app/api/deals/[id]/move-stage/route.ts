@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // PUT /api/deals/[id]/move-stage - Move a deal to a different pipeline stage
 export async function PUT(
@@ -30,6 +31,10 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const auth = await requireAccountAccess(request, deal.account_id);
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     const oldStageId = deal.pipeline_stage_id;
 
@@ -91,7 +96,7 @@ export async function PUT(
       subject: 'Deal Stage Changed',
       description: `Deal moved to ${newStage.name}`,
       completed: true,
-      created_by: deal.account_id, // TODO: Get actual user ID from auth
+      created_by: userId,
     });
 
     // Trigger workflows for deal stage change

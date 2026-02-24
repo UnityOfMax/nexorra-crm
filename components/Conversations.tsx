@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Contact } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { Send, MessageSquare, Phone, Mail, Loader, Search, X, Bot, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface ConversationsProps {
@@ -155,7 +156,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         supabase.removeChannel(channel);
       };
     }
-  }, [selectedContact, aiConfig, contactAiEnabled]);
+  }, [selectedContact, aiConfig, contactAiEnabled, accountId]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -270,10 +271,10 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         loadMessages();
       } else {
         const data = await response.json();
-        alert('Error: ' + (data.error || 'Failed to send message'));
+        toast.error(data.error || 'Failed to send message');
       }
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error('Error: ' + error.message);
     } finally {
       setSending(false);
     }
@@ -281,7 +282,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
   const handleSendEmail = async () => {
     if (!selectedContact?.email || !newMessage.trim() || !emailSubject.trim()) {
-      alert('Please enter both subject and message');
+      toast.error('Please enter both subject and message');
       return;
     }
 
@@ -312,10 +313,10 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         loadMessages();
       } else {
         const data = await response.json();
-        alert('Error: ' + (data.error || 'Failed to send email'));
+        toast.error(data.error || 'Failed to send email');
       }
     } catch (error: any) {
-      alert('Error: ' + error.message);
+      toast.error('Error: ' + error.message);
     } finally {
       setSending(false);
     }

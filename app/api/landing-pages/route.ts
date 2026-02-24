@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/landing-pages?accountId=...
 export async function GET(request: NextRequest) {
@@ -7,9 +8,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
 
-    if (!accountId) {
-      return NextResponse.json({ error: 'accountId is required' }, { status: 400 });
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     const { data, error } = await supabaseAdmin
       .from('landing_pages')
@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
 // POST /api/landing-pages
 export async function POST(request: NextRequest) {
   try {
-    const { accountId, name, slug, content, meta_title, meta_description, tracking_pixels } = await request.json();
+    const { accountId, name, slug, content, meta_title, meta_description, connect_pixel } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !name || !slug) {
       return NextResponse.json({ error: 'accountId, name, and slug are required' }, { status: 400 });
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
         published: false,
         meta_title: meta_title || name,
         meta_description: meta_description || '',
-        tracking_pixels: tracking_pixels || [],
+        connect_pixel: connect_pixel === true,
       })
       .select()
       .single();

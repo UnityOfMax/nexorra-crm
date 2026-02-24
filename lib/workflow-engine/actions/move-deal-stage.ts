@@ -8,6 +8,14 @@ export async function moveDealStageAction(
   try {
     const { pipelineId, stageId, createIfMissing } = config;
 
+    const { data: ownerMember } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', context.accountId)
+      .eq('role', 'owner')
+      .single();
+    const createdBy = ownerMember?.user_id;
+
     if (!stageId) {
       return {
         success: false,
@@ -58,16 +66,18 @@ export async function moveDealStageAction(
       dealId = newDeal.id;
 
       // Log activity
-      await supabaseAdmin.from('activities').insert({
-        account_id: context.accountId,
-        contact_id: context.contactId,
-        deal_id: dealId,
-        type: 'note',
-        subject: 'Deal Created',
-        description: `Deal created via workflow and moved to ${stage.name}`,
-        completed: true,
-        created_by: context.accountId,
-      });
+      if (createdBy) {
+        await supabaseAdmin.from('activities').insert({
+          account_id: context.accountId,
+          contact_id: context.contactId,
+          deal_id: dealId,
+          type: 'note',
+          subject: 'Deal Created',
+          description: `Deal created via workflow and moved to ${stage.name}`,
+          completed: true,
+          created_by: createdBy,
+        });
+      }
 
       return {
         success: true,
@@ -132,16 +142,18 @@ export async function moveDealStageAction(
     }
 
     // Log activity
-    await supabaseAdmin.from('activities').insert({
-      account_id: context.accountId,
-      contact_id: context.contactId,
-      deal_id: dealId,
-      type: 'note',
-      subject: 'Deal Moved',
-      description: `Deal moved to ${stage.name} via workflow`,
-      completed: true,
-      created_by: context.accountId,
-    });
+    if (createdBy) {
+      await supabaseAdmin.from('activities').insert({
+        account_id: context.accountId,
+        contact_id: context.contactId,
+        deal_id: dealId,
+        type: 'note',
+        subject: 'Deal Moved',
+        description: `Deal moved to ${stage.name} via workflow`,
+        completed: true,
+        created_by: createdBy,
+      });
+    }
 
     return {
       success: true,

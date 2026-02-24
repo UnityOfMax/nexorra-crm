@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
+import ThemeToggle from './ThemeToggle';
 import type { Account } from '@/types';
 import type { UserRole } from '@/types/agency';
 
@@ -55,7 +56,8 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="p-4 border-b border-gray-200">
+      {/* Account switcher */}
+      <div className="p-4 border-b border-gray-200/60 dark:border-gray-700/60">
         <AccountSwitcherDropdown
           currentAccount={currentAccount}
           accounts={accounts}
@@ -65,8 +67,9 @@ function SidebarContent({
         />
       </div>
 
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <ul className="space-y-1">
+      {/* Nav items */}
+      <nav className="flex-1 p-3 overflow-y-auto">
+        <ul className="space-y-0.5">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -74,13 +77,14 @@ function SidebarContent({
               <li key={item.id}>
                 <button
                   onClick={() => { onViewChange(item.id); onClose?.(); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-sm ${
                     isActive
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      ? 'bg-primary-500/10 text-primary-700 font-semibold dark:bg-primary-500/20 dark:text-primary-400'
+                      : 'text-gray-600 hover:bg-gray-500/8 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/8 dark:hover:text-gray-100'
                   }`}
+                  style={isActive ? { boxShadow: '0 1px 4px rgba(2,132,199,0.15)' } : undefined}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : ''}`} />
                   <span>{item.label}</span>
                 </button>
               </li>
@@ -89,19 +93,22 @@ function SidebarContent({
         </ul>
       </nav>
 
-      {/* Settings pinned at bottom */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Footer: Settings + ThemeToggle */}
+      <div className="p-3 border-t border-gray-200/60 dark:border-gray-700/60">
         <button
           onClick={() => { onViewChange('settings'); onClose?.(); }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-sm mb-1 ${
             activeView === 'settings'
-              ? 'bg-primary-50 text-primary-700 font-medium'
-              : 'text-gray-700 hover:bg-gray-50'
+              ? 'bg-primary-500/10 text-primary-700 font-semibold dark:bg-primary-500/20 dark:text-primary-400'
+              : 'text-gray-600 hover:bg-gray-500/8 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/8 dark:hover:text-gray-100'
           }`}
         >
-          <Settings className="w-5 h-5 flex-shrink-0" />
+          <Settings className={`w-[18px] h-[18px] flex-shrink-0 ${activeView === 'settings' ? 'text-primary-600 dark:text-primary-400' : ''}`} />
           <span>Settings</span>
         </button>
+        <div className="flex items-center justify-end px-1 pt-1">
+          <ThemeToggle />
+        </div>
       </div>
     </>
   );
@@ -139,29 +146,30 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile hamburger button — shown only on small screens */}
+      {/* Mobile hamburger */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200"
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-card border border-gray-200/60 dark:border-gray-700/60"
         onClick={() => setMobileOpen(true)}
         aria-label="Open menu"
       >
-        <Menu className="w-5 h-5 text-gray-700" />
+        <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />
       </button>
 
-      {/* Mobile drawer overlay */}
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}
         >
           <aside
-            className="absolute left-0 top-0 bottom-0 w-72 bg-white flex flex-col shadow-xl"
+            className="absolute left-0 top-0 bottom-0 w-72 bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-xl flex flex-col"
+            style={{ boxShadow: '4px 0 32px rgba(0,0,0,0.18)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <span className="font-semibold text-gray-900">Menu</span>
-              <button onClick={() => setMobileOpen(false)} className="p-1 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5 text-gray-600" />
+            <div className="flex items-center justify-between p-4 border-b border-gray-200/60 dark:border-gray-700/60">
+              <span className="font-semibold text-gray-900 dark:text-gray-100">Menu</span>
+              <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
             </div>
             <SidebarContent {...sharedProps} onClose={() => setMobileOpen(false)} />
@@ -169,8 +177,10 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Desktop sidebar — hidden on mobile */}
-      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0">
+      {/* Desktop sidebar */}
+      <aside
+        className="hidden md:flex w-64 flex-col flex-shrink-0 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-700/50"
+      >
         <SidebarContent {...sharedProps} />
       </aside>
     </>

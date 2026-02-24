@@ -54,15 +54,24 @@ export async function addTagAction(
     }
 
     // Log activity
-    await supabaseAdmin.from('activities').insert({
-      account_id: context.accountId,
-      contact_id: context.contactId,
-      type: 'note',
-      subject: 'Tags Added',
-      description: `Added tags via workflow: ${tags.join(', ')}`,
-      completed: true,
-      created_by: context.accountId,
-    });
+    const { data: ownerMember } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', context.accountId)
+      .eq('role', 'owner')
+      .single();
+    const createdBy = ownerMember?.user_id;
+    if (createdBy) {
+      await supabaseAdmin.from('activities').insert({
+        account_id: context.accountId,
+        contact_id: context.contactId,
+        type: 'note',
+        subject: 'Tags Added',
+        description: `Added tags via workflow: ${tags.join(', ')}`,
+        completed: true,
+        created_by: createdBy,
+      });
+    }
 
     return {
       success: true,

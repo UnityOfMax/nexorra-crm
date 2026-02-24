@@ -4,6 +4,7 @@ import { sendInvitationEmail } from '@/lib/email/send-invitation';
 import { getDefaultPermissions } from '@/types/agency';
 import type { UserRole } from '@/types/agency';
 import crypto from 'crypto';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/invitations - List invitations for an account
 export async function GET(request: NextRequest) {
@@ -11,12 +12,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
 
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId is required' },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     const { data: invitations, error } = await supabaseAdmin
       .from('user_invitations')
@@ -56,6 +53,9 @@ export async function POST(request: NextRequest) {
       invitedBy,
       customPermissions
     } = await request.json();
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !email || !role || !invitedBy) {
       return NextResponse.json(

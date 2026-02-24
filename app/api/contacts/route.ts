@@ -1,37 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/contacts?accountId=X
+// GET /api/contacts?accountId=X&limit=50&offset=0
 // Uses supabaseAdmin to bypass RLS so agency owners can view sub-account contacts.
 export async function GET(request: NextRequest) {
-  const accountId = request.nextUrl.searchParams.get('accountId');
-  if (!accountId) {
-    return NextResponse.json({ error: 'accountId required' }, { status: 400 });
-  }
+  const { searchParams } = request.nextUrl;
+  const accountId = searchParams.get('accountId');
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
 
-  const { data, error } = await supabaseAdmin
+  const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
+  const offset = Number(searchParams.get('offset') ?? 0);
+
+  const { data, error, count } = await supabaseAdmin
     .from('contacts')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('account_id', accountId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('Contacts fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch contacts' }, { status: 500 });
   }
 
-  return NextResponse.json({ contacts: data || [] });
+  return NextResponse.json({ contacts: data || [], total: count ?? 0, limit, offset });
 }
 
 // PATCH /api/contacts?id=X&accountId=Y
 export async function PATCH(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
   const accountId = request.nextUrl.searchParams.get('accountId');
-  if (!id || !accountId) {
-    return NextResponse.json({ error: 'id and accountId required' }, { status: 400 });
-  }
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
 
   const updates = await request.json();
   // Strip fields that shouldn't be updated directly
@@ -57,9 +63,10 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
   const accountId = request.nextUrl.searchParams.get('accountId');
-  if (!id || !accountId) {
-    return NextResponse.json({ error: 'id and accountId required' }, { status: 400 });
-  }
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
 
   const { error } = await supabaseAdmin
     .from('contacts')

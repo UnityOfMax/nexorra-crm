@@ -57,6 +57,10 @@ export default function SMSActionConfig({ node, onUpdate }: SMSActionConfigProps
           <div><code>{'{{contact.phone}}'}</code> - Contact phone</div>
           <div><code>{'{{deal.title}}'}</code> - Deal title (if applicable)</div>
           <div><code>{'{{deal.value}}'}</code> - Deal value (if applicable)</div>
+          <div className="pt-1 border-t border-blue-200 mt-1"><code>{'{{user.firstname}}'}</code> - Your first name</div>
+          <div><code>{'{{user.lastname}}'}</code> - Your last name</div>
+          <div><code>{'{{user.phone}}'}</code> - Your phone number</div>
+          <div><code>{'{{account.name}}'}</code> - Business name</div>
         </div>
       </div>
 

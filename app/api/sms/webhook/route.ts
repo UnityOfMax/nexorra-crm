@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import twilio from 'twilio';
 
 export async function POST(request: NextRequest) {
   console.log('=== WEBHOOK CALLED ===');
   console.log('Time:', new Date().toISOString());
-  console.log('Headers:', Object.fromEntries(request.headers.entries()));
-  
+
   try {
     const formData = await request.formData();
     console.log('Form Data received:', Object.fromEntries(formData.entries()));
-    
+
     const from = formData.get('From') as string;
     const to = formData.get('To') as string;
     const body = formData.get('Body') as string;
@@ -28,18 +28,12 @@ export async function POST(request: NextRequest) {
       .from('accounts')
       .select('id, settings');
 
-    console.log('All accounts:', accounts);
     console.log('Accounts error:', accountsError);
 
     if (!accounts || accounts.length === 0) {
       console.error('No accounts found in database');
       return new NextResponse('No accounts found', { status: 404 });
     }
-
-    // Log all twilio numbers
-    accounts.forEach(acc => {
-      console.log(`Account ${acc.id} has Twilio number:`, acc.settings?.twilio_phone_number);
-    });
 
     const account = accounts?.find(
       (acc) => acc.settings?.twilio_phone_number === to
@@ -50,8 +44,28 @@ export async function POST(request: NextRequest) {
 
     if (!account) {
       console.error('No account found for Twilio number:', to);
-      console.error('Available numbers:', accounts.map(a => a.settings?.twilio_phone_number));
       return new NextResponse('Account not found for this number', { status: 404 });
+    }
+
+    // Validate Twilio signature before processing
+    const twilioSignature = request.headers.get('X-Twilio-Signature') || '';
+    const authToken =
+      account.settings?.sms_config?.twilio_auth_token ||
+      process.env.TWILIO_AUTH_TOKEN ||
+      '';
+
+    if (authToken) {
+      const fullUrl = request.url;
+      const params: Record<string, string> = {};
+      formData.forEach((value, key) => {
+        params[key] = value as string;
+      });
+
+      const isValid = twilio.validateRequest(authToken, twilioSignature, fullUrl, params);
+      if (!isValid) {
+        console.error('[sms/webhook] Invalid Twilio signature');
+        return new NextResponse('Forbidden', { status: 403 });
+      }
     }
 
     console.log('Found account:', account.id);
@@ -81,14 +95,14 @@ export async function POST(request: NextRequest) {
         })
         .select('id')
         .single();
-      
+
       console.log('New contact created:', newContact);
       console.log('Create error:', createError);
-      
+
       if (createError) {
         console.error('Error creating contact:', createError);
       }
-      
+
       contact = newContact;
     }
 

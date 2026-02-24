@@ -1,7 +1,7 @@
 'use client';
 
 import { Handle, Position } from 'reactflow';
-import { Mail, MessageSquare, Tag, User, TrendingUp, Plus } from 'lucide-react';
+import { Mail, MessageSquare, Tag, User, TrendingUp, Plus, Target } from 'lucide-react';
 
 interface ActionNodeProps {
   data: {
@@ -23,60 +23,58 @@ const getActionIcon = (stepType: string) => {
     update_contact: User,
     update_deal: TrendingUp,
     create_task: Plus,
+    create_opportunity: Target,
   };
   return icons[stepType] || Plus;
 };
 
+// Show one key config value as a subtitle
+const getConfigPreview = (stepType: string, config?: Record<string, any>): string | null => {
+  if (!config) return null;
+  if (stepType === 'send_email') return config.subject ? `"${String(config.subject).slice(0, 28)}"` : null;
+  if (stepType === 'send_sms') return config.message ? `"${String(config.message).slice(0, 28)}"` : null;
+  if (stepType === 'add_tag') return config.tags?.length ? config.tags.slice(0, 2).join(', ') : null;
+  if (stepType === 'assign_user') return config.assignmentType || null;
+  if (stepType === 'move_deal_stage') return config.stageId ? `Stage configured` : null;
+  if (stepType === 'create_opportunity') return config.pipelineId ? `Pipeline set` : null;
+  return null;
+};
+
 export default function ActionNode({ data, selected }: ActionNodeProps) {
   const Icon = getActionIcon(data.stepType);
+  const preview = getConfigPreview(data.stepType, data.config);
 
   return (
     <div
-      className={`px-4 py-3 rounded-lg border-2 bg-gradient-to-br from-blue-50 to-sky-50 min-w-[200px] transition-shadow ${
-        selected
-          ? 'border-blue-500 shadow-lg ring-2 ring-blue-200'
-          : 'border-blue-400 shadow-md'
+      className={`px-3 py-2 rounded-lg border bg-blue-50 min-w-[160px] max-w-[220px] ${
+        selected ? 'border-blue-500 shadow-md ring-1 ring-blue-300' : 'border-blue-300 shadow-sm'
       }`}
     >
-      {/* Input Handle */}
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="!bg-blue-500 !w-2.5 !h-2.5 !border-2 !border-white"
       />
 
-      {/* Icon and Label */}
-      <div className="flex items-center gap-2 mb-2">
-        <div className="p-1.5 bg-blue-500 rounded-md">
-          <Icon className="w-4 h-4 text-white" />
+      <div className="flex items-center gap-2">
+        <div className="p-1 bg-blue-500 rounded shrink-0">
+          <Icon className="w-3 h-3 text-white" />
         </div>
-        <div className="flex-1">
-          <div className="text-xs font-medium text-blue-700 uppercase tracking-wide">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide leading-none mb-0.5">
             Action
           </div>
-          <div className="text-sm font-semibold text-gray-900">{data.label}</div>
+          <div className="text-xs font-semibold text-gray-800 truncate">{data.label}</div>
+          {preview && (
+            <div className="text-[10px] text-gray-500 truncate mt-0.5">{preview}</div>
+          )}
         </div>
       </div>
 
-      {/* Config Preview */}
-      {data.config && Object.keys(data.config).length > 0 && (
-        <div className="mt-2 pt-2 border-t border-blue-200">
-          <div className="text-xs text-gray-600 space-y-1">
-            {Object.entries(data.config).slice(0, 2).map(([key, value]) => (
-              <div key={key} className="truncate">
-                <span className="font-medium">{key}:</span> {String(value).substring(0, 30)}
-                {String(value).length > 30 && '...'}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        className="!bg-blue-500 !w-2.5 !h-2.5 !border-2 !border-white"
       />
     </div>
   );

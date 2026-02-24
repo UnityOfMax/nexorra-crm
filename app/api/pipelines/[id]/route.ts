@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/pipelines/[id] - Get a single pipeline with its stages
 export async function GET(
@@ -25,6 +26,9 @@ export async function GET(
       );
     }
 
+    const auth = await requireAccountAccess(request, pipeline.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     return NextResponse.json({ pipeline });
   } catch (error: any) {
     console.error('Pipeline GET error:', error);
@@ -42,6 +46,20 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('pipelines')
+      .select('account_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     const { name, description, type, isDefault } = await request.json();
 
     const updates: any = {};
@@ -53,20 +71,12 @@ export async function PUT(
 
       // If setting as default, unset any existing default
       if (isDefault) {
-        const { data: pipeline } = await supabaseAdmin
+        await supabaseAdmin
           .from('pipelines')
-          .select('account_id')
-          .eq('id', id)
-          .single();
-
-        if (pipeline) {
-          await supabaseAdmin
-            .from('pipelines')
-            .update({ is_default: false })
-            .eq('account_id', pipeline.account_id)
-            .eq('is_default', true)
-            .neq('id', id);
-        }
+          .update({ is_default: false })
+          .eq('account_id', existing.account_id)
+          .eq('is_default', true)
+          .neq('id', id);
       }
     }
 
@@ -105,6 +115,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('pipelines')
+      .select('account_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     // Check if there are any deals in this pipeline
     const { data: deals, error: dealsError } = await supabaseAdmin

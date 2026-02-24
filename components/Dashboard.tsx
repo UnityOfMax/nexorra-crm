@@ -17,6 +17,8 @@ import CalendarView from './calendar/CalendarView';
 import LandingPageList from './landing-pages/LandingPageList';
 import AIAgent from './AIAgent';
 import type { UserRole } from '@/types/agency';
+import PushNotificationSetup from './PushNotificationSetup';
+import ErrorBoundary from './ErrorBoundary';
 
 interface DashboardProps {
   user: User;
@@ -351,7 +353,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         // Unified dashboard
         return (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Overview</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Dashboard Overview</h2>
 
             {/* Viewing sub-account banner */}
             {isViewingClient && isAgencyUser && (
@@ -389,7 +391,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                       <p className="text-sm text-gray-600">Sub-Accounts</p>
                       <p className="text-3xl font-bold text-gray-900 mt-1">{clientAccounts.length}</p>
                     </div>
-                    <div className="p-3 bg-indigo-100 rounded-lg">
+                    <div className="p-3 bg-indigo-100 rounded-xl">
                       <Building2 className="w-6 h-6 text-indigo-600" />
                     </div>
                   </div>
@@ -403,7 +405,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                         {clientAccounts.reduce((sum: number, c: any) => sum + (c.members?.[0]?.count || 0), 0)}
                       </p>
                     </div>
-                    <div className="p-3 bg-green-100 rounded-lg">
+                    <div className="p-3 bg-green-100 rounded-xl">
                       <Users className="w-6 h-6 text-green-600" />
                     </div>
                   </div>
@@ -415,7 +417,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                       <p className="text-sm text-gray-600">Manage Accounts</p>
                       <p className="text-sm font-medium text-primary-600 mt-2">View Sub-Accounts →</p>
                     </div>
-                    <div className="p-3 bg-primary-100 rounded-lg">
+                    <div className="p-3 bg-primary-100 rounded-xl">
                       <Building2 className="w-6 h-6 text-primary-600" />
                     </div>
                   </div>
@@ -431,7 +433,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                     <p className="text-sm text-gray-600">Total Contacts</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalContacts}</p>
                   </div>
-                  <div className="p-3 bg-primary-100 rounded-lg">
+                  <div className="p-3 bg-primary-100 rounded-xl">
                     <Users className="w-6 h-6 text-primary-600" />
                   </div>
                 </div>
@@ -443,7 +445,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                     <p className="text-sm text-gray-600">Active Leads</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalLeads}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
+                  <div className="p-3 bg-green-100 rounded-xl">
                     <TrendingUp className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
@@ -455,7 +457,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                     <p className="text-sm text-gray-600">Customers</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalCustomers}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
+                  <div className="p-3 bg-blue-100 rounded-xl">
                     <Mail className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
@@ -467,7 +469,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                     <p className="text-sm text-gray-600">Active Deals</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{stats.activeDeals}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
+                  <div className="p-3 bg-purple-100 rounded-xl">
                     <Phone className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
@@ -484,7 +486,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
               ) : (
                 <div className="space-y-3">
                   {contacts.slice(0, 5).map((contact) => (
-                    <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                       <div>
                         <p className="font-medium text-gray-900">
                           {contact.first_name} {contact.last_name}
@@ -533,7 +535,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#f5f5f7] dark:bg-[#1c1c1e]">
+      {currentAccount && <PushNotificationSetup accountId={currentAccount.id} />}
       {isAgencyUser ? (
         <Sidebar
           activeView={activeView}
@@ -557,17 +560,17 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header — add left padding on mobile for hamburger button */}
-        <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 pl-16 md:pl-6">
+        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 pl-16 md:pl-6 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <h1 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
                 {activeView === 'dashboard' ? 'Dashboard' :
                  activeView === 'sub-accounts' ? 'Sub-Accounts' :
                  activeView === 'pipelines' ? 'Opportunities' :
                  activeView === 'pages' ? 'Landing Pages' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
-              <p className="text-sm text-gray-600 mt-0.5 truncate">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">
                 {isViewingClient && isAgencyUser ? (
                   <span className="flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
@@ -582,8 +585,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {renderContent()}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 dark:text-gray-100">
+          <ErrorBoundary key={activeView} label={activeView}>
+            {renderContent()}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

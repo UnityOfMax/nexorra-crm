@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,12 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get('start');
     const end = searchParams.get('end');
 
-    if (!accountId || !start || !end) {
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+
+    if (!start || !end) {
       return NextResponse.json(
-        { error: 'accountId, start, and end are required' },
+        { error: 'start and end are required' },
         { status: 400 }
       );
     }
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
       .from('activities')
       .select('*')
       .eq('account_id', accountId)
-      .eq('type', 'meeting')
+      .in('type', ['meeting', 'appointment'])
       .gte('due_date', start)
       .lte('due_date', end)
       .order('due_date', { ascending: true });

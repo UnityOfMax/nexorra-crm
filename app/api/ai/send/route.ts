@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // POST /api/ai/send
 // Generates an AI response and sends it via the appropriate channel.
@@ -8,6 +9,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { accountId, contactId, channel, isFollowUp, followUpCount } = body;
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     if (!accountId || !contactId || !channel) {
       return NextResponse.json({ error: 'accountId, contactId, and channel required' }, { status: 400 });

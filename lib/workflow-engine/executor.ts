@@ -30,6 +30,26 @@ export async function executeWorkflow(
       return '';
     }
 
+    // Idempotency: skip if an execution already started for this contact+workflow within the last 5 minutes
+    const contactId = triggerData.contactId;
+    if (contactId) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: existing } = await supabaseAdmin
+        .from('workflow_executions')
+        .select('id')
+        .eq('workflow_id', workflowId)
+        .eq('trigger_type', triggerType)
+        .filter('trigger_data->>contactId', 'eq', contactId)
+        .gte('started_at', fiveMinutesAgo)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`[executor] Skipping duplicate execution for workflow ${workflowId}, contact ${contactId}`);
+        return existing.id;
+      }
+    }
+
     // Create execution record
     const { data: execution, error: execError } = await supabaseAdmin
       .from('workflow_executions')
@@ -56,7 +76,7 @@ export async function executeWorkflow(
       userId: triggerData.userId,
       triggerType,
       triggerData,
-      variables: await loadContextVariables(triggerData),
+      variables: await loadContextVariables(triggerData, accountId),
     };
 
     // Start execution
@@ -353,7 +373,10 @@ export async function resumeWorkflowExecution(
   }
 }
 
-async function loadContextVariables(triggerData: Record<string, any>): Promise<Record<string, any>> {
+async function loadContextVariables(
+  triggerData: Record<string, any>,
+  accountId: string
+): Promise<Record<string, any>> {
   const variables: Record<string, any> = { ...triggerData };
 
   // Load contact if available
@@ -379,6 +402,52 @@ async function loadContextVariables(triggerData: Record<string, any>): Promise<R
 
     if (deal) {
       variables.deal = deal;
+    }
+  }
+
+  // Load account data (for {{account.*}} variables)
+  const { data: account } = await supabaseAdmin
+    .from('accounts')
+    .select('id, name, settings')
+    .eq('id', accountId)
+    .maybeSingle();
+
+  if (account) {
+    variables.account = {
+      name: account.name,
+      phone: account.settings?.location?.phone || '',
+      email: account.settings?.location?.email || '',
+      address: account.settings?.location?.address || '',
+    };
+
+    // Load account owner's user data (for {{user.*}} variables)
+    const { data: ownerMembership } = await supabaseAdmin
+      .from('account_members')
+      .select('user_id')
+      .eq('account_id', accountId)
+      .eq('role', 'owner')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (ownerMembership) {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('id, email, full_name')
+        .eq('id', ownerMembership.user_id)
+        .maybeSingle();
+
+      if (user) {
+        const nameParts = (user.full_name || '').trim().split(/\s+/);
+        variables.user = {
+          id: user.id,
+          email: user.email || '',
+          full_name: user.full_name || '',
+          firstname: nameParts[0] || '',
+          lastname: nameParts.slice(1).join(' ') || '',
+          phone: account.settings?.location?.phone || '',
+        };
+      }
     }
   }
 

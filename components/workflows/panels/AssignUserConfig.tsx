@@ -3,28 +3,58 @@
 import { useState, useEffect } from 'react';
 import { Node } from 'reactflow';
 
+interface AccountMember {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+}
+
 interface AssignUserConfigProps {
   node: Node;
   onUpdate: (data: any) => void;
+  accountId?: string;
 }
 
-export default function AssignUserConfig({ node, onUpdate }: AssignUserConfigProps) {
+export default function AssignUserConfig({ node, onUpdate, accountId }: AssignUserConfigProps) {
   const [assignmentType, setAssignmentType] = useState(
     node.data.config?.assignmentType || 'specific'
   );
   const [userId, setUserId] = useState(node.data.config?.userId || '');
-  const [roundRobin, setRoundRobin] = useState(node.data.config?.roundRobin || false);
+  const [members, setMembers] = useState<AccountMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
+  // Fetch account members for the dropdown
+  useEffect(() => {
+    if (!accountId) return;
+    setLoadingMembers(true);
+    fetch(`/api/account-members?accountId=${accountId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const loaded: AccountMember[] = d.members || [];
+        setMembers(loaded);
+        // Auto-select first member if nothing selected yet
+        if (!userId && loaded.length > 0) {
+          setUserId(loaded[0].id);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMembers(false));
+  }, [accountId]);
+
+  // Push config updates upward
   useEffect(() => {
     onUpdate({
       config: {
         ...node.data.config,
         assignmentType,
-        userId,
-        roundRobin,
+        userId: assignmentType === 'specific' ? userId : '',
       },
     });
-  }, [assignmentType, userId, roundRobin]);
+  }, [assignmentType, userId]);
+
+  const displayName = (m: AccountMember) =>
+    m.full_name ? `${m.full_name} (${m.email})` : m.email;
 
   return (
     <div className="space-y-4">
@@ -38,62 +68,59 @@ export default function AssignUserConfig({ node, onUpdate }: AssignUserConfigPro
           className="input w-full"
         >
           <option value="specific">Assign to specific user</option>
-          <option value="round_robin">Round robin assignment</option>
-          <option value="least_busy">Assign to least busy user</option>
+          <option value="round_robin">Round robin (distribute evenly)</option>
+          <option value="least_busy">Least busy user</option>
         </select>
       </div>
 
       {assignmentType === 'specific' && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            User ID
+            Select User
           </label>
-          <input
-            type="text"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="input w-full"
-            placeholder="Enter user ID or email"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Enter the user ID or email address to assign contacts to
-          </p>
+          {loadingMembers ? (
+            <p className="text-xs text-gray-500">Loading users…</p>
+          ) : members.length === 0 ? (
+            <p className="text-xs text-amber-600">No users found for this account.</p>
+          ) : (
+            <select
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="input w-full"
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {displayName(m)}{m.role === 'owner' ? ' — Owner' : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 
       {assignmentType === 'round_robin' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <h4 className="text-xs font-semibold text-blue-900 mb-1">
-            Round Robin Assignment
-          </h4>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <h4 className="text-xs font-semibold text-blue-900 mb-1">Round Robin</h4>
           <p className="text-xs text-blue-700">
-            Contacts will be distributed evenly among all active users in your account.
-            The system will automatically track who received the last assignment and
-            assign the next contact to the next user in rotation.
+            Contacts are distributed evenly among all users in your account, rotating with each new assignment.
           </p>
         </div>
       )}
 
       {assignmentType === 'least_busy' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <h4 className="text-xs font-semibold text-blue-900 mb-1">
-            Least Busy Assignment
-          </h4>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <h4 className="text-xs font-semibold text-blue-900 mb-1">Least Busy</h4>
           <p className="text-xs text-blue-700">
-            Contacts will be assigned to the user with the fewest active contacts.
-            This helps balance workload across your team automatically.
+            Contacts are assigned to the user with the fewest active contacts, balancing workload automatically.
           </p>
         </div>
       )}
 
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-purple-900 mb-1">
-          Assignment Notes
-        </h4>
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+        <h4 className="text-xs font-semibold text-purple-900 mb-1">Assignment Notes</h4>
         <ul className="text-xs text-purple-700 space-y-1 list-disc list-inside">
-          <li>The assigned user will receive a notification</li>
-          <li>The contact will appear in the user's assigned list</li>
-          <li>This can be changed manually later if needed</li>
+          <li>The contact will appear in the assigned user's list</li>
+          <li>Assignment can be changed manually later</li>
         </ul>
       </div>
     </div>

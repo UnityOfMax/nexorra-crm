@@ -1,4 +1,5 @@
 import { WorkflowContext, ExecutionResult } from '../types';
+import { fetchWithRetry } from '@/lib/utils/retry';
 
 export async function aiRespondAction(
   context: WorkflowContext,
@@ -23,15 +24,19 @@ export async function aiRespondAction(
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/api/ai/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        accountId: context.accountId,
-        contactId: context.contactId,
-        channel,
-      }),
-    });
+    // AI calls can be slow — use retry + 15s timeout
+    const response = await fetchWithRetry(
+      `${baseUrl}/api/ai/send`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: context.accountId,
+          contactId: context.contactId,
+          channel,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();

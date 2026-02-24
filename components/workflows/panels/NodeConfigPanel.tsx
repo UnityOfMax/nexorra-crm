@@ -10,15 +10,24 @@ import AddTagConfig from './AddTagConfig';
 import AssignUserConfig from './AssignUserConfig';
 import MoveDealStageConfig from './MoveDealStageConfig';
 import UpdateContactConfig from './UpdateContactConfig';
+import CreateOpportunityConfig from './CreateOpportunityConfig';
+
+interface NodeData {
+  label: string;
+  stepType: string;
+  config: Record<string, unknown>;
+  icon?: string;
+}
 
 interface NodeConfigPanelProps {
   node: Node;
-  onUpdate: (data: any) => void;
+  onUpdate: (data: Partial<NodeData>) => void;
   onDelete: () => void;
   onClose: () => void;
+  accountId?: string;
 }
 
-export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: NodeConfigPanelProps) {
+export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose, accountId }: NodeConfigPanelProps) {
   const renderConfig = () => {
     const { stepType } = node.data;
 
@@ -30,11 +39,13 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: N
       case 'add_tag':
         return <AddTagConfig node={node} onUpdate={onUpdate} />;
       case 'assign_user':
-        return <AssignUserConfig node={node} onUpdate={onUpdate} />;
+        return <AssignUserConfig node={node} onUpdate={onUpdate} accountId={accountId} />;
       case 'move_deal_stage':
         return <MoveDealStageConfig node={node} onUpdate={onUpdate} />;
       case 'update_contact':
         return <UpdateContactConfig node={node} onUpdate={onUpdate} />;
+      case 'create_opportunity':
+        return <CreateOpportunityConfig node={node} onUpdate={onUpdate} accountId={accountId} />;
       case 'if_condition':
         return <ConditionConfig node={node} onUpdate={onUpdate} />;
       case 'wait_delay':
@@ -51,45 +62,45 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose }: N
   };
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-200 p-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Node Settings</h3>
+      <div className="border-b border-gray-200 p-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-900">Node Settings</h3>
         <button
           onClick={onClose}
           className="p-1 hover:bg-gray-100 rounded transition-colors"
         >
-          <X className="w-5 h-5 text-gray-600" />
+          <X className="w-4 h-4 text-gray-600" />
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Node Label
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="mb-3">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Label
           </label>
           <input
             type="text"
             value={node.data.label || ''}
             onChange={(e) => onUpdate({ label: e.target.value })}
-            className="input w-full"
-            placeholder="Enter node label"
+            className="input w-full text-sm"
+            placeholder="Node label"
           />
         </div>
 
-        <div className="border-t border-gray-200 pt-4 mt-4">
+        <div className="border-t border-gray-200 pt-3 mt-3">
           {renderConfig()}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-gray-200 p-3">
         <button
           onClick={onDelete}
-          className="w-full btn bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
+          className="w-full btn btn-danger flex items-center justify-center gap-2 text-sm py-1.5"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
           Delete Node
         </button>
       </div>

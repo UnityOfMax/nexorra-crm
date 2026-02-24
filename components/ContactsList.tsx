@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Contact } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { Plus, Mail, Phone, Search, Filter, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 import ContactSidePanel from './ContactSidePanel';
 
 interface ContactsListProps {
@@ -38,9 +39,11 @@ export default function ContactsList({
   const [loading, setLoading] = useState(false);
 
   // Keep local contacts in sync with prop changes
-  if (contacts !== localContacts && !panelContact) {
-    setLocalContacts(contacts);
-  }
+  useEffect(() => {
+    if (!panelContact) {
+      setLocalContacts(contacts);
+    }
+  }, [contacts, panelContact]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +57,7 @@ export default function ContactsList({
       setFormData({ first_name: '', last_name: '', email: '', phone: '', company: '', status: 'lead' });
       onRefresh();
     } catch (error: any) {
-      alert('Error creating contact: ' + error.message);
+      toast.error('Error creating contact: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -222,8 +225,8 @@ export default function ContactsList({
 
       {/* Add contact modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="modal-overlay">
+          <div className="modal-content max-w-md w-full mx-4">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Add New Contact</h3>
             </div>

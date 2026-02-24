@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enrollNewLead } from '@/lib/automations/enrollment';
 import { triggerContactCreated } from '@/lib/workflow-engine/triggers';
+import { sendPushToAccountOwner } from '@/lib/push/send-notification';
 
 // POST /api/landing-pages/form-submit
 // Creates or updates a contact from landing page form submission
@@ -101,6 +102,14 @@ export async function POST(request: NextRequest) {
       triggerContactCreated(accountId, contactId).catch((err) =>
         console.error('[form-submit] workflow trigger error:', err)
       );
+
+      // Push notification to account owner for new leads (non-blocking)
+      sendPushToAccountOwner(accountId, {
+        title: '🔥 New Lead',
+        body: `${contactName} just submitted a form`,
+        tag: 'new-lead',
+        url: `/contacts/${contactId}`,
+      }).catch((err) => console.error('[form-submit] push notification error:', err));
     }
 
     return NextResponse.json({ success: true, contactId });

@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { stopAutomation } from '@/lib/automations/enrollment';
+import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
 export async function POST(req: NextRequest) {
-  let from: string | null = null;
-  try {
-    const form = await req.formData();
-    from = (form.get('From') as string | null) ?? null;
-  } catch {
-    // fallback: try text body
-    const text = await req.text();
-    const params = new URLSearchParams(text);
-    from = params.get('From');
+  // Read body once as text so we can both validate and parse
+  const rawBody = await req.text();
+  const params = new URLSearchParams(rawBody);
+  const paramsObj: Record<string, string> = {};
+  params.forEach((value, key) => { paramsObj[key] = value; });
+
+  // Validate Twilio signature using the global auth token
+  const globalAuthToken = process.env.TWILIO_AUTH_TOKEN;
+  if (globalAuthToken) {
+    const twilioSignature = req.headers.get('X-Twilio-Signature') || '';
+    const isValid = twilio.validateRequest(globalAuthToken, twilioSignature, req.url, paramsObj);
+    if (!isValid) {
+      console.error('[twilio-inbound] Invalid Twilio signature');
+      return new NextResponse('Forbidden', { status: 403 });
+    }
   }
+
+  const from = paramsObj['From'] ?? null;
 
   if (from) {
     // Normalize: strip non-digits, then match E.164 variants

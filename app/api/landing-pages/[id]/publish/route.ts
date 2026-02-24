@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // POST /api/landing-pages/[id]/publish
 export async function POST(
@@ -9,6 +10,20 @@ export async function POST(
 ) {
   try {
     const { published } = await request.json();
+
+    // Fetch account_id for auth before updating
+    const { data: existing } = await supabaseAdmin
+      .from('landing_pages')
+      .select('account_id')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     // Fetch with account slug so we can revalidate the correct route
     const { data, error } = await supabaseAdmin

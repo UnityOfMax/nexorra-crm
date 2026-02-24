@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
 import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
+import { sendPushToUser } from '@/lib/push/send-notification';
 
 // POST /api/landing-pages/book-call
 export async function POST(request: NextRequest) {
@@ -172,6 +173,16 @@ ${answerSummary}`;
         console.error('[book-call] workflow trigger error:', err);
       });
     }
+
+    // ── Push notification to the resolved user (non-blocking) ─────────────────
+    sendPushToUser(createdByUserId, {
+      title: '📅 Call Booked',
+      body: `${contactName || 'A lead'} booked a call for ${slotDisplay}`,
+      tag: 'booking',
+      url: '/calendar',
+    }).catch(err => {
+      console.error('[book-call] push notification error:', err);
+    });
 
     return NextResponse.json({ success: true, activityId: activity.id });
   } catch (error: any) {

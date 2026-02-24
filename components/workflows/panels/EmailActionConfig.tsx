@@ -35,7 +35,7 @@ export default function EmailActionConfig({ node, onUpdate }: EmailActionConfigP
           value={fromName}
           onChange={(e) => setFromName(e.target.value)}
           className="input w-full"
-          placeholder="e.g., Your Company"
+          placeholder="e.g., {{user.firstname}} from {{account.name}}"
         />
         <p className="text-xs text-gray-500 mt-1">
           The name shown in the from field
@@ -82,6 +82,11 @@ export default function EmailActionConfig({ node, onUpdate }: EmailActionConfigP
           <div><code>{'{{contact.phone}}'}</code> - Contact phone</div>
           <div><code>{'{{deal.title}}'}</code> - Deal title (if applicable)</div>
           <div><code>{'{{deal.value}}'}</code> - Deal value (if applicable)</div>
+          <div className="pt-1 border-t border-blue-200 mt-1"><code>{'{{user.firstname}}'}</code> - Your first name</div>
+          <div><code>{'{{user.lastname}}'}</code> - Your last name</div>
+          <div><code>{'{{user.email}}'}</code> - Your email address</div>
+          <div><code>{'{{user.phone}}'}</code> - Your phone number</div>
+          <div><code>{'{{account.name}}'}</code> - Business name</div>
         </div>
       </div>
     </div>

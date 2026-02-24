@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/ai/config?accountId=...
 export async function GET(request: NextRequest) {
   try {
     const accountId = new URL(request.url).searchParams.get('accountId');
-    if (!accountId) {
-      return NextResponse.json({ error: 'accountId required' }, { status: 400 });
-    }
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     const { data, error } = await supabaseAdmin
       .from('ai_agent_configs')
@@ -51,9 +52,8 @@ export async function PUT(request: NextRequest) {
       email_agent_name, email_agent_represents, email_system_prompt, email_max_tokens,
     } = body;
 
-    if (!accountId) {
-      return NextResponse.json({ error: 'accountId required' }, { status: 400 });
-    }
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
 
     // Upsert config
     const { data, error } = await supabaseAdmin

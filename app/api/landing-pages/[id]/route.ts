@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addVercelDomain, removeVercelDomain } from '@/lib/vercel-domains';
+import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
 // GET /api/landing-pages/[id]
 export async function GET(
@@ -19,6 +20,9 @@ export async function GET(
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
+    const auth = await requireAccountAccess(request, data.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     return NextResponse.json({ page: data });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -31,8 +35,21 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { data: existing } = await supabaseAdmin
+      .from('landing_pages')
+      .select('account_id')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
-    const { name, slug, content, meta_title, meta_description, tracking_pixels, custom_domain, published } = body;
+    const { name, slug, content, meta_title, meta_description, connect_pixel, custom_domain, published } = body;
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
@@ -40,7 +57,7 @@ export async function PUT(
     if (content !== undefined) updateData.content = content;
     if (meta_title !== undefined) updateData.meta_title = meta_title;
     if (meta_description !== undefined) updateData.meta_description = meta_description;
-    if (tracking_pixels !== undefined) updateData.tracking_pixels = tracking_pixels;
+    if (connect_pixel !== undefined) updateData.connect_pixel = connect_pixel === true;
     if (custom_domain !== undefined) updateData.custom_domain = custom_domain;
     if (published !== undefined) updateData.published = published;
 
@@ -78,12 +95,19 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Fetch slug before deleting so we can remove the Vercel domain
+    // Fetch account_id and slug before deleting
     const { data: existing } = await supabaseAdmin
       .from('landing_pages')
-      .select('slug, published')
+      .select('account_id, slug, published')
       .eq('id', params.id)
       .single();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    }
+
+    const auth = await requireAccountAccess(request, existing.account_id);
+    if (auth instanceof NextResponse) return auth;
 
     const { error } = await supabaseAdmin
       .from('landing_pages')

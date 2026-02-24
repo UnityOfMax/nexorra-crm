@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import LandingPageRenderer from './LandingPageRenderer';
 import HomeSearchForm from './HomeSearchForm';
+import { FB_PIXEL_ID, fbPixelScriptBody } from '@/lib/pixel';
 import type { LandingPageContent } from '@/lib/landing-page-templates';
 
 // Pass either slug (legacy /p/[slug] route) or pageId (new /account/[s]/landing-pages/[id] route)
@@ -20,7 +21,7 @@ declare global {
 export default function PublicPageClient({ slug, pageId }: PublicPageClientProps) {
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [accountId, setAccountId] = useState('');
-  const [trackingPixels, setTrackingPixels] = useState<any[]>([]);
+  const [connectPixel, setConnectPixel] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -35,35 +36,20 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         const data = await r.json();
         setContent(data.content);
         setAccountId(data.account_id);
-        setTrackingPixels(data.tracking_pixels || []);
+        setConnectPixel(data.connect_pixel === true);
       })
       .catch(() => setNotFound(true));
   }, [slug, pageId]);
 
-  // Inject tracking pixel scripts once content is loaded
+  // Inject Facebook Pixel when connect_pixel is enabled
   useEffect(() => {
-    if (!trackingPixels.length) return;
-    trackingPixels.forEach((pixel: any) => {
-      if (!pixel.code) return;
-      const el = document.createElement('script');
-      el.id = `pixel-${pixel.id}`;
-      el.innerHTML = pixel.code.replace(/<\/?script[^>]*>/gi, '');
-      document.head.appendChild(el);
-    });
-  }, [trackingPixels]);
-
-  // Fire ViewContent pixel after content loads
-  useEffect(() => {
-    if (!content) return;
-    const heroBlock = content.blocks.find((b) => b.type === 're_hero');
-    const agentName = heroBlock?.data?.agentName || 'Your Agent';
-    if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'ViewContent', {
-        content_name: agentName,
-        content_type: 'landing_page',
-      });
-    }
-  }, [content]);
+    if (!connectPixel) return;
+    if (document.getElementById('fb-pixel')) return;
+    const s = document.createElement('script');
+    s.id = 'fb-pixel';
+    s.innerHTML = fbPixelScriptBody(FB_PIXEL_ID);
+    document.head.appendChild(s);
+  }, [connectPixel]);
 
   if (notFound) {
     return (

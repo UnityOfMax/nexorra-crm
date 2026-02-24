@@ -1,6 +1,6 @@
 'use client';
 
-import { Zap, Mail, MessageSquare, Tag, User, ArrowRight, Clock, GitBranch, UserPlus, BarChart3 } from 'lucide-react';
+import { Zap, Mail, MessageSquare, Tag, User, ArrowRight, Clock, GitBranch, UserPlus, Target } from 'lucide-react';
 
 interface NodePaletteItem {
   type: 'trigger' | 'action' | 'condition' | 'delay';
@@ -85,6 +85,14 @@ const nodePaletteItems: NodePaletteItem[] = [
     label: 'Update Contact',
     icon: User,
     description: 'Update contact fields',
+    color: 'blue',
+  },
+  {
+    type: 'action',
+    stepType: 'create_opportunity',
+    label: 'Create Opportunity',
+    icon: Target,
+    description: 'Create a deal in the pipeline',
     color: 'blue',
   },
 

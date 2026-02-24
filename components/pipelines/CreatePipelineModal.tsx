@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CreatePipelineModalProps {
   accountId: string;
@@ -41,7 +42,7 @@ export default function CreatePipelineModal({ accountId, onClose, onSuccess }: C
 
   const removeStage = (id: string) => {
     if (stages.length <= 2) {
-      alert('You must have at least 2 stages');
+      toast.error('You must have at least 2 stages');
       return;
     }
     setStages(stages.filter(s => s.id !== id));
@@ -55,12 +56,12 @@ export default function CreatePipelineModal({ accountId, onClose, onSuccess }: C
     e.preventDefault();
 
     if (!name.trim()) {
-      alert('Please enter a pipeline name');
+      toast.error('Please enter a pipeline name');
       return;
     }
 
     if (stages.length < 2) {
-      alert('You must have at least 2 stages');
+      toast.error('You must have at least 2 stages');
       return;
     }
 
@@ -91,15 +92,15 @@ export default function CreatePipelineModal({ accountId, onClose, onSuccess }: C
       onClose();
     } catch (error) {
       console.error('Error creating pipeline:', error);
-      alert('Failed to create pipeline. Please try again.');
+      toast.error('Failed to create pipeline. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="modal-overlay p-4">
+      <div className="modal-content max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Create New Pipeline</h2>
           <button
