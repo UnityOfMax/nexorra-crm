@@ -377,9 +377,21 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                   </option>
                 ))}
               </select>
-              {settings.twilio_phone_number && (
-                <p className="text-sm text-green-600 mt-2">✓ Selected: {settings.twilio_phone_number}</p>
-              )}
+              <div className="flex items-center justify-between mt-3">
+                {settings.twilio_phone_number ? (
+                  <p className="text-sm text-green-600">✓ Selected: {settings.twilio_phone_number}</p>
+                ) : (
+                  <span />
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={loading || !settings.twilio_phone_number}
+                  className="btn btn-primary btn-sm flex items-center gap-2"
+                >
+                  {loading ? <Loader className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  Save Number
+                </button>
+              </div>
             </div>
           )}
         </div>
