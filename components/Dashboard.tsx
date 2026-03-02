@@ -16,6 +16,8 @@ import WorkflowList from './workflows/WorkflowList';
 import CalendarView from './calendar/CalendarView';
 import LandingPageList from './landing-pages/LandingPageList';
 import AIAgent from './AIAgent';
+import LeadsList from './LeadsList';
+import StaceyConversations from './StaceyConversations';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
@@ -390,6 +392,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return (
           <AIAgent accountId={currentAccount?.id || ''} />
         );
+      case 'leads':
+        return <LeadsList />;
+      case 'campaigns':
+        return <StaceyConversations />;
       default:
         // Unified dashboard
         return (
@@ -674,6 +680,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'sub-accounts' ? 'Sub-Accounts' :
                  activeView === 'pipelines' ? 'Opportunities' :
                  activeView === 'pages' ? 'Landing Pages' :
+                 activeView === 'leads' ? 'Leads' :
+                 activeView === 'campaigns' ? 'Email Campaigns' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">
