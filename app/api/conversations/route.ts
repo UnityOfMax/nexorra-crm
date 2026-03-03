@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch lead details for matching emails
-  const emails = [...new Set(conversations.map((c: any) => c.lead_email))];
+  const emails = Array.from(new Set(conversations.map((c: any) => c.lead_email)));
   const { data: leads } = await supabaseAdmin
     .from('leads')
     .select('id, email, full_name, source_brokerage, city, state_province')
