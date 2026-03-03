@@ -103,6 +103,50 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', conversation.id);
 
+    // ── Sync to CRM calendar ──
+    const agencyAccountId = process.env.NEXORRA_AGENCY_ACCOUNT_ID;
+    const agencyUserId = process.env.NEXORRA_AGENCY_USER_ID;
+
+    if (agencyAccountId && agencyUserId && eventUri) {
+      try {
+        // Fetch event details from Calendly to get start_time and name
+        const eventRes = await fetch(eventUri, {
+          headers: {
+            Authorization: `Bearer ${process.env.CALENDLY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (eventRes.ok) {
+          const eventData = await eventRes.json();
+          const startTime = eventData.resource?.start_time;
+          const eventName = eventData.resource?.name || 'Calendly Booking';
+          const endTime = eventData.resource?.end_time;
+
+          // Calculate duration
+          let durationMinutes = 30; // default
+          if (startTime && endTime) {
+            durationMinutes = Math.round(
+              (new Date(endTime).getTime() - new Date(startTime).getTime()) / 60000
+            );
+          }
+
+          // Insert activity into CRM calendar
+          await supabaseAdmin.from('activities').insert({
+            account_id: agencyAccountId,
+            created_by: agencyUserId,
+            type: 'meeting',
+            subject: `Calendly: ${eventName} - ${inviteeEmail}`,
+            due_date: startTime || new Date().toISOString(),
+            duration_minutes: durationMinutes,
+          });
+        }
+      } catch (calErr) {
+        // Don't fail the webhook if calendar sync fails
+        console.error('Calendly → calendar sync error:', calErr);
+      }
+    }
+
     return NextResponse.json({ ok: true, matched: true });
   } catch (err) {
     console.error('Calendly webhook error:', err);

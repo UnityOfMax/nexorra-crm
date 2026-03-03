@@ -62,9 +62,9 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose, acc
   };
 
   return (
-    <div className="w-80 bg-white dark:bg-[#2c2c2e] border-l border-gray-200 flex flex-col">
+    <div className="w-80 bg-white dark:bg-[#2c2c2e] border-l border-gray-200 dark:border-gray-700 flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-200 p-3 flex items-center justify-between">
+      <div className="border-b border-gray-200 dark:border-gray-700 p-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Node Settings</h3>
         <button
           onClick={onClose}
@@ -89,13 +89,13 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose, acc
           />
         </div>
 
-        <div className="border-t border-gray-200 pt-3 mt-3">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
           {renderConfig()}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 p-3">
+      <div className="border-t border-gray-200 dark:border-gray-700 p-3">
         <button
           onClick={onDelete}
           className="w-full btn btn-danger flex items-center justify-center gap-2 text-sm py-1.5"

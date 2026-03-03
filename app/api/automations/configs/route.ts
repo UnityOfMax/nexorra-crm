@@ -17,32 +17,41 @@ export async function GET(request: NextRequest) {
 
   const { data } = await supabaseAdmin
     .from('automation_configs')
-    .select('templates')
+    .select('templates, is_enabled')
     .eq('account_id', accountId)
     .eq('automation_id', automationId)
     .maybeSingle();
 
-  return NextResponse.json({ templates: data?.templates ?? null });
+  return NextResponse.json({
+    templates: data?.templates ?? null,
+    is_enabled: data?.is_enabled ?? true,
+  });
 }
 
 // PUT /api/automations/configs — save custom templates
 export async function PUT(request: NextRequest) {
   try {
-    const { accountId, automationId, templates } = await request.json();
+    const { accountId, automationId, templates, is_enabled } = await request.json();
 
     const auth = await requireAccountAccess(request, accountId);
     if (auth instanceof NextResponse) return auth;
 
-    if (!accountId || !automationId || !Array.isArray(templates)) {
-      return NextResponse.json({ error: 'accountId, automationId, templates required' }, { status: 400 });
+    if (!accountId || !automationId) {
+      return NextResponse.json({ error: 'accountId and automationId required' }, { status: 400 });
     }
+
+    // Build upsert payload — only include fields that were provided
+    const payload: Record<string, any> = {
+      account_id: accountId,
+      automation_id: automationId,
+      updated_at: new Date().toISOString(),
+    };
+    if (Array.isArray(templates)) payload.templates = templates;
+    if (typeof is_enabled === 'boolean') payload.is_enabled = is_enabled;
 
     const { error } = await supabaseAdmin
       .from('automation_configs')
-      .upsert(
-        { account_id: accountId, automation_id: automationId, templates, updated_at: new Date().toISOString() },
-        { onConflict: 'account_id,automation_id' }
-      );
+      .upsert(payload, { onConflict: 'account_id,automation_id' });
 
     if (error) {
       console.error('Error saving automation config:', error);

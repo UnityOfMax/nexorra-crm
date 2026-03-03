@@ -45,7 +45,7 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Delay Type
         </label>
         <select
@@ -55,14 +55,15 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
         >
           <option value="duration">Wait for a duration</option>
           <option value="until">Wait until a specific date/time</option>
+          <option value="before_event">Before trigger event</option>
         </select>
       </div>
 
-      {delayType === 'duration' ? (
+      {delayType === 'before_event' ? (
         <>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Days
               </label>
               <input
@@ -75,7 +76,7 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Hours
               </label>
               <input
@@ -88,7 +89,7 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Minutes
               </label>
               <input
@@ -102,11 +103,64 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
             </div>
           </div>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <div className="text-sm font-medium text-gray-900">
+          <div className="bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {formatDuration()} before the event
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+              Runs this long before the trigger event time (e.g., a booking)
+            </div>
+          </div>
+        </>
+      ) : delayType === 'duration' ? (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Days
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="365"
+                value={days}
+                onChange={(e) => setDays(parseInt(e.target.value) || 0)}
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Hours
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="23"
+                value={hours}
+                onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Minutes
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                value={minutes}
+                onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
+                className="input w-full"
+              />
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
               Total delay: {formatDuration()}
             </div>
-            <div className="text-xs text-gray-600 mt-1">
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
               {getTotalMinutes()} minutes total
             </div>
           </div>
@@ -114,7 +168,7 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
       ) : (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Date
             </label>
             <input
@@ -127,7 +181,7 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Time
             </label>
             <input
@@ -139,8 +193,8 @@ export default function DelayConfig({ node, onUpdate }: DelayConfigProps) {
           </div>
 
           {specificDate && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <div className="text-sm font-medium text-gray-900">
+            <div className="bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 Wait until: {new Date(`${specificDate}T${specificTime}`).toLocaleString()}
               </div>
             </div>

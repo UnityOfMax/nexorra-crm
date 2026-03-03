@@ -246,7 +246,7 @@ export default function LeadsList() {
                           <p className="text-gray-500 dark:text-gray-400 text-xs">{lead.phone}</p>
                         )}
                         {!lead.email && !lead.phone && (
-                          <p className="text-gray-300 dark:text-gray-600 text-xs italic">No contact info</p>
+                          <p className="text-gray-300 dark:text-gray-500 text-xs italic">No contact info</p>
                         )}
                       </div>
                     </td>
@@ -264,7 +264,7 @@ export default function LeadsList() {
                           {lead.timezone}
                         </span>
                       ) : (
-                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                        <span className="text-gray-300 dark:text-gray-500 text-xs">—</span>
                       )}
                     </td>
 

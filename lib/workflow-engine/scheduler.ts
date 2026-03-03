@@ -2,10 +2,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { WorkflowContext } from './types';
 
 interface DelayConfig {
-  // Format A: { delayType: 'duration', days?, hours?, minutes? }  (from DelayConfig panel)
-  // Format B: { unit: 'days'|'hours'|'minutes', value: number }   (from to-workflow-definition)
-  // Format C: { delayType: 'until', specificDate, specificTime }   (from DelayConfig panel)
-  delayType?: 'duration' | 'until';
+  // Format A: { delayType: 'duration', days?, hours?, minutes? }    (from DelayConfig panel)
+  // Format B: { unit: 'days'|'hours'|'minutes', value: number }     (from to-workflow-definition)
+  // Format C: { delayType: 'until', specificDate, specificTime }     (from DelayConfig panel)
+  // Format D: { delayType: 'before_event', days?, hours?, minutes? } (before trigger event)
+  delayType?: 'duration' | 'until' | 'before_event';
   days?: number;
   hours?: number;
   minutes?: number;
@@ -26,7 +27,29 @@ export async function scheduleDelayedExecution(
 ): Promise<void> {
   let scheduledAt: Date;
 
-  if (delayConfig.unit !== undefined && delayConfig.value !== undefined) {
+  if (delayConfig.delayType === 'before_event') {
+    // Format D: before trigger event — compute event_time minus offset
+    const eventTime =
+      (context as any).triggerData?.eventTime ||
+      (context as any).triggerData?.bookingTime ||
+      (context as any).triggerData?.dueDate;
+
+    if (eventTime) {
+      const offsetMs =
+        ((delayConfig.days || 0) * 24 * 60 +
+         (delayConfig.hours || 0) * 60 +
+         (delayConfig.minutes || 0)) * 60 * 1000;
+      const eventDate = new Date(eventTime);
+      scheduledAt = new Date(eventDate.getTime() - offsetMs);
+      // If already past, execute immediately
+      if (scheduledAt.getTime() < Date.now()) {
+        scheduledAt = new Date();
+      }
+    } else {
+      // No event time available — execute immediately
+      scheduledAt = new Date();
+    }
+  } else if (delayConfig.unit !== undefined && delayConfig.value !== undefined) {
     // Format B: unit/value (from to-workflow-definition.ts)
     const ms =
       delayConfig.unit === 'days'  ? delayConfig.value * 24 * 60 * 60 * 1000 :

@@ -13,9 +13,20 @@ interface DelayNodeProps {
 }
 
 export default function DelayNode({ data, selected }: DelayNodeProps) {
+  const isBeforeEvent = data.config?.delayType === 'before_event';
+
   const formatDelayConfig = () => {
     if (!data.config) return null;
-    const { days, hours, minutes, unit, value } = data.config;
+    const { days, hours, minutes, unit, value, delayType } = data.config;
+    // Before-event format
+    if (delayType === 'before_event') {
+      const parts: string[] = [];
+      if (days) parts.push(`${days}d`);
+      if (hours) parts.push(`${hours}h`);
+      if (minutes) parts.push(`${minutes}m`);
+      const dur = parts.join(' ') || '0m';
+      return `${dur} before`;
+    }
     // Format B: { unit, value }
     if (unit && value !== undefined) return `${value} ${unit}`;
     // Format A: { days, hours, minutes }
@@ -45,7 +56,7 @@ export default function DelayNode({ data, selected }: DelayNodeProps) {
           <Clock className="w-3 h-3 text-orange-500 shrink-0" />
           <div>
             <div className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide leading-none">
-              Wait
+              {isBeforeEvent ? 'Before Event' : 'Wait'}
             </div>
             {delayStr && (
               <div className="text-xs font-semibold text-gray-800">{delayStr}</div>

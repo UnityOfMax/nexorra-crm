@@ -262,7 +262,7 @@ export default function StaceyConversations() {
                                 {conv.latest_message.content.slice(0, 120)}
                               </p>
                             ) : (
-                              <span className="text-gray-300 dark:text-gray-600 text-xs italic">No messages yet</span>
+                              <span className="text-gray-300 dark:text-gray-500 text-xs italic">No messages yet</span>
                             )}
                           </td>
                           <td className="px-4 py-3">

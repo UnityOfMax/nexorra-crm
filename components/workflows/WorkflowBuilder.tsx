@@ -168,7 +168,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
         `/api/automations/configs?accountId=${accountId}&automationId=${builtinAutomationId}`
       );
       const data = await res.json();
-      const customTemplates = data?.config?.templates;
+      const customTemplates = data?.templates;
       const templates =
         Array.isArray(customTemplates) && customTemplates.length > 0
           ? customTemplates
@@ -448,25 +448,25 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col">
         {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="bg-white dark:bg-[#2c2c2e] border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
                 if (isDirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
                 onBack();
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
               title="Back to workflows"
               aria-label="Back to workflows"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
             <div>
               {isBuiltin ? (
                 <>
-                  <p className="text-lg font-semibold text-gray-900">{workflowName}</p>
-                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
-                    Always On
+                  <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{workflowName}</p>
+                  <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-medium">
+                    Built-in
                   </span>
                 </>
               ) : (
@@ -475,15 +475,15 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
                     type="text"
                     value={workflowName}
                     onChange={(e) => setWorkflowName(e.target.value)}
-                    className="text-lg font-semibold text-gray-900 border-none focus:outline-none focus:ring-0 bg-transparent"
+                    className="text-lg font-semibold text-gray-900 dark:text-gray-100 border-none focus:outline-none focus:ring-0 bg-transparent"
                     placeholder="Workflow name"
                   />
                   <div className="flex items-center gap-2 mt-1">
-                    <label className="text-xs text-gray-600">Trigger:</label>
+                    <label className="text-xs text-gray-600 dark:text-gray-400">Trigger:</label>
                     <select
                       value={workflowTriggerType}
                       onChange={(e) => setWorkflowTriggerType(e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                      className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 dark:bg-[#3a3a3c] dark:text-gray-200"
                     >
                       <option value="contact_created">Contact Created</option>
                       <option value="contact_updated">Contact Updated</option>
@@ -549,7 +549,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
         </div>
 
         {/* ReactFlow Canvas */}
-        <div className="flex-1 bg-gray-50" onDragOver={onDragOver} onDrop={onDrop}>
+        <div className="flex-1 bg-gray-50 dark:bg-[#1c1c1e]" onDragOver={onDragOver} onDrop={onDrop}>
           <ErrorBoundary label="ReactFlow canvas">
           <ReactFlow
             nodes={nodes}
@@ -587,14 +587,14 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
 
         {/* Inline Execution Logs Panel */}
         {!isBuiltin && workflowId && (
-          <div className="border-t border-gray-200 bg-white shrink-0">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2c2c2e] shrink-0">
             <button
               onClick={() => {
                 const next = !showInlineLogs;
                 setShowInlineLogs(next);
                 if (next && inlineExecutions.length === 0) loadInlineLogs();
               }}
-              className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-gray-500" />
@@ -609,7 +609,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
             </button>
 
             {showInlineLogs && (
-              <div className="h-56 overflow-y-auto border-t border-gray-100">
+              <div className="h-56 overflow-y-auto border-t border-gray-100 dark:border-gray-700">
                 {inlineLogsLoading ? (
                   <div className="p-4 text-center text-sm text-gray-500">Loading...</div>
                 ) : inlineExecutions.length === 0 ? (
@@ -617,14 +617,14 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
                 ) : (
                   <div className="p-3 space-y-2">
                     {inlineExecutions.map((ex) => (
-                      <div key={ex.id} className="border border-gray-200 rounded-lg overflow-hidden text-sm">
+                      <div key={ex.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-sm">
                         <div
-                          className="px-3 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 flex items-center justify-between"
+                          className="px-3 py-2 bg-gray-50 dark:bg-white/5 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-between"
                           onClick={() => setExpandedInlineId(expandedInlineId === ex.id ? null : ex.id)}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {inlineStatusIcon(ex.status)}
-                            <span className="font-medium text-gray-800 shrink-0">{fmtDate(ex.started_at)}</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200 shrink-0">{fmtDate(ex.started_at)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${inlineStatusBadge(ex.status)}`}>
                               {ex.status}
                             </span>
@@ -635,12 +635,12 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
                             : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
                         </div>
                         {expandedInlineId === ex.id && (
-                          <div className="px-3 py-2 space-y-1.5 bg-white border-t border-gray-100">
+                          <div className="px-3 py-2 space-y-1.5 bg-white dark:bg-[#2c2c2e] border-t border-gray-100 dark:border-gray-700">
                             {ex.workflow_step_executions?.length === 0 ? (
                               <p className="text-xs text-gray-500">No steps recorded.</p>
                             ) : (
                               ex.workflow_step_executions?.map((step: any, i: number) => (
-                                <div key={`${step.step_id}-${i}`} className="flex items-start gap-2 p-1.5 bg-gray-50 rounded">
+                                <div key={`${step.step_id}-${i}`} className="flex items-start gap-2 p-1.5 bg-gray-50 dark:bg-white/5 rounded">
                                   <div className="mt-0.5 shrink-0">
                                     {step.status === 'completed'
                                       ? <CheckCircle className="w-3.5 h-3.5 text-green-600" />
@@ -649,7 +649,7 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
                                       : <Clock className="w-3.5 h-3.5 text-gray-400" />}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium text-gray-800 capitalize">
+                                    <div className="text-xs font-medium text-gray-800 dark:text-gray-200 capitalize">
                                       {step.step_type?.replace(/_/g, ' ')}
                                     </div>
                                     {step.error && (

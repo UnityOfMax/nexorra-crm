@@ -143,10 +143,10 @@ function EventBlock({
     return (
       <div style={{
         position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`,
-        left: 2, right: 2, background: '#f3f4f6', border: '1.5px dashed #9ca3af',
+        left: 2, right: 2, background: 'var(--cal-google-bg)', border: '1.5px dashed var(--cal-google-border)',
         borderRadius: 6, padding: '2px 6px', overflow: 'hidden', pointerEvents: 'none', zIndex: 1,
       }}>
-        <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 500 }}>Busy</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--cal-text-faint)', fontWeight: 500 }}>Busy</span>
       </div>
     );
   }
@@ -156,15 +156,15 @@ function EventBlock({
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       style={{
         position: 'absolute', top: `${topPct}%`, height: `${heightPct}%`,
-        left: 2, right: 2, background: '#3b82f6', borderRadius: 6,
+        left: 2, right: 2, background: 'var(--cal-event-bg)', borderRadius: 6,
         padding: '3px 7px', overflow: 'hidden', cursor: 'pointer', zIndex: 2,
         boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
       }}
     >
-      <p style={{ fontSize: '0.72rem', color: '#fff', fontWeight: 600, lineHeight: 1.3, margin: 0 }}>
+      <p style={{ fontSize: '0.72rem', color: 'var(--cal-event-text)', fontWeight: 600, lineHeight: 1.3, margin: 0 }}>
         {formatTimeTz(activity.due_date, timezone)}
       </p>
-      <p style={{ fontSize: '0.72rem', color: '#dbeafe', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <p style={{ fontSize: '0.72rem', color: 'var(--cal-event-sub)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {activity.subject || 'Meeting'}
       </p>
     </div>
@@ -185,34 +185,34 @@ function EventPopover({
       style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)', padding: 16 }}
       onClick={onClose}
     >
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', width: '100%', maxWidth: 340, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--cal-popover-bg)', borderRadius: 12, boxShadow: 'var(--cal-popover-shadow)', width: '100%', maxWidth: 340, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-          <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0, paddingRight: 8 }}>
+          <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--cal-text)', margin: 0, paddingRight: 8 }}>
             {activity.subject || 'Meeting'}
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#6b7280' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--cal-text-muted)' }}>
             <X size={16} />
           </button>
         </div>
 
         {activity.due_date && (
-          <p style={{ fontSize: '0.85rem', color: '#4b5563', marginBottom: 8 }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--cal-text-muted)', marginBottom: 8 }}>
             🕐 {new Date(activity.due_date).toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric',
               timeZone: getEffectiveTz(timezone),
             })} at {formatTimeTz(activity.due_date, timezone)}
-            {timezone && <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: 4 }}>({timezone})</span>}
+            {timezone && <span style={{ fontSize: '0.75rem', color: 'var(--cal-text-faint)', marginLeft: 4 }}>({timezone})</span>}
           </p>
         )}
 
         {activity.description && (
-          <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 12, whiteSpace: 'pre-wrap' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--cal-text-muted)', marginBottom: 12, whiteSpace: 'pre-wrap' }}>
             {activity.description}
           </p>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, background: activity.completed ? '#f3f4f6' : '#dcfce7', color: activity.completed ? '#6b7280' : '#15803d' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, background: activity.completed ? 'var(--cal-badge-bg)' : '#dcfce7', color: activity.completed ? 'var(--cal-text-muted)' : '#15803d' }}>
             {activity.completed ? 'Completed' : 'Confirmed'}
           </span>
           {!activity.completed && (
@@ -261,7 +261,7 @@ function TimeGrid({
           {hours.map((h, i) => (
             <div key={h} style={{ height: HOUR_HEIGHT, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', paddingRight: 8, paddingTop: 2 }}>
               {i > 0 && (
-                <span style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--cal-text-faint)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                   {formatHour(h)}
                 </span>
               )}
@@ -275,7 +275,7 @@ function TimeGrid({
           const isToday = isSameDayTz(day, today, timezone);
 
           return (
-            <div key={di} style={{ flex: 1, position: 'relative', borderLeft: '1px solid #f0f0f0' }}>
+            <div key={di} style={{ flex: 1, position: 'relative', borderLeft: '1px solid var(--cal-border-light)' }}>
               {hours.map((h, i) => (
                 <div
                   key={h}
@@ -284,8 +284,8 @@ function TimeGrid({
                     d.setHours(h, 0, 0, 0);
                     onCellClick(d);
                   }}
-                  style={{ height: HOUR_HEIGHT, borderTop: i === 0 ? 'none' : '1px solid #f0f0f0', cursor: 'pointer', transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                  style={{ height: HOUR_HEIGHT, borderTop: i === 0 ? 'none' : '1px solid var(--cal-border-light)', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--cal-hover)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 />
               ))}
@@ -331,16 +331,16 @@ const WeekView = memo(function WeekView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
-      <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', flexShrink: 0 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--cal-border)', flexShrink: 0 }}>
         <div style={{ width: 52, flexShrink: 0 }} />
         {days.map((day, i) => {
           const isToday = isSameDayTz(day, today, timezone);
           return (
-            <div key={i} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderLeft: '1px solid #f0f0f0' }}>
-              <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div key={i} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderLeft: '1px solid var(--cal-border-light)' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--cal-text-faint)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {dayNames[day.getDay()]}
               </div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: isToday ? '#3b82f6' : 'transparent', color: isToday ? '#fff' : '#111827', fontWeight: isToday ? 700 : 600, fontSize: '0.85rem', marginTop: 2 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: isToday ? 'var(--cal-event-bg)' : 'transparent', color: isToday ? '#fff' : 'var(--cal-text)', fontWeight: isToday ? 700 : 600, fontSize: '0.85rem', marginTop: 2 }}>
                 {day.getDate()}
               </div>
             </div>
@@ -370,11 +370,11 @@ const DayView = memo(function DayView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
-      <div style={{ borderBottom: '1px solid #e5e7eb', padding: '8px 0 8px 52px', flexShrink: 0 }}>
-        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isToday ? '#3b82f6' : '#111827' }}>
+      <div style={{ borderBottom: '1px solid var(--cal-border)', padding: '8px 0 8px 52px', flexShrink: 0 }}>
+        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isToday ? 'var(--cal-event-bg)' : 'var(--cal-text)' }}>
           {dayNames[date.getDay()]}, {date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
         </span>
-        {isToday && <span style={{ marginLeft: 8, fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600 }}>Today</span>}
+        {isToday && <span style={{ marginLeft: 8, fontSize: '0.75rem', color: 'var(--cal-event-bg)', fontWeight: 600 }}>Today</span>}
       </div>
       <TimeGrid days={[date]} activities={activities} googleIds={googleIds} today={today} timezone={timezone} onCellClick={onCellClick} onEventClick={onEventClick} />
     </div>
@@ -409,17 +409,17 @@ const MonthView = memo(function MonthView({
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #e5e7eb', marginBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--cal-border)', marginBottom: 4 }}>
         {dayNames.map(d => (
-          <div key={d} style={{ textAlign: 'center', padding: '8px 0', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div key={d} style={{ textAlign: 'center', padding: '8px 0', fontSize: '0.72rem', fontWeight: 600, color: 'var(--cal-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {d}
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#e5e7eb' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: 'var(--cal-border)' }}>
         {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`e${i}`} style={{ background: '#fafafa', minHeight: 90 }} />
+          <div key={`e${i}`} style={{ background: 'var(--cal-bg-alt)', minHeight: 90 }} />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -432,11 +432,11 @@ const MonthView = memo(function MonthView({
             <div
               key={day}
               onClick={() => onDayClick(date)}
-              style={{ background: '#fff', minHeight: 90, padding: '6px 4px', cursor: 'pointer', transition: 'background 0.1s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+              style={{ background: 'var(--cal-bg)', minHeight: 90, padding: '6px 4px', cursor: 'pointer', transition: 'background 0.1s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--cal-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--cal-bg)')}
             >
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: isToday ? '#3b82f6' : 'transparent', color: isToday ? '#fff' : '#111827', fontWeight: isToday ? 700 : 500, fontSize: '0.8rem', marginBottom: 4 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: isToday ? 'var(--cal-event-bg)' : 'transparent', color: isToday ? '#fff' : 'var(--cal-text)', fontWeight: isToday ? 700 : 500, fontSize: '0.8rem', marginBottom: 4 }}>
                 {day}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -446,14 +446,14 @@ const MonthView = memo(function MonthView({
                     <div
                       key={a.id}
                       onClick={e => { e.stopPropagation(); if (!isGoogle) onEventClick(a); }}
-                      style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: isGoogle ? '#f3f4f6' : '#dbeafe', color: isGoogle ? '#9ca3af' : '#1d4ed8', border: isGoogle ? '1px dashed #9ca3af' : 'none', fontWeight: 500, cursor: isGoogle ? 'default' : 'pointer' }}
+                      style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: isGoogle ? 'var(--cal-google-bg)' : 'var(--cal-event-sub)', color: isGoogle ? 'var(--cal-text-faint)' : '#1d4ed8', border: isGoogle ? '1px dashed var(--cal-google-border)' : 'none', fontWeight: 500, cursor: isGoogle ? 'default' : 'pointer' }}
                     >
                       {isGoogle ? 'Busy' : (a.subject || 'Meeting')}
                     </div>
                   );
                 })}
                 {dayActivities.length > 3 && (
-                  <div style={{ fontSize: '0.65rem', color: '#6b7280', paddingLeft: 5 }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--cal-text-muted)', paddingLeft: 5 }}>
                     +{dayActivities.length - 3} more
                   </div>
                 )}
@@ -617,13 +617,13 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'none', border: '1px solid var(--cal-border)', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--cal-text-secondary)' }}>
             <ChevronLeft size={16} />
           </button>
-          <button onClick={() => navigate(1)} style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#374151' }}>
+          <button onClick={() => navigate(1)} style={{ background: 'none', border: '1px solid var(--cal-border)', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--cal-text-secondary)' }}>
             <ChevronRight size={16} />
           </button>
-          <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>{getDateLabel()}</h2>
+          <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--cal-text)', margin: 0 }}>{getDateLabel()}</h2>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -631,19 +631,19 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowTzSelect(v => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer', color: '#374151' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--cal-border)', background: 'var(--cal-bg)', fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer', color: 'var(--cal-text-secondary)' }}
             >
               <Globe size={13} />
               {tzLabel}
             </button>
             {showTzSelect && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', zIndex: 100, minWidth: 220, maxHeight: 280, overflowY: 'auto' }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--cal-popover-bg)', border: '1px solid var(--cal-border)', borderRadius: 10, boxShadow: 'var(--cal-popover-shadow)', zIndex: 100, minWidth: 220, maxHeight: 280, overflowY: 'auto' }}>
                 {COMMON_TIMEZONES.map(tz => (
                   <button
                     key={tz.value}
                     onClick={() => { setTimezone(tz.value); setShowTzSelect(false); }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: timezone === tz.value ? '#eff6ff' : 'transparent', color: timezone === tz.value ? '#1d4ed8' : '#374151', fontSize: '0.82rem', border: 'none', cursor: 'pointer', fontWeight: timezone === tz.value ? 600 : 400 }}
-                    onMouseEnter={e => (e.currentTarget.style.background = timezone === tz.value ? '#eff6ff' : '#f9fafb')}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: timezone === tz.value ? '#eff6ff' : 'transparent', color: timezone === tz.value ? '#1d4ed8' : 'var(--cal-text-secondary)', fontSize: '0.82rem', border: 'none', cursor: 'pointer', fontWeight: timezone === tz.value ? 600 : 400 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = timezone === tz.value ? '#eff6ff' : 'var(--cal-hover)')}
                     onMouseLeave={e => (e.currentTarget.style.background = timezone === tz.value ? '#eff6ff' : 'transparent')}
                   >
                     {tz.label}
@@ -653,17 +653,17 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
             )}
           </div>
 
-          <button onClick={goToToday} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+          <button onClick={goToToday} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--cal-border)', background: 'var(--cal-bg)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: 'var(--cal-text-secondary)' }}>
             Today
           </button>
 
           {/* View switcher */}
-          <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', border: '1px solid var(--cal-border)', borderRadius: 8, overflow: 'hidden' }}>
             {(['day', 'week', 'month'] as ViewMode[]).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                style={{ padding: '5px 12px', background: view === v ? '#3b82f6' : '#fff', color: view === v ? '#fff' : '#374151', border: 'none', borderLeft: v !== 'day' ? '1px solid #e5e7eb' : 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s' }}
+                style={{ padding: '5px 12px', background: view === v ? 'var(--cal-event-bg)' : 'var(--cal-bg)', color: view === v ? '#fff' : 'var(--cal-text-secondary)', border: 'none', borderLeft: v !== 'day' ? '1px solid var(--cal-border)' : 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s' }}
               >
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </button>
@@ -672,7 +672,7 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
 
           <button
             onClick={() => { setPreselectedDate(undefined); setShowCreateModal(true); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: 'none', background: 'var(--cal-event-bg)', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <Plus size={14} /> New Event
           </button>
@@ -685,9 +685,9 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
       )}
 
       {/* ── Calendar Body ── */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden', flex: 1 }}>
+      <div style={{ background: 'var(--cal-bg)', borderRadius: 12, border: '1px solid var(--cal-border)', overflow: 'hidden', flex: 1 }}>
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#9ca3af', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: 'var(--cal-text-faint)', fontSize: '0.9rem' }}>
             Loading calendar…
           </div>
         ) : view === 'month' ? (
@@ -702,21 +702,21 @@ export default function CalendarView({ accountId, userId, defaultTimezone }: Cal
       {/* ── Legend ── */}
       <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 12, height: 12, borderRadius: 3, background: '#3b82f6' }} />
-          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Your meetings</span>
+          <div style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--cal-event-bg)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--cal-text-muted)' }}>Your meetings</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 12, height: 12, borderRadius: 3, background: '#f3f4f6', border: '1.5px dashed #9ca3af' }} />
-          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Google Calendar (busy)</span>
+          <div style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--cal-google-bg)', border: '1.5px dashed var(--cal-google-border)' }} />
+          <span style={{ fontSize: '0.75rem', color: 'var(--cal-text-muted)' }}>Google Calendar (busy)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }} />
-          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Current time</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--cal-text-muted)' }}>Current time</span>
         </div>
         {timezone && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Globe size={12} style={{ color: '#6b7280' }} />
-            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{timezone}</span>
+            <Globe size={12} style={{ color: 'var(--cal-text-muted)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--cal-text-muted)' }}>{timezone}</span>
           </div>
         )}
       </div>

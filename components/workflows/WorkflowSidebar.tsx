@@ -159,14 +159,14 @@ export default function WorkflowSidebar() {
   };
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
+    <div className="w-64 bg-white dark:bg-[#2c2c2e] border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
       <div className="p-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">Workflow Nodes</h3>
-        <p className="text-xs text-gray-600 mb-4">Drag nodes to the canvas</p>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Workflow Nodes</h3>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">Drag nodes to the canvas</p>
 
         {Object.entries(groupedItems).map(([category, items]) => (
           <div key={category} className="mb-6">
-            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
               {category}
             </h4>
             <div className="space-y-2">
@@ -189,7 +189,7 @@ export default function WorkflowSidebar() {
                         <div className={`text-sm font-medium ${colorClasses.text}`}>
                           {item.label}
                         </div>
-                        <div className="text-xs text-gray-600 mt-0.5">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                           {item.description}
                         </div>
                       </div>

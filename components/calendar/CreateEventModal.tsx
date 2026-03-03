@@ -96,13 +96,13 @@ export default function CreateEventModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+      <div className="bg-white dark:bg-[#2c2c2e] rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Create Meeting</h2>
+        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create Meeting</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -118,7 +118,7 @@ export default function CreateEventModal({
 
           {/* Subject */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Meeting Title *
             </label>
             <div className="relative">
@@ -136,7 +136,7 @@ export default function CreateEventModal({
 
           {/* Start Time */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Start Time *
             </label>
             <div className="relative">
@@ -153,7 +153,7 @@ export default function CreateEventModal({
 
           {/* End Time */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               End Time *
             </label>
             <div className="relative">
@@ -171,7 +171,7 @@ export default function CreateEventModal({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description
             </label>
             <textarea
@@ -184,8 +184,8 @@ export default function CreateEventModal({
           </div>
 
           {/* Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p className="text-xs text-blue-800 dark:text-blue-300">
               <strong>Auto-sync:</strong> This meeting will automatically sync to your Google Calendar if connected.
             </p>
           </div>
