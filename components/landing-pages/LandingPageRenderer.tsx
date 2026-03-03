@@ -242,6 +242,9 @@ export default function LandingPageRenderer({
         return (
           <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#fff', padding: 'clamp(48px,8vw,72px) 24px' }}>
             <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center' }}>
+              {block.data.logoUrl && (
+                <img src={block.data.logoUrl} alt="Team Logo" style={{ maxHeight: '60px', maxWidth: '200px', objectFit: 'contain', margin: '0 auto 20px', display: 'block' }} />
+              )}
               <h2 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)', fontWeight: '800', color: '#111827', marginBottom: '40px' }}>
                 {block.data.heading || 'Meet The Team'}
               </h2>
@@ -329,7 +332,10 @@ export default function LandingPageRenderer({
           <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#0f172a', color: '#fff', padding: '36px 24px', textAlign: 'center' }}>
             <div style={{ maxWidth: '700px', margin: '0 auto' }}>
               <p style={{ fontWeight: '800', fontSize: '1.2rem', marginBottom: '4px' }}>{block.data.agentName}</p>
-              <p style={{ color: accent, fontSize: '0.875rem', marginBottom: '16px' }}>{block.data.brokerage}</p>
+              <p style={{ color: accent, fontSize: '0.875rem', marginBottom: block.data.corporationText ? '2px' : '16px' }}>{block.data.brokerage}</p>
+              {block.data.corporationText && (
+                <p style={{ color: accent, fontSize: '0.8rem', opacity: 0.75, marginBottom: '16px' }}>{block.data.corporationText}</p>
+              )}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 {block.data.phone && <a href={`tel:${block.data.phone}`} style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.phone}</a>}
                 {block.data.email && <a href={`mailto:${block.data.email}`} style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.email}</a>}
