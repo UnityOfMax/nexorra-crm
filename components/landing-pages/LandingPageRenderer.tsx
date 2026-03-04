@@ -328,19 +328,24 @@ export default function LandingPageRenderer({
 
       case 're_footer': {
         const accent = block.data.accentColor || styles.primaryColor;
+        const nameColor = block.data.agentNameColor || '#ffffff';
+        const brokerageColor = block.data.brokerageColor || accent;
+        const corpColor = block.data.corporationTextColor || accent;
+        const contactLinkColor = block.data.contactColor || '#94a3b8';
+        const licColor = block.data.licenseColor || '#475569';
         return (
           <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ backgroundColor: '#0f172a', color: '#fff', padding: '36px 24px', textAlign: 'center' }}>
             <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-              <p style={{ fontWeight: '800', fontSize: '1.2rem', marginBottom: '4px' }}>{block.data.agentName}</p>
-              <p style={{ color: accent, fontSize: '0.875rem', marginBottom: block.data.corporationText ? '2px' : '16px' }}>{block.data.brokerage}</p>
+              <p style={{ fontWeight: '800', fontSize: '1.2rem', marginBottom: '4px', color: nameColor }}>{block.data.agentName}</p>
+              <p style={{ color: brokerageColor, fontSize: '0.875rem', marginBottom: block.data.corporationText ? '2px' : '16px' }}>{block.data.brokerage}</p>
               {block.data.corporationText && (
-                <p style={{ color: accent, fontSize: '0.8rem', opacity: 0.75, marginBottom: '16px' }}>{block.data.corporationText}</p>
+                <p style={{ color: corpColor, fontSize: '0.8rem', opacity: 0.75, marginBottom: '16px' }}>{block.data.corporationText}</p>
               )}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                {block.data.phone && <a href={`tel:${block.data.phone}`} style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.phone}</a>}
-                {block.data.email && <a href={`mailto:${block.data.email}`} style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.email}</a>}
+                {block.data.phone && <a href={`tel:${block.data.phone}`} style={{ color: contactLinkColor, textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.phone}</a>}
+                {block.data.email && <a href={`mailto:${block.data.email}`} style={{ color: contactLinkColor, textDecoration: 'none', fontSize: '0.875rem' }}>{block.data.email}</a>}
               </div>
-              {block.data.license && <p style={{ color: '#475569', fontSize: '0.75rem', marginBottom: '8px' }}>{block.data.license}</p>}
+              {block.data.license && <p style={{ color: licColor, fontSize: '0.75rem', marginBottom: '8px' }}>{block.data.license}</p>}
               <p style={{ color: '#334155', fontSize: '0.7rem' }}>© {new Date().getFullYear()} {block.data.agentName}. All rights reserved.</p>
             </div>
           </div>

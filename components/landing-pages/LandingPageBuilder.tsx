@@ -949,10 +949,18 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
         <div className="space-y-3">
           {textInput('Agent Name', 'agentName', 'Jane Smith')}
           {textInput('Brokerage / Company', 'brokerage', 'Sunshine Realty Group')}
+          {textInput('Corporation / Subtitle', 'corporationText', 'Personal Real Estate Corporation')}
           {textInput('Email', 'email', 'jane@example.com')}
           {textInput('Phone', 'phone', '(305) 555-0123')}
           {textInput('License Number', 'license', 'License #FL-3456789')}
-          {colorInput('Accent Color', 'accentColor')}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Text Colors</p>
+            {colorInput('Agent Name', 'agentNameColor')}
+            {colorInput('Brokerage', 'brokerageColor')}
+            {colorInput('Corporation Text', 'corporationTextColor')}
+            {colorInput('Contact Links', 'contactColor')}
+            {colorInput('License', 'licenseColor')}
+          </div>
         </div>
       );
 
