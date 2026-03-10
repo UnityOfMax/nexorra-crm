@@ -40,3 +40,14 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# Agent runtime files (logs, state, learnings contain runtime data)
+logs/
+agents/state/
+agents/memory/
+
+# Claude Code settings (commands are committed, settings are not)
+.claude/settings.json
+
+# GitHub token
+.gh-token

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { triggerAgentRun } from '@/lib/agents/trigger-run';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +99,9 @@ export async function POST(request: NextRequest) {
       console.error('Message insert error:', msgError);
       // Don't fail — conversation row was created, this is recoverable
     }
+
+    // Trigger cold email reply agent to classify and respond
+    triggerAgentRun('cold-email-replies').catch(() => {});
 
     return NextResponse.json({ ok: true });
   } catch (err) {

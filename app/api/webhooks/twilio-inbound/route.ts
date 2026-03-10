@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { stopAutomation } from '@/lib/automations/enrollment';
+import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
       await Promise.allSettled(
         contacts.map(c => stopAutomation(c.account_id, c.id))
       );
+      // Trigger client reply agent to handle this inbound SMS
+      triggerAgentRun('client-reply').catch(() => {});
     }
   }
 

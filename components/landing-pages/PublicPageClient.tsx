@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import LandingPageRenderer from './LandingPageRenderer';
 import HomeSearchForm from './HomeSearchForm';
-import { fbPixelScriptBody } from '@/lib/pixel';
+import { fbPixelScriptBody, fbPixelNoscript } from '@/lib/pixel';
 import type { LandingPageContent } from '@/lib/landing-page-templates';
 
 // Pass either slug (legacy /p/[slug] route) or pageId (new /account/[s]/landing-pages/[id] route)
@@ -21,8 +21,6 @@ declare global {
 export default function PublicPageClient({ slug, pageId }: PublicPageClientProps) {
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [accountId, setAccountId] = useState('');
-  const [connectPixel, setConnectPixel] = useState(false);
-  const [pixelId, setPixelId] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -37,21 +35,24 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         const data = await r.json();
         setContent(data.content);
         setAccountId(data.account_id);
-        setConnectPixel(data.connect_pixel === true);
-        if (data.pixel_id) setPixelId(data.pixel_id);
       })
       .catch(() => setNotFound(true));
   }, [slug, pageId]);
 
-  // Inject Facebook Pixel when connect_pixel is enabled and a pixel ID is available
+  // Inject Meta Pixel on every landing page (hardcoded pixel ID, always active)
   useEffect(() => {
-    if (!connectPixel || !pixelId) return;
     if (document.getElementById('fb-pixel')) return;
+    // Inject pixel script into <head>
     const s = document.createElement('script');
     s.id = 'fb-pixel';
-    s.innerHTML = fbPixelScriptBody(pixelId);
+    s.innerHTML = fbPixelScriptBody();
     document.head.appendChild(s);
-  }, [connectPixel, pixelId]);
+    // Inject noscript fallback
+    const ns = document.createElement('noscript');
+    ns.id = 'fb-pixel-ns';
+    ns.innerHTML = fbPixelNoscript();
+    document.head.appendChild(ns);
+  }, []);
 
   // Set dynamic favicon and page title from landing page content
   const heroBlock = content?.blocks.find((b) => b.type === 're_hero');

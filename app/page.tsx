@@ -19,6 +19,9 @@ function HomeContent() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch((err) => {
+      console.error('Auth session error:', err);
+      setLoading(false);
     });
 
     // Listen for auth changes

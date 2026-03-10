@@ -18,6 +18,7 @@ import LandingPageList from './landing-pages/LandingPageList';
 import AIAgent from './AIAgent';
 import LeadsList from './LeadsList';
 import StaceyConversations from './StaceyConversations';
+import CommandCenter from './CommandCenter';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
@@ -396,6 +397,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return <LeadsList />;
       case 'campaigns':
         return <StaceyConversations />;
+      case 'command-center':
+        return <CommandCenter />;
       default:
         // Unified dashboard
         return (
@@ -682,6 +685,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'pages' ? 'Landing Pages' :
                  activeView === 'leads' ? 'Leads' :
                  activeView === 'campaigns' ? 'Email Campaigns' :
+                 activeView === 'command-center' ? 'Command Center' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">

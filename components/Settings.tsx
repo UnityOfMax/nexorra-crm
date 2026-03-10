@@ -284,10 +284,17 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     }
   };
 
+  const [appearanceSaved, setAppearanceSaved] = useState(false);
+
   const toggleDarkMode = () => {
     const isDark = document.documentElement.classList.toggle('dark');
     setDark(isDark);
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  };
+
+  const saveAppearance = async () => {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    setAppearanceSaved(true);
+    setTimeout(() => setAppearanceSaved(false), 2000);
   };
 
   // ── Section renderers ─────────────────────────────────────────────
@@ -661,6 +668,13 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           }`}>
             {dark ? <Moon className="w-3 h-3 text-gray-600" /> : <Sun className="w-3 h-3 text-amber-500" />}
           </span>
+        </button>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <button onClick={saveAppearance} className="btn btn-primary flex items-center gap-2">
+          {appearanceSaved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+          {appearanceSaved ? 'Saved!' : 'Save'}
         </button>
       </div>
     </div>

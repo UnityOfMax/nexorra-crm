@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
+import { triggerAgentRun } from '@/lib/agents/trigger-run';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -105,6 +106,9 @@ export async function POST(req: NextRequest) {
         channel: 'email',
       }).catch((err) => console.error('[resend-inbound] AI auto-respond error:', err));
     }
+
+    // Trigger client reply agent for any messages not handled by auto-mode
+    triggerAgentRun('client-reply').catch(() => {});
 
     return NextResponse.json({ received: true });
   } catch (error: any) {

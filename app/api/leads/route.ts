@@ -64,3 +64,54 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ lead: data });
 }
+
+// DELETE /api/leads?id=X or DELETE /api/leads with body { ids: [...] } for bulk
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
+  const id = request.nextUrl.searchParams.get('id');
+
+  if (id) {
+    // Single delete
+    const { error } = await supabaseAdmin
+      .from('leads')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Lead delete error:', error);
+      return NextResponse.json({ error: 'Failed to delete lead' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Bulk delete
+  try {
+    const body = await request.json();
+    const { ids } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array required' }, { status: 400 });
+    }
+
+    if (ids.length > 500) {
+      return NextResponse.json({ error: 'Max 500 leads per bulk delete' }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('leads')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      console.error('Bulk delete error:', error);
+      return NextResponse.json({ error: 'Failed to bulk delete leads' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, deleted: ids.length });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+}

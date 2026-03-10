@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe } from 'lucide-react';
+import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -29,6 +29,7 @@ const BROKERAGES: Record<string, string> = {
   exp: 'eXp Realty',
   century21: 'Century 21',
   coldwell: 'Coldwell Banker',
+  coldwellbanker: 'Coldwell Banker',
   bhhs: 'BHHS',
   compass: 'Compass',
   howardhanna: 'Howard Hanna',
@@ -36,6 +37,7 @@ const BROKERAGES: Record<string, string> = {
   royallepage: 'Royal LePage',
   sutton: 'Sutton',
   remaxca: 'RE/MAX Canada',
+  remax_ca: 'RE/MAX Canada',
 };
 
 const TIMEZONES = ['EST', 'CST', 'MST', 'PST'];
@@ -52,6 +54,18 @@ export default function LeadsList() {
   const [filterTimezone, setFilterTimezone] = useState('');
   const [filterBrokerage, setFilterBrokerage] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Edit modal
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Lead>>({});
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const fetchLeads = useCallback(async (off = offset) => {
     setLoading(true);
@@ -75,12 +89,14 @@ export default function LeadsList() {
 
   useEffect(() => {
     setOffset(0);
+    setSelectedIds(new Set());
     fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterPushed, filterTimezone, filterBrokerage, filterCountry]);
 
   useEffect(() => {
     fetchLeads(offset);
+    setSelectedIds(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset]);
 
@@ -95,6 +111,91 @@ export default function LeadsList() {
     }
   };
 
+  // Selection handlers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === leads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(leads.map(l => l.id)));
+    }
+  };
+
+  // Single delete
+  const handleDelete = async (id: string) => {
+    const res = await fetch(`/api/leads?id=${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setLeads(prev => prev.filter(l => l.id !== id));
+      setTotal(prev => prev - 1);
+      setDeleteConfirm(null);
+      selectedIds.delete(id);
+      setSelectedIds(new Set(selectedIds));
+    }
+  };
+
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) {
+        setLeads(prev => prev.filter(l => !selectedIds.has(l.id)));
+        setTotal(prev => prev - selectedIds.size);
+        setSelectedIds(new Set());
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  // Edit handlers
+  const openEdit = (lead: Lead) => {
+    setEditingLead(lead);
+    setEditForm({
+      full_name: lead.full_name,
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      email: lead.email,
+      phone: lead.phone,
+      city: lead.city,
+      state_province: lead.state_province,
+      source_brokerage: lead.source_brokerage,
+      profile_url: lead.profile_url,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLead) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/leads?id=${editingLead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        const { lead } = await res.json();
+        setLeads(prev => prev.map(l => l.id === editingLead.id ? lead : l));
+        setEditingLead(null);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
@@ -104,6 +205,9 @@ export default function LeadsList() {
     MST: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     PST: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   };
+
+  const allSelected = leads.length > 0 && selectedIds.size === leads.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < leads.length;
 
   return (
     <div>
@@ -139,7 +243,7 @@ export default function LeadsList() {
         <select
           value={filterPushed}
           onChange={e => setFilterPushed(e.target.value as 'all' | 'true' | 'false')}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="all">All Status</option>
           <option value="false">Not Pushed</option>
@@ -149,7 +253,7 @@ export default function LeadsList() {
         <select
           value={filterTimezone}
           onChange={e => setFilterTimezone(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">All Timezones</option>
           {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
@@ -158,7 +262,7 @@ export default function LeadsList() {
         <select
           value={filterBrokerage}
           onChange={e => setFilterBrokerage(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">All Brokerages</option>
           {Object.entries(BROKERAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -167,7 +271,7 @@ export default function LeadsList() {
         <select
           value={filterCountry}
           onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">US + CA</option>
           <option value="US">United States</option>
@@ -175,12 +279,46 @@ export default function LeadsList() {
         </select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl">
+          <span className="text-sm font-medium text-red-700 dark:text-red-300">
+            {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size}`}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-sm text-red-600 dark:text-red-400 hover:underline"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/80 dark:bg-white/3">
+                <th className="px-3 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    {allSelected ? (
+                      <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                    ) : someSelected ? (
+                      <MinusSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                </th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Agent</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Contact</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Location</th>
@@ -188,20 +326,20 @@ export default function LeadsList() {
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Brokerage</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Scraped</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-gray-400 dark:text-gray-500">
+                  <td colSpan={9} className="py-16 text-center text-gray-400 dark:text-gray-500">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
                     Loading leads…
                   </td>
                 </tr>
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-gray-400 dark:text-gray-500">
+                  <td colSpan={9} className="py-16 text-center text-gray-400 dark:text-gray-500">
                     <Target className="w-8 h-8 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">No leads yet</p>
                     <p className="text-xs mt-1">Jeff will populate this once he starts scraping</p>
@@ -211,8 +349,21 @@ export default function LeadsList() {
                 leads.map(lead => (
                   <tr
                     key={lead.id}
-                    className="border-b border-gray-50 dark:border-gray-700/30 hover:bg-gray-50/60 dark:hover:bg-white/3 transition-colors"
+                    className={`border-b border-gray-50 dark:border-gray-700/30 hover:bg-gray-50/60 dark:hover:bg-white/3 transition-colors ${
+                      selectedIds.has(lead.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''
+                    }`}
                   >
+                    {/* Checkbox */}
+                    <td className="px-3 py-3">
+                      <button onClick={() => toggleSelect(lead.id)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        {selectedIds.has(lead.id) ? (
+                          <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                      </button>
+                    </td>
+
                     {/* Agent */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
@@ -297,7 +448,7 @@ export default function LeadsList() {
 
                     {/* Actions */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 justify-end">
                         {lead.profile_url && (
                           <a
                             href={lead.profile_url}
@@ -309,13 +460,44 @@ export default function LeadsList() {
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}
+                        <button
+                          onClick={() => openEdit(lead)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Edit lead"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {deleteConfirm === lead.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDelete(lead.id)}
+                              className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(lead.id)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            title="Delete lead"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {!lead.pushed_to_instantly && (
                           <button
                             onClick={() => handleMarkPushed(lead)}
-                            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400 hover:bg-primary-500/20 transition-colors whitespace-nowrap"
+                            className="px-2 py-1 text-xs font-medium rounded-lg bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400 hover:bg-primary-500/20 transition-colors whitespace-nowrap"
                             title="Mark as pushed to Instantly"
                           >
-                            Mark Pushed
+                            Push
                           </button>
                         )}
                       </div>
@@ -355,6 +537,123 @@ export default function LeadsList() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Lead</h3>
+              <button
+                onClick={() => setEditingLead(null)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">First Name</label>
+                  <input
+                    value={editForm.first_name || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, first_name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Last Name</label>
+                  <input
+                    value={editForm.last_name || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, last_name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Full Name</label>
+                <input
+                  value={editForm.full_name || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
+                <input
+                  value={editForm.email || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value || null }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  placeholder="null if not available"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Phone</label>
+                <input
+                  value={editForm.phone || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value || null }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  placeholder="null if not available"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">City</label>
+                  <input
+                    value={editForm.city || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">State/Province</label>
+                  <input
+                    value={editForm.state_province || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, state_province: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Profile URL</label>
+                <input
+                  value={editForm.profile_url || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, profile_url: e.target.value || null }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Brokerage</label>
+                <select
+                  value={editForm.source_brokerage || ''}
+                  onChange={e => setEditForm(prev => ({ ...prev, source_brokerage: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
+                >
+                  {Object.entries(BROKERAGES).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-white/3">
+              <button
+                onClick={() => setEditingLead(null)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
