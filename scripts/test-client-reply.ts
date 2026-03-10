@@ -72,7 +72,7 @@ async function test() {
     .limit(10);
 
   const conversationHistory = (history || []).map((h: any) => ({
-    role: h.direction === 'inbound' ? 'user' : 'assistant',
+    role: (h.direction === 'inbound' ? 'user' : 'assistant') as 'user' | 'assistant',
     content: h.content,
   }));
 
