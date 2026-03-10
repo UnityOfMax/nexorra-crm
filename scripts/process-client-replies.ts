@@ -160,7 +160,7 @@ async function processClientReplies() {
 
       // Convert history to Kimi conversation format
       const conversationHistory = history.map((h: any) => ({
-        role: h.direction === 'inbound' ? 'user' : 'assistant',
+        role: (h.direction === 'inbound' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: h.content,
       }));
 
