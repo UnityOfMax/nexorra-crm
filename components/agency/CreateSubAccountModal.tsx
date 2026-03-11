@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Building2, Globe, Hash, User, MapPin, Mail, Phone } from 'lucide-react';
+import { X, Building2, Globe, Hash, User, MapPin, Mail, Phone, TrendingUp } from 'lucide-react';
 
 interface CreateSubAccountModalProps {
   agencyId: string;
@@ -34,6 +34,13 @@ export default function CreateSubAccountModal({
     user_first_name: '',
     user_email: '',
     user_phone: '',
+    // Campaign setup (optional)
+    campaign_monthly_budget: '',
+    campaign_currency: 'USD' as 'USD' | 'CAD',
+    campaign_target_locations: '',   // comma-separated
+    campaign_target_client_type: [] as string[],
+    campaign_facebook_page_id: '',
+    campaign_meta_ad_account_id: '',
   });
 
   const generateSlug = (name: string) => {
@@ -91,6 +98,16 @@ export default function CreateSubAccountModal({
             address: formData.location_address || undefined,
           },
           timezone: formData.timezone || undefined,
+          campaign: (formData.campaign_monthly_budget || formData.campaign_target_locations || formData.campaign_facebook_page_id || formData.campaign_meta_ad_account_id || formData.campaign_target_client_type.length > 0) ? {
+            monthly_budget: formData.campaign_monthly_budget ? parseFloat(formData.campaign_monthly_budget) : undefined,
+            currency: formData.campaign_currency,
+            target_locations: formData.campaign_target_locations
+              ? formData.campaign_target_locations.split(',').map((s) => s.trim()).filter(Boolean)
+              : [],
+            target_client_type: formData.campaign_target_client_type,
+            facebook_page_id: formData.campaign_facebook_page_id || undefined,
+            meta_ad_account_id: formData.campaign_meta_ad_account_id || undefined,
+          } : undefined,
           userInfo: formData.user_email ? {
             first_name: formData.user_first_name,
             email: formData.user_email,
@@ -325,6 +342,97 @@ export default function CreateSubAccountModal({
                   <option value="Australia/Sydney">Sydney (AEST)</option>
                   <option value="Pacific/Auckland">Auckland (NZST)</option>
                 </select>
+              </div>
+            </div>
+          </div>
+
+          <hr className="border-gray-200" />
+
+          {/* Campaign Setup Section */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-1 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Campaign Setup
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">Optional. Configure Meta ad settings for this client.</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Budget ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={formData.campaign_monthly_budget}
+                    onChange={(e) => setFormData({ ...formData, campaign_monthly_budget: e.target.value })}
+                    className="input"
+                    placeholder="e.g. 1500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                  <select
+                    value={formData.campaign_currency}
+                    onChange={(e) => setFormData({ ...formData, campaign_currency: e.target.value as 'USD' | 'CAD' })}
+                    className="input"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="CAD">CAD</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Target Locations</label>
+                <input
+                  type="text"
+                  value={formData.campaign_target_locations}
+                  onChange={(e) => setFormData({ ...formData, campaign_target_locations: e.target.value })}
+                  className="input"
+                  placeholder="Miami, FL, Tampa, FL (comma-separated)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Target Client Type</label>
+                <div className="flex gap-3">
+                  {['buyers', 'sellers', 'investors'].map((type) => (
+                    <label key={type} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.campaign_target_client_type.includes(type)}
+                        onChange={(e) => {
+                          const updated = e.target.checked
+                            ? [...formData.campaign_target_client_type, type]
+                            : formData.campaign_target_client_type.filter((t) => t !== type);
+                          setFormData({ ...formData, campaign_target_client_type: updated });
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700 capitalize">{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Facebook Page ID</label>
+                  <input
+                    type="text"
+                    value={formData.campaign_facebook_page_id}
+                    onChange={(e) => setFormData({ ...formData, campaign_facebook_page_id: e.target.value })}
+                    className="input"
+                    placeholder="123456789"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Meta Ad Account ID</label>
+                  <input
+                    type="text"
+                    value={formData.campaign_meta_ad_account_id}
+                    onChange={(e) => setFormData({ ...formData, campaign_meta_ad_account_id: e.target.value })}
+                    className="input"
+                    placeholder="act_XXXXXXX (blank = use Nexorra's)"
+                  />
+                </div>
               </div>
             </div>
           </div>

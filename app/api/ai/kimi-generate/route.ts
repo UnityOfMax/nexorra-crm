@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/ai/kimi-generate
  *
- * Generate a reply using Kimi K2.5 (Moonshot AI).
+ * Generate a reply using Claude Haiku 4.5 with prompt caching.
  * Used by cron agents for cold email and client reply generation.
+ * (Route path kept for backward compatibility with agent scripts.)
  *
  * Auth: CRON_SECRET bearer token or session auth.
  */
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
       usage: result.tokensUsed,
     });
   } catch (err) {
-    console.error('Kimi generation error:', err);
+    console.error('Haiku generation error:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Generation failed' },
       { status: 500 }

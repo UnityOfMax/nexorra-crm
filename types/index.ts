@@ -30,6 +30,15 @@ export interface LocationInfo {
   address?: string;
 }
 
+export interface CampaignSettings {
+  monthly_budget?: number;
+  currency?: 'USD' | 'CAD';
+  target_locations?: string[];     // e.g. ["Miami, FL", "Tampa, FL"]
+  target_client_type?: string[];   // e.g. ["buyers", "sellers", "investors"]
+  facebook_page_id?: string;
+  meta_ad_account_id?: string;     // act_XXXXXXX — blank uses Nexorra global
+}
+
 export interface AccountSettings {
   branding?: {
     logo_url?: string;
@@ -69,6 +78,7 @@ export interface AccountSettings {
     phone?: string;
     address?: string;
   };
+  campaign?: CampaignSettings;
 }
 
 export interface Contact {

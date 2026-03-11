@@ -193,8 +193,8 @@ ${Object.keys(c.custom_fields || {}).length > 0 ? `Fields: ${JSON.stringify(c.cu
       }
 
       try {
-        // Generate reply via Kimi
-        console.log(`    Generating reply via Kimi...`);
+        // Generate reply via Haiku
+        console.log(`    Generating reply via Haiku...`);
         const result = await generateKimiReply({
           systemPrompt: fullSystemPrompt,
           conversationHistory,
@@ -254,7 +254,7 @@ ${Object.keys(c.custom_fields || {}).length > 0 ? `Fields: ${JSON.stringify(c.cu
             .from('messages')
             .update({
               is_ai_generated: true,
-              ai_metadata: { model: 'kimi-k2-5', channel, agentName },
+              ai_metadata: { model: 'claude-haiku-4-5-20251001', channel, agentName },
             })
             .eq('id', message.id);
 

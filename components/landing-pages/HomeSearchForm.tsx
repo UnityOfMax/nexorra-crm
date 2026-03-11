@@ -75,7 +75,12 @@ export default function HomeSearchForm({
     first_name: '', last_name: '', phone: '', email: '',
   });
 
-  // Reset when opened
+  // Meta attribution state — captured once on open
+  const [metaEventId] = useState(() => crypto.randomUUID());
+  const [metaFbp, setMetaFbp] = useState<string | null>(null);
+  const [metaFbc, setMetaFbc] = useState<string | null>(null);
+
+  // Reset when opened; capture fbp/fbc
   useEffect(() => {
     if (isOpen) {
       setStep('intent');
@@ -86,6 +91,19 @@ export default function HomeSearchForm({
         sell_also: '', employment: '', income: '', call_time: '', serious: '',
         first_name: '', last_name: '', phone: '', email: '',
       });
+
+      // Capture _fbp cookie (Meta browser pixel cookie)
+      const fbpCookie = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('_fbp='))
+        ?.split('=')?.[1] || null;
+      setMetaFbp(fbpCookie);
+
+      // Capture fbclid from URL and format as fbc
+      const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+      if (fbclid) {
+        setMetaFbc(`fb.1.${Date.now()}.${fbclid}`);
+      }
     }
   }, [isOpen]);
 
@@ -122,6 +140,9 @@ export default function HomeSearchForm({
           email: formData.email.trim(),
           agentName,
           source: 'Real Estate Landing Page',
+          fbc: metaFbc || undefined,
+          fbp: metaFbp || undefined,
+          event_id: metaEventId,
           custom_fields: {
             'Intent': formData.intent,
             'Current Situation': formData.situation,
@@ -139,7 +160,8 @@ export default function HomeSearchForm({
       const data = await res.json();
       if (res.ok && data.contactId) {
         setSubmittedContactId(data.contactId);
-        fireFbq('Lead', { content_name: 'Real Estate Form' });
+        // Fire browser-side Lead pixel event with matching eventID for CAPI deduplication
+        fireFbq('Lead', { content_name: 'Real Estate Form', eventID: metaEventId });
         setStep('calendar');
       } else {
         setSubmitError(data.error || 'Something went wrong. Please try again.');

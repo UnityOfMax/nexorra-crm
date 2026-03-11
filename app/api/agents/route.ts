@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   const { data: agents, error } = await supabaseAdmin
     .from('agent_configs')
     .select('*')
+    .neq('category', 'hidden')
     .order('category')
     .order('name');
 
@@ -44,9 +45,33 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Compute avg_duration from last 5 completed runs per agent
+  const { data: recentRuns } = await supabaseAdmin
+    .from('agent_runs')
+    .select('agent_id, duration_seconds')
+    .in('agent_id', agentIds)
+    .eq('status', 'completed')
+    .not('duration_seconds', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(agentIds.length * 5);
+
+  const durationMap: Record<string, number[]> = {};
+  for (const run of recentRuns || []) {
+    if (!durationMap[run.agent_id]) durationMap[run.agent_id] = [];
+    if (durationMap[run.agent_id].length < 5) {
+      durationMap[run.agent_id].push(run.duration_seconds);
+    }
+  }
+
+  const avgDurationMap: Record<string, number> = {};
+  for (const [agentId, durations] of Object.entries(durationMap)) {
+    avgDurationMap[agentId] = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+  }
+
   const agentsWithRuns = (agents || []).map(agent => ({
     ...agent,
     latest_run: latestRunMap[agent.id] || null,
+    avg_duration: avgDurationMap[agent.id] || (agent.max_turns ? agent.max_turns * 3 : 120),
   }));
 
   return NextResponse.json({ agents: agentsWithRuns });

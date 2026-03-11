@@ -31,6 +31,8 @@ Read `CLAUDE.md` for project architecture before making changes.
 
 7. **Imports.** Use `@/` alias for project imports. Lucide React for icons.
 
+8. **Design quality.** Follow the frontend design skill (`~/.claude/skills/frontend-design/SKILL.md`). Use distinctive typography, intentional color with CSS variables, unexpected layouts, meaningful motion, and atmospheric depth. Never produce generic "AI slop" aesthetics.
+
 ## After Changes
 
 - Run `npm run build` to verify TypeScript compilation

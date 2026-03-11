@@ -6,7 +6,7 @@ import {
   RefreshCw, Power, PowerOff, Zap, Users, Code, BarChart3,
   X, AlertTriangle, Radio, Send, FileText, Loader2,
   DollarSign, Hash, Wrench, MessageSquare, Eye, EyeOff,
-  ChevronRight, ArrowRight, Square, StopCircle,
+  ChevronRight, ArrowRight, Square, StopCircle, Search, Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,6 +25,7 @@ interface AgentConfig {
   cron_script: string | null;
   memory_file: string | null;
   latest_run: AgentRun | null;
+  avg_duration: number;
 }
 
 interface AgentRun {
@@ -71,6 +72,25 @@ interface ContentBlock {
   is_error?: boolean;
   tool_use_id?: string;
 }
+
+// --- Persona Config ---
+
+type PersonaKey = 'jeff' | 'stacey' | 'barny' | 'ops';
+
+const PERSONAS: Record<PersonaKey, { label: string; icon: string; gradient: string; description: string }> = {
+  jeff: { label: 'Jeff', icon: '🔍', gradient: 'from-blue-500 to-cyan-500', description: 'Lead Generation' },
+  stacey: { label: 'Stacey', icon: '✉️', gradient: 'from-purple-500 to-pink-500', description: 'Cold Email Outreach' },
+  barny: { label: 'Barny', icon: '🛠️', gradient: 'from-amber-500 to-orange-500', description: 'Development' },
+  ops: { label: 'Ops', icon: '📊', gradient: 'from-green-500 to-emerald-500', description: 'Operations & Client' },
+};
+
+const TABS: Array<{ key: string; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'jeff', label: 'Jeff' },
+  { key: 'stacey', label: 'Stacey' },
+  { key: 'barny', label: 'Barny' },
+  { key: 'ops', label: 'Ops' },
+];
 
 // --- Formatters ---
 
@@ -122,20 +142,29 @@ function timeAgo(dateStr: string): string {
 
 function categoryColor(category: string): string {
   switch (category) {
-    case 'nexorra': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-    case 'client': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'dev': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'jeff': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'stacey': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+    case 'barny': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
     case 'ops': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    case 'client': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    case 'nexorra': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+    case 'dev': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
     default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
   }
 }
 
-function columnBorderColor(column: 'active' | 'idle' | 'inactive'): string {
-  switch (column) {
-    case 'active': return 'border-t-yellow-400';
-    case 'idle': return 'border-t-green-400';
-    case 'inactive': return 'border-t-gray-400';
-  }
+// Map any category to a persona key for grouping
+function getPersonaKey(category: string): PersonaKey {
+  if (category === 'jeff') return 'jeff';
+  if (category === 'stacey' || category === 'nexorra') return 'stacey';
+  if (category === 'barny' || category === 'dev') return 'barny';
+  return 'ops'; // ops, client, anything else
+}
+
+// Short display name: strip persona prefix (e.g. "Stacey — Upload" -> "Upload")
+function shortName(agent: AgentConfig): string {
+  const parts = agent.name.split(' — ');
+  return parts.length > 1 ? parts[1] : agent.name;
 }
 
 // --- Tool icon for log events ---
@@ -354,7 +383,7 @@ function ShannonChat() {
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Shannon</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-500">Orchestrator · Sonnet</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">Orchestrator</p>
         </div>
         {sending && <span className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Working...</span>}
       </div>
@@ -410,9 +439,36 @@ function ShannonChat() {
   );
 }
 
-// --- Agent Pipeline Card ---
+// --- Progress Bar ---
 
-function AgentPipelineCard({
+function ProgressBar({ agent }: { agent: AgentConfig }) {
+  const run = agent.latest_run;
+  if (!run || run.status !== 'running') return null;
+
+  const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
+  const estimated = agent.avg_duration || 120;
+  const progress = Math.min(99, Math.round((elapsed / estimated) * 100));
+  const overEstimate = elapsed > estimated;
+
+  return (
+    <div className="w-full mb-2">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[10px] text-gray-500 dark:text-gray-400">{formatDuration(Math.round(elapsed))}</span>
+        <span className={`text-[10px] font-medium ${overEstimate ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'}`}>{progress}%</span>
+      </div>
+      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-1000 ease-linear ${overEstimate ? 'bg-amber-400 animate-pulse' : 'bg-gradient-to-r from-blue-400 to-blue-500'}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// --- Agent Card ---
+
+function AgentCard({
   agent,
   onToggle,
   onTrigger,
@@ -444,50 +500,40 @@ function AgentPipelineCard({
   const webhook = agent.schedule === 'webhook';
 
   return (
-    <div className="bg-white dark:bg-[#2c2c2e] rounded-xl border border-gray-200 dark:border-gray-700/50 p-3 shadow-sm transition-all duration-500 ease-in-out">
+    <div className="bg-white dark:bg-[#2c2c2e] rounded-xl border border-gray-200 dark:border-gray-700/50 p-3 shadow-sm">
       {/* Header row */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
             !agent.is_enabled ? 'bg-gray-400 dark:bg-gray-600' :
-            webhook ? 'bg-green-500 animate-pulse' :
             isRunning ? 'bg-yellow-400 animate-pulse' :
+            webhook ? 'bg-green-500' :
             run?.status === 'completed' ? 'bg-green-500' :
             run?.status === 'failed' ? 'bg-red-500' :
             'bg-gray-300 dark:bg-gray-600'
           }`} />
-          <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{agent.name}</span>
+          <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{shortName(agent)}</span>
         </div>
-        {agent.schedule && (
-          <button onClick={onToggle} className={`p-1 rounded transition-colors ${agent.is_enabled ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
-            {agent.is_enabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-gray-400">{formatSchedule(agent.schedule)}</span>
+          {agent.schedule && (
+            <button onClick={onToggle} className={`p-1 rounded transition-colors ${agent.is_enabled ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
+              {agent.is_enabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Meta row */}
       <div className="flex items-center gap-2 mb-2">
-        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${categoryColor(agent.category)}`}>{agent.category}</span>
-        <span className="text-[10px] text-gray-500">{agent.model}</span>
-        <span className="text-[10px] text-gray-400">{formatSchedule(agent.schedule)}</span>
+        <span className="text-[10px] text-gray-500 dark:text-gray-500">{agent.model}</span>
+        {run && run.started_at && <span className="text-[10px] text-gray-400">{timeAgo(run.started_at)}</span>}
+        {run && run.duration_seconds != null && !isRunning && <span className="text-[10px] text-gray-400">{formatDuration(run.duration_seconds)}</span>}
+        {run && run.cost_usd != null && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><DollarSign className="w-2.5 h-2.5" />{run.cost_usd.toFixed(4)}</span>}
       </div>
 
-      {/* Cost / tokens row (if run data available) */}
-      {run && (
-        <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-500 mb-2">
-          {run.started_at && <span>{timeAgo(run.started_at)}</span>}
-          {run.duration_seconds != null && <span>{formatDuration(run.duration_seconds)}</span>}
-          {run.cost_usd != null && <span className="flex items-center gap-0.5"><DollarSign className="w-2.5 h-2.5" />{run.cost_usd.toFixed(4)}</span>}
-          {run.input_tokens != null && <span>{formatTokens(run.input_tokens)}/{formatTokens(run.output_tokens)} tok</span>}
-        </div>
-      )}
-
       {/* Progress bar for running */}
-      {isRunning && run && (
-        <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full mb-2 overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full animate-pulse" style={{ width: `${Math.min(90, Math.round((Date.now() - new Date(run.started_at).getTime()) / 6000))}%` }} />
-        </div>
-      )}
+      <ProgressBar agent={agent} />
 
       {/* Error */}
       {run?.status === 'failed' && run.error_message && (
@@ -580,10 +626,56 @@ function LogViewerModal({ runId, title, onClose }: { runId: string; title: strin
   );
 }
 
+// --- Persona Section ---
+
+function PersonaSection({
+  personaKey,
+  agents,
+  renderCard,
+}: {
+  personaKey: PersonaKey;
+  agents: AgentConfig[];
+  renderCard: (agent: AgentConfig) => React.ReactNode;
+}) {
+  const persona = PERSONAS[personaKey];
+  if (agents.length === 0) return null;
+
+  const runningCount = agents.filter(a => a.latest_run?.status === 'running').length;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${persona.gradient} flex items-center justify-center text-base`}>
+          {persona.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{persona.label}</h3>
+            <span className="text-xs text-gray-500 dark:text-gray-500">{persona.description}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+          {runningCount > 0 && (
+            <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              {runningCount} active
+            </span>
+          )}
+          <span>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {agents.map(agent => renderCard(agent))}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Command Center ---
 
 export default function CommandCenter() {
   const [agents, setAgents] = useState<AgentConfig[]>([]);
+  const [activeTab, setActiveTab] = useState('all');
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [runHistory, setRunHistory] = useState<Record<string, AgentRun[]>>({});
   const [memoryModal, setMemoryModal] = useState<{ agentId: string; file: string; content: string } | null>(null);
@@ -679,18 +771,24 @@ export default function CommandCenter() {
     }
   };
 
-  // Categorize agents into pipeline columns
+  // Filter out shannon (separate section) and group by persona
   const nonShannon = agents.filter(a => a.id !== 'shannon');
-  const activeAgents = nonShannon.filter(a => a.latest_run?.status === 'running');
-  const idleAgents = nonShannon.filter(a => a.is_enabled && a.latest_run?.status !== 'running');
-  const inactiveAgents = nonShannon.filter(a => !a.is_enabled);
+  const activeCount = nonShannon.filter(a => a.latest_run?.status === 'running').length;
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-20"><RefreshCw className="w-6 h-6 animate-spin text-gray-400" /></div>;
+  // Group agents by persona
+  const grouped: Record<PersonaKey, AgentConfig[]> = { jeff: [], stacey: [], barny: [], ops: [] };
+  for (const agent of nonShannon) {
+    const key = getPersonaKey(agent.category);
+    grouped[key].push(agent);
   }
 
+  // Filter by active tab
+  const visiblePersonas: PersonaKey[] = activeTab === 'all'
+    ? (['jeff', 'stacey', 'barny', 'ops'] as PersonaKey[])
+    : [activeTab as PersonaKey];
+
   const renderCard = (agent: AgentConfig) => (
-    <AgentPipelineCard
+    <AgentCard
       key={agent.id}
       agent={agent}
       onToggle={() => toggleAgent(agent.id, agent.is_enabled)}
@@ -707,6 +805,10 @@ export default function CommandCenter() {
     />
   );
 
+  if (loading) {
+    return <div className="flex items-center justify-center py-20"><RefreshCw className="w-6 h-6 animate-spin text-gray-400" /></div>;
+  }
+
   return (
     <div>
       {/* Header */}
@@ -714,9 +816,9 @@ export default function CommandCenter() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Command Center</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {activeAgents.length > 0 && <span className="text-yellow-600 dark:text-yellow-400 font-medium">{activeAgents.length} active</span>}
-            {activeAgents.length > 0 && ' · '}
-            {idleAgents.length} idle · {inactiveAgents.length} inactive · {agents.length} total
+            {activeCount > 0 && <span className="text-yellow-600 dark:text-yellow-400 font-medium">{activeCount} active</span>}
+            {activeCount > 0 && ' · '}
+            {nonShannon.length} agents
           </p>
         </div>
         <button onClick={() => { setLoading(true); fetchAgents(); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#3a3a3c] dark:hover:bg-[#4a4a4c] text-gray-700 dark:text-gray-300 transition-colors">
@@ -727,53 +829,43 @@ export default function CommandCenter() {
       {/* Shannon */}
       <ShannonChat />
 
-      {/* Pipeline Kanban */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Active Column */}
-        <div>
-          <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${activeAgents.length > 0 ? 'border-yellow-400' : 'border-gray-200 dark:border-gray-700'}`}>
-            <div className={`w-2.5 h-2.5 rounded-full ${activeAgents.length > 0 ? 'bg-yellow-400 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`} />
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Active</h3>
-            <span className="text-xs text-gray-500 dark:text-gray-500 ml-auto">{activeAgents.length}</span>
-          </div>
-          <div className="space-y-3 min-h-[100px]">
-            {activeAgents.length === 0 && (
-              <div className="text-center py-8 text-xs text-gray-400 dark:text-gray-600">No agents running</div>
-            )}
-            {activeAgents.map(renderCard)}
-          </div>
-        </div>
-
-        {/* Idle Column */}
-        <div>
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-green-400">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Idle</h3>
-            <span className="text-xs text-gray-500 dark:text-gray-500 ml-auto">{idleAgents.length}</span>
-          </div>
-          <div className="space-y-3 min-h-[100px]">
-            {idleAgents.length === 0 && (
-              <div className="text-center py-8 text-xs text-gray-400 dark:text-gray-600">No idle agents</div>
-            )}
-            {idleAgents.map(renderCard)}
-          </div>
-        </div>
-
-        {/* Inactive Column */}
-        <div>
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-gray-400 dark:border-gray-600">
-            <div className="w-2.5 h-2.5 rounded-full bg-gray-400 dark:bg-gray-600" />
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Inactive</h3>
-            <span className="text-xs text-gray-500 dark:text-gray-500 ml-auto">{inactiveAgents.length}</span>
-          </div>
-          <div className="space-y-3 min-h-[100px]">
-            {inactiveAgents.length === 0 && (
-              <div className="text-center py-8 text-xs text-gray-400 dark:text-gray-600">All agents enabled</div>
-            )}
-            {inactiveAgents.map(renderCard)}
-          </div>
-        </div>
+      {/* Persona Tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.key;
+          const tabAgents = tab.key === 'all' ? nonShannon : grouped[tab.key as PersonaKey] || [];
+          const tabRunning = tabAgents.filter(a => a.latest_run?.status === 'running').length;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors relative ${
+                isActive
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              {tab.label}
+              {tab.key !== 'all' && (
+                <span className="ml-1.5 text-[10px] text-gray-400">{(grouped[tab.key as PersonaKey] || []).length}</span>
+              )}
+              {tabRunning > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Persona Sections */}
+      {visiblePersonas.map(key => (
+        <PersonaSection
+          key={key}
+          personaKey={key}
+          agents={grouped[key]}
+          renderCard={renderCard}
+        />
+      ))}
 
       {/* Memory modal */}
       {memoryModal && (

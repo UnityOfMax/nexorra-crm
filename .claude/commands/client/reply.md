@@ -1,8 +1,8 @@
 # Client Reply Agent
 
-**EXECUTE IMMEDIATELY. Do NOT ask questions. Do NOT wait for confirmation. Start processing client replies now by following the steps below. You are autonomous — check for pending inbound messages across all sub-accounts, generate replies via Kimi, send via Twilio/Resend, and report when done.**
+**EXECUTE IMMEDIATELY. Do NOT ask questions. Do NOT wait for confirmation. Start processing client replies now by following the steps below. You are autonomous — check for pending inbound messages across all sub-accounts, generate replies via Claude Haiku, send via Twilio/Resend, and report when done.**
 
-Handle inbound SMS and email for ALL client sub-accounts. Uses Kimi K2.5 for reply generation, sends via Twilio (SMS) and Resend (email).
+Handle inbound SMS and email for ALL client sub-accounts. Uses Claude Haiku 4.5 (with prompt caching) for reply generation, sends via Twilio (SMS) and Resend (email).
 
 ## Pre-Check
 
@@ -40,10 +40,12 @@ GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/contacts?id=eq.{contact_id}&select=*
 ```
 Check `ai_enabled` — if false, skip this contact.
 
-**2c. Load conversation history** (last 10 messages):
+**2c. Load cross-channel conversation history** (last 10 messages across BOTH SMS and email):
 ```
 GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/messages?account_id=eq.{account_id}&contact_id=eq.{contact_id}&order=created_at.desc&limit=10&select=direction,content,type,created_at,metadata
 ```
+Include channel indicator when building the thread: `[SMS] Hey, interested in...` / `[EMAIL] Dear Agent...`
+This gives full cross-channel context — when generating an SMS reply, you see recent emails too, and vice versa.
 
 **2d. Build system prompt:**
 Use email-specific config when channel is email (fall back to SMS config):
@@ -54,8 +56,8 @@ Use email-specific config when channel is email (fall back to SMS config):
 - Channel-specific guidance (SMS: concise < 160 chars; Email: proper greeting/sign-off)
 - Follow-up context if applicable
 
-**2e. Generate reply via Kimi K2.5:**
-Call `lib/kimi/generate-reply.ts`:
+**2e. Generate reply via Claude Haiku 4.5:**
+Call `lib/kimi/generate-reply.ts` (now uses Claude Haiku internally with prompt caching):
 ```
 POST http://localhost:3000/api/ai/kimi-generate
 Headers: Content-Type: application/json, Authorization: Bearer $CRON_SECRET
@@ -76,7 +78,7 @@ Or call the library functions directly via `npx tsx`:
 **2g. Mark as AI-generated:**
 ```
 PATCH $NEXT_PUBLIC_SUPABASE_URL/rest/v1/messages?id=eq.{last_outbound_id}
-Body: { "is_ai_generated": true, "ai_metadata": { "model": "kimi-k2-5", "channel": "{channel}" } }
+Body: { "is_ai_generated": true, "ai_metadata": { "model": "claude-haiku-4-5-20251001", "channel": "{channel}" } }
 ```
 
 **2h. Manage follow-up queue:**
@@ -98,9 +100,29 @@ For each: check if contact replied since scheduling. If yes: cancel. If no: gene
 
 Max 3 follow-ups per contact. After 3: mark completed, stop.
 
-## Step 4: Update learnings
-Check for engagement outcomes (replies within 24h = good, no reply after 3 follow-ups = bad).
-Update `agents/memory/client-reply.md`. Condense if > 4KB.
+## Step 4: Feedback loop — shared learnings across all sub-accounts
+
+Check for engagement outcomes across ALL sub-accounts:
+
+**Positive signals (booking = good):**
+- Contact booked via landing page calendar, workflow trigger, or manual entry
+- Query: `GET .../activities?type=eq.meeting&contact_id=eq.{id}&created_at=gte.{24h_ago}`
+- If booked: analyze the conversation — what messages led to booking, what tone worked
+- Write learning: `"[BOOKED] {account_name}: {channel} conversation, {message_count} msgs, tone: {tone_used}, key message: {summary}"`
+
+**Negative signals (silence after 3 follow-ups = bad):**
+- Follow-up queue entries with `follow_up_count >= 3` and `status = 'completed'`
+- Query: `GET .../ai_follow_up_queue?follow_up_count=gte.3&status=eq.completed&updated_at=gte.{24h_ago}`
+- Analyze what didn't work — was the tone too formal? Too pushy? Wrong channel?
+- Write learning: `"[LOST] {account_name}: {channel}, {follow_up_count} follow-ups, last msg: {summary}"`
+
+**Write to shared memory** (all sub-accounts learn from each other):
+Update `agents/memory/client-reply.md`. Condense if > 4KB. Format:
+```
+## Recent Learnings
+- [BOOKED] Acme Realty: SMS, 4 msgs, casual tone + quick CTA worked
+- [LOST] Prime Homes: Email, 3 follow-ups, too formal — contact never replied after initial inquiry
+```
 
 ## Report
 "Client replies: processed N messages across M accounts. Sent: X SMS, Y emails. Follow-ups: Z."

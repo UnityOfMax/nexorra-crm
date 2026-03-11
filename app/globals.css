@@ -220,4 +220,15 @@
     border: none;
     border-radius: 0.5rem;
   }
+
+  /* ── Analytics dashboard CSS variables ── */
+  :root {
+    --analytics-positive: #10b981;
+    --analytics-negative: #ef4444;
+    --analytics-accent:   #f59e0b;
+    --analytics-muted:    rgba(255, 255, 255, 0.35);
+    --analytics-text:     rgba(255, 255, 255, 0.9);
+    --analytics-adset-good: rgba(16, 185, 129, 0.08);
+    --analytics-adset-bad:  rgba(239, 68, 68, 0.08);
+  }
 }

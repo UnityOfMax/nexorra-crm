@@ -79,7 +79,7 @@ async function test() {
   console.log(`  History: ${conversationHistory.length} messages`);
 
   // Generate reply
-  console.log('[5] Generating reply with Kimi...');
+  console.log('[5] Generating reply with Haiku...');
   try {
     const result = await generateKimiReply({
       systemPrompt: config.system_prompt,

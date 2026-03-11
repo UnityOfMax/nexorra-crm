@@ -1,15 +1,11 @@
 #!/bin/bash
 # Launch Chrome with remote debugging enabled for Jeff (lead gen agent)
 # This uses your real Chrome profile — cookies, extensions, fingerprint all active
-
-echo "Launching Chrome with remote debugging on port 9222..."
-echo "Keep this terminal open while Jeff is scraping."
-echo ""
+# Supports both foreground (interactive) and background (cron) usage
 
 # Check if Chrome is already running with debugging
 if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
   echo "Chrome is already running with remote debugging on port 9222."
-  echo "Jeff can connect now."
   exit 0
 fi
 
@@ -27,15 +23,24 @@ if [ -z "$CHROME" ]; then
   exit 1
 fi
 
-echo "Using: $CHROME"
-echo ""
+echo "Launching Chrome ($CHROME) with remote debugging on port 9222..."
 
-# Launch Chrome with remote debugging
-# --remote-debugging-port=9222: Allows Puppeteer to connect
-# --no-first-run: Skip first-run dialogs
-# --restore-last-session: Restore previous tabs
-exec "$CHROME" \
+# Launch Chrome in background and detach so it survives parent exit
+"$CHROME" \
   --remote-debugging-port=9222 \
   --no-first-run \
   --restore-last-session \
-  "$@"
+  "$@" &
+disown
+
+# Wait for Chrome to be ready (up to 15s)
+for i in $(seq 1 15); do
+  if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
+    echo "Chrome is ready on port 9222."
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "WARNING: Chrome launched but not responding on port 9222 after 15s."
+exit 1

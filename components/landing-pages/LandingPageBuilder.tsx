@@ -61,7 +61,6 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
   const [pageSlug, setPageSlug] = useState(page.slug);
   const [metaTitle, setMetaTitle] = useState(page.meta_title || '');
   const [metaDescription, setMetaDescription] = useState(page.meta_description || '');
-  const [connectPixel, setConnectPixel] = useState(page.connect_pixel ?? false);
   const [customDomain, setCustomDomain] = useState(page.custom_domain || '');
   const [published, setPublished] = useState(page.published);
   const [isDirty, setIsDirty] = useState(false);
@@ -133,7 +132,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           content,
           meta_title: metaTitle,
           meta_description: metaDescription,
-          connect_pixel: connectPixel,
+          connect_pixel: true,
           custom_domain: customDomain.trim() || null,
         }),
       });
@@ -165,7 +164,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           content,
           meta_title: metaTitle,
           meta_description: metaDescription,
-          connect_pixel: connectPixel,
+          connect_pixel: true,
           custom_domain: customDomain.trim() || null,
           published: true,
         }),
@@ -288,18 +287,6 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
               <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
               <input value={metaDescription} onChange={(e) => { setMetaDescription(e.target.value); markDirty(); }} className="input text-sm" placeholder="Page description for SEO" />
             </div>
-          </div>
-          <div className="flex items-center justify-between py-3 mt-2 border-t border-gray-100">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Facebook Pixel</p>
-              <p className="text-xs text-gray-500">Track PageView, Lead &amp; Schedule events</p>
-            </div>
-            <button
-              onClick={() => { setConnectPixel(p => !p); markDirty(); }}
-              className={`relative inline-flex h-6 w-11 rounded-full transition-colors flex-shrink-0 ${connectPixel ? 'bg-primary-600' : 'bg-gray-200'}`}
-            >
-              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${connectPixel ? 'translate-x-5' : 'translate-x-0.5'}`} />
-            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,8 @@
 /**
- * Kimi K2.5 reply generation helper.
+ * Claude Haiku 4.5 reply generation helper with prompt caching.
  * Shared by cold email and client reply agents.
+ *
+ * Previously Kimi K2.5 (Moonshot). Now Claude Haiku 4.5 via Anthropic SDK.
  */
 
 import { callKimi } from './client';
@@ -28,8 +30,9 @@ interface GenerateReplyResult {
 }
 
 /**
- * Build context and call Kimi K2.5 to generate a reply.
+ * Build context and call Claude Haiku 4.5 to generate a reply.
  * Injects contactContext into the system prompt if provided.
+ * System prompt is cached via Anthropic prompt caching.
  */
 export async function generateKimiReply(
   params: GenerateReplyParams
@@ -67,3 +70,6 @@ export async function generateKimiReply(
     tokensUsed: result.tokensUsed,
   };
 }
+
+// Alias for cleaner imports
+export const generateReply = generateKimiReply;

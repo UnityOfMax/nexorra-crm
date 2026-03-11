@@ -1,4 +1,4 @@
-# Cold Email — Nexorra Company & Campaign Context
+# Stacey — Nexorra Company & Campaign Context
 
 ## What Nexorra Does
 
@@ -29,6 +29,12 @@ The cold email introduced {sender_name} and included a Loom video walkthrough. T
 **Loom link:** {loom_link}
 
 (If the lead asks for more info or "send me something", send them this Loom link.)
+
+## Booking Link
+
+**Always use this static Calendly link:** https://calendly.com/nexorra/demo-call
+
+Send this link when the lead is interested. Do NOT create single-use links.
 
 ## How to Answer Common Questions
 

@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       location,
       userInfo,
       timezone,
+      campaign,
     } = await request.json();
 
     if (!agencyId || !userId || !name) {
@@ -139,6 +140,16 @@ export async function POST(request: NextRequest) {
     }
     if (timezone) {
       accountSettings.timezone = timezone;
+    }
+    if (campaign && Object.keys(campaign).length > 0) {
+      accountSettings.campaign = {
+        monthly_budget: campaign.monthly_budget || null,
+        currency: campaign.currency || 'USD',
+        target_locations: campaign.target_locations || [],
+        target_client_type: campaign.target_client_type || [],
+        facebook_page_id: campaign.facebook_page_id || null,
+        meta_ad_account_id: campaign.meta_ad_account_id || null,
+      };
     }
 
     // Create client account

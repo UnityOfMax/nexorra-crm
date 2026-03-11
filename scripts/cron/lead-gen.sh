@@ -8,6 +8,9 @@ AGENT_ID="lead-gen"
 API_URL="http://localhost:3000/api/agents/runs"
 LOG_FILE="logs/lead-gen.log"
 
+# Auto-launch Chrome if not already running
+bash scripts/chrome-launch.sh >> "$LOG_FILE" 2>&1
+
 # Register run start
 RUN_ID=$(curl -s -X POST "$API_URL" \
   -H "Content-Type: application/json" \

@@ -13,7 +13,8 @@
  *   node scripts/chrome-tool.js click <selector>         Click an element
  *   node scripts/chrome-tool.js type <selector> <text>   Type into an input
  *   node scripts/chrome-tool.js screenshot [file]        Save screenshot to file
- *   node scripts/chrome-tool.js agents <brokerage>       Extract agent data with brokerage-specific logic
+ *   node scripts/chrome-tool.js agents <brokerage>       Extract agent data from listing page
+ *   node scripts/chrome-tool.js profile <brokerage>      Extract email from individual profile page
  *   node scripts/chrome-tool.js wait <ms>                Wait for specified milliseconds
  *   node scripts/chrome-tool.js url                      Get current page URL
  *   node scripts/chrome-tool.js status                   Check if Chrome is connected
@@ -26,7 +27,6 @@ const CDP_URL = 'http://localhost:9222';
 async function connectToChrome() {
   const browser = await puppeteer.connect({ browserURL: CDP_URL });
   const pages = await browser.pages();
-  // Use the first tab, or create one if none
   let page = pages[0];
   if (!page) {
     page = await browser.newPage();
@@ -34,12 +34,10 @@ async function connectToChrome() {
   return { browser, page };
 }
 
-// Human-like random delay
 function randomDelay(min, max) {
   return new Promise(resolve => setTimeout(resolve, Math.random() * (max - min) + min));
 }
 
-// Human-like scroll
 async function humanScroll(page, amount = 800) {
   const steps = Math.ceil(amount / 200);
   for (let i = 0; i < steps; i++) {
@@ -48,255 +46,226 @@ async function humanScroll(page, amount = 800) {
   }
 }
 
+// ====== LISTING EXTRACTORS (extract agents from search/listing pages) ======
+
+// Universal mailto-based extractor helper.
+// Finds all mailto: links, walks up to container, extracts name/phone/picture/profile.
+function mailtoScanExtractor(baseUrl, profileLinkPattern) {
+  return () => {
+    const agents = [];
+    const seen = new Set();
+    const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
+
+    mailtoLinks.forEach(mailtoEl => {
+      const email = mailtoEl.href.replace('mailto:', '').split('?')[0].trim().toLowerCase();
+      if (!email || !email.includes('@') || seen.has(email)) return;
+      seen.add(email);
+
+      // Walk up to find the containing card
+      const container = mailtoEl.closest(
+        '[class*="card"], [class*="Card"], [class*="agent"], [class*="Agent"], ' +
+        '[class*="result"], [class*="Result"], [class*="item"], [class*="Item"], ' +
+        '[class*="member"], [class*="Member"], [class*="associate"], ' +
+        'li, article, section, [data-testid]'
+      ) || mailtoEl.parentElement?.parentElement?.parentElement?.parentElement;
+      if (!container) return;
+
+      // Find name — look for headings first, then bold/strong text
+      const nameEl = container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
+      let name = nameEl?.textContent?.trim();
+      if (!name) {
+        const strongEl = container.querySelector('strong, b, [class*="title"], [class*="Title"]');
+        name = strongEl?.textContent?.trim();
+      }
+      if (!name || name.length < 3 || name.length > 80) return;
+      // Filter out non-name text
+      if (/view|more|contact|office|search|page|next|prev/i.test(name)) return;
+
+      // Find profile link
+      let profileUrl = null;
+      if (profileLinkPattern) {
+        const profileLink = container.querySelector(`a[href*="${profileLinkPattern}"]`);
+        const href = profileLink?.getAttribute('href');
+        if (href) {
+          profileUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+        }
+      }
+      if (!profileUrl) {
+        // Try any <a> that wraps the name or is nearby
+        const anyLink = nameEl?.closest('a') || container.querySelector('a[href]:not([href^="mailto:"]):not([href^="tel:"])');
+        const href = anyLink?.getAttribute('href');
+        if (href && href !== '#' && href !== '/') {
+          profileUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+        }
+      }
+
+      // Find phone
+      const phoneEl = container.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      // Find picture
+      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+      const picture = img?.src || null;
+
+      agents.push({ full_name: name, profile_url: profileUrl, profile_picture_url: picture, email, phone });
+    });
+
+    return agents;
+  };
+}
+
+// Profile-link-based extractor helper for brokerages where email is NOT on listing page.
+// Finds agent cards with profile links, returns them with email=null.
+function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
+  return () => {
+    const agents = [];
+    const seen = new Set();
+    const links = document.querySelectorAll(linkSelector);
+
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || seen.has(href)) return;
+
+      const container = link.closest(
+        '[class*="card"], [class*="Card"], [class*="agent"], [class*="Agent"], ' +
+        '[class*="result"], [class*="Result"], [class*="item"], [class*="Item"], ' +
+        '[class*="member"], [class*="associate"], li, article'
+      ) || link.parentElement?.parentElement;
+      if (!container) return;
+
+      const nameEl = nameSelector
+        ? container.querySelector(nameSelector)
+        : container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
+      let name = nameEl?.textContent?.trim();
+      if (!name) {
+        // Try the link text itself
+        name = link.textContent?.trim()?.split('\n')[0]?.trim();
+      }
+      if (!name || name.length < 3 || name.length > 80) return;
+      if (/view|more|search|page|next|prev|load/i.test(name)) return;
+
+      const fullUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+      if (seen.has(fullUrl)) return;
+      seen.add(fullUrl);
+
+      const phoneEl = container.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+      const picture = img?.src || null;
+
+      agents.push({
+        full_name: name,
+        profile_url: fullUrl,
+        profile_picture_url: picture,
+        email: null, // Must visit profile
+        phone,
+      });
+    });
+
+    return agents;
+  };
+}
+
+// Profile page extractor helper — extracts email from a single agent's profile page.
+function profilePageExtractor() {
+  return () => {
+    // Find email
+    const mailtoEl = document.querySelector('a[href^="mailto:"]');
+    let email = mailtoEl?.href?.replace('mailto:', '')?.split('?')[0]?.trim()?.toLowerCase() || null;
+
+    // Fallback: regex scan visible text for email pattern
+    if (!email) {
+      const text = document.body.innerText;
+      const match = text.match(/[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+      email = match ? match[0].toLowerCase() : null;
+    }
+
+    // Find name for verification
+    const nameEl = document.querySelector('h1, h2, [class*="name"], [class*="Name"], [class*="agent-name"]');
+    const name = nameEl?.textContent?.trim() || null;
+
+    // Find phone
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+    return { full_name: name, email, phone };
+  };
+}
+
+
 // ====== BROKERAGE-SPECIFIC EXTRACTORS ======
 
-async function extractRemax(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    // RE/MAX agent cards
-    const cards = document.querySelectorAll('[data-testid="agent-card"], .agent-card, [class*="AgentCard"], [class*="agent-list"] a, .results-list a[href*="/real-estate-agent/"]');
-
-    if (cards.length === 0) {
-      // Fallback: find all links that look like agent profiles
-      const links = document.querySelectorAll('a[href*="/real-estate-agent/"], a[href*="/real-estate-agents/"] + div a');
-      links.forEach(link => {
-        const name = link.querySelector('h2, h3, [class*="name"], [class*="Name"]')?.textContent?.trim()
-          || link.textContent?.trim()?.split('\n')[0]?.trim();
-        if (!name || name.length < 3 || name.length > 60) return;
-
-        const href = link.getAttribute('href');
-        const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.remax.com${href}` : null);
-        const img = link.querySelector('img');
-        const emailEl = link.querySelector('a[href^="mailto:"]');
-        const phoneEl = link.querySelector('a[href^="tel:"]');
-
-        agents.push({
-          full_name: name,
-          profile_url: fullUrl,
-          profile_picture_url: img?.src || null,
-          email: emailEl?.href?.replace('mailto:', '') || null,
-          phone: phoneEl?.href?.replace('tel:', '') || null,
-        });
-      });
-    } else {
-      cards.forEach(card => {
-        const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"], [class*="agent-name"]');
-        const name = nameEl?.textContent?.trim() || card.textContent?.trim()?.split('\n')[0]?.trim();
-        if (!name || name.length < 3 || name.length > 60) return;
-
-        const linkEl = card.tagName === 'A' ? card : card.querySelector('a[href*="agent"]');
-        const href = linkEl?.getAttribute('href');
-        const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.remax.com${href}` : null);
-        const img = card.querySelector('img');
-        const emailEl = card.querySelector('a[href^="mailto:"]');
-        const phoneEl = card.querySelector('a[href^="tel:"]');
-
-        agents.push({
-          full_name: name,
-          profile_url: fullUrl,
-          profile_picture_url: img?.src || null,
-          email: emailEl?.href?.replace('mailto:', '') || null,
-          phone: phoneEl?.href?.replace('tel:', '') || null,
-        });
-      });
-    }
-
-    return agents;
-  });
-}
-
+// KW (Keller Williams) — email on listing page
 async function extractKW(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    const cards = document.querySelectorAll('[class*="agent"], [data-testid*="agent"], .search-results a[href*="agent"]');
-
-    // Fallback: any link with agent in the URL
-    const links = cards.length > 0 ? cards : document.querySelectorAll('a[href*="/agent/"], a[href*="/agents/"]');
-
-    links.forEach(el => {
-      const card = el.closest('[class*="card"], [class*="Card"], [class*="result"], li') || el;
-      const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"]');
-      const name = nameEl?.textContent?.trim() || el.textContent?.trim()?.split('\n')[0]?.trim();
-      if (!name || name.length < 3 || name.length > 60) return;
-
-      const linkEl = el.tagName === 'A' ? el : card.querySelector('a[href*="agent"]');
-      const href = linkEl?.getAttribute('href');
-      const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.kw.com${href}` : null);
-      const img = card.querySelector('img');
-      const emailEl = card.querySelector('a[href^="mailto:"]');
-      const phoneEl = card.querySelector('a[href^="tel:"]');
-
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: img?.src || null,
-        email: emailEl?.href?.replace('mailto:', '') || null,
-        phone: phoneEl?.href?.replace('tel:', '') || null,
-      });
-    });
-
-    return agents;
-  });
+  return page.evaluate(mailtoScanExtractor('https://kw.com', '/agent'));
 }
 
-async function extractCompass(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    const cards = document.querySelectorAll('[class*="agent"], [data-tn*="agent"], a[href*="/agents/"]');
-
-    cards.forEach(el => {
-      const card = el.closest('[class*="card"], [class*="Card"], [class*="result"], li, div[class*="agent"]') || el;
-      const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"], [class*="displayName"]');
-      const name = nameEl?.textContent?.trim() || el.textContent?.trim()?.split('\n')[0]?.trim();
-      if (!name || name.length < 3 || name.length > 60) return;
-
-      const linkEl = el.tagName === 'A' ? el : card.querySelector('a[href*="/agents/"]');
-      const href = linkEl?.getAttribute('href');
-      const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.compass.com${href}` : null);
-      const img = card.querySelector('img');
-      const emailEl = card.querySelector('a[href^="mailto:"]');
-      const phoneEl = card.querySelector('a[href^="tel:"]');
-
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: img?.src || null,
-        email: emailEl?.href?.replace('mailto:', '') || null,
-        phone: phoneEl?.href?.replace('tel:', '') || null,
-      });
-    });
-
-    return agents;
-  });
-}
-
-async function extractCentury21(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    const cards = document.querySelectorAll('.agent-card, [class*="AgentCard"], a[href*="CENTURY"], a[href*="century21"]');
-    const links = cards.length > 0 ? cards : document.querySelectorAll('a[href*="real-estate-agent"]');
-
-    links.forEach(el => {
-      const card = el.closest('[class*="card"], [class*="result"], li') || el;
-      const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"]');
-      const name = nameEl?.textContent?.trim() || el.textContent?.trim()?.split('\n')[0]?.trim();
-      if (!name || name.length < 3 || name.length > 60) return;
-
-      const linkEl = el.tagName === 'A' ? el : card.querySelector('a');
-      const href = linkEl?.getAttribute('href');
-      const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.century21.com${href}` : null);
-      const img = card.querySelector('img');
-      const emailEl = card.querySelector('a[href^="mailto:"]');
-      const phoneEl = card.querySelector('a[href^="tel:"]');
-
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: img?.src || null,
-        email: emailEl?.href?.replace('mailto:', '') || null,
-        phone: phoneEl?.href?.replace('tel:', '') || null,
-      });
-    });
-
-    return agents;
-  });
-}
-
+// Coldwell Banker — email on listing page via mailto:
 async function extractColdwellBanker(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    const cards = document.querySelectorAll('.agent-card, [class*="AgentCard"], [class*="agent-list-item"], a[href*="real-estate-agent"]');
-
-    cards.forEach(el => {
-      const card = el.closest('[class*="card"], [class*="item"], li') || el;
-      const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"]');
-      const name = nameEl?.textContent?.trim() || el.textContent?.trim()?.split('\n')[0]?.trim();
-      if (!name || name.length < 3 || name.length > 60) return;
-
-      const linkEl = el.tagName === 'A' ? el : card.querySelector('a[href*="agent"]');
-      const href = linkEl?.getAttribute('href');
-      const fullUrl = href?.startsWith('http') ? href : (href ? `https://www.coldwellbanker.com${href}` : null);
-      const img = card.querySelector('img');
-      const emailEl = card.querySelector('a[href^="mailto:"]');
-      const phoneEl = card.querySelector('a[href^="tel:"]');
-
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: img?.src || null,
-        email: emailEl?.href?.replace('mailto:', '') || null,
-        phone: phoneEl?.href?.replace('tel:', '') || null,
-      });
-    });
-
-    return agents;
-  });
+  return page.evaluate(mailtoScanExtractor('https://www.coldwellbanker.com', 'real-estate-agent'));
 }
 
-// Generic extractor — tries to find agent-like data on any page
-async function extractGeneric(page) {
-  return page.evaluate(() => {
-    const agents = [];
-    // Look for any cards/links that seem like agent profiles
-    const selectors = [
-      'a[href*="agent"]',
-      'a[href*="realtor"]',
-      'a[href*="associate"]',
-      '[class*="agent-card"]',
-      '[class*="AgentCard"]',
-      '[class*="agent-list"]',
-      '[data-testid*="agent"]',
-    ];
-
-    let elements = [];
-    for (const sel of selectors) {
-      const found = document.querySelectorAll(sel);
-      if (found.length > 0) {
-        elements = Array.from(found);
-        break;
-      }
-    }
-
-    elements.forEach(el => {
-      const card = el.closest('[class*="card"], [class*="Card"], [class*="result"], [class*="item"], li') || el;
-      const nameEl = card.querySelector('h2, h3, [class*="name"], [class*="Name"]');
-      const name = nameEl?.textContent?.trim() || el.textContent?.trim()?.split('\n')[0]?.trim();
-      if (!name || name.length < 3 || name.length > 60) return;
-
-      const linkEl = el.tagName === 'A' ? el : card.querySelector('a');
-      const href = linkEl?.getAttribute('href');
-      const fullUrl = href?.startsWith('http') ? href : null;
-      const img = card.querySelector('img');
-      const emailEl = card.querySelector('a[href^="mailto:"]');
-      const phoneEl = card.querySelector('a[href^="tel:"]');
-
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: img?.src || null,
-        email: emailEl?.href?.replace('mailto:', '') || null,
-        phone: phoneEl?.href?.replace('tel:', '') || null,
-      });
-    });
-
-    return agents;
-  });
+// Compass — email on listing page via mailto:
+async function extractCompass(page) {
+  return page.evaluate(mailtoScanExtractor('https://www.compass.com', '/agents/'));
 }
+
+// eXp Realty — listing page (profile URLs only, no email)
+async function extractExp(page) {
+  return page.evaluate(profileLinkExtractor(
+    'https://www.exprealty.com',
+    'a[href*="/agents-search/"][href*="_"]', // Profile links have Name_uuid format
+    null
+  ));
+}
+
+// BHHS — listing page (profile URLs only, no email)
+async function extractBHHS(page) {
+  return page.evaluate(profileLinkExtractor(
+    'https://www.bhhs.com',
+    'a[href*="/agent/"], a[href*="/associate/"], a[href*="cid-"]',
+    null
+  ));
+}
+
+// Sotheby's — listing page (profile URLs only, no email)
+async function extractSothebys(page) {
+  return page.evaluate(profileLinkExtractor(
+    'https://www.sothebysrealty.com',
+    'a[href*="/associate/"]',
+    null
+  ));
+}
+
+// Profile page extractors (for brokerages that need profile visits)
+async function extractExpProfile(page) {
+  return page.evaluate(profilePageExtractor());
+}
+
+async function extractBHHSProfile(page) {
+  return page.evaluate(profilePageExtractor());
+}
+
+async function extractSothebysProfile(page) {
+  return page.evaluate(profilePageExtractor());
+}
+
 
 const EXTRACTORS = {
-  remax: extractRemax,
-  remax_ca: extractRemax,
   kw: extractKW,
-  compass: extractCompass,
-  century21: extractCentury21,
+  exp: extractExp,
   coldwellbanker: extractColdwellBanker,
   coldwell: extractColdwellBanker,
-  exp: extractGeneric,
-  bhhs: extractGeneric,
-  howardhanna: extractGeneric,
-  sothebys: extractGeneric,
-  royallepage: extractGeneric,
-  sutton: extractGeneric,
+  bhhs: extractBHHS,
+  compass: extractCompass,
+  sothebys: extractSothebys,
+};
+
+const PROFILE_EXTRACTORS = {
+  exp: extractExpProfile,
+  bhhs: extractBHHSProfile,
+  sothebys: extractSothebysProfile,
 };
 
 // ====== COMMANDS ======
@@ -316,7 +285,8 @@ Commands:
   click <selector>         Click an element
   type <selector> <text>   Type text into an input field
   screenshot [file]        Save screenshot (default: /tmp/chrome-screenshot.png)
-  agents <brokerage>       Extract agent data using brokerage-specific logic
+  agents <brokerage>       Extract agent data from listing page (kw, exp, coldwellbanker, bhhs, compass, sothebys)
+  profile <brokerage>      Extract email from individual profile page (exp, bhhs, sothebys)
   wait <ms>                Wait for milliseconds
   url                      Get current page URL
   status                   Check Chrome connection
@@ -379,7 +349,6 @@ Prerequisites:
         } else {
           html = await page.content();
         }
-        // Truncate to 50KB to avoid overwhelming the agent
         if (html.length > 50000) {
           html = html.substring(0, 50000) + '\n\n... [TRUNCATED — use a more specific selector]';
         }
@@ -428,7 +397,6 @@ Prerequisites:
         if (!selector || !text) { console.error('Usage: type <selector> <text>'); break; }
         await page.click(selector);
         await randomDelay(200, 500);
-        // Type with human-like delays
         for (const char of text) {
           await page.keyboard.type(char, { delay: Math.random() * 90 + 60 });
         }
@@ -447,24 +415,30 @@ Prerequisites:
         const brokerage = args[1];
         if (!brokerage) { console.error('Usage: agents <brokerage>'); break; }
 
+        const extractor = EXTRACTORS[brokerage];
+        if (!extractor) {
+          console.error(`Unknown brokerage: ${brokerage}. Available: ${Object.keys(EXTRACTORS).join(', ')}`);
+          break;
+        }
+
         // Scroll through page first to trigger lazy loading
         await humanScroll(page, 2000);
         await randomDelay(1000, 2000);
 
-        const extractor = EXTRACTORS[brokerage] || extractGeneric;
         let agents = await extractor(page);
 
         // Deduplicate by name
         const seen = new Set();
         agents = agents.filter(a => {
-          if (seen.has(a.full_name)) return false;
-          seen.add(a.full_name);
+          const key = a.full_name?.toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
 
         // Split names into first/last
         agents = agents.map(a => {
-          const parts = a.full_name.split(' ');
+          const parts = a.full_name.trim().split(/\s+/);
           return {
             ...a,
             first_name: parts[0] || '',
@@ -473,6 +447,25 @@ Prerequisites:
         });
 
         console.log(JSON.stringify(agents, null, 2));
+        break;
+      }
+
+      case 'profile': {
+        const brokerage = args[1];
+        if (!brokerage) { console.error('Usage: profile <brokerage>'); break; }
+
+        const extractor = PROFILE_EXTRACTORS[brokerage];
+        if (!extractor) {
+          console.error(`No profile extractor for: ${brokerage}. Available: ${Object.keys(PROFILE_EXTRACTORS).join(', ')}`);
+          break;
+        }
+
+        // Small scroll to trigger any lazy loading on profile page
+        await humanScroll(page, 800);
+        await randomDelay(500, 1000);
+
+        const result = await extractor(page);
+        console.log(JSON.stringify(result, null, 2));
         break;
       }
 

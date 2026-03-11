@@ -17,7 +17,19 @@
       "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node:*)",
       "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node -e:*)",
       "Bash(SUPABASE_URL=\"https://nhflmisklsanfiiywrfo.supabase.co\" SUPABASE_KEY=\"***REMOVED***\" node -e \":*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(./node_modules/.bin/next build)",
+      "Bash(source .env.local)",
+      "Bash(curl -s \"$NEXT_PUBLIC_SUPABASE_URL/rest/v1/agent_configs?select=id&limit=1\" -H \"apikey: $SUPABASE_SERVICE_ROLE_KEY\" -H \"Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/)",
+      "Bash(kill 20502)",
+      "Bash(curl -s http://localhost:3001/)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:developers.facebook.com)",
+      "Bash(chmod +x /home/max/crm/scripts/cron/campaign-optimizer.sh)"
     ]
   }
 }

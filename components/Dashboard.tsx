@@ -19,6 +19,8 @@ import AIAgent from './AIAgent';
 import LeadsList from './LeadsList';
 import StaceyConversations from './StaceyConversations';
 import CommandCenter from './CommandCenter';
+import AnalyticsDashboard from './analytics/AnalyticsDashboard';
+import AgencyOverview from './analytics/AgencyOverview';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
@@ -399,6 +401,20 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return <StaceyConversations />;
       case 'command-center':
         return <CommandCenter />;
+      case 'analytics':
+        return (
+          <AnalyticsDashboard accountId={currentAccount?.id || ''} />
+        );
+      case 'agency-analytics':
+        return (
+          <div className="p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-white">Agency Overview</h2>
+              <p className="text-sm text-[var(--analytics-muted)] mt-0.5">All clients — last 30 days</p>
+            </div>
+            <AgencyOverview />
+          </div>
+        );
       default:
         // Unified dashboard
         return (
@@ -686,6 +702,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'leads' ? 'Leads' :
                  activeView === 'campaigns' ? 'Email Campaigns' :
                  activeView === 'command-center' ? 'Command Center' :
+                 activeView === 'analytics' ? 'Analytics' :
+                 activeView === 'agency-analytics' ? 'Agency Analytics' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">

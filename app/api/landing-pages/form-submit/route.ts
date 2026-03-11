@@ -4,6 +4,8 @@ import { enrollNewLead } from '@/lib/automations/enrollment';
 import { triggerContactCreated } from '@/lib/workflow-engine/triggers';
 import { sendPushToAccountOwner } from '@/lib/push/send-notification';
 import { normalizePhone, phoneVariants } from '@/lib/utils/phone';
+import { sendCapiEvent } from '@/lib/meta/capi';
+import { updateLeadScore } from '@/lib/ai/lead-scoring';
 
 // POST /api/landing-pages/form-submit
 // Creates or updates a contact from landing page form submission
@@ -19,6 +21,9 @@ export async function POST(request: NextRequest) {
       source,
       custom_fields,
       agentName,
+      fbc,
+      fbp,
+      event_id,
     } = body;
 
     if (!accountId || (!phone && !email)) {
@@ -68,6 +73,8 @@ export async function POST(request: NextRequest) {
           email: email || undefined,
           source: source || 'Landing Page',
           custom_fields: mergedFields,
+          fbc: fbc || undefined,
+          fbp: fbp || undefined,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingContact.id);
@@ -87,6 +94,9 @@ export async function POST(request: NextRequest) {
           status: 'lead',
           source: source || 'Landing Page',
           custom_fields: custom_fields || {},
+          fbc: fbc || null,
+          fbp: fbp || null,
+          funnel_stage: 'lead',
         })
         .select('id')
         .single();
@@ -94,6 +104,38 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
       contactId = data.id;
     }
+
+    // CAPI Lead event + funnel tracking + lead score (all non-blocking)
+    const capiEventId = event_id || crypto.randomUUID();
+
+    sendCapiEvent({
+      eventName: 'Lead',
+      eventId: capiEventId,
+      userData: {
+        email: email || undefined,
+        phone: normalizedPhone || undefined,
+        firstName: first_name || undefined,
+        lastName: last_name || undefined,
+        fbc: fbc || undefined,
+        fbp: fbp || undefined,
+        externalId: contactId,
+      },
+      accountId,
+      contactId,
+    }).catch((err) => console.error('[form-submit] CAPI error:', err));
+
+    void supabaseAdmin
+      .from('funnel_events')
+      .insert({
+        account_id: accountId,
+        contact_id: contactId,
+        event_type: 'form_submit',
+        channel: 'web',
+      });
+
+    updateLeadScore(contactId).catch((err) =>
+      console.error('[form-submit] lead score error:', err)
+    );
 
     // Trigger new lead automation (non-blocking)
     const contactName = [first_name, last_name].filter(Boolean).join(' ') || 'there';

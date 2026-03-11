@@ -1,8 +1,8 @@
 # Cold Email Reply Handler
 
-**EXECUTE IMMEDIATELY. Do NOT ask questions. Do NOT wait for confirmation. Start processing replies now by following the steps below. You are autonomous — check for new replies, classify them, generate responses via Kimi, send via Instantly, and report when done.**
+**EXECUTE IMMEDIATELY. Do NOT ask questions. Do NOT wait for confirmation. Start processing replies now by following the steps below. You are autonomous — check for new replies, classify them, generate responses via Claude Haiku, send via Instantly, and report when done.**
 
-Classify inbound cold email replies, generate responses via Kimi K2.5, schedule sends via Instantly.
+Classify inbound cold email replies, generate responses via Claude Haiku 4.5 (with prompt caching), schedule sends via Instantly.
 
 ## API Shorthands
 
@@ -79,21 +79,31 @@ Headers: SB
 ```
 If fewer than 20 rows: skip feedback. Otherwise filter client-side: booked (first 5), ghosted/rejected (first 3). Format as `<feedback_context>` XML block.
 
-**4e. Calendly link:** Create single-use link:
-```
-POST https://api.calendly.com/scheduling_links
-Headers: CAL
-Body: { "max_event_count": 1, "owner": "$CALENDLY_EVENT_TYPE_URI", "owner_type": "EventType" }
-```
-Use returned `booking_url`. Don't send link on hostile/spam/decline. Don't resend if `booking_link_sent` is already true (unless lead asks).
+**4e. Calendly link:** Always use the static booking link: `https://calendly.com/nexorra/demo-call`
+Don't send link on hostile/spam/decline. Don't resend if `booking_link_sent` is already true (unless lead asks).
 
-**4f. Generate reply:** Call Kimi K2.5 via the API route:
+**4e-alt. Direct booking (only if lead suggests a specific time):**
+If a lead says something like "I'm free Tuesday at 2pm", check availability and book directly:
+```
+GET https://api.calendly.com/user_availability_schedules
+Headers: CAL
+Query: user=$CALENDLY_USER_URI
+```
+Then schedule via:
+```
+POST https://api.calendly.com/scheduled_events
+Headers: CAL
+Body: { "event_type": "$CALENDLY_EVENT_TYPE_URI", "invitee": { "name": "{lead_name}", "email": "{lead_email}" }, "start_time": "{iso8601}" }
+```
+If direct booking fails or time is unavailable, fall back to sending the static link.
+
+**4f. Generate reply:** Call Claude Haiku 4.5 via the API route:
 ```
 POST http://localhost:3000/api/ai/kimi-generate
 Headers: Content-Type: application/json, Authorization: Bearer $CRON_SECRET
 Body: { "systemPrompt": "{cold-email-system.md + cold-email-context.md}", "messages": [{thread}], "maxTokens": 300 }
 ```
-Or use `npx tsx` to call `lib/kimi/generate-reply.ts` directly. Must comply with all 12 hard rules.
+Or use `npx tsx` to call `lib/kimi/generate-reply.ts` directly (now uses Claude Haiku internally). Must comply with all 12 hard rules.
 
 **4g. Schedule reply (1-5 min delay):**
 ```

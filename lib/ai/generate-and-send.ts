@@ -4,6 +4,7 @@ import { anthropicClient } from '@/lib/ai/client';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
 import { twilioClient } from '@/lib/twilio/client';
 import { resendClient } from '@/lib/resend/client';
+import { updateLeadScore } from '@/lib/ai/lead-scoring';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -186,14 +187,19 @@ export async function generateAIResponse(
     isFollowUp
       ? `This is a follow-up message because the contact hasn't replied yet. Keep it brief and friendly, reference something from the conversation summary if available, and gently nudge without being pushy. This is follow-up #${(followUpCount ?? 0) + 1} of 3.`
       : '',
+    'Writing style: sound human. Never use "crucial", "vital", "essential", "transformative", "leverage", "navigate", "foster", "Moreover", "Furthermore". No sycophantic openers. No em-dash overuse. No hedging. No generic conclusions. Use active verbs. Vary sentence length. Be specific and direct.',
     'Respond only with the message text. Do not include any meta-commentary or labels.',
   ].filter(Boolean).join('\n\n');
 
-  // Call Anthropic API using the singleton client
+  // Call Anthropic API using the singleton client (with prompt caching on system prompt)
   const aiResponse = await anthropicClient.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: maxTokens,
-    system: systemParts,
+    system: [{
+      type: 'text' as const,
+      text: systemParts,
+      cache_control: { type: 'ephemeral' as const },
+    }],
     messages: conversationMessages.length > 0 ? conversationMessages : [
       { role: 'user', content: 'Hello' },
     ],
@@ -515,6 +521,25 @@ export async function generateAndSendAI(
       status: 'pending',
     });
   }
+
+  // Step 6: Funnel tracking + lead score (non-blocking)
+  void supabaseAdmin
+    .from('funnel_events')
+    .insert({
+      account_id: accountId,
+      contact_id: contactId,
+      event_type: 'replied',
+      channel,
+    });
+
+  // Advance funnel_stage to 'engaged' if contact is still at 'lead'
+  void supabaseAdmin
+    .from('contacts')
+    .update({ funnel_stage: 'engaged' })
+    .eq('id', contactId)
+    .eq('funnel_stage', 'lead');
+
+  updateLeadScore(contactId).catch(() => {});
 
   return {
     success: true,

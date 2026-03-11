@@ -43,6 +43,10 @@ This CRM (Next.js 14 App Router + Supabase) serves both the agency's own operati
 | `ai_follow_up_queue` | Per-account | Scheduled AI follow-ups |
 | `landing_pages` | Per-account | Client landing pages |
 | `stacey_learnings` | Global | Cold email outcome learnings |
+| `meta_events` | Per-account | CAPI event log (Lead, Schedule events sent to Meta) |
+| `meta_ad_metrics` | Per-account | Daily Meta ad set performance metrics |
+| `funnel_events` | Per-account | Per-contact funnel stage tracking |
+| `optimizer_actions` | Per-account | AI campaign change proposals (approval-gated) |
 
 ### API Patterns
 - All routes in `app/api/`
@@ -81,14 +85,17 @@ These are completely separate systems with different agents, different feedback 
 | Resend | Email (client sub-accounts) | `RESEND_API_KEY` |
 | Instantly | Cold email campaigns (Nexorra) | `INSTANTLY_API_KEY`, `INSTANTLY_CAMPAIGN`, `INSTANTLY_WEBHOOK_SECRET` |
 | Calendly | Discovery call booking (Nexorra) | `CALENDLY_API_KEY`, `CALENDLY_EVENT_TYPE_URI`, `CALENDLY_USER_URI`, `CALENDLY_WEBHOOK_SECRET` |
-| Moonshot AI | Kimi K2.5 reply generation | `MOONSHOT_API_KEY` |
+| Anthropic | Claude Haiku 4.5 reply generation (with prompt caching) | `ANTHROPIC_API_KEY` |
+| Meta Marketing API | Ad metrics + campaign management (ads_management scope) | `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`, `META_DATASET_ID`, `META_PAGE_ID` |
+| Meta Conversions API | Server-side Lead/Schedule events (CAPI) | `META_ACCESS_TOKEN`, `META_DATASET_ID` |
+| Google AI (Imagen 3) | Ad creative image generation (Nano Banana) | `GOOGLE_AI_API_KEY` |
 | Google Calendar | Calendar sync (clients) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
 ### API Rate Limits
 - Instantly: 5s between calls, 429 → wait 60s + retry once
 - Calendly: 10s between calls
 - Supabase: no hard limit, but 5s between bulk writes
-- Moonshot/Kimi: standard rate limits, retry on 429
+- Anthropic: standard rate limits, retry on 429. Prompt caching via `cache_control: { type: 'ephemeral' }` on system blocks.
 
 ---
 
@@ -101,14 +108,15 @@ These are completely separate systems with different agents, different feedback 
 |---------|----------|-------|---------|
 | `/nexorra/lead-gen` | Cron 8 AM daily | Claude (orchestration) | Scrape brokerage sites → `leads` table |
 | `/nexorra/cold-email-upload` | Cron 9 AM daily | Claude (orchestration) | Push leads to Instantly with loom links |
-| `/nexorra/cold-email-replies` | Cron every 15 min | Kimi K2.5 (generation) | Classify + respond to cold email replies |
-| `/nexorra/cold-email-maintenance` | Cron 8 PM daily | Kimi K2.5 (generation) | Nudge, ghosted detection, learning cycle |
+| `/nexorra/cold-email-replies` | Cron every 15 min | Claude Haiku 4.5 | Classify + respond to cold email replies |
+| `/nexorra/cold-email-maintenance` | Cron 8 PM daily | Claude Haiku 4.5 | Nudge, ghosted detection, learning cycle |
 | `/nexorra/campaign-review` | Manual | Claude | Analyze campaign metrics |
+| `/nexorra/campaign-optimizer` | Cron 10 PM daily | Claude | Analyze Meta + funnel data → propose ad changes |
 
 #### B. Client Sub-Account Operations
 | Command | Schedule | Model | Purpose |
 |---------|----------|-------|---------|
-| `/client/reply` | Cron every 5 min | Kimi K2.5 (generation) | Handle inbound SMS/email for all sub-accounts |
+| `/client/reply` | Cron every 5 min | Claude Haiku 4.5 | Handle inbound SMS/email for all sub-accounts |
 | `/client/onboard` | Manual | Claude | Create new sub-account + defaults |
 
 #### C. Development
@@ -125,10 +133,11 @@ These are completely separate systems with different agents, different feedback 
 |---------|----------|-------|---------|
 | `/ops/report` | Cron 9 PM daily | Claude | Daily metrics aggregation |
 
-### Kimi K2.5 Integration
-Reply generation uses Kimi K2.5 via `lib/kimi/` (~3.5x cheaper than Claude Haiku):
-- `lib/kimi/client.ts` — Moonshot API wrapper
-- `lib/kimi/generate-reply.ts` — Context builder + Kimi caller
+### Claude Haiku Reply Generation
+Reply generation uses Claude Haiku 4.5 via `lib/kimi/` (module name kept for backward compat):
+- `lib/kimi/client.ts` — Anthropic SDK wrapper with prompt caching
+- `lib/kimi/generate-reply.ts` — Context builder + Haiku caller
+- System prompts cached via `cache_control: { type: 'ephemeral' }` for ~90% input token savings
 
 ### Self-Learning System
 Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically condensed):
@@ -137,6 +146,7 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 - `client-reply.md` — Client engagement patterns
 - `code-review.md` — Common issues, fixes
 - `campaign-metrics.md` — Open/reply/booking rates
+- `funnel-insights.md` — Cross-client Meta + funnel performance (auto-maintained by campaign-optimizer)
 
 ### Cron Schedule
 | Time | Script | Agent |
@@ -145,6 +155,8 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 | 9:00 AM | `scripts/cron/cold-email-upload.sh` | Cold Email Upload |
 | 8:00 PM | `scripts/cron/cold-email-maintenance.sh` | Cold Email Maintenance |
 | 9:00 PM | `scripts/cron/daily-report.sh` | Reporter |
+| 6:00 AM | `scripts/cron/meta-sync.sh` | Meta Ad Metrics Sync |
+| 10:00 PM | `scripts/cron/campaign-optimizer.sh` | Campaign Optimizer |
 
 ### Webhook-Triggered Agents
 | Webhook | Agent | Trigger |
@@ -166,6 +178,14 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 - Dark mode: use `dark:bg-[#1c1c1e]` for page backgrounds, `dark:bg-[#2c2c2e]` for cards/panels, `dark:bg-[#3a3a3c]` for inputs/elevated elements
 - CalendarView uses CSS custom properties (`var(--cal-*)`) defined in `globals.css` for dark mode (inline styles can't use Tailwind `dark:`)
 
+### Frontend Design Standards
+- **Typography**: Never use Inter/Roboto/Arial. Prefer distinctive fonts (DM Sans, Satoshi, Plus Jakarta Sans, Cabinet Grotesk).
+- **Color**: CSS custom properties. No generic purple-gradient-on-white. Dominant colors with sharp accents.
+- **Layout**: Break grid predictability. Mix full-bleed with contained. Intentional negative space.
+- **Motion**: Spring easing for entrances. Micro-interactions on hover/focus. Subtle scroll reveals.
+- **Atmosphere**: Background textures/gradients for depth. Layer shadows and blur.
+- **Anti-patterns**: No generic SaaS template look. No cookie-cutter hero sections. No default Tailwind colors.
+
 ### Git Push Command
 ```bash
 GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/nexorra-crm.git main
@@ -183,10 +203,17 @@ GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/
 - `app/api/webhooks/twilio-inbound/route.ts` — SMS inbound webhook
 - `app/api/webhooks/resend-inbound/route.ts` — Email inbound webhook
 - `app/api/ai/config/route.ts` — AI agent config per account
-- `app/api/ai/kimi-generate/route.ts` — Kimi reply generation endpoint
+- `app/api/ai/kimi-generate/route.ts` — Claude Haiku reply generation endpoint (route name kept for compat)
 - `app/api/automations/configs/route.ts` — Workflow automation configs
 - `app/api/sms/send/route.ts` — Send SMS via Twilio
 - `app/api/email/send/route.ts` — Send email via Resend
+- `app/api/analytics/funnel/route.ts` — Per-account funnel metrics
+- `app/api/analytics/overview/route.ts` — Agency-wide overview
+- `app/api/meta/insights/route.ts` — Ad metrics from DB (meta_ad_metrics table)
+- `app/api/meta/manage/route.ts` — Execute approved optimizer_actions (POST) + approve/reject (PATCH)
+- `app/api/optimizer/actions/route.ts` — List optimizer_actions
+- `app/api/optimizer/propose/route.ts` — Insert optimizer_action proposals (used by campaign-optimizer agent)
+- `app/api/cron/meta-sync/route.ts` — Daily Meta → DB metrics sync
 
 ### Components
 - `components/LeadsList.tsx` — Leads table (agency-only sidebar)
@@ -199,10 +226,15 @@ GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/
 ### Libraries
 - `lib/supabase.ts` — `supabaseAdmin` (service role client)
 - `lib/supabase-browser.ts` — Browser client (anon key)
-- `lib/ai/generate-and-send.ts` — Current AI orchestrator (Claude Haiku → Kimi migration)
+- `lib/ai/generate-and-send.ts` — AI orchestrator (generate + send + funnel tracking + lead scoring)
+- `lib/ai/lead-scoring.ts` — Lead scoring algorithm (0-100, 3 DB queries max)
+- `lib/analytics/funnel.ts` — Per-account + agency-wide funnel metrics aggregation
+- `lib/meta/capi.ts` — Meta Conversions API client (SHA256-hashed PII, logs to meta_events)
+- `lib/meta/marketing-api.ts` — Meta Marketing API (read insights + write: pause/budget/creative/ad)
+- `lib/meta/creative-generator.ts` — Ad creative generation: Claude Haiku (copy) + Google Imagen 3 (image)
 - `lib/ai/context.ts` — Conversation context builder + summarizer
-- `lib/kimi/client.ts` — Moonshot/Kimi K2.5 API client
-- `lib/kimi/generate-reply.ts` — Kimi reply generation helper
+- `lib/kimi/client.ts` — Claude Haiku 4.5 API client with prompt caching
+- `lib/kimi/generate-reply.ts` — Claude Haiku reply generation helper
 - `lib/twilio/client.ts` — Twilio SMS client
 - `lib/resend/client.ts` — Resend email client
 - `lib/workflow-engine/executor.ts` — Workflow execution engine

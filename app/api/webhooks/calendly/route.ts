@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import crypto from 'crypto';
+import { sendCapiEvent } from '@/lib/meta/capi';
+import { updateLeadScore } from '@/lib/ai/lead-scoring';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,6 +148,56 @@ export async function POST(request: NextRequest) {
         console.error('Calendly → calendar sync error:', calErr);
       }
     }
+
+    // ── Client sub-account funnel tracking + CAPI ──
+    // Search for a contact across all client accounts with this email (non-blocking)
+    ;(async () => {
+      try {
+        const { data: contact } = await supabaseAdmin
+          .from('contacts')
+          .select('id, account_id, fbc, fbp')
+          .eq('email', inviteeEmail)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (contact) {
+          // Update funnel stage
+          await supabaseAdmin
+            .from('contacts')
+            .update({ funnel_stage: 'call_booked' })
+            .eq('id', contact.id);
+
+          // Insert funnel event
+          await supabaseAdmin.from('funnel_events').insert({
+            account_id: contact.account_id,
+            contact_id: contact.id,
+            event_type: 'booking_confirmed',
+            channel: 'web',
+            metadata: { calendly_event_uri: eventUri || null },
+          });
+
+          // CAPI Schedule event
+          sendCapiEvent({
+            eventName: 'Schedule',
+            eventId: crypto.randomUUID(),
+            userData: {
+              email: inviteeEmail,
+              fbc: contact.fbc || undefined,
+              fbp: contact.fbp || undefined,
+              externalId: contact.id,
+            },
+            accountId: contact.account_id,
+            contactId: contact.id,
+          }).catch((err) => console.error('[calendly] CAPI error:', err));
+
+          // Update lead score
+          updateLeadScore(contact.id).catch(() => {});
+        }
+      } catch (err) {
+        console.error('[calendly] client contact funnel tracking error:', err);
+      }
+    })();
 
     return NextResponse.json({ ok: true, matched: true });
   } catch (err) {
