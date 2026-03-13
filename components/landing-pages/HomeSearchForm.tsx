@@ -363,7 +363,7 @@ export default function HomeSearchForm({
           </>
         );
 
-      case 'contact':      case 'contact':
+      case 'contact':
         return (
           <>
             <h2 style={headStyle}>Last step — your contact info</h2>
