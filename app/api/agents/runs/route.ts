@@ -7,6 +7,19 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
+// Static agent definitions — source of truth for prompt files and defaults.
+// DB agent_configs can override model/max_turns but prompt_file falls back here.
+const AGENT_DEFINITIONS: Record<string, { promptFile: string; model: string; maxTurns: number }> = {
+  'lead-gen':                { promptFile: '.claude/commands/nexorra/lead-gen.md',                model: 'sonnet', maxTurns: 120 },
+  'cold-email-upload':       { promptFile: '.claude/commands/nexorra/cold-email-upload.md',       model: 'haiku',  maxTurns: 60  },
+  'cold-email-replies':      { promptFile: '.claude/commands/nexorra/cold-email-replies.md',      model: 'haiku',  maxTurns: 80  },
+  'cold-email-maintenance':  { promptFile: '.claude/commands/nexorra/cold-email-maintenance.md',  model: 'haiku',  maxTurns: 60  },
+  'campaign-review':         { promptFile: '.claude/commands/nexorra/campaign-review.md',         model: 'sonnet', maxTurns: 40  },
+  'campaign-optimizer':      { promptFile: '.claude/commands/nexorra/campaign-optimizer.md',      model: 'sonnet', maxTurns: 60  },
+  'client-reply':            { promptFile: '.claude/commands/client/reply.md',                    model: 'haiku',  maxTurns: 60  },
+  'ops-report':              { promptFile: '.claude/commands/ops/report.md',                      model: 'haiku',  maxTurns: 40  },
+};
+
 // In-memory PID map for stopping processes (only works on same server instance)
 const runningProcesses = new Map<string, number>(); // runId -> pid
 
@@ -57,16 +70,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'agentId required' }, { status: 400 });
   }
 
-  // Look up agent config
-  const { data: agent, error: agentError } = await supabaseAdmin
-    .from('agent_configs')
-    .select('*')
-    .eq('id', agentId)
-    .single();
-
-  if (agentError || !agent) {
-    return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+  // Resolve agent definition: static map first, DB override for model/max_turns
+  const staticDef = AGENT_DEFINITIONS[agentId];
+  if (!staticDef) {
+    return NextResponse.json({ error: `Unknown agent: ${agentId}` }, { status: 404 });
   }
+
+  // Optional DB override for model/max_turns (non-fatal if table missing)
+  const { data: dbAgent } = await supabaseAdmin
+    .from('agent_configs')
+    .select('model, max_turns')
+    .eq('id', agentId)
+    .maybeSingle();
+
+  const agentModel = dbAgent?.model || staticDef.model;
+  const agentMaxTurns = dbAgent?.max_turns || staticDef.maxTurns;
 
   // Check for already-running runs
   const { data: runningRun } = await supabaseAdmin
@@ -80,19 +98,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
   }
 
-  // Read agent prompt file
+  // Read agent prompt file from static definition
   let promptContent = '';
-  if (agent.prompt_file) {
-    try {
-      const promptPath = path.join(process.cwd(), agent.prompt_file);
-      promptContent = readFileSync(promptPath, 'utf-8');
-    } catch {
-      return NextResponse.json({ error: 'Agent prompt file not found' }, { status: 500 });
-    }
+  try {
+    const promptPath = path.join(process.cwd(), staticDef.promptFile);
+    promptContent = readFileSync(promptPath, 'utf-8');
+  } catch {
+    return NextResponse.json({ error: `Prompt file not found: ${staticDef.promptFile}` }, { status: 500 });
   }
 
   if (!promptContent) {
-    return NextResponse.json({ error: 'Agent has no prompt file configured' }, { status: 400 });
+    return NextResponse.json({ error: 'Agent prompt file is empty' }, { status: 400 });
   }
 
   // Ensure logs/runs directory exists
@@ -129,9 +145,9 @@ export async function POST(request: NextRequest) {
     '/home/max/.npm-global/bin/claude',
     [
       '-p', promptContent,
-      '--model', agent.model || 'haiku',
+      '--model', agentModel,
       '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
-      '--max-turns', String(agent.max_turns || 60),
+      '--max-turns', String(agentMaxTurns),
       '--verbose',
       '--output-format', 'stream-json',
     ],
