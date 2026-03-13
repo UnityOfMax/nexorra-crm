@@ -7,7 +7,7 @@ import {
   Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown,
   Upload, Loader, ImageIcon, Star, Users, Clock,
 } from 'lucide-react';
-import type { CustomFormField } from '@/lib/landing-page-templates';
+import type { CustomFormField, QuestionnaireConfig, QuestionnaireStepKey, QuestionnaireOption } from '@/lib/landing-page-templates';
 import LandingPageRenderer from './LandingPageRenderer';
 import type { LandingPage } from '@/types';
 import type { LandingPageBlock, LandingPageContent } from '@/lib/landing-page-templates';
@@ -405,29 +405,30 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
             </div>
           ) : (
             <div className="p-2 overflow-y-auto">
-              {content.blocks.filter(b => b.type === 'form').length === 0 ? (
-                <div className="text-xs text-gray-400 text-center py-4">
-                  No form blocks yet.<br />Add one from Blocks.
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {content.blocks.filter(b => b.type === 'form').map((b, idx) => (
-                    <button
-                      key={b.id}
-                      onClick={() => { setSelectedBlockId(b.id); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left ${selectedBlockId === b.id ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      <FormInput className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{b.data.heading || `Form ${idx + 1}`}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* Real Estate Questionnaire — always present as global form */}
+              <button
+                onClick={() => setSelectedBlockId('__questionnaire__')}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left mb-1 ${selectedBlockId === '__questionnaire__' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                <FormInput className="w-4 h-4 flex-shrink-0 text-amber-500" />
+                <span className="truncate font-medium">RE Questionnaire</span>
+              </button>
+              {/* Inline form blocks */}
+              {content.blocks.filter(b => b.type === 'form').map((b, idx) => (
+                <button
+                  key={b.id}
+                  onClick={() => { setSelectedBlockId(b.id); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left ${selectedBlockId === b.id ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <FormInput className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{b.data.heading || `Form ${idx + 1}`}</span>
+                </button>
+              ))}
               <button
                 onClick={() => { addBlock('form'); setLeftTab('forms'); }}
                 className="mt-2 w-full text-xs text-primary-600 hover:text-primary-700 font-medium py-1"
               >
-                + Add Form
+                + Add Inline Form
               </button>
             </div>
           )}
@@ -448,10 +449,17 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
         <div className="w-72 bg-white border border-gray-200 rounded-lg overflow-y-auto flex-shrink-0">
           <div className="p-3 border-b border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900">
-              {selectedBlock ? `Edit: ${selectedBlock.type}` : 'Properties'}
+              {selectedBlockId === '__questionnaire__' ? 'RE Questionnaire' : selectedBlock ? `Edit: ${selectedBlock.type}` : 'Properties'}
             </h3>
           </div>
-          {selectedBlock ? (
+          {selectedBlockId === '__questionnaire__' ? (
+            <div className="p-3">
+              <QuestionnaireEditor
+                config={content.questionnaireConfig || {}}
+                onChange={(cfg) => { setContent(prev => ({ ...prev, questionnaireConfig: cfg })); markDirty(); }}
+              />
+            </div>
+          ) : selectedBlock ? (
             <div className="p-3 space-y-3">
               {/* Block controls */}
               <div className="flex items-center gap-1 pb-3 border-b border-gray-100">
@@ -1117,4 +1125,103 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
     default:
       return <p className="text-sm text-gray-500">No properties for this block type</p>;
   }
+}
+
+// ---- Questionnaire Editor ----
+const QUESTIONNAIRE_STEPS: { key: QuestionnaireStepKey; label: string; inputType: 'choice' | 'text' | 'textarea' | 'grid' }[] = [
+  { key: 'intent',      label: 'Intent',          inputType: 'choice' },
+  { key: 'situation',   label: 'Situation',        inputType: 'choice' },
+  { key: 'timeline',    label: 'Timeline',         inputType: 'choice' },
+  { key: 'budget',      label: 'Budget / Price',   inputType: 'choice' },
+  { key: 'wishlist',    label: 'Wishlist',         inputType: 'textarea' },
+  { key: 'sell_also',   label: 'Also Selling?',    inputType: 'choice' },
+  { key: 'employment',  label: 'Employment',       inputType: 'text' },
+  { key: 'income',      label: 'Income',           inputType: 'choice' },
+  { key: 'call_time',   label: 'Best Call Time',   inputType: 'grid' },
+  { key: 'serious',     label: 'How Serious?',     inputType: 'choice' },
+];
+
+function QuestionnaireEditor({ config, onChange }: { config: QuestionnaireConfig; onChange: (cfg: QuestionnaireConfig) => void }) {
+  const [expanded, setExpanded] = useState<QuestionnaireStepKey | null>(null);
+
+  const update = (key: QuestionnaireStepKey, patch: Partial<typeof config[typeof key]>) => {
+    onChange({ ...config, [key]: { ...config[key], ...patch } });
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500 mb-3">Toggle steps on/off, edit headings and answer options for each question.</p>
+      {QUESTIONNAIRE_STEPS.map(({ key, label, inputType }) => {
+        const step = config[key];
+        const isEnabled = step?.enabled !== false;
+        const isExpanded = expanded === key;
+        const stepOpts: QuestionnaireOption[] = step?.options || [];
+
+        return (
+          <div key={key} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2">
+              <label className="flex items-center gap-1.5 cursor-pointer flex-1 min-w-0" onClick={() => update(key, { enabled: !isEnabled })}>
+                <div className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 ${isEnabled ? 'bg-primary-600' : 'bg-gray-300'}`}>
+                  <div className={`w-3 h-3 bg-white rounded-full mt-0.5 transition-transform ${isEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} style={{ marginLeft: isEnabled ? '17px' : '2px' }} />
+                </div>
+                <span className={`text-xs font-medium truncate ${isEnabled ? 'text-gray-700' : 'text-gray-400'}`}>{label}</span>
+              </label>
+              {isEnabled && (
+                <button
+                  onClick={() => setExpanded(isExpanded ? null : key)}
+                  className="text-xs text-gray-400 hover:text-gray-600 flex-shrink-0"
+                >
+                  {isExpanded ? '▲' : '▼'}
+                </button>
+              )}
+            </div>
+
+            {isEnabled && isExpanded && (
+              <div className="border-t border-gray-100 p-3 space-y-2 bg-gray-50">
+                <input
+                  value={step?.heading || ''}
+                  onChange={e => update(key, { heading: e.target.value || undefined })}
+                  className="input text-xs"
+                  placeholder="Question heading (leave blank for default)"
+                />
+                {(inputType === 'choice' || inputType === 'grid') && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Answer options:</p>
+                    {stepOpts.map((opt, i) => (
+                      <div key={i} className="flex gap-1 mb-1">
+                        <input
+                          value={opt.emoji || ''}
+                          onChange={e => { const o = [...stepOpts]; o[i] = { ...o[i], emoji: e.target.value }; update(key, { options: o }); }}
+                          className="input text-xs w-10"
+                          placeholder="🏠"
+                        />
+                        <input
+                          value={opt.label}
+                          onChange={e => { const o = [...stepOpts]; o[i] = { ...o[i], label: e.target.value, value: e.target.value }; update(key, { options: o }); }}
+                          className="input text-xs flex-1"
+                          placeholder="Label"
+                        />
+                        <button
+                          onClick={() => update(key, { options: stepOpts.filter((_, j) => j !== i) })}
+                          className="text-red-400 hover:text-red-600 px-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => update(key, { options: [...stepOpts, { label: 'New Option', value: 'New Option' }] })}
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      + Add Option
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

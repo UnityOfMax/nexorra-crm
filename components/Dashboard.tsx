@@ -403,16 +403,20 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return <CommandCenter />;
       case 'analytics':
         return (
-          <AnalyticsDashboard accountId={currentAccount?.id || ''} />
+          <div className="bg-[#0d0f14] rounded-2xl -m-4 md:-m-6 min-h-[calc(100vh-130px)]">
+            <AnalyticsDashboard accountId={currentAccount?.id || ''} />
+          </div>
         );
       case 'agency-analytics':
         return (
-          <div className="p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-white">Agency Overview</h2>
-              <p className="text-sm text-[var(--analytics-muted)] mt-0.5">All clients — last 30 days</p>
+          <div className="bg-[#0d0f14] rounded-2xl -m-4 md:-m-6 min-h-[calc(100vh-130px)]">
+            <div className="p-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white">Agency Overview</h2>
+                <p className="text-sm text-[var(--analytics-muted)] mt-0.5">All clients — last 30 days</p>
+              </div>
+              <AgencyOverview />
             </div>
-            <AgencyOverview />
           </div>
         );
       default:

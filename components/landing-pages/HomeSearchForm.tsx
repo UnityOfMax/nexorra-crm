@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, ArrowLeft, Loader } from 'lucide-react';
 import CalendarBooking from './CalendarBooking';
+import type { LandingPageContent, QuestionnaireConfig, QuestionnaireOption } from '@/lib/landing-page-templates';
 
 interface HomeSearchFormProps {
   isOpen: boolean;
@@ -12,29 +13,78 @@ interface HomeSearchFormProps {
   agentName?: string;
   agentPhoto?: string;
   pageId?: string;
-  pixelIds?: string[]; // Facebook Pixel IDs on this page
+  pixelIds?: string[];
+  calendarSettings?: LandingPageContent['calendarSettings'];
+  questionnaireConfig?: QuestionnaireConfig;
 }
 
-type Step =
-  | 'intent'
-  | 'situation'
-  | 'timeline'
-  | 'budget'
-  | 'wishlist'
-  | 'sell_also'
-  | 'employment'
-  | 'income'
-  | 'call_time'
-  | 'serious'
-  | 'contact'
-  | 'calendar'
-  | 'confirmed';
+type QuestionStep = 'intent' | 'situation' | 'timeline' | 'budget' | 'wishlist' | 'sell_also' | 'employment' | 'income' | 'call_time' | 'serious';
+type Step = QuestionStep | 'contact' | 'calendar' | 'confirmed';
 
-const QUESTION_STEPS: Step[] = [
+const ALL_QUESTION_STEPS: QuestionStep[] = [
   'intent', 'situation', 'timeline', 'budget', 'wishlist',
-  'sell_also', 'employment', 'income', 'call_time', 'serious', 'contact',
+  'sell_also', 'employment', 'income', 'call_time', 'serious',
 ];
-const TOTAL_QUESTIONS = QUESTION_STEPS.length;
+
+// Default options for each choice-based step
+const DEFAULT_OPTS: Partial<Record<QuestionStep, QuestionnaireOption[]>> = {
+  intent: [
+    { emoji: '🏠', label: 'Buy a Home', sub: 'Find my perfect property', value: 'Buy' },
+    { emoji: '💰', label: 'Sell My Home', sub: 'Get the best price', value: 'Sell' },
+    { emoji: '🔄', label: 'Buy & Sell', sub: 'I need to do both', value: 'Buy & Sell' },
+  ],
+  situation: [
+    { emoji: '🏡', label: 'I own a home', value: 'Own a Home' },
+    { emoji: '🏢', label: "I'm renting", value: 'Renting' },
+    { emoji: '🔍', label: 'Other', value: 'Other' },
+  ],
+  timeline: [
+    { emoji: '🔥', label: 'Within 30 days', sub: "I'm ready to move fast", value: 'Within 30 Days' },
+    { emoji: '📅', label: '1–2 months', value: '1–2 Months' },
+    { emoji: '🗓️', label: '2–4 months', value: '2–4 Months' },
+    { emoji: '📆', label: '4+ months', sub: 'Planning ahead', value: '4+ Months' },
+  ],
+  budget: [
+    { label: 'Under $300K', sub: 'Starter / entry-level', value: 'Under $300K' },
+    { label: '$300K – $500K', sub: 'Mid-range family homes', value: '$300K – $500K' },
+    { label: '$500K – $750K', sub: 'Larger or premium locations', value: '$500K – $750K' },
+    { label: '$750K – $1M', sub: 'Upscale properties', value: '$750K – $1M' },
+    { label: 'Over $1M', sub: 'Luxury & estates', value: 'Over $1M' },
+  ],
+  sell_also: [
+    { emoji: '✅', label: 'Yes, I need to sell as well', value: 'Yes' },
+    { emoji: '❌', label: 'No, just looking to buy', value: 'No' },
+  ],
+  income: [
+    { label: '$0 – $50K', value: '$0 – $50K' },
+    { label: '$50K – $80K', value: '$50K – $80K' },
+    { label: '$80K – $100K', value: '$80K – $100K' },
+    { label: '$100K – $150K', value: '$100K – $150K' },
+    { label: '$150K+', value: '$150K+' },
+  ],
+  call_time: [
+    { emoji: '🌅', label: 'Morning', value: 'Morning' },
+    { emoji: '☀️', label: 'Afternoon', value: 'Afternoon' },
+    { emoji: '🌙', label: 'Evening', value: 'Evening' },
+  ],
+  serious: [
+    { emoji: '💯', label: 'Yes, absolutely', sub: "I'm ready to take action", value: 'Yes' },
+    { emoji: '🤔', label: 'Still exploring', sub: 'Not fully decided yet', value: 'Still Exploring' },
+  ],
+};
+
+const DEFAULT_HEADINGS: Record<QuestionStep, { heading: string; subheading: string }> = {
+  intent: { heading: 'What are you looking to do?', subheading: "Let's get started" },
+  situation: { heading: "What's your current situation?", subheading: 'This helps us understand your needs' },
+  timeline: { heading: "What's your timeline?", subheading: 'When are you looking to move?' },
+  budget: { heading: "What's your price point?", subheading: 'Approximate budget range' },
+  wishlist: { heading: 'Describe your wishlist', subheading: 'Beds, bathrooms, garage, ensuite, neighbourhood — anything goes' },
+  sell_also: { heading: 'Do you also need to sell a home?', subheading: 'We can help with both sides of the transaction' },
+  employment: { heading: 'Where are you currently employed?', subheading: 'Company name or industry is fine' },
+  income: { heading: "What's your yearly income?", subheading: 'Used to help assess your buying power' },
+  call_time: { heading: "When's the best time to call?", subheading: "So we reach you when it's convenient" },
+  serious: { heading: 'Are you serious about making a move?', subheading: "We'll be calling you to discuss — just want to set expectations" },
+};
 
 interface FormData {
   intent: string;
@@ -63,9 +113,16 @@ function fireFbq(event: string, params?: Record<string, any>) {
 
 export default function HomeSearchForm({
   isOpen, onClose, accountId, accentColor = '#f59e0b',
-  agentName = 'Your Agent', agentPhoto, pageId, pixelIds,
+  agentName = 'Your Agent', agentPhoto, pageId, pixelIds, calendarSettings, questionnaireConfig,
 }: HomeSearchFormProps) {
-  const [step, setStep] = useState<Step>('intent');
+  // Build active steps from config (skip disabled)
+  const activeQuestionSteps: QuestionStep[] = ALL_QUESTION_STEPS.filter(
+    s => questionnaireConfig?.[s]?.enabled !== false
+  );
+  const QUESTION_STEPS: Step[] = [...activeQuestionSteps, 'contact'];
+  const TOTAL_QUESTIONS = QUESTION_STEPS.length;
+
+  const [step, setStep] = useState<Step>(() => activeQuestionSteps[0] || 'contact');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submittedContactId, setSubmittedContactId] = useState<string | null>(null);
@@ -83,7 +140,7 @@ export default function HomeSearchForm({
   // Reset when opened; capture fbp/fbc
   useEffect(() => {
     if (isOpen) {
-      setStep('intent');
+      setStep(activeQuestionSteps[0] || 'contact');
       setSubmittedContactId(null);
       setSubmitError('');
       setFormData({
@@ -119,10 +176,23 @@ export default function HomeSearchForm({
     if (idx > 0) setStep(QUESTION_STEPS[idx - 1]);
   };
 
-  const select = (field: keyof FormData, value: string, nextStep: Step) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    next(nextStep);
+  // Get the next step after the current question step (or 'contact' if last)
+  const nextAfter = (current: QuestionStep): Step => {
+    const idx = activeQuestionSteps.indexOf(current);
+    if (idx < activeQuestionSteps.length - 1) return activeQuestionSteps[idx + 1];
+    return 'contact';
   };
+
+  const select = (field: keyof FormData, value: string, current: QuestionStep) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    next(nextAfter(current));
+  };
+
+  // Config helpers
+  const cfg = (s: QuestionStep) => questionnaireConfig?.[s];
+  const heading = (s: QuestionStep) => cfg(s)?.heading || DEFAULT_HEADINGS[s].heading;
+  const subheading = (s: QuestionStep) => cfg(s)?.subheading || DEFAULT_HEADINGS[s].subheading;
+  const opts = (s: QuestionStep): QuestionnaireOption[] => cfg(s)?.options || DEFAULT_OPTS[s] || [];
 
   const handleSubmit = async () => {
     if (!formData.first_name.trim() || !formData.phone.trim() || !formData.email.trim()) return;
@@ -218,71 +288,41 @@ export default function HomeSearchForm({
   // ── Step content ─────────────────────────────────────────────────────────────
 
   const renderStep = () => {
+    // Generic choice step renderer
+    const choiceStep = (key: QuestionStep, gridCols?: string) => {
+      const stepOpts = opts(key);
+      const isGrid = gridCols != null;
+      return (
+        <>
+          <h2 style={headStyle}>{heading(key)}</h2>
+          <p style={subStyle}>{subheading(key)}</p>
+          <div style={{ display: isGrid ? 'grid' : 'flex', gridTemplateColumns: gridCols, flexDirection: isGrid ? undefined : 'column', gap: '10px' }}>
+            {stepOpts.map(o => (
+              isGrid
+                ? <GridBtn key={o.value} emoji={o.emoji || ''} label={o.label} onClick={() => select(key, o.value, key)} />
+                : <BtnOption key={o.value} emoji={o.emoji} label={o.label} sub={o.sub} onClick={() => select(key, o.value, key)} />
+            ))}
+          </div>
+        </>
+      );
+    };
+
     switch (step) {
-      case 'intent':
-        return (
-          <>
-            <h2 style={headStyle}>What are you looking to do?</h2>
-            <p style={subStyle}>Let's get started</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <BtnOption emoji="🏠" label="Buy a Home" sub="Find my perfect property" onClick={() => select('intent', 'Buy', 'situation')} />
-              <BtnOption emoji="💰" label="Sell My Home" sub="Get the best price" onClick={() => select('intent', 'Sell', 'situation')} />
-              <BtnOption emoji="🔄" label="Buy & Sell" sub="I need to do both" onClick={() => select('intent', 'Buy & Sell', 'situation')} />
-            </div>
-          </>
-        );
+      case 'intent':      return choiceStep('intent');
+      case 'situation':   return choiceStep('situation');
+      case 'timeline':    return choiceStep('timeline');
+      case 'budget':      return choiceStep('budget');
+      case 'sell_also':   return choiceStep('sell_also');
+      case 'income':      return choiceStep('income');
+      case 'serious':     return choiceStep('serious');
 
-      case 'situation':
-        return (
-          <>
-            <h2 style={headStyle}>What's your current situation?</h2>
-            <p style={subStyle}>This helps us understand your needs</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <BtnOption emoji="🏡" label="I own a home" onClick={() => select('situation', 'Own a Home', 'timeline')} />
-              <BtnOption emoji="🏢" label="I'm renting" onClick={() => select('situation', 'Renting', 'timeline')} />
-              <BtnOption emoji="🔍" label="Other" onClick={() => select('situation', 'Other', 'timeline')} />
-            </div>
-          </>
-        );
-
-      case 'timeline':
-        return (
-          <>
-            <h2 style={headStyle}>What's your timeline?</h2>
-            <p style={subStyle}>When are you looking to move?</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <BtnOption emoji="🔥" label="Within 30 days" sub="I'm ready to move fast" onClick={() => select('timeline', 'Within 30 Days', 'budget')} />
-              <BtnOption emoji="📅" label="1–2 months" onClick={() => select('timeline', '1–2 Months', 'budget')} />
-              <BtnOption emoji="🗓️" label="2–4 months" onClick={() => select('timeline', '2–4 Months', 'budget')} />
-              <BtnOption emoji="📆" label="4+ months" sub="Planning ahead" onClick={() => select('timeline', '4+ Months', 'budget')} />
-            </div>
-          </>
-        );
-
-      case 'budget':
-        return (
-          <>
-            <h2 style={headStyle}>What's your price point?</h2>
-            <p style={subStyle}>Approximate budget range</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { label: 'Under $300K', sub: 'Starter / entry-level' },
-                { label: '$300K – $500K', sub: 'Mid-range family homes' },
-                { label: '$500K – $750K', sub: 'Larger or premium locations' },
-                { label: '$750K – $1M', sub: 'Upscale properties' },
-                { label: 'Over $1M', sub: 'Luxury & estates' },
-              ].map(({ label, sub }) => (
-                <BtnOption key={label} label={label} sub={sub} onClick={() => select('budget', label, 'wishlist')} />
-              ))}
-            </div>
-          </>
-        );
+      case 'call_time':   return choiceStep('call_time', '1fr 1fr 1fr');
 
       case 'wishlist':
         return (
           <>
-            <h2 style={headStyle}>Describe your wishlist</h2>
-            <p style={subStyle}>Beds, bathrooms, garage, ensuite, neighbourhood — anything goes</p>
+            <h2 style={headStyle}>{heading('wishlist')}</h2>
+            <p style={subStyle}>{subheading('wishlist')}</p>
             <textarea
               value={formData.wishlist}
               onChange={e => setFormData(p => ({ ...p, wishlist: e.target.value }))}
@@ -291,7 +331,7 @@ export default function HomeSearchForm({
               autoFocus
             />
             <button
-              onClick={() => next('sell_also')}
+              onClick={() => next(nextAfter('wishlist'))}
               disabled={!formData.wishlist.trim()}
               style={{ ...ctaBtnStyle(accent), marginTop: '12px', opacity: formData.wishlist.trim() ? 1 : 0.4 }}
             >
@@ -300,23 +340,11 @@ export default function HomeSearchForm({
           </>
         );
 
-      case 'sell_also':
-        return (
-          <>
-            <h2 style={headStyle}>Do you also need to sell a home?</h2>
-            <p style={subStyle}>We can help with both sides of the transaction</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <BtnOption emoji="✅" label="Yes, I need to sell as well" onClick={() => select('sell_also', 'Yes', 'employment')} />
-              <BtnOption emoji="❌" label="No, just looking to buy" onClick={() => select('sell_also', 'No', 'employment')} />
-            </div>
-          </>
-        );
-
       case 'employment':
         return (
           <>
-            <h2 style={headStyle}>Where are you currently employed?</h2>
-            <p style={subStyle}>Company name or industry is fine</p>
+            <h2 style={headStyle}>{heading('employment')}</h2>
+            <p style={subStyle}>{subheading('employment')}</p>
             <input
               type="text"
               value={formData.employment}
@@ -326,7 +354,7 @@ export default function HomeSearchForm({
               autoFocus
             />
             <button
-              onClick={() => next('income')}
+              onClick={() => next(nextAfter('employment'))}
               disabled={!formData.employment.trim()}
               style={{ ...ctaBtnStyle(accent), marginTop: '12px', opacity: formData.employment.trim() ? 1 : 0.4 }}
             >
@@ -335,45 +363,7 @@ export default function HomeSearchForm({
           </>
         );
 
-      case 'income':
-        return (
-          <>
-            <h2 style={headStyle}>What's your yearly income?</h2>
-            <p style={subStyle}>Used to help assess your buying power</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {['$0 – $50K', '$50K – $80K', '$80K – $100K', '$100K – $150K', '$150K+'].map(r => (
-                <BtnOption key={r} label={r} onClick={() => select('income', r, 'call_time')} />
-              ))}
-            </div>
-          </>
-        );
-
-      case 'call_time':
-        return (
-          <>
-            <h2 style={headStyle}>When's the best time to call?</h2>
-            <p style={subStyle}>So we reach you when it's convenient</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-              <GridBtn emoji="🌅" label="Morning" onClick={() => select('call_time', 'Morning', 'serious')} />
-              <GridBtn emoji="☀️" label="Afternoon" onClick={() => select('call_time', 'Afternoon', 'serious')} />
-              <GridBtn emoji="🌙" label="Evening" onClick={() => select('call_time', 'Evening', 'serious')} />
-            </div>
-          </>
-        );
-
-      case 'serious':
-        return (
-          <>
-            <h2 style={headStyle}>Are you serious about making a move?</h2>
-            <p style={subStyle}>We'll be calling you to discuss — just want to set expectations</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <BtnOption emoji="💯" label="Yes, absolutely" sub="I'm ready to take action" onClick={() => select('serious', 'Yes', 'contact')} />
-              <BtnOption emoji="🤔" label="Still exploring" sub="Not fully decided yet" onClick={() => select('serious', 'Still Exploring', 'contact')} />
-            </div>
-          </>
-        );
-
-      case 'contact':
+      case 'contact':      case 'contact':
         return (
           <>
             <h2 style={headStyle}>Last step — your contact info</h2>
@@ -413,6 +403,7 @@ export default function HomeSearchForm({
             accentColor={accent}
             formAnswers={formData as unknown as Record<string, string>}
             onBooked={handleBookingConfirmed}
+            calendarSettings={calendarSettings}
           />
         );
 

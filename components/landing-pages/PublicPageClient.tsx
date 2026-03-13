@@ -104,6 +104,8 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         accentColor={accentColor}
         agentName={agentName}
         agentPhoto={agentPhoto}
+        calendarSettings={content.calendarSettings}
+        questionnaireConfig={content.questionnaireConfig}
       />
     </>
   );

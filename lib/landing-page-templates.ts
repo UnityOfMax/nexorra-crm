@@ -21,6 +21,26 @@ export interface LandingPageBlock {
   order: number;
 }
 
+export type QuestionnaireStepKey =
+  | 'intent' | 'situation' | 'timeline' | 'budget' | 'wishlist'
+  | 'sell_also' | 'employment' | 'income' | 'call_time' | 'serious';
+
+export interface QuestionnaireOption {
+  emoji?: string;
+  label: string;
+  sub?: string;
+  value: string;
+}
+
+export interface QuestionnaireStepConfig {
+  enabled?: boolean;
+  heading?: string;
+  subheading?: string;
+  options?: QuestionnaireOption[];
+}
+
+export type QuestionnaireConfig = Partial<Record<QuestionnaireStepKey, QuestionnaireStepConfig>>;
+
 export interface LandingPageContent {
   blocks: LandingPageBlock[];
   styles: {
@@ -35,6 +55,7 @@ export interface LandingPageContent {
     timezone?: string;     // e.g. "America/New_York"
     availableDays?: number[]; // 0=Sun … 6=Sat, default [1,2,3,4,5]
   };
+  questionnaireConfig?: QuestionnaireConfig;
 }
 
 export interface CustomFormField {
