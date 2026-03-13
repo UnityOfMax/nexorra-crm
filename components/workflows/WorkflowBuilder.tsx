@@ -15,7 +15,7 @@ import ReactFlow, {
   Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Save, Play, Power, ArrowLeft, History, ChevronDown, ChevronRight, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Save, Play, Power, ArrowLeft, History, ChevronDown, ChevronRight, CheckCircle, XCircle, Clock, AlertCircle, Users, Trash2, Mail, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Workflow } from '@/types';
 
@@ -84,6 +84,44 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
   const [inlineExecutions, setInlineExecutions] = useState<any[]>([]);
   const [inlineLogsLoading, setInlineLogsLoading] = useState(false);
   const [expandedInlineId, setExpandedInlineId] = useState<string | null>(null);
+
+  // Enrollments panel (built-in automations only)
+  const [showEnrollments, setShowEnrollments] = useState(false);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [enrollmentMessages, setEnrollmentMessages] = useState<any[]>([]);
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
+
+  const loadEnrollments = async () => {
+    if (!builtinAutomationId) return;
+    setEnrollmentsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/automations/enrollments?accountId=${accountId}&automationId=${builtinAutomationId}`
+      );
+      const data = await res.json();
+      setEnrollments(data.enrollments || []);
+      setEnrollmentMessages(data.recentMessages || []);
+    } catch {
+      // silently fail
+    } finally {
+      setEnrollmentsLoading(false);
+    }
+  };
+
+  const removeEnrollment = async (contactId: string) => {
+    if (!window.confirm('Remove this contact from the automation? They will stop receiving messages.')) return;
+    try {
+      const res = await fetch(
+        `/api/automations/enrollments?accountId=${accountId}&contactId=${contactId}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error();
+      setEnrollments((prev) => prev.filter((e) => e.contact_id !== contactId));
+      toast.success('Contact removed from automation');
+    } catch {
+      toast.error('Failed to remove contact');
+    }
+  };
 
   const loadInlineLogs = async () => {
     if (!workflowId) return;
@@ -584,6 +622,107 @@ export default function WorkflowBuilder({ workflowId, builtinAutomationId, accou
           </ReactFlow>
           </ErrorBoundary>
         </div>
+
+        {/* Enrollments Panel (built-in automations only) */}
+        {isBuiltin && (
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2c2c2e] shrink-0">
+            <button
+              onClick={() => {
+                const next = !showEnrollments;
+                setShowEnrollments(next);
+                if (next && enrollments.length === 0) loadEnrollments();
+              }}
+              className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-gray-500" />
+                <span>Enrollments</span>
+                {enrollments.length > 0 && (
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full font-medium">
+                    {enrollments.length} active
+                  </span>
+                )}
+              </div>
+              {showEnrollments
+                ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                : <ChevronRight className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {showEnrollments && (
+              <div className="border-t border-gray-100 dark:border-gray-700" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                {enrollmentsLoading ? (
+                  <div className="p-4 text-center text-sm text-gray-500">Loading...</div>
+                ) : (
+                  <div className="p-3 space-y-4">
+                    {/* Active contacts */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Active Contacts ({enrollments.length})</p>
+                      {enrollments.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-2">No contacts currently enrolled.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {enrollments.map((e) => (
+                            <div key={e.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 dark:bg-white/5 rounded-lg text-sm">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">{e.contact_name}</span>
+                                {e.next_message_at && (
+                                  <span className="ml-2 text-xs text-gray-400">
+                                    Next: {new Date(e.next_message_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-400 shrink-0">
+                                {new Date(e.enrolled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                              <button
+                                onClick={() => removeEnrollment(e.contact_id)}
+                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors shrink-0"
+                                title="Remove from automation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recent messages */}
+                    {enrollmentMessages.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Recent Messages</p>
+                        <div className="space-y-1.5">
+                          {enrollmentMessages.map((m) => (
+                            <div key={m.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-white/5 rounded-lg text-xs">
+                              {m.type === 'email'
+                                ? <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                : <MessageSquare className="w-3.5 h-3.5 text-green-500 shrink-0" />}
+                              <span className="font-medium text-gray-800 dark:text-gray-200 shrink-0">{m.contact_name}</span>
+                              <span className="text-gray-400 truncate flex-1">{m.subject || m.body?.slice(0, 60)}</span>
+                              <span className={`px-1.5 py-0.5 rounded shrink-0 font-medium ${
+                                m.status === 'sent' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : m.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                : m.status === 'pending' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400'
+                              }`}>
+                                {m.status}
+                              </span>
+                              {m.sent_at && (
+                                <span className="text-gray-400 shrink-0">
+                                  {new Date(m.sent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Inline Execution Logs Panel */}
         {!isBuiltin && workflowId && (

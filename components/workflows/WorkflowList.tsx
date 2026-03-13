@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Play, Pause, Edit, Users, Activity, MapPin, Power, RotateCcw, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Plus, Play, Pause, Edit, Users, Activity, MapPin, Power, RotateCcw } from 'lucide-react';
 import { SkeletonWorkflowCard } from '@/components/ui/SkeletonLoader';
 import { toast } from 'sonner';
 import { Workflow } from '@/types';
@@ -10,24 +10,21 @@ import WorkflowTrackingView from './WorkflowTrackingView';
 
 type BuiltinAutomationId = 'new_lead' | 'booking_reminders' | 'nurturing';
 
-const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description: string; color: string }[] = [
+const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description: string }[] = [
   {
     id: 'new_lead',
     name: 'New Lead Follow-up',
     description: '5-step SMS + email sequence starting the moment a lead submits the form. Escalates to nurturing after 5 days if no response.',
-    color: 'blue',
   },
   {
     id: 'booking_reminders',
     name: 'Booking Reminders',
     description: 'Confirmation message on booking + reminders at −48h, −24h, and −1h before the call.',
-    color: 'green',
   },
   {
     id: 'nurturing',
     name: 'Nurturing Sequence',
     description: '30-day long-term follow-up (12 emails + 4 SMS) for leads who never responded to the initial sequence.',
-    color: 'purple',
   },
 ];
 
@@ -51,18 +48,14 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
   const [workflowStats, setWorkflowStats] = useState<Record<string, WorkflowStats>>({});
   const [trackingWorkflow, setTrackingWorkflow] = useState<Workflow | null>(null);
 
-  // Built-in automation state
+  // Built-in automation enabled states
   const [builtinEnabled, setBuiltinEnabled] = useState<Record<string, boolean>>({
     new_lead: true, booking_reminders: true, nurturing: true,
   });
-  const [builtinHidden, setBuiltinHidden] = useState(false);
 
   useEffect(() => {
     loadWorkflows();
     loadBuiltinStates();
-    // Restore hidden preference from localStorage
-    const hidden = localStorage.getItem(`builtin_hidden_${accountId}`);
-    if (hidden === 'true') setBuiltinHidden(true);
   }, [accountId]);
 
   const loadBuiltinStates = async () => {
@@ -111,12 +104,6 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
     } catch {
       toast.error('Failed to reset automation');
     }
-  };
-
-  const toggleBuiltinHidden = () => {
-    const next = !builtinHidden;
-    setBuiltinHidden(next);
-    localStorage.setItem(`builtin_hidden_${accountId}`, String(next));
   };
 
   const loadWorkflows = async () => {
@@ -244,182 +231,145 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
         </button>
       </div>
 
-      {/* ── Built-in Automations ── */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={toggleBuiltinHidden}
-            className="flex items-center gap-2 text-left"
-          >
-            {builtinHidden
-              ? <ChevronRight className="w-4 h-4 text-gray-400" />
-              : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Built-in Automations</h3>
-            {builtinHidden && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">({BUILTIN_AUTOMATIONS.length} hidden)</span>
-            )}
-          </button>
-          {!builtinHidden && (
-            <button
-              onClick={toggleBuiltinHidden}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              title="Hide built-in automations"
-            >
-              <EyeOff className="w-3.5 h-3.5" />
-              Hide
-            </button>
-          )}
-        </div>
-
-        {!builtinHidden && (
-          <>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Toggle on/off, edit templates, or reset to defaults.</p>
-            <div className="space-y-3">
-              {BUILTIN_AUTOMATIONS.map((auto) => {
-                const enabled = builtinEnabled[auto.id] ?? true;
-                return (
-                  <div key={auto.id} className={`card flex items-start justify-between gap-4 ${!enabled ? 'opacity-60' : ''}`}>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">{auto.name}</h4>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                          enabled
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
-                        }`}>
-                          {enabled ? 'Active' : 'Disabled'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{auto.description}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => handleToggleBuiltin(auto.id, enabled)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          enabled
-                            ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
-                            : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
-                        }`}
-                        title={enabled ? 'Disable automation' : 'Enable automation'}
-                      >
-                        <Power className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingAutomationId(auto.id)}
-                        className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                        title="Edit message templates"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleResetBuiltin(auto.id)}
-                        className="p-2 bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-                        title="Reset to default templates"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    </div>
+      <div className="space-y-4">
+        {/* ── Built-in automations (always shown first) ── */}
+        {BUILTIN_AUTOMATIONS.map((auto) => {
+          const enabled = builtinEnabled[auto.id] ?? true;
+          return (
+            <div key={auto.id} className={`card hover:shadow-lg transition-shadow ${!enabled ? 'opacity-60' : ''}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1 cursor-pointer" onClick={() => setEditingAutomationId(auto.id)}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{auto.name}</h3>
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                      Default
+                    </span>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      enabled
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {enabled ? 'Active' : 'Disabled'}
+                    </span>
                   </div>
-                );
-              })}
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{auto.description}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleToggleBuiltin(auto.id, enabled)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      enabled
+                        ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
+                        : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
+                    }`}
+                    title={enabled ? 'Disable automation' : 'Enable automation'}
+                  >
+                    <Power className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setEditingAutomationId(auto.id)}
+                    className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                    title="Edit automation"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleResetBuiltin(auto.id)}
+                    className="p-2 bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                    title="Reset to default templates"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          );
+        })}
 
-      {/* ── Custom Workflows ── */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Custom Workflows</h3>
-        {workflows.length === 0 ? (
-          <div className="card text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <Plus className="w-16 h-16 mx-auto" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No workflows yet</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Create your first workflow to start automating your business processes.
-            </p>
-            <button onClick={handleCreateWorkflow} className="btn btn-primary">
-              Create Your First Workflow
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {workflows.map((workflow) => {
-              const stats = workflowStats[workflow.id];
-              return (
-                <div key={workflow.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1" onClick={() => handleEditWorkflow(workflow.id)}>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{workflow.name}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          workflow.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400'
-                        }`}>
-                          {workflow.is_active ? 'Active' : 'Inactive'}
+        {/* ── Custom workflows ── */}
+        {workflows.map((workflow) => {
+          const stats = workflowStats[workflow.id];
+          return (
+            <div key={workflow.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="flex-1" onClick={() => handleEditWorkflow(workflow.id)}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{workflow.name}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      workflow.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {workflow.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  {workflow.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{workflow.description}</p>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+                    <span>
+                      <span className="font-medium">Trigger:</span>{' '}
+                      {getTriggerLabel(workflow.trigger_type)}
+                    </span>
+                    {stats && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-blue-600 font-medium">
+                          <Activity className="w-3.5 h-3.5" />
+                          {stats.in_progress} in progress
                         </span>
-                      </div>
-                      {workflow.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{workflow.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
-                        <span>
-                          <span className="font-medium">Trigger:</span>{' '}
-                          {getTriggerLabel(workflow.trigger_type)}
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-green-600 font-medium">
+                          <Users className="w-3.5 h-3.5" />
+                          {stats.completed} completed
                         </span>
-                        {stats && (
-                          <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1 text-blue-600 font-medium">
-                              <Activity className="w-3.5 h-3.5" />
-                              {stats.in_progress} in progress
-                            </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1 text-green-600 font-medium">
-                              <Users className="w-3.5 h-3.5" />
-                              {stats.completed} completed
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTrackingWorkflow(workflow);
-                        }}
-                        className="p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
-                        title="Track contacts"
-                      >
-                        <MapPin className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEditWorkflow(workflow.id)}
-                        className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                        title="Edit workflow"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleActive(workflow.id, workflow.is_active);
-                        }}
-                        className={`p-2 rounded-lg transition-colors ${
-                          workflow.is_active
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : 'bg-green-50 text-green-600 hover:bg-green-100'
-                        }`}
-                        title={workflow.is_active ? 'Pause workflow' : 'Activate workflow'}
-                      >
-                        {workflow.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                      </button>
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTrackingWorkflow(workflow);
+                    }}
+                    className="p-2 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                    title="Track contacts"
+                  >
+                    <MapPin className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleEditWorkflow(workflow.id)}
+                    className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    title="Edit workflow"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleActive(workflow.id, workflow.is_active);
+                    }}
+                    className={`p-2 rounded-lg transition-colors ${
+                      workflow.is_active
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                        : 'bg-green-50 text-green-600 hover:bg-green-100'
+                    }`}
+                    title={workflow.is_active ? 'Pause workflow' : 'Activate workflow'}
+                  >
+                    {workflow.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Empty state — only shown when no custom workflows exist */}
+        {workflows.length === 0 && (
+          <div className="card text-center py-10 border-dashed">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">No custom workflows yet.</p>
+            <button onClick={handleCreateWorkflow} className="btn btn-secondary">
+              Create a Workflow
+            </button>
           </div>
         )}
       </div>

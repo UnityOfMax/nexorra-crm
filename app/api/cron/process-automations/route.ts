@@ -105,7 +105,8 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          const fromPhone = settings?.sms_config?.twilio_phone_number;
+          // Flat key first, nested as fallback (Settings saves flat; legacy configs may use nested)
+          const fromPhone = settings?.twilio_phone_number || settings?.sms_config?.twilio_phone_number;
           if (!fromPhone) {
             await markFailed(msg.id, 'Account has no Twilio phone number configured');
             continue;
@@ -126,6 +127,16 @@ export async function GET(request: NextRequest) {
               .from('automation_messages')
               .update({ status: 'sent', sent_at: new Date().toISOString() })
               .eq('id', msg.id);
+            void supabaseAdmin.from('messages').insert({
+              account_id: msg.account_id,
+              contact_id: msg.contact_id,
+              direction: 'outbound',
+              type: 'sms',
+              content: msg.body,
+              from_address: fromPhone,
+              to_address: toPhone,
+              status: 'sent',
+            });
             console.log(`[CRON automations] SMS sent to ${toPhone}`);
             processed++;
           } catch (smsErr: any) {
@@ -146,8 +157,9 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          const fromEmail = settings?.email_config?.from_email || 'noreply@ourlimitedoffer.com';
-          const fromName = settings?.email_config?.from_name || enrollment.metadata?.agentName || 'Your Agent';
+          // Flat key first (set by Settings + agency clients route), nested as fallback
+          const fromEmail = settings?.from_email || settings?.email_config?.from_email || 'noreply@contact.ourlimitedoffer.com';
+          const fromName = settings?.from_name || settings?.email_config?.from_name || enrollment.metadata?.agentName || 'Your Agent';
 
           try {
             await resendClient.emails.send({
@@ -161,6 +173,17 @@ export async function GET(request: NextRequest) {
               .from('automation_messages')
               .update({ status: 'sent', sent_at: new Date().toISOString() })
               .eq('id', msg.id);
+            void supabaseAdmin.from('messages').insert({
+              account_id: msg.account_id,
+              contact_id: msg.contact_id,
+              direction: 'outbound',
+              type: 'email',
+              content: msg.body,
+              from_address: fromEmail,
+              to_address: toEmail,
+              status: 'sent',
+              metadata: msg.subject ? { subject: msg.subject } : {},
+            });
             console.log(`[CRON automations] Email sent to ${toEmail}`);
             processed++;
           } catch (emailErr: any) {
