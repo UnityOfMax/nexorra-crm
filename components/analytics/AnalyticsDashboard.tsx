@@ -124,10 +124,10 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
           <button
             onClick={() => loadData(true)}
             disabled={syncing}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 transition-all disabled:opacity-40"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--analytics-accent)]/15 hover:bg-[var(--analytics-accent)]/25 text-[var(--analytics-accent)] border border-[var(--analytics-accent)]/30 transition-all disabled:opacity-40"
           >
             <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Sync Now'}
+            {syncing ? 'Pulling…' : 'Pull Data from Meta'}
           </button>
           {lastSync && <span className="text-[11px] text-white/25">synced {lastSync}</span>}
         </div>
@@ -150,6 +150,25 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
           </>
         )}
       </div>
+
+      {/* ── No data empty state ────────────────────────────────── */}
+      {!loading && (!t || t.spend === 0) && adRows.length === 0 && (
+        <div className="rounded-xl bg-white/[0.03] ring-1 ring-white/8 p-8 flex flex-col items-center text-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--analytics-accent)]/10 flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-[var(--analytics-accent)]" />
+          </div>
+          <div>
+            <p className="text-white/70 font-medium mb-1">No Meta ad data yet</p>
+            <p className="text-sm text-white/30 max-w-sm">
+              Connect your Meta ad account by adding your access token and ad account ID in Settings, then click <span className="text-[var(--analytics-accent)]">Pull Data from Meta</span> above.
+            </p>
+          </div>
+          <div className="text-[11px] text-white/20 space-y-0.5">
+            <p>Required: META_ACCESS_TOKEN · META_AD_ACCOUNT_ID</p>
+            <p>Set in your Vercel environment variables or .env.local</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Funnel + Optimizer ─────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

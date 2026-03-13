@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Contact } from '@/types';
-import { supabase } from '@/lib/supabase-browser';
 import { Plus, Mail, Phone, Search, Filter, MessageSquare } from 'lucide-react';
 import { normalizePhone } from '@/lib/utils/phone';
 import { toast } from 'sonner';
@@ -50,13 +49,17 @@ export default function ContactsList({
     e.preventDefault();
     setLoading(true);
     try {
-      const insertData = {
-        ...formData,
-        account_id: accountId,
-        phone: formData.phone ? normalizePhone(formData.phone) : formData.phone,
-      };
-      const { error } = await supabase.from('contacts').insert([insertData]);
-      if (error) throw error;
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          accountId,
+          phone: formData.phone ? normalizePhone(formData.phone) : formData.phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create contact');
       setShowModal(false);
       setFormData({ first_name: '', last_name: '', email: '', phone: '', company: '', status: 'lead' });
       onRefresh();

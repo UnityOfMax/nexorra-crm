@@ -30,6 +30,36 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ contacts: data || [], total: count ?? 0, limit, offset });
 }
 
+// POST /api/contacts — create a new contact (uses supabaseAdmin to bypass RLS)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { accountId } = body;
+
+    if (!accountId) return NextResponse.json({ error: 'accountId required' }, { status: 400 });
+
+    const auth = await requireAccountAccess(request, accountId);
+    if (auth instanceof NextResponse) return auth;
+
+    const { id: _id, created_at: _ca, ...contactFields } = body;
+
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .insert({ ...contactFields, account_id: accountId })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Contact insert error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ contact: data });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 // PATCH /api/contacts?id=X&accountId=Y
 export async function PATCH(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
