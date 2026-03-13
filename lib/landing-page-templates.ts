@@ -30,9 +30,20 @@ export interface LandingPageContent {
     faviconUrl?: string;
   };
   calendarSettings?: {
-    startHour?: number;
-    endHour?: number;
+    startHour?: number;    // 0–23, default 9
+    endHour?: number;      // 0–23, default 17
+    timezone?: string;     // e.g. "America/New_York"
+    availableDays?: number[]; // 0=Sun … 6=Sat, default [1,2,3,4,5]
   };
+}
+
+export interface CustomFormField {
+  key: string;
+  label: string;
+  type: 'text' | 'email' | 'tel' | 'textarea' | 'select';
+  placeholder?: string;
+  required?: boolean;
+  options?: string[]; // for 'select' type
 }
 
 export interface PageTemplate {
