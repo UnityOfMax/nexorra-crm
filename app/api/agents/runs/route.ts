@@ -98,6 +98,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
   }
 
+  // Agent runner requires a local Next.js server (claude CLI must be present)
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      { error: 'Command Center requires the local server. Open http://localhost:3000 to run agents.' },
+      { status: 503 }
+    );
+  }
+
   // Read agent prompt file from static definition
   let promptContent = '';
   try {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, MessageSquare, Calendar, KanbanSquare, Settings, ChevronDown, Check, LogOut, Building2 } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Calendar, KanbanSquare, Settings, ChevronDown, Check, LogOut, Building2, BarChart2 } from 'lucide-react';
 interface ClientSidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
@@ -11,6 +11,7 @@ interface ClientSidebarProps {
 
 const clientMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'conversations', label: 'Conversations', icon: MessageSquare },
   { id: 'pipelines', label: 'Opportunities', icon: KanbanSquare },

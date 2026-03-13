@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot, Target, Mail, Terminal } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot, Target, Mail, Terminal, BarChart2 } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import type { Account } from '@/types';
 import type { UserRole } from '@/types/agency';
@@ -31,6 +31,7 @@ const allMenuItems = [
   { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false, ownerAdminOnly: false },
   { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false, ownerAdminOnly: false },
   { id: 'ai-agent', label: 'AI Agent', icon: Bot, agencyOnly: false, ownerAdminOnly: true },
+  { id: 'agency-analytics', label: 'Analytics', icon: BarChart2, agencyOnly: true, ownerAdminOnly: false },
   { id: 'command-center', label: 'Command Center', icon: Terminal, agencyOnly: true, ownerAdminOnly: true },
   { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true, ownerAdminOnly: false },
 ];
