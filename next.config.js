@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Bundle agent prompt + memory files into the Vercel deployment output
+  outputFileTracingIncludes: {
+    '/api/agents/runs': ['./agents/**/*', './.claude/commands/**/*'],
+  },
   experimental: {
     serverComponentsExternalPackages: [
       'googleapis',

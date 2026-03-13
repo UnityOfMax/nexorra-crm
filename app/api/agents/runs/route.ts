@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth/require-account-access';
 import { spawn } from 'child_process';
-import { readFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
+import { readFileSync, createWriteStream, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
+import { runAgentWithSDK } from '@/lib/agents/serverless-runner';
 
 export const dynamic = 'force-dynamic';
+// Allow up to 5 minutes for long-running agents on Vercel Pro
+export const maxDuration = 300;
 
 // Static agent definitions — source of truth for prompt files and defaults.
 // DB agent_configs can override model/max_turns but prompt_file falls back here.
@@ -98,14 +101,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
   }
 
-  // Agent runner requires a local Next.js server (claude CLI must be present)
-  if (process.env.VERCEL) {
-    return NextResponse.json(
-      { error: 'Command Center requires the local server. Open http://localhost:3000 to run agents.' },
-      { status: 503 }
-    );
-  }
-
   // Read agent prompt file from static definition
   let promptContent = '';
   try {
@@ -121,7 +116,9 @@ export async function POST(request: NextRequest) {
 
   // Ensure logs/runs directory exists
   const logDir = path.join(process.cwd(), 'logs', 'runs');
-  if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
+  const tmpLogDir = '/tmp/logs/runs';
+  const effectiveLogDir = process.env.VERCEL ? tmpLogDir : logDir;
+  if (!existsSync(effectiveLogDir)) mkdirSync(effectiveLogDir, { recursive: true });
 
   // Insert new run
   const { data: run, error: runError } = await supabaseAdmin
@@ -139,18 +136,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create run' }, { status: 500 });
   }
 
-  const logFile = path.join(logDir, `${run.id}.jsonl`);
+  const logFile = path.join(effectiveLogDir, `${run.id}.jsonl`);
 
-  // Update run with log file path
   await supabaseAdmin
     .from('agent_runs')
     .update({ log_file: `logs/runs/${run.id}.jsonl` })
     .eq('id', run.id);
 
-  // Spawn claude directly with stream-json output
+  // On Vercel (or when claude CLI is not available), use the Anthropic SDK runner.
+  // On local dev, use the claude CLI spawn for full tool support.
+  const claudeCli = '/home/max/.npm-global/bin/claude';
+  const useSDK = process.env.VERCEL || !existsSync(claudeCli);
+
+  if (useSDK) {
+    // SDK runner — runs synchronously within this request (up to maxDuration=300s)
+    const startTime = Date.now();
+    const events: Record<string, unknown>[] = [];
+
+    const result = await runAgentWithSDK({
+      promptContent,
+      model: agentModel,
+      maxTurns: agentMaxTurns,
+      onEvent: (event) => {
+        events.push(event);
+        // Write event to log file in real-time
+        try {
+          writeFileSync(logFile, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+        } catch { /* non-fatal */ }
+      },
+    });
+
+    const duration = Math.round((Date.now() - startTime) / 1000);
+
+    await supabaseAdmin
+      .from('agent_runs')
+      .update({
+        status: result.success ? 'completed' : 'failed',
+        finished_at: new Date().toISOString(),
+        duration_seconds: duration,
+        cost_usd: result.costUsd,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        num_turns: result.numTurns,
+        error_message: result.error || null,
+      })
+      .eq('id', run.id);
+
+    return NextResponse.json({ runId: run.id, status: result.success ? 'completed' : 'failed' });
+  }
+
+  // Local: spawn claude CLI with stream-json output (detached, non-blocking)
   const startTime = Date.now();
   const child = spawn(
-    '/home/max/.npm-global/bin/claude',
+    claudeCli,
     [
       '-p', promptContent,
       '--model', agentModel,
@@ -170,12 +208,10 @@ export async function POST(request: NextRequest) {
     }
   );
 
-  // Track PID for stop functionality
   if (child.pid) {
     runningProcesses.set(run.id, child.pid);
   }
 
-  // Stream output to JSONL log file in real-time
   const ws = createWriteStream(logFile, { flags: 'a' });
   let lastLine = '';
 
@@ -199,7 +235,6 @@ export async function POST(request: NextRequest) {
     const duration = Math.round((Date.now() - startTime) / 1000);
     const status = code === 0 ? 'completed' : 'failed';
 
-    // Parse the result event for cost/token data
     let costUsd: number | null = null;
     let inputTokens: number | null = null;
     let outputTokens: number | null = null;
@@ -215,7 +250,7 @@ export async function POST(request: NextRequest) {
           outputTokens = result.usage.output_tokens ?? null;
         }
       }
-    } catch { /* ignore parse errors */ }
+    } catch { /* ignore */ }
 
     await supabaseAdmin
       .from('agent_runs')

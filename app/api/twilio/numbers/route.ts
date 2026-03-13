@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { twilioClient } from '@/lib/twilio/client';
+import { requireAuth } from '@/lib/auth/require-account-access';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     if (!twilioClient) {
       return NextResponse.json(

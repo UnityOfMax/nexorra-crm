@@ -44,6 +44,7 @@ interface TwilioNumber {
 export default function Settings({ account, onUpdate, isAgencyUser = false, userId, userRole }: SettingsProps) {
   const [loading, setLoading] = useState(false);
   const [loadingNumbers, setLoadingNumbers] = useState(false);
+  const [twilioError, setTwilioError] = useState('');
   const [message, setMessage] = useState('');
   const [twilioNumbers, setTwilioNumbers] = useState<TwilioNumber[]>([]);
   const [facebookIntegration, setFacebookIntegration] = useState<any>(null);
@@ -142,14 +143,17 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
   const loadTwilioNumbers = async () => {
     setLoadingNumbers(true);
+    setTwilioError('');
     try {
       const response = await fetch('/api/twilio/numbers');
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
         setTwilioNumbers(data.numbers || []);
+      } else {
+        setTwilioError(data.error || `Error ${response.status}`);
       }
-    } catch {
-      // Twilio not configured
+    } catch (err: any) {
+      setTwilioError(err.message || 'Failed to fetch numbers');
     } finally {
       setLoadingNumbers(false);
     }
@@ -387,11 +391,16 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           <Loader className="w-6 h-6 animate-spin text-gray-400" />
           <span className="ml-2 text-gray-600 dark:text-gray-400">Loading Twilio numbers...</span>
         </div>
+      ) : twilioError ? (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300 font-medium">Failed to load phone numbers</p>
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1 font-mono">{twilioError}</p>
+        </div>
       ) : twilioNumbers.length === 0 ? (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-lg p-4">
           <p className="text-amber-800 dark:text-amber-300 font-medium">No Twilio numbers found</p>
           <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-            Make sure your Twilio credentials are in your .env.local file, or purchase a number at{' '}
+            Make sure your Twilio credentials are configured, or purchase a number at{' '}
             <a href="https://www.twilio.com/console/phone-numbers/search" target="_blank" rel="noopener noreferrer" className="underline">Twilio Console</a>
           </p>
         </div>
