@@ -82,20 +82,8 @@ If fewer than 20 rows: skip feedback. Otherwise filter client-side: booked (firs
 **4e. Calendly link:** Always use the static booking link: `https://calendly.com/nexorra/demo-call`
 Don't send link on hostile/spam/decline. Don't resend if `booking_link_sent` is already true (unless lead asks).
 
-**4e-alt. Direct booking (only if lead suggests a specific time):**
-If a lead says something like "I'm free Tuesday at 2pm", check availability and book directly:
-```
-GET https://api.calendly.com/user_availability_schedules
-Headers: CAL
-Query: user=$CALENDLY_USER_URI
-```
-Then schedule via:
-```
-POST https://api.calendly.com/scheduled_events
-Headers: CAL
-Body: { "event_type": "$CALENDLY_EVENT_TYPE_URI", "invitee": { "name": "{lead_name}", "email": "{lead_email}" }, "start_time": "{iso8601}" }
-```
-If direct booking fails or time is unavailable, fall back to sending the static link.
+**4e-alt. Lead suggests a specific time:**
+If a lead says "I'm free Tuesday at 2pm" or similar, always respond with the static Calendly link and suggest they pick from available times. The Calendly API does not support creating bookings on behalf of invitees — always use the static link.
 
 **4f. Generate reply:** Call Claude Haiku 4.5 via the API route:
 ```

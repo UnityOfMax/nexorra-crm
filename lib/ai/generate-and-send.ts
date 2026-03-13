@@ -494,7 +494,7 @@ export async function generateAndSendAI(
       .from('messages')
       .update({
         is_ai_generated: true,
-        ai_metadata: { model: 'claude-sonnet-4-6', channel },
+        ai_metadata: { model: 'claude-haiku-4-5-20251001', channel },
       })
       .eq('id', lastMessage.id);
   }
