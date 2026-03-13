@@ -5,8 +5,9 @@ import {
   ArrowLeft, Save, Eye, Globe, Settings, Trash2,
   Plus, Type, Image, MousePointerClick, FormInput,
   Video, Quote, Minus, LayoutList, ChevronUp, ChevronDown,
-  Upload, Loader, ImageIcon, Star, Users,
+  Upload, Loader, ImageIcon, Star, Users, Clock,
 } from 'lucide-react';
+import type { CustomFormField } from '@/lib/landing-page-templates';
 import LandingPageRenderer from './LandingPageRenderer';
 import type { LandingPage } from '@/types';
 import type { LandingPageBlock, LandingPageContent } from '@/lib/landing-page-templates';
@@ -38,7 +39,7 @@ function getDefaultBlockData(type: string): Record<string, any> {
     case 'text': return { content: '<p>Enter your text here...</p>' };
     case 'image': return { url: '', alt: '', alignment: 'center' };
     case 'cta': return { text: 'Click Here', link: '#', color: '#0ea5e9', size: 'large' };
-    case 'form': return { heading: 'Get in Touch', fields: ['name', 'email', 'phone'], buttonText: 'Submit', buttonColor: '#0ea5e9' };
+    case 'form': return { heading: 'Get in Touch', customFields: [{ key: 'first_name', label: 'First Name', type: 'text', required: true, placeholder: 'Jane' }, { key: 'email', label: 'Email Address', type: 'email', required: true, placeholder: 'jane@email.com' }, { key: 'phone', label: 'Phone Number', type: 'tel', required: false, placeholder: '(555) 000-0000' }], buttonText: 'Submit', buttonColor: '#0ea5e9' };
     case 'video': return { url: '', caption: '' };
     case 'testimonial': return { quote: 'Customer testimonial goes here...', author: 'Customer Name', role: '' };
     case 'features': return { heading: 'Our Features', items: [{ title: 'Feature 1', description: 'Description' }, { title: 'Feature 2', description: 'Description' }, { title: 'Feature 3', description: 'Description' }] };
@@ -64,6 +65,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
   const [customDomain, setCustomDomain] = useState(page.custom_domain || '');
   const [published, setPublished] = useState(page.published);
   const [isDirty, setIsDirty] = useState(false);
+  const [leftTab, setLeftTab] = useState<'blocks' | 'forms'>('blocks');
 
   const canPublish = !published || isDirty;
   const markDirty = () => setIsDirty(true);
@@ -288,31 +290,147 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
               <input value={metaDescription} onChange={(e) => { setMetaDescription(e.target.value); markDirty(); }} className="input text-sm" placeholder="Page description for SEO" />
             </div>
           </div>
+
+          {/* Availability Settings */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Booking Availability
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agent Timezone</label>
+                <select
+                  value={content.calendarSettings?.timezone || ''}
+                  onChange={(e) => { setContent(prev => ({ ...prev, calendarSettings: { ...prev.calendarSettings, timezone: e.target.value || undefined } })); markDirty(); }}
+                  className="input text-sm"
+                >
+                  <option value="">Auto-detect visitor timezone</option>
+                  <option value="America/New_York">Eastern — New York / Toronto (ET)</option>
+                  <option value="America/Chicago">Central — Chicago / Winnipeg (CT)</option>
+                  <option value="America/Denver">Mountain — Denver / Edmonton (MT)</option>
+                  <option value="America/Los_Angeles">Pacific — Los Angeles / Vancouver (PT)</option>
+                  <option value="America/Phoenix">Arizona — Phoenix (MST, no DST)</option>
+                  <option value="America/Anchorage">Alaska (AKT)</option>
+                  <option value="Pacific/Honolulu">Hawaii (HST)</option>
+                  <option value="America/Halifax">Halifax / Atlantic (AT)</option>
+                  <option value="America/St_Johns">Newfoundland (NT)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Hour</label>
+                <select
+                  value={content.calendarSettings?.startHour ?? 9}
+                  onChange={(e) => { setContent(prev => ({ ...prev, calendarSettings: { ...prev.calendarSettings, startHour: parseInt(e.target.value) } })); markDirty(); }}
+                  className="input text-sm"
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Hour</label>
+                <select
+                  value={content.calendarSettings?.endHour ?? 17}
+                  onChange={(e) => { setContent(prev => ({ ...prev, calendarSettings: { ...prev.calendarSettings, endHour: parseInt(e.target.value) } })); markDirty(); }}
+                  className="input text-sm"
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Available Days</label>
+                <div className="flex gap-2">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
+                    const availDays = content.calendarSettings?.availableDays ?? [1, 2, 3, 4, 5];
+                    const isOn = availDays.includes(i);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const next = isOn ? availDays.filter(d => d !== i) : [...availDays, i].sort((a, b) => a - b);
+                          setContent(prev => ({ ...prev, calendarSettings: { ...prev.calendarSettings, availableDays: next } }));
+                          markDirty();
+                        }}
+                        className={`px-2 py-1 text-xs rounded border font-medium transition-colors ${isOn ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Main Builder Area */}
       <div className="flex flex-1 gap-4 overflow-hidden">
-        {/* Block Palette */}
-        <div className="w-48 bg-white border border-gray-200 rounded-lg overflow-y-auto flex-shrink-0">
-          <div className="p-3 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900">Blocks</h3>
+        {/* Block Palette / Forms */}
+        <div className="w-48 bg-white border border-gray-200 rounded-lg overflow-y-auto flex-shrink-0 flex flex-col">
+          <div className="flex border-b border-gray-200 flex-shrink-0">
+            <button
+              onClick={() => setLeftTab('blocks')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${leftTab === 'blocks' ? 'text-primary-700 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Blocks
+            </button>
+            <button
+              onClick={() => setLeftTab('forms')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${leftTab === 'forms' ? 'text-primary-700 border-b-2 border-primary-600' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Forms
+            </button>
           </div>
-          <div className="p-2 space-y-1">
-            {BLOCK_TYPES.map((bt) => {
-              const Icon = bt.icon;
-              return (
-                <button
-                  key={bt.type}
-                  onClick={() => addBlock(bt.type)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded transition-colors"
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{bt.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {leftTab === 'blocks' ? (
+            <div className="p-2 space-y-1 overflow-y-auto">
+              {BLOCK_TYPES.map((bt) => {
+                const Icon = bt.icon;
+                return (
+                  <button
+                    key={bt.type}
+                    onClick={() => addBlock(bt.type)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded transition-colors"
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{bt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-2 overflow-y-auto">
+              {content.blocks.filter(b => b.type === 'form').length === 0 ? (
+                <div className="text-xs text-gray-400 text-center py-4">
+                  No form blocks yet.<br />Add one from Blocks.
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {content.blocks.filter(b => b.type === 'form').map((b, idx) => (
+                    <button
+                      key={b.id}
+                      onClick={() => { setSelectedBlockId(b.id); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left ${selectedBlockId === b.id ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <FormInput className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{b.data.heading || `Form ${idx + 1}`}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => { addBlock('form'); setLeftTab('forms'); }}
+                className="mt-2 w-full text-xs text-primary-600 hover:text-primary-700 font-medium py-1"
+              >
+                + Add Form
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Preview */}
@@ -557,29 +675,74 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
       ]}</>;
 
     case 'form':
-      return <>{[
-        textInput('Heading', 'heading'),
-        textInput('Button Text', 'buttonText'),
-        colorInput('Button Color', 'buttonColor'),
-        <div key="fields">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Fields</label>
-          <div className="space-y-1">
-            {['name', 'email', 'phone'].map(f => (
-              <label key={f} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={(data.fields || []).includes(f)}
-                  onChange={(e) => {
-                    const fields = data.fields || [];
-                    onUpdate({ fields: e.target.checked ? [...fields, f] : fields.filter((x: string) => x !== f) });
-                  }}
-                />
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </label>
-            ))}
+      return (
+        <div className="space-y-3">
+          {textInput('Heading', 'heading')}
+          {textInput('Button Text', 'buttonText')}
+          {colorInput('Button Color', 'buttonColor')}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Form Fields</label>
+            <div className="space-y-2">
+              {((data.customFields || []) as CustomFormField[]).map((field, i) => (
+                <div key={i} className="border border-gray-200 rounded p-2 space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-medium text-gray-500">Field {i + 1}</span>
+                    <button
+                      onClick={() => onUpdate({ customFields: (data.customFields || []).filter((_: any, j: number) => j !== i) })}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <input
+                    value={field.label}
+                    onChange={(e) => { const f = [...(data.customFields || [])]; f[i] = { ...f[i], label: e.target.value }; onUpdate({ customFields: f }); }}
+                    className="input text-xs"
+                    placeholder="Label (e.g. First Name)"
+                  />
+                  <div className="grid grid-cols-2 gap-1">
+                    <select
+                      value={field.type}
+                      onChange={(e) => { const f = [...(data.customFields || [])]; f[i] = { ...f[i], type: e.target.value as any }; onUpdate({ customFields: f }); }}
+                      className="input text-xs"
+                    >
+                      <option value="text">Text</option>
+                      <option value="email">Email</option>
+                      <option value="tel">Phone</option>
+                      <option value="textarea">Textarea</option>
+                      <option value="select">Dropdown</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={field.required ?? false}
+                        onChange={(e) => { const f = [...(data.customFields || [])]; f[i] = { ...f[i], required: e.target.checked }; onUpdate({ customFields: f }); }}
+                        className="rounded"
+                      />
+                      Required
+                    </label>
+                  </div>
+                  <input
+                    value={field.placeholder || ''}
+                    onChange={(e) => { const f = [...(data.customFields || [])]; f[i] = { ...f[i], placeholder: e.target.value }; onUpdate({ customFields: f }); }}
+                    className="input text-xs"
+                    placeholder="Placeholder text"
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                const key = `field_${Date.now()}`;
+                onUpdate({ customFields: [...(data.customFields || []), { key, label: 'New Field', type: 'text', required: false, placeholder: '' }] });
+              }}
+              className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium"
+            >
+              + Add Field
+            </button>
           </div>
-        </div>,
-      ]}</>;
+        </div>
+      );
 
     case 'video':
       return <>{[

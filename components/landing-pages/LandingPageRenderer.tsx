@@ -396,10 +396,22 @@ export default function LandingPageRenderer({
           <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ padding: '40px 24px' }}>
             <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#ffffff', borderRadius: '12px', padding: 'clamp(20px,4vw,32px)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', textAlign: 'center', color: '#111827' }}>{block.data.heading || 'Get in Touch'}</h3>
-              <form onSubmit={(e) => { e.preventDefault(); if (isPreview) return; const fd = new FormData(e.target as HTMLFormElement); const data: Record<string, string> = {}; fd.forEach((v, k) => { data[k] = v as string; }); if (accountId) { fetch('/api/landing-pages/form-submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountId, ...data }) }); } }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {(block.data.fields || ['name', 'email']).map((field: string) => (
-                  <input key={field} name={field} type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} placeholder={field.charAt(0).toUpperCase() + field.slice(1)} required={field === 'email'} disabled={isPreview} style={{ width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }} />
-                ))}
+              <form onSubmit={(e) => { e.preventDefault(); if (isPreview) return; const fd = new FormData(e.target as HTMLFormElement); const formData: Record<string, string> = {}; fd.forEach((v, k) => { formData[k] = v as string; }); if (accountId) { fetch('/api/landing-pages/form-submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountId, ...formData }) }); } }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {block.data.customFields
+                  ? block.data.customFields.map((field: { key: string; label: string; type: string; placeholder?: string; required?: boolean; options?: string[] }) => (
+                      field.type === 'textarea'
+                        ? <textarea key={field.key} name={field.key} placeholder={field.placeholder || field.label} required={field.required} disabled={isPreview} rows={3} style={{ width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box', resize: 'vertical' }} />
+                        : field.type === 'select'
+                          ? <select key={field.key} name={field.key} required={field.required} disabled={isPreview} style={{ width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }}>
+                              <option value="">{field.placeholder || field.label}</option>
+                              {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          : <input key={field.key} name={field.key} type={field.type} placeholder={field.placeholder || field.label} required={field.required} disabled={isPreview} style={{ width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }} />
+                    ))
+                  : (block.data.fields || ['name', 'email']).map((field: string) => (
+                      <input key={field} name={field} type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} placeholder={field.charAt(0).toUpperCase() + field.slice(1)} required={field === 'email'} disabled={isPreview} style={{ width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' }} />
+                    ))
+                }
                 <button type="submit" disabled={isPreview} style={{ width: '100%', padding: '14px', backgroundColor: block.data.buttonColor || styles.primaryColor, color: '#ffffff', borderRadius: '8px', fontWeight: '600', fontSize: '1rem', border: 'none', cursor: isPreview ? 'default' : 'pointer' }}>{block.data.buttonText || 'Submit'}</button>
               </form>
             </div>
