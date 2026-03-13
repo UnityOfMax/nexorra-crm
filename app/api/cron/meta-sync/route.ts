@@ -74,10 +74,13 @@ export async function POST(request: NextRequest) {
               adset_id: row.adset_id,
               adset_name: row.adset_name,
               impressions: row.impressions,
+              reach: row.reach,
               clicks: row.clicks,
               spend: row.spend,
               leads: row.leads,
+              page_views: row.page_views,
               cpl: cpl != null ? Math.round(cpl * 100) / 100 : null,
+              cpm: row.cpm,
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'date,adset_id' }

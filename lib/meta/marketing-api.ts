@@ -23,10 +23,13 @@ export interface AdSetMetric {
   date_start: string;
   date_stop: string;
   impressions: number;
+  reach: number;
   clicks: number;
   spend: number;
   leads: number;
+  page_views: number;
   cpl: number | null;
+  cpm: number | null;
   status?: string;
 }
 
@@ -82,7 +85,8 @@ export async function fetchAdSetInsights(params: {
 }): Promise<AdSetMetric[]> {
   const fields = [
     'campaign_id', 'campaign_name', 'adset_id', 'adset_name',
-    'impressions', 'clicks', 'spend', 'actions', 'date_start', 'date_stop',
+    'impressions', 'reach', 'clicks', 'spend', 'cpm',
+    'actions', 'date_start', 'date_stop',
   ].join(',');
 
   const queryParams: Record<string, string> = {
@@ -109,8 +113,12 @@ export async function fetchAdSetInsights(params: {
     for (const row of (data.data || [])) {
       const actions: Array<{ action_type: string; value: string }> = row.actions || [];
       const leadAction = actions.find((a) => a.action_type === 'lead');
+      const pageViewAction = actions.find((a) => a.action_type === 'landing_page_view');
       const leads = leadAction ? parseInt(leadAction.value, 10) : 0;
+      const pageViews = pageViewAction ? parseInt(pageViewAction.value, 10) : 0;
       const spend = parseFloat(row.spend || '0');
+      const impressions = parseInt(row.impressions || '0', 10);
+      const cpm = impressions > 0 ? parseFloat(row.cpm || String((spend / impressions) * 1000)) : null;
 
       results.push({
         campaign_id: row.campaign_id || '',
@@ -119,11 +127,14 @@ export async function fetchAdSetInsights(params: {
         adset_name: row.adset_name || '',
         date_start: row.date_start || '',
         date_stop: row.date_stop || '',
-        impressions: parseInt(row.impressions || '0', 10),
+        impressions,
+        reach: parseInt(row.reach || '0', 10),
         clicks: parseInt(row.clicks || '0', 10),
         spend,
         leads,
+        page_views: pageViews,
         cpl: leads > 0 ? spend / leads : null,
+        cpm: cpm != null ? Math.round(cpm * 100) / 100 : null,
       });
     }
 
