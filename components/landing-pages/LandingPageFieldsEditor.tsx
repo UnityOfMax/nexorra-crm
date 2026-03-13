@@ -64,6 +64,8 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
   // Calendar availability
   const [availStart, setAvailStart] = useState(page.content?.calendarSettings?.startHour ?? 9);
   const [availEnd, setAvailEnd] = useState(page.content?.calendarSettings?.endHour ?? 17);
+  const [availTz, setAvailTz] = useState(page.content?.calendarSettings?.timezone || '');
+  const [availDays, setAvailDays] = useState<number[]>(page.content?.calendarSettings?.availableDays || [1, 2, 3, 4, 5]);
 
   // Image upload state
   const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -172,7 +174,7 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
         ...content,
         blocks: updatedBlocks,
         styles: { ...content.styles, primaryColor: accentColor },
-        calendarSettings: { startHour: availStart, endHour: availEnd },
+        calendarSettings: { startHour: availStart, endHour: availEnd, timezone: availTz || undefined, availableDays: availDays },
       };
 
       const res = await fetch(`/api/landing-pages/${page.id}`, {
@@ -436,7 +438,37 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
           {activeTab === 'form' && (
             <>
               <p className="text-sm font-medium text-gray-900 mb-1">Calendar Availability</p>
-              <p className="text-sm text-gray-500 mb-4">Set the hours when leads can book a call with you</p>
+              <p className="text-sm text-gray-500 mb-4">Set the hours, timezone, and days when leads can book a call with you</p>
+
+              {/* Timezone */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Timezone</label>
+                <select value={availTz} onChange={e => setAvailTz(e.target.value)} className="input">
+                  <option value="">-- Select timezone --</option>
+                  <optgroup label="Eastern">
+                    <option value="America/New_York">Eastern Time — New York / Toronto</option>
+                  </optgroup>
+                  <optgroup label="Central">
+                    <option value="America/Chicago">Central Time — Chicago / Winnipeg</option>
+                  </optgroup>
+                  <optgroup label="Mountain">
+                    <option value="America/Denver">Mountain Time — Denver / Calgary</option>
+                    <option value="America/Phoenix">Mountain Time (no DST) — Phoenix / Arizona</option>
+                    <option value="America/Edmonton">Mountain Time — Edmonton</option>
+                  </optgroup>
+                  <optgroup label="Pacific">
+                    <option value="America/Los_Angeles">Pacific Time — Los Angeles / Vancouver</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="America/Anchorage">Alaska Time — Anchorage</option>
+                    <option value="Pacific/Honolulu">Hawaii Time — Honolulu</option>
+                    <option value="America/Halifax">Atlantic Time — Halifax</option>
+                    <option value="America/St_Johns">Newfoundland Time — St. John's</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* Hours */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Available From</label>
@@ -455,10 +487,25 @@ export default function LandingPageFieldsEditor({ page, onClose, onSave }: Landi
                   </select>
                 </div>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
-                <p className="text-sm text-blue-800">
-                  Slots show Mon–Fri, 30-minute intervals. Times display automatically in the visitor's local timezone.
-                </p>
+
+              {/* Days */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">Available Days</label>
+                <div className="flex gap-2 flex-wrap">
+                  {[{ d: 0, l: 'Sun' }, { d: 1, l: 'Mon' }, { d: 2, l: 'Tue' }, { d: 3, l: 'Wed' }, { d: 4, l: 'Thu' }, { d: 5, l: 'Fri' }, { d: 6, l: 'Sat' }].map(({ d, l }) => {
+                    const on = availDays.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setAvailDays(prev => on ? prev.filter(x => x !== d) : Array.from(new Set([...prev, d])).sort())}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${on ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      >
+                        {l}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}

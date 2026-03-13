@@ -1128,6 +1128,52 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
 }
 
 // ---- Questionnaire Editor ----
+const DEFAULT_STEP_OPTS: Partial<Record<QuestionnaireStepKey, QuestionnaireOption[]>> = {
+  intent: [
+    { emoji: '🏠', label: 'Buy a Home', sub: 'Find my perfect property', value: 'Buy' },
+    { emoji: '💰', label: 'Sell My Home', sub: 'Get the best price', value: 'Sell' },
+    { emoji: '🔄', label: 'Buy & Sell', sub: 'I need to do both', value: 'Buy & Sell' },
+  ],
+  situation: [
+    { emoji: '🏡', label: 'I own a home', value: 'Own a Home' },
+    { emoji: '🏢', label: "I'm renting", value: 'Renting' },
+    { emoji: '🔍', label: 'Other', value: 'Other' },
+  ],
+  timeline: [
+    { emoji: '🔥', label: 'Within 30 days', sub: "I'm ready to move fast", value: 'Within 30 Days' },
+    { emoji: '📅', label: '1–2 months', value: '1–2 Months' },
+    { emoji: '🗓️', label: '2–4 months', value: '2–4 Months' },
+    { emoji: '📆', label: '4+ months', sub: 'Planning ahead', value: '4+ Months' },
+  ],
+  budget: [
+    { label: 'Under $300K', sub: 'Starter / entry-level', value: 'Under $300K' },
+    { label: '$300K – $500K', sub: 'Mid-range family homes', value: '$300K – $500K' },
+    { label: '$500K – $750K', sub: 'Larger or premium locations', value: '$500K – $750K' },
+    { label: '$750K – $1M', sub: 'Upscale properties', value: '$750K – $1M' },
+    { label: 'Over $1M', sub: 'Luxury & estates', value: 'Over $1M' },
+  ],
+  sell_also: [
+    { emoji: '✅', label: 'Yes, I need to sell as well', value: 'Yes' },
+    { emoji: '❌', label: 'No, just looking to buy', value: 'No' },
+  ],
+  income: [
+    { label: '$0 – $50K', value: '$0 – $50K' },
+    { label: '$50K – $80K', value: '$50K – $80K' },
+    { label: '$80K – $100K', value: '$80K – $100K' },
+    { label: '$100K – $150K', value: '$100K – $150K' },
+    { label: '$150K+', value: '$150K+' },
+  ],
+  call_time: [
+    { emoji: '🌅', label: 'Morning', value: 'Morning' },
+    { emoji: '☀️', label: 'Afternoon', value: 'Afternoon' },
+    { emoji: '🌙', label: 'Evening', value: 'Evening' },
+  ],
+  serious: [
+    { emoji: '💯', label: 'Yes, absolutely', sub: "I'm ready to take action", value: 'Yes' },
+    { emoji: '🤔', label: 'Still exploring', sub: 'Not fully decided yet', value: 'Still Exploring' },
+  ],
+};
+
 const QUESTIONNAIRE_STEPS: { key: QuestionnaireStepKey; label: string; inputType: 'choice' | 'text' | 'textarea' | 'grid' }[] = [
   { key: 'intent',      label: 'Intent',          inputType: 'choice' },
   { key: 'situation',   label: 'Situation',        inputType: 'choice' },
@@ -1155,7 +1201,7 @@ function QuestionnaireEditor({ config, onChange }: { config: QuestionnaireConfig
         const step = config[key];
         const isEnabled = step?.enabled !== false;
         const isExpanded = expanded === key;
-        const stepOpts: QuestionnaireOption[] = step?.options || [];
+        const stepOpts: QuestionnaireOption[] = step?.options || DEFAULT_STEP_OPTS[key] || [];
 
         return (
           <div key={key} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1183,6 +1229,12 @@ function QuestionnaireEditor({ config, onChange }: { config: QuestionnaireConfig
                   onChange={e => update(key, { heading: e.target.value || undefined })}
                   className="input text-xs"
                   placeholder="Question heading (leave blank for default)"
+                />
+                <input
+                  value={step?.subheading || ''}
+                  onChange={e => update(key, { subheading: e.target.value || undefined })}
+                  className="input text-xs"
+                  placeholder="Subheading (leave blank for default)"
                 />
                 {(inputType === 'choice' || inputType === 'grid') && (
                   <div>
