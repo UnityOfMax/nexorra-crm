@@ -49,6 +49,8 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
+
   // AI state
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -516,15 +518,16 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                     className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                   >
                     {message.type === 'email' ? (
-                      // Email format - white card with subject and preview
+                      // Email format - white card with subject and expandable body
                       <div
-                        className={`max-w-[75%] rounded-lg border ${
+                        className={`max-w-[75%] rounded-lg border cursor-pointer ${
                           message.is_ai_generated
                             ? 'border-violet-300 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-700'
                             : message.direction === 'outbound'
                             ? 'bg-white dark:bg-[#2c2c2e] border-gray-300 shadow-sm'
                             : 'bg-gray-50 dark:bg-white/5 border-gray-200'
                         }`}
+                        onClick={() => setExpandedMessageId(expandedMessageId === message.id ? null : message.id)}
                       >
                         <div className="px-4 py-3 border-b border-gray-200">
                           <div className="flex items-center gap-2 text-sm">
@@ -540,10 +543,17 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                           </div>
                         </div>
                         <div className="px-4 py-3">
-                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap line-clamp-3">
-                            {message.content.substring(0, 150)}
-                            {message.content.length > 150 && '...'}
+                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            {expandedMessageId === message.id
+                              ? message.content
+                              : message.content.substring(0, 150) + (message.content.length > 150 ? '…' : '')}
                           </div>
+                          {expandedMessageId === message.id && message.content.length > 150 && (
+                            <p className="text-xs text-gray-400 mt-2">Click to collapse</p>
+                          )}
+                          {expandedMessageId !== message.id && message.content.length > 150 && (
+                            <p className="text-xs text-primary-500 mt-1">Click to expand</p>
+                          )}
                         </div>
                         <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-t border-gray-200">
                           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">

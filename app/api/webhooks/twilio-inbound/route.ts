@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
   }
 
   const from = paramsObj['From'] ?? null;
+  const body = paramsObj['Body'] ?? '';
+  const toPhone = paramsObj['To'] ?? null;
 
   if (from) {
     // Normalize: strip non-digits, then match E.164 variants
@@ -40,6 +42,19 @@ export async function POST(req: NextRequest) {
       await Promise.allSettled(
         contacts.map(c => stopAutomation(c.account_id, c.id))
       );
+      // Save inbound SMS to messages table for each matched contact
+      for (const c of contacts) {
+        void supabaseAdmin.from('messages').insert({
+          account_id: c.account_id,
+          contact_id: c.id,
+          direction: 'inbound',
+          type: 'sms',
+          content: body,
+          from_address: from,
+          to_address: toPhone,
+          status: 'received',
+        });
+      }
       // Trigger client reply agent to handle this inbound SMS
       triggerAgentRun('client-reply').catch(() => {});
     }
