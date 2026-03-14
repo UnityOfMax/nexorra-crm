@@ -1,7 +1,11 @@
 import http from 'http';
 import crypto from 'crypto';
+import { readFileSync, existsSync } from 'fs';
+import path from 'path';
 import { AGENT_DEFINITIONS } from '../../lib/agents/definitions';
 import { spawnAgent, stopAgent, getRunningAgents } from './process-manager';
+
+const CRM_ROOT = path.resolve(__dirname, '../..');
 
 const PORT = parseInt(process.env.DAEMON_PORT || '4200', 10);
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -76,6 +80,27 @@ const server = http.createServer(async (req, res) => {
         agents,
         availableAgents: Object.keys(AGENT_DEFINITIONS),
       });
+    }
+
+    // GET /runs/:id/logs — stream JSONL log file for a run
+    if (method === 'GET' && url.pathname.match(/^\/runs\/[^/]+\/logs$/)) {
+      const runId = url.pathname.split('/runs/')[1].split('/logs')[0];
+      // Validate runId format (UUID)
+      if (!/^[0-9a-f-]{36}$/.test(runId)) {
+        return json(res, { error: 'Invalid runId' }, 400);
+      }
+      const logFile = path.join(CRM_ROOT, 'logs', 'runs', `${runId}.jsonl`);
+      if (!existsSync(logFile)) {
+        return json(res, { events: [], isComplete: false, summary: null });
+      }
+      try {
+        const content = readFileSync(logFile, 'utf-8');
+        // Return raw content — the API route handles parsing
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        return res.end(content);
+      } catch (err: any) {
+        return json(res, { error: err.message }, 500);
+      }
     }
 
     // GET /runs/:id

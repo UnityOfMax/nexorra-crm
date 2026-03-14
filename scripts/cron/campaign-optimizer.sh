@@ -1,17 +1,17 @@
 #!/bin/bash
-# Campaign optimizer — runs nightly at 10 PM
-# Crontab: 0 22 * * * /home/max/crm/scripts/cron/campaign-optimizer.sh >> /home/max/crm/logs/campaign-optimizer.log 2>&1
+# Campaign Optimizer — analyze Meta + funnel data, propose ad changes
+# Schedule: 10:00 PM daily
+cd /home/max/crm || exit 1
+set -a && source .env.local && set +a
+LOG="logs/campaign-optimizer.log"
+mkdir -p logs
 
-set -e
-cd "$(dirname "$0")/../.."
+echo "$(date '+%Y-%m-%d %H:%M:%S') — Triggering campaign-optimizer" >> "$LOG"
 
-source .env.local 2>/dev/null || true
+# Trigger via daemon — it handles spawning, logging, status
+RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
+  -H "Content-Type: application/json" \
+  -H "x-cron-secret: $CRON_SECRET" \
+  -d '{"agentId": "campaign-optimizer", "trigger": "cron"}')
 
-echo "[$(date)] Starting campaign optimizer..."
-
-claude --print \
-  --allowedTools "Bash,Read,Write,Edit,Glob,Grep,WebFetch" \
-  --max-turns 30 \
-  "$(cat .claude/commands/nexorra/campaign-optimizer.md)"
-
-echo "[$(date)] Campaign optimizer complete."
+echo "$(date '+%Y-%m-%d %H:%M:%S') — $RESPONSE" >> "$LOG"
