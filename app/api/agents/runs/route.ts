@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth/require-account-access';
 import { spawn } from 'child_process';
 import { readFileSync, createWriteStream, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { runAgentWithSDK } from '@/lib/agents/serverless-runner';
 import { AGENT_DEFINITIONS } from '@/lib/agents/definitions';
 
@@ -87,6 +88,27 @@ export async function POST(request: NextRequest) {
 
   if (runningRun) {
     return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
+  }
+
+  // If DAEMON_URL is set (Vercel production), proxy to daemon instead of running locally
+  const daemonUrl = process.env.DAEMON_URL;
+  if (daemonUrl) {
+    const proxyBody = JSON.stringify({ agentId, trigger });
+    const proxyHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-cron-secret': process.env.CRON_SECRET || '',
+    };
+    const signingKey = process.env.DAEMON_SIGNING_KEY;
+    if (signingKey) {
+      proxyHeaders['x-signature'] = crypto.createHmac('sha256', signingKey).update(proxyBody).digest('hex');
+    }
+    try {
+      const res = await fetch(`${daemonUrl}/run`, { method: 'POST', headers: proxyHeaders, body: proxyBody });
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    } catch (err: any) {
+      return NextResponse.json({ error: `Daemon unreachable: ${err.message}` }, { status: 502 });
+    }
   }
 
   // Read agent prompt file from static definition
@@ -267,6 +289,23 @@ export async function DELETE(request: NextRequest) {
 
   const id = request.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  // Proxy to daemon if DAEMON_URL is set
+  const daemonUrl = process.env.DAEMON_URL;
+  if (daemonUrl) {
+    const proxyHeaders: Record<string, string> = { 'x-cron-secret': process.env.CRON_SECRET || '' };
+    const signingKey = process.env.DAEMON_SIGNING_KEY;
+    if (signingKey) {
+      proxyHeaders['x-signature'] = crypto.createHmac('sha256', signingKey).update(id).digest('hex');
+    }
+    try {
+      const res = await fetch(`${daemonUrl}/runs/${id}`, { method: 'DELETE', headers: proxyHeaders });
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    } catch (err: any) {
+      return NextResponse.json({ error: `Daemon unreachable: ${err.message}` }, { status: 502 });
+    }
+  }
 
   // Check the run exists and is running
   const { data: run, error } = await supabaseAdmin

@@ -18,7 +18,9 @@ if ! curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
 fi
 
 # Register run start
-RUN_RESPONSE=$(curl -s -X POST "http://localhost:3000/api/agents/runs" \
+DAEMON_URL="http://localhost:4200"
+
+RUN_RESPONSE=$(curl -s -X POST "$DAEMON_URL/run" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: $CRON_SECRET" \
   -d '{"agentId": "instagram-outreach", "trigger": "cron"}')

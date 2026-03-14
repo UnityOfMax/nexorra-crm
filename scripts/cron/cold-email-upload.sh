@@ -5,11 +5,11 @@ export PATH="/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 cd /home/max/crm
 source .env.local 2>/dev/null
 AGENT_ID="cold-email-upload"
-API_URL="http://localhost:3000/api/agents/runs"
+DAEMON_URL="http://localhost:4200"
 LOG_FILE="logs/cold-email.log"
 
 # Register run start
-RUN_ID=$(curl -s -X POST "$API_URL" \
+RUN_ID=$(curl -s -X POST "$DAEMON_URL/run" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: $CRON_SECRET" \
   -d "{\"agentId\":\"$AGENT_ID\",\"trigger\":\"cron\"}" 2>/dev/null | grep -o '"runId":"[^"]*"' | cut -d'"' -f4)
@@ -31,7 +31,7 @@ STATUS="completed"
 echo "$(date): Finished cold-email-upload ($STATUS, ${DURATION}s)" >> "$LOG_FILE"
 
 if [ -n "$RUN_ID" ]; then
-  curl -s -X PATCH "$API_URL?id=$RUN_ID" \
+  curl -s -X PATCH "$DAEMON_URL/runs/$RUN_ID" \
     -H "Content-Type: application/json" \
     -H "x-cron-secret: $CRON_SECRET" \
     -d "{\"status\":\"$STATUS\",\"duration_seconds\":$DURATION}" 2>/dev/null

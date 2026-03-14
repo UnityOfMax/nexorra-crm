@@ -119,6 +119,28 @@ const server = http.createServer(async (req, res) => {
       return json(res, result, status);
     }
 
+    // PATCH /runs/:id — update run status (used by cron wrapper scripts)
+    if (method === 'PATCH' && url.pathname.startsWith('/runs/')) {
+      const runId = url.pathname.split('/runs/')[1];
+      const rawBody = await parseBody(req);
+      const updates = JSON.parse(rawBody);
+      const allowedFields = ['status', 'finished_at', 'duration_seconds', 'summary', 'error_message', 'cost_usd', 'input_tokens', 'output_tokens', 'num_turns'];
+      const safeUpdates: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (key in updates) safeUpdates[key] = updates[key];
+      }
+      if (safeUpdates.status && safeUpdates.status !== 'running' && !safeUpdates.finished_at) {
+        safeUpdates.finished_at = new Date().toISOString();
+      }
+
+      // Import supabaseAdmin from process-manager's module scope
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('agent_runs').update(safeUpdates).eq('id', runId).select().single();
+      if (error) return json(res, { error: error.message }, 500);
+      return json(res, { run: data });
+    }
+
     // DELETE /runs/:id
     if (method === 'DELETE' && url.pathname.startsWith('/runs/')) {
       const runId = url.pathname.split('/runs/')[1];
