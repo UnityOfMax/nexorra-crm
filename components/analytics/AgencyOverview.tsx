@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
+import { TrendingUp, Users, Calendar, DollarSign, RefreshCw } from 'lucide-react';
 
 interface ClientOverview {
   accountId: string;
@@ -45,14 +45,32 @@ function StatCard({ icon: Icon, label, value, accent = false }: {
 export default function AgencyOverview() {
   const [data, setData] = useState<AgencyOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadOverview = () => {
+    setLoading(true);
     fetch('/api/analytics/overview')
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadOverview(); }, []);
+
+  const handlePullMeta = async () => {
+    setSyncing(true);
+    try {
+      await fetch('/api/meta/sync-all?days=30', { method: 'POST' });
+      setLastSync(new Date().toLocaleTimeString());
+      loadOverview();
+    } catch {
+      // non-fatal
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -74,6 +92,19 @@ export default function AgencyOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Pull button */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handlePullMeta}
+          disabled={syncing}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? 'Pulling…' : 'Pull Data from Meta'}
+        </button>
+        {lastSync && <span className="text-xs text-gray-400">synced {lastSync}</span>}
+      </div>
+
       {/* Global stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Users}       label="Total Leads"    value={data.totalLeads.toLocaleString()} />
