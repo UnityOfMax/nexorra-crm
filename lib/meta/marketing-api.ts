@@ -82,6 +82,7 @@ export async function fetchAdSetInsights(params: {
   datePreset?: 'yesterday' | 'last_7d' | 'last_30d' | 'last_14d';
   since?: string; // YYYY-MM-DD
   until?: string;
+  accessToken?: string; // override global META_ACCESS_TOKEN for per-account OAuth tokens
 }): Promise<AdSetMetric[]> {
   const fields = [
     'campaign_id', 'campaign_name', 'adset_id', 'adset_name',
@@ -104,11 +105,16 @@ export async function fetchAdSetInsights(params: {
 
   const results: AdSetMetric[] = [];
   let cursor: string | null = null;
+  const token = params.accessToken || getToken();
 
   do {
     if (cursor) queryParams.after = cursor;
 
-    const data = await metaGet(`/act_${params.adAccountId.replace('act_', '')}/insights`, queryParams);
+    const qs = new URLSearchParams({ access_token: token, ...queryParams });
+    const url = `${META_BASE}/act_${params.adAccountId.replace('act_', '')}/insights?${qs.toString()}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(`Meta API GET error: ${data?.error?.message || res.status}`);
 
     for (const row of (data.data || [])) {
       const actions: Array<{ action_type: string; value: string }> = row.actions || [];

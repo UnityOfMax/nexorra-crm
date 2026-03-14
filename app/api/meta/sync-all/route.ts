@@ -21,16 +21,29 @@ export async function POST(request: NextRequest) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const until = new Date().toISOString().slice(0, 10);
 
-  const globalAdAccountId = process.env.META_AD_ACCOUNT_ID;
-  if (!globalAdAccountId) {
-    return NextResponse.json({ error: 'META_AD_ACCOUNT_ID not configured' }, { status: 500 });
+  // Build list of (accountId, adAccountId, accessToken) pairs to sync.
+  // Sources (in priority order):
+  //   1. Per-account OAuth connections in facebook_integrations table
+  //   2. Per-account meta_ad_account_id in settings.campaign (uses global token)
+  //   3. Global META_AD_ACCOUNT_ID env var (uses global token)
+  const seenAdAccounts = new Set<string>();
+  const toSync: Array<{ accountId: string | null; adAccountId: string; accessToken?: string }> = [];
+
+  // Source 1: OAuth-connected accounts with ad_account_id set
+  const { data: fbIntegrations } = await supabaseAdmin
+    .from('facebook_integrations')
+    .select('account_id, ad_account_id, access_token')
+    .not('ad_account_id', 'is', null);
+
+  for (const fb of fbIntegrations || []) {
+    if (!fb.ad_account_id) continue;
+    const key = `${fb.account_id}:${fb.ad_account_id}`;
+    if (seenAdAccounts.has(key)) continue;
+    seenAdAccounts.add(key);
+    toSync.push({ accountId: fb.account_id, adAccountId: fb.ad_account_id, accessToken: fb.access_token });
   }
 
-  // Build list of (accountId, adAccountId) pairs to sync
-  const toSync: Array<{ accountId: string | null; adAccountId: string }> = [
-    { accountId: null, adAccountId: globalAdAccountId },
-  ];
-
+  // Source 2: accounts.settings.campaign.meta_ad_account_id (uses global token)
   const { data: clientAccounts } = await supabaseAdmin
     .from('accounts')
     .select('id, settings')
@@ -38,19 +51,33 @@ export async function POST(request: NextRequest) {
 
   for (const acct of clientAccounts || []) {
     const clientAdAccountId = acct.settings?.campaign?.meta_ad_account_id;
-    if (clientAdAccountId && clientAdAccountId !== globalAdAccountId) {
-      toSync.push({ accountId: acct.id, adAccountId: clientAdAccountId });
-    }
+    if (!clientAdAccountId) continue;
+    const key = `${acct.id}:${clientAdAccountId}`;
+    if (seenAdAccounts.has(key)) continue;
+    seenAdAccounts.add(key);
+    toSync.push({ accountId: acct.id, adAccountId: clientAdAccountId });
+  }
+
+  // Source 3: global META_AD_ACCOUNT_ID fallback (null accountId = agency-level)
+  const globalAdAccountId = process.env.META_AD_ACCOUNT_ID;
+  if (globalAdAccountId && !seenAdAccounts.has(`null:${globalAdAccountId}`)) {
+    toSync.push({ accountId: null, adAccountId: globalAdAccountId });
+  }
+
+  if (toSync.length === 0) {
+    return NextResponse.json({
+      error: 'No Meta ad accounts configured. Connect Facebook in account Settings or set META_AD_ACCOUNT_ID.',
+    }, { status: 400 });
   }
 
   const results: Array<{ adAccountId: string; synced: number; errors: number }> = [];
 
-  for (const { accountId, adAccountId } of toSync) {
+  for (const { accountId, adAccountId, accessToken } of toSync) {
     let synced = 0;
     let errors = 0;
 
     try {
-      const metrics = await fetchAdSetInsights({ adAccountId, since, until });
+      const metrics = await fetchAdSetInsights({ adAccountId, since, until, accessToken });
 
       for (const row of metrics) {
         const cpl = row.leads > 0 ? row.spend / row.leads : null;
