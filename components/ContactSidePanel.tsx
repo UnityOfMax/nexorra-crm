@@ -106,7 +106,7 @@ export default function ContactSidePanel({
         style={{ borderLeft: '1px solid #e5e7eb' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200/60 dark:border-white/5">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {contact.first_name} {contact.last_name}
@@ -132,7 +132,7 @@ export default function ContactSidePanel({
         <div className="flex gap-3 px-5 py-4 border-b border-gray-100">
           <button
             onClick={() => onSmsClick(contact)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200/60 dark:border-white/5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
             title="Send SMS"
           >
             <MessageSquare className="w-4 h-4 text-primary-600" />
@@ -140,7 +140,7 @@ export default function ContactSidePanel({
           </button>
           <button
             onClick={() => onEmailClick(contact)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200/60 dark:border-white/5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
             title="Send Email"
           >
             <Mail className="w-4 h-4 text-primary-600" />
@@ -245,7 +245,7 @@ export default function ContactSidePanel({
         </div>
 
         {/* Footer: save + delete */}
-        <div className="px-5 py-4 border-t border-gray-200 space-y-2">
+        <div className="px-5 py-4 border-t border-gray-200/60 dark:border-white/5 space-y-2">
           {saveError && (
             <p className="text-xs text-red-600 mb-1">{saveError}</p>
           )}
@@ -271,7 +271,7 @@ export default function ContactSidePanel({
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
+                className="flex-1 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200/60 dark:border-white/5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 Cancel
               </button>

@@ -145,7 +145,8 @@ Prefer: return=minimal
   "country": "US",
   "state_province": "TX",
   "city": "Austin",
-  "timezone": "CST"
+  "timezone": "CST",
+  "instagram_handle": "sarah_johnson_realtor"
 }
 ```
 
@@ -254,7 +255,8 @@ If Chrome is not connected, output this message and STOP:
    ```bash
    node scripts/chrome-tool.js agents kw
    ```
-   Returns JSON array: `[{ "full_name": "...", "first_name": "...", "last_name": "...", "profile_url": "...", "email": ..., "phone": ..., "profile_picture_url": ... }]`
+   Returns JSON array: `[{ "full_name": "...", "first_name": "...", "last_name": "...", "profile_url": "...", "email": ..., "phone": ..., "profile_picture_url": ..., "instagram_handle": ... }]`
+   The `instagram_handle` field is extracted automatically from Instagram links on the page. Include it in the Supabase POST when present (null if not found).
 
 5. **Validate before inserting:**
    - **SKIP any agent without a real email** — do not insert
@@ -269,7 +271,7 @@ If Chrome is not connected, output this message and STOP:
      -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
      -H "Content-Type: application/json" \
      -H "Prefer: return=minimal" \
-     -d '{"full_name":"Sarah Johnson","first_name":"Sarah","last_name":"Johnson","email":"sarah@kwaustin.com","phone":"+15125550100","profile_url":"https://kw.com/agent/sarah-johnson","profile_picture_url":null,"source_brokerage":"kw","country":"US","state_province":"TX","city":"Austin","timezone":"CST"}'
+     -d '{"full_name":"Sarah Johnson","first_name":"Sarah","last_name":"Johnson","email":"sarah@kwaustin.com","phone":"+15125550100","profile_url":"https://kw.com/agent/sarah-johnson","profile_picture_url":null,"source_brokerage":"kw","country":"US","state_province":"TX","city":"Austin","timezone":"CST","instagram_handle":"sarah_johnson_realtor"}'
    ```
 
 7. If extractor returns 0 results, try getting the HTML and parsing manually:

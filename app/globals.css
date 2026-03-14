@@ -7,11 +7,87 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+
+    /* ── Nexorra Design Tokens ── */
+    --nx-primary: #0ea5e9;
+    --nx-primary-hover: #0284c7;
+    --nx-primary-light: #e0f2fe;
+    --nx-accent: #f59e0b;
+    --nx-accent-hover: #d97706;
+
+    --nx-surface: #ffffff;
+    --nx-surface-elevated: #f8fafc;
+    --nx-surface-muted: #f1f5f9;
+    --nx-surface-sunken: #f5f5f7;
+
+    --nx-text: #0f172a;
+    --nx-text-secondary: #475569;
+    --nx-text-muted: #94a3b8;
+    --nx-text-inverse: #ffffff;
+
+    --nx-border: #e2e8f0;
+    --nx-border-light: #f1f5f9;
+    --nx-border-focus: #0ea5e9;
+
+    --nx-success: #10b981;
+    --nx-warning: #f59e0b;
+    --nx-error: #ef4444;
+    --nx-info: #3b82f6;
+
+    --nx-radius-sm: 6px;
+    --nx-radius: 10px;
+    --nx-radius-lg: 16px;
+    --nx-radius-xl: 20px;
+
+    --nx-shadow-xs: 0 1px 2px rgba(0,0,0,0.03);
+    --nx-shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    --nx-shadow-md: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --nx-shadow-lg: 0 4px 24px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --nx-shadow-xl: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+
+    --nx-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --nx-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --nx-duration-fast: 120ms;
+    --nx-duration: 200ms;
+    --nx-duration-slow: 350ms;
+
+    --font-mono: var(--font-mono, 'JetBrains Mono', monospace);
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
+    --nx-primary: #38bdf8;
+    --nx-primary-hover: #7dd3fc;
+    --nx-primary-light: #0c4a6e;
+    --nx-accent: #fbbf24;
+    --nx-accent-hover: #fcd34d;
+
+    --nx-surface: #1c1c1e;
+    --nx-surface-elevated: #2c2c2e;
+    --nx-surface-muted: #3a3a3c;
+    --nx-surface-sunken: #141416;
+
+    --nx-text: #f5f5f7;
+    --nx-text-secondary: #a1a1aa;
+    --nx-text-muted: #71717a;
+    --nx-text-inverse: #0f172a;
+
+    --nx-border: #3a3a3c;
+    --nx-border-light: #2c2c2e;
+    --nx-border-focus: #38bdf8;
+
+    --nx-success: #34d399;
+    --nx-warning: #fbbf24;
+    --nx-error: #f87171;
+    --nx-info: #60a5fa;
+
+    --nx-shadow-xs: 0 1px 2px rgba(0,0,0,0.15);
+    --nx-shadow-sm: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+    --nx-shadow-md: 0 2px 8px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+    --nx-shadow-lg: 0 4px 24px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.25);
+    --nx-shadow-xl: 0 8px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
   }
 
   /* ── Calendar theme variables (used by CalendarView inline styles) ── */
@@ -219,6 +295,12 @@
   input[type="color"]::-webkit-color-swatch {
     border: none;
     border-radius: 0.5rem;
+  }
+
+  /* ── Modal animation ── */
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
   }
 
   /* ── Analytics dashboard CSS variables ── */

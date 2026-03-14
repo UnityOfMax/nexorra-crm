@@ -188,7 +188,7 @@ export default function StaceyConversations() {
         <select
           value={filterTimezone}
           onChange={e => setFilterTimezone(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 ml-auto"
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200/60 dark:border-white/8 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300 ml-auto"
         >
           <option value="">All Timezones</option>
           {['EST', 'CST', 'MST', 'PST'].map(tz => (
@@ -203,7 +203,7 @@ export default function StaceyConversations() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/80 dark:bg-white/3">
+                <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50/80 dark:bg-white/3">
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Lead</th>
                   {!selectedId && (
                     <>
@@ -236,7 +236,7 @@ export default function StaceyConversations() {
                     <tr
                       key={conv.id}
                       onClick={() => openThread(conv)}
-                      className={`border-b border-gray-50 dark:border-gray-700/30 cursor-pointer transition-colors ${
+                      className={`border-b border-gray-50 dark:border-white/5 cursor-pointer transition-colors ${
                         selectedId === conv.id
                           ? 'bg-primary-50/60 dark:bg-primary-900/10'
                           : 'hover:bg-gray-50/60 dark:hover:bg-white/3'
@@ -301,7 +301,7 @@ export default function StaceyConversations() {
 
           {/* Pagination */}
           {total > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-white/5">
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}
               </span>
@@ -330,7 +330,7 @@ export default function StaceyConversations() {
         {selectedId && selectedConv && (
           <div className="flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
             {/* Thread header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {selectedConv.lead?.full_name || selectedConv.lead_email}
@@ -402,7 +402,7 @@ export default function StaceyConversations() {
             </div>
 
             {/* Thread footer — context info */}
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700/60 flex-shrink-0 bg-gray-50/50 dark:bg-white/2">
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-white/5 flex-shrink-0 bg-gray-50/50 dark:bg-white/2">
               <div className="flex items-center gap-4 text-xs text-gray-400">
                 <span>Campaign: {selectedConv.campaign_name || selectedConv.campaign_id}</span>
                 {selectedConv.instantly_email_acct && (

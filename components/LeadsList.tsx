@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare } from 'lucide-react';
+import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare, Instagram } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -20,6 +20,9 @@ interface Lead {
   scraped_at: string;
   pushed_to_instantly: boolean;
   instantly_campaign_id: string | null;
+  instagram_handle: string | null;
+  instagram_dm_sent: boolean;
+  instagram_status: string;
   created_at: string;
 }
 
@@ -324,6 +327,7 @@ export default function LeadsList() {
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Location</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">TZ</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Brokerage</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Instagram</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Scraped</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
                 <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
@@ -332,14 +336,14 @@ export default function LeadsList() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-gray-400 dark:text-gray-500">
+                  <td colSpan={10} className="py-16 text-center text-gray-400 dark:text-gray-500">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
                     Loading leads…
                   </td>
                 </tr>
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-gray-400 dark:text-gray-500">
+                  <td colSpan={10} className="py-16 text-center text-gray-400 dark:text-gray-500">
                     <Target className="w-8 h-8 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">No leads yet</p>
                     <p className="text-xs mt-1">Jeff will populate this once he starts scraping</p>
@@ -424,6 +428,29 @@ export default function LeadsList() {
                       <span className="text-gray-700 dark:text-gray-300 text-xs">
                         {BROKERAGES[lead.source_brokerage] || lead.source_brokerage}
                       </span>
+                    </td>
+
+                    {/* Instagram */}
+                    <td className="px-4 py-3">
+                      {lead.instagram_handle ? (
+                        <div className="flex items-center gap-1.5">
+                          <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                          <span className="text-xs text-gray-700 dark:text-gray-300">@{lead.instagram_handle}</span>
+                          {lead.instagram_dm_sent && (
+                            <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              lead.instagram_status === 'replied' || lead.instagram_status === 'engaged'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : lead.instagram_status === 'booked'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-gray-100 text-gray-600 dark:bg-white/8 dark:text-gray-400'
+                            }`}>
+                              {lead.instagram_status === 'dm_sent' ? 'DM\'d' : lead.instagram_status}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                      )}
                     </td>
 
                     {/* Scraped at */}
@@ -540,8 +567,8 @@ export default function LeadsList() {
 
       {/* Edit Modal */}
       {editingLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        <div className="modal-overlay">
+          <div className="modal-content w-full max-w-lg mx-4 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Lead</h3>
               <button

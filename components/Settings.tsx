@@ -397,7 +397,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           <p className="text-sm text-red-600 dark:text-red-400 mt-1 font-mono">{twilioError}</p>
         </div>
       ) : twilioNumbers.length === 0 ? (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-lg p-4">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/60 dark:border-white/5 rounded-lg p-4">
           <p className="text-amber-800 dark:text-amber-300 font-medium">No Twilio numbers found</p>
           <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
             Make sure your Twilio credentials are configured, or purchase a number at{' '}
@@ -458,7 +458,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         </>
       ) : (
         <div className="space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200/60 dark:border-white/5 rounded-lg p-4">
             <p className="text-sm text-blue-800 dark:text-blue-300">
               Emails are sent via Resend. You must verify your domain in{' '}
               <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline font-medium">Resend Dashboard</a>
@@ -505,7 +505,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
         {account.settings?.google_calendar?.enabled ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200/60 dark:border-white/5 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-green-900 dark:text-green-200">Google Calendar Connected</p>
@@ -548,7 +548,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
           {facebookIntegration ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200/60 dark:border-white/5 rounded-lg">
                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-green-900 dark:text-green-200">Facebook Connected</p>
@@ -591,7 +591,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Color</label>
           <div className="flex gap-3 items-center">
-            <input type="color" value={settings.primary_color} onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })} className="h-10 w-10 rounded-xl border-2 border-gray-200 p-0 overflow-hidden" />
+            <input type="color" value={settings.primary_color} onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })} className="h-10 w-10 rounded-xl border-2 border-gray-200/60 dark:border-white/5 p-0 overflow-hidden" />
             <input type="text" value={settings.primary_color} onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })} className="input flex-1" placeholder="#0ea5e9" />
           </div>
         </div>

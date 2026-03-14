@@ -131,10 +131,10 @@ export default function CreateSubAccountModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="modal-overlay p-4">
+      <div className="modal-content max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="border-b border-gray-200/60 dark:border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 bg-white dark:bg-[#2c2c2e] z-10 rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-100 rounded-lg">
               <Building2 className="w-5 h-5 text-primary-600" />
@@ -253,7 +253,7 @@ export default function CreateSubAccountModal({
             </div>
           )}
 
-          <hr className="border-gray-200" />
+          <hr className="border-gray-200/60 dark:border-white/5" />
 
           {/* Account Section */}
           <div>
@@ -346,7 +346,7 @@ export default function CreateSubAccountModal({
             </div>
           </div>
 
-          <hr className="border-gray-200" />
+          <hr className="border-gray-200/60 dark:border-white/5" />
 
           {/* Campaign Setup Section */}
           <div>
@@ -437,7 +437,7 @@ export default function CreateSubAccountModal({
             </div>
           </div>
 
-          <hr className="border-gray-200" />
+          <hr className="border-gray-200/60 dark:border-white/5" />
 
           {/* Primary User Section */}
           <div>

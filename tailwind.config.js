@@ -8,6 +8,10 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)', 'DM Sans', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'JetBrains Mono', 'monospace'],
+      },
       colors: {
         primary: {
           50: '#f0f9ff',
@@ -21,11 +25,45 @@ module.exports = {
           800: '#075985',
           900: '#0c4a6e',
         },
+        nx: {
+          primary: 'var(--nx-primary)',
+          'primary-hover': 'var(--nx-primary-hover)',
+          'primary-light': 'var(--nx-primary-light)',
+          accent: 'var(--nx-accent)',
+          'accent-hover': 'var(--nx-accent-hover)',
+          surface: 'var(--nx-surface)',
+          'surface-elevated': 'var(--nx-surface-elevated)',
+          'surface-muted': 'var(--nx-surface-muted)',
+          'surface-sunken': 'var(--nx-surface-sunken)',
+          text: 'var(--nx-text)',
+          'text-secondary': 'var(--nx-text-secondary)',
+          'text-muted': 'var(--nx-text-muted)',
+          border: 'var(--nx-border)',
+          'border-light': 'var(--nx-border-light)',
+          success: 'var(--nx-success)',
+          warning: 'var(--nx-warning)',
+          error: 'var(--nx-error)',
+          info: 'var(--nx-info)',
+        },
+      },
+      borderRadius: {
+        nx: 'var(--nx-radius)',
+        'nx-sm': 'var(--nx-radius-sm)',
+        'nx-lg': 'var(--nx-radius-lg)',
+        'nx-xl': 'var(--nx-radius-xl)',
       },
       boxShadow: {
         card: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
         'card-hover': '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.10)',
         modal: '0 8px 40px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)',
+        'nx-sm': 'var(--nx-shadow-sm)',
+        'nx-md': 'var(--nx-shadow-md)',
+        'nx-lg': 'var(--nx-shadow-lg)',
+        'nx-xl': 'var(--nx-shadow-xl)',
+      },
+      transitionTimingFunction: {
+        nx: 'var(--nx-ease)',
+        'nx-out': 'var(--nx-ease-out)',
       },
     },
   },

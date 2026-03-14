@@ -1,0 +1,44 @@
+'use client';
+
+import React from 'react';
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'primary';
+
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: BadgeVariant;
+  className?: string;
+  dot?: boolean;
+}
+
+const variantClasses: Record<BadgeVariant, string> = {
+  default: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  error: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  info: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  primary: 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
+};
+
+const dotColors: Record<BadgeVariant, string> = {
+  default: 'bg-gray-400',
+  success: 'bg-emerald-500',
+  warning: 'bg-amber-500',
+  error: 'bg-red-500',
+  info: 'bg-blue-500',
+  primary: 'bg-primary-500',
+};
+
+export default function Badge({
+  children,
+  variant = 'default',
+  className = '',
+  dot = false,
+}: BadgeProps) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />}
+      {children}
+    </span>
+  );
+}

@@ -60,10 +60,10 @@ export default function ClientDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+    <div className="modal-overlay p-4">
+      <div className="modal-content max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-gray-200/60 dark:border-white/5 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{client.name}</h2>
             <p className="text-sm text-gray-600 mt-1">/{client.slug}</p>
@@ -86,7 +86,7 @@ export default function ClientDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 px-6">
+        <div className="border-b border-gray-200/60 dark:border-white/5 px-6">
           <div className="flex gap-6">
             {[
               { id: 'overview', label: 'Overview', icon: Settings },
@@ -252,7 +252,7 @@ export default function ClientDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4">
+        <div className="border-t border-gray-200/60 dark:border-white/5 px-6 py-4">
           <button onClick={onClose} className="btn btn-secondary w-full">
             Close
           </button>

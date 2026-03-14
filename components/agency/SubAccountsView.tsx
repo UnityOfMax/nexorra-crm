@@ -215,7 +215,7 @@ export default function SubAccountsView({ agencyId, userId, onRefreshClientAccou
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="pt-4 border-t border-gray-200/60 dark:border-white/5 flex items-center justify-between">
                   <span className="text-xs text-gray-500">
                     Created {new Date(account.created_at).toLocaleDateString()}
                   </span>

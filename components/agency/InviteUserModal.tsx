@@ -81,8 +81,8 @@ export default function InviteUserModal({
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8 text-center">
+      <div className="modal-overlay p-4">
+        <div className="modal-content max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="w-8 h-8 text-green-600" />
           </div>
@@ -98,10 +98,10 @@ export default function InviteUserModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <div className="modal-overlay p-4">
+      <div className="modal-content max-w-md w-full">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-gray-200/60 dark:border-white/5 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary-100 rounded-lg">
               <UserPlus className="w-5 h-5 text-primary-600" />
@@ -155,7 +155,7 @@ export default function InviteUserModal({
                   className={`flex items-start p-3 border-2 rounded-lg cursor-pointer transition-colors ${
                     formData.role === role.value
                       ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-gray-200/60 dark:border-white/8 hover:border-gray-300'
                   }`}
                 >
                   <input

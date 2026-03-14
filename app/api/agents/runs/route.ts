@@ -5,23 +5,11 @@ import { spawn } from 'child_process';
 import { readFileSync, createWriteStream, writeFileSync, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { runAgentWithSDK } from '@/lib/agents/serverless-runner';
+import { AGENT_DEFINITIONS } from '@/lib/agents/definitions';
 
 export const dynamic = 'force-dynamic';
 // Allow up to 5 minutes for long-running agents on Vercel Pro
 export const maxDuration = 300;
-
-// Static agent definitions — source of truth for prompt files and defaults.
-// DB agent_configs can override model/max_turns but prompt_file falls back here.
-const AGENT_DEFINITIONS: Record<string, { promptFile: string; model: string; maxTurns: number }> = {
-  'lead-gen':                { promptFile: '.claude/commands/nexorra/lead-gen.md',                model: 'sonnet', maxTurns: 120 },
-  'cold-email-upload':       { promptFile: '.claude/commands/nexorra/cold-email-upload.md',       model: 'haiku',  maxTurns: 60  },
-  'cold-email-replies':      { promptFile: '.claude/commands/nexorra/cold-email-replies.md',      model: 'haiku',  maxTurns: 80  },
-  'cold-email-maintenance':  { promptFile: '.claude/commands/nexorra/cold-email-maintenance.md',  model: 'haiku',  maxTurns: 60  },
-  'campaign-review':         { promptFile: '.claude/commands/nexorra/campaign-review.md',         model: 'sonnet', maxTurns: 40  },
-  'campaign-optimizer':      { promptFile: '.claude/commands/nexorra/campaign-optimizer.md',      model: 'sonnet', maxTurns: 60  },
-  'client-reply':            { promptFile: '.claude/commands/client/reply.md',                    model: 'haiku',  maxTurns: 60  },
-  'ops-report':              { promptFile: '.claude/commands/ops/report.md',                      model: 'haiku',  maxTurns: 40  },
-};
 
 // In-memory PID map for stopping processes (only works on same server instance)
 const runningProcesses = new Map<string, number>(); // runId -> pid

@@ -107,7 +107,11 @@ function mailtoScanExtractor(baseUrl, profileLinkPattern) {
       const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
       const picture = img?.src || null;
 
-      agents.push({ full_name: name, profile_url: profileUrl, profile_picture_url: picture, email, phone });
+      // Find Instagram handle
+      const igLink = container.querySelector('a[href*="instagram.com"]');
+      const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+
+      agents.push({ full_name: name, profile_url: profileUrl, profile_picture_url: picture, email, phone, instagram_handle: igHandle });
     });
 
     return agents;
@@ -154,12 +158,17 @@ function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
       const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
       const picture = img?.src || null;
 
+      // Find Instagram handle
+      const igLink = container.querySelector('a[href*="instagram.com"]');
+      const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+
       agents.push({
         full_name: name,
         profile_url: fullUrl,
         profile_picture_url: picture,
         email: null, // Must visit profile
         phone,
+        instagram_handle: igHandle,
       });
     });
 
@@ -189,7 +198,11 @@ function profilePageExtractor() {
     const phoneEl = document.querySelector('a[href^="tel:"]');
     const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
 
-    return { full_name: name, email, phone };
+    // Find Instagram handle
+    const igLink = document.querySelector('a[href*="instagram.com"]');
+    const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+
+    return { full_name: name, email, phone, instagram_handle: igHandle };
   };
 }
 
@@ -287,6 +300,8 @@ Commands:
   screenshot [file]        Save screenshot (default: /tmp/chrome-screenshot.png)
   agents <brokerage>       Extract agent data from listing page (kw, exp, coldwellbanker, bhhs, compass, sothebys)
   profile <brokerage>      Extract email from individual profile page (exp, bhhs, sothebys)
+  instagram-search <handle>  Search/navigate to an Instagram profile
+  instagram-dm <message>     Send a DM to the current Instagram profile
   wait <ms>                Wait for milliseconds
   url                      Get current page URL
   status                   Check Chrome connection
@@ -478,6 +493,115 @@ Prerequisites:
 
       case 'url': {
         console.log(page.url());
+        break;
+      }
+
+      case 'instagram-search': {
+        // Search for an Instagram user by handle
+        const handle = args[1];
+        if (!handle) { console.error('Usage: instagram-search <handle>'); break; }
+
+        // Make sure we're on Instagram
+        const currentUrl = page.url();
+        if (!currentUrl.includes('instagram.com')) {
+          await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 30000 });
+          await randomDelay(2000, 3000);
+        }
+
+        // Click the search icon/area
+        try {
+          await page.click('a[href="/explore/"]').catch(() => null);
+          await randomDelay(500, 800);
+          // Try the search input that appears
+          const searchInput = await page.$('input[placeholder*="Search"]') || await page.$('input[aria-label*="Search"]');
+          if (searchInput) {
+            await searchInput.click();
+            await randomDelay(300, 500);
+            // Clear any existing text
+            await page.keyboard.down('Control');
+            await page.keyboard.press('a');
+            await page.keyboard.up('Control');
+            await randomDelay(100, 200);
+            // Type the handle character by character
+            for (const char of handle) {
+              await page.keyboard.type(char, { delay: Math.random() * 90 + 60 });
+            }
+            await randomDelay(1500, 2500); // Wait for search results
+            console.log(JSON.stringify({ searched: handle, success: true }));
+          } else {
+            // Fallback: navigate directly to the profile
+            await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2', timeout: 30000 });
+            await randomDelay(2000, 3000);
+            console.log(JSON.stringify({ searched: handle, success: true, method: 'direct_nav' }));
+          }
+        } catch (err) {
+          // Fallback: direct navigation
+          await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2', timeout: 30000 });
+          await randomDelay(2000, 3000);
+          console.log(JSON.stringify({ searched: handle, success: true, method: 'direct_nav' }));
+        }
+        break;
+      }
+
+      case 'instagram-dm': {
+        // Send a DM to the currently viewed Instagram profile
+        const messageText = args.slice(1).join(' ');
+        if (!messageText) { console.error('Usage: instagram-dm <message text>'); break; }
+
+        try {
+          // Click the "Message" button on the profile
+          const messageBtn = await page.$('div[role="button"]:has-text("Message")') ||
+                             await page.$x('//div[@role="button"][contains(., "Message")]').then(els => els[0]);
+
+          if (!messageBtn) {
+            // Try alternative selectors
+            const btns = await page.$$('div[role="button"]');
+            let found = false;
+            for (const btn of btns) {
+              const btnText = await page.evaluate(el => el.textContent, btn);
+              if (btnText && btnText.trim() === 'Message') {
+                await btn.click();
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              console.error(JSON.stringify({ success: false, error: 'Message button not found' }));
+              break;
+            }
+          } else {
+            await messageBtn.click();
+          }
+
+          await randomDelay(2000, 3500); // Wait for DM thread to open
+
+          // Find the message input
+          const msgInput = await page.$('textarea[placeholder*="Message"]') ||
+                           await page.$('div[role="textbox"][contenteditable="true"]') ||
+                           await page.$('textarea');
+
+          if (!msgInput) {
+            console.error(JSON.stringify({ success: false, error: 'Message input not found' }));
+            break;
+          }
+
+          await msgInput.click();
+          await randomDelay(300, 600);
+
+          // Type message character by character (human-like)
+          for (const char of messageText) {
+            await page.keyboard.type(char, { delay: Math.random() * 90 + 60 });
+          }
+          await randomDelay(500, 1000);
+
+          // Press Enter to send
+          await page.keyboard.press('Enter');
+          await randomDelay(1000, 2000);
+
+          console.log(JSON.stringify({ success: true, sent: messageText.substring(0, 50) + '...' }));
+        } catch (err) {
+          console.error(JSON.stringify({ success: false, error: err.message }));
+        }
         break;
       }
 

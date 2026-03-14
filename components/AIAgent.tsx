@@ -211,7 +211,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
     );
   }
 
-  const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
+  const inputClass = 'input text-sm';
   const tabClass = (t: Tab) =>
     `flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
       activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
@@ -280,7 +280,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
                     className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
                       config.mode === m
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        : 'border-gray-200/60 dark:border-white/5 text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5'
                     }`}
                   >
                     {m === 'auto' ? '⚡ Auto-reply' : '💡 Suggest only'}

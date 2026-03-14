@@ -407,7 +407,7 @@ function ShannonChat() {
               {expandedRun === h.runId ? 'Hide' : 'Show'} thinking logs
             </button>
             {expandedRun === h.runId && (
-              <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200 dark:border-gray-700/50">
+              <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200/60 dark:border-white/5">
                 <LiveLogViewer runId={h.runId} isActive={false} maxHeight="max-h-80" />
               </div>
             )}
@@ -416,7 +416,7 @@ function ShannonChat() {
       ))}
       {activeRunId && (
         <div className="mb-3">
-          <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200 dark:border-gray-700/50">
+          <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200/60 dark:border-white/5">
             <LiveLogViewer runId={activeRunId} isActive={true} maxHeight="max-h-96" />
           </div>
         </div>
@@ -456,7 +456,7 @@ function ProgressBar({ agent }: { agent: AgentConfig }) {
         <span className="text-[10px] text-gray-500 dark:text-gray-400">{formatDuration(Math.round(elapsed))}</span>
         <span className={`text-[10px] font-medium ${overEstimate ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'}`}>{progress}%</span>
       </div>
-      <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-gray-200 dark:bg-[#3a3a3c] rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-linear ${overEstimate ? 'bg-amber-400 animate-pulse' : 'bg-gradient-to-r from-blue-400 to-blue-500'}`}
           style={{ width: `${progress}%` }}
@@ -500,7 +500,7 @@ function AgentCard({
   const webhook = agent.schedule === 'webhook';
 
   return (
-    <div className="bg-white dark:bg-[#2c2c2e] rounded-xl border border-gray-200 dark:border-gray-700/50 p-3 shadow-sm">
+    <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl border border-gray-200/60 dark:border-white/5 p-3 shadow-sm">
       {/* Header row */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
@@ -544,7 +544,7 @@ function AgentCard({
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1 pt-1.5 border-t border-gray-100 dark:border-gray-700/50 flex-wrap">
+      <div className="flex items-center gap-1 pt-1.5 border-t border-gray-100 dark:border-white/5 flex-wrap">
         {agent.prompt_file && !isRunning && (
           <button onClick={onTrigger} disabled={isTriggering || !agent.is_enabled}
             className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary-500/10 text-primary-700 dark:text-primary-400 hover:bg-primary-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
@@ -574,14 +574,14 @@ function AgentCard({
 
       {/* Inline logs */}
       {showLogs && run?.id && (
-        <div className="mt-2 bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-2 border border-gray-200 dark:border-gray-700/50">
+        <div className="mt-2 bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-2 border border-gray-200/60 dark:border-white/5">
           <LiveLogViewer runId={run.id} isActive={isRunning} maxHeight="max-h-48" />
         </div>
       )}
 
       {/* History */}
       {expanded && (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5">
           {runHistory.length === 0 ? (
             <p className="text-[10px] text-gray-500 py-1">No history</p>
           ) : (
@@ -611,7 +611,7 @@ function LogViewerModal({ runId, title, onClose }: { runId: string; title: strin
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200/60 dark:border-white/5">
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Run Logs</h3>
             <p className="text-xs text-gray-500 mt-0.5">{title}</p>
@@ -830,7 +830,7 @@ export default function CommandCenter() {
       <ShannonChat />
 
       {/* Persona Tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-1 mb-6 border-b border-gray-200/60 dark:border-white/5">
         {TABS.map(tab => {
           const isActive = activeTab === tab.key;
           const tabAgents = tab.key === 'all' ? nonShannon : grouped[tab.key as PersonaKey] || [];
@@ -842,7 +842,7 @@ export default function CommandCenter() {
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors relative ${
                 isActive
                   ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-200/60 dark:hover:border-white/8'
               }`}
             >
               {tab.label}
@@ -871,7 +871,7 @@ export default function CommandCenter() {
       {memoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setMemoryModal(null)}>
           <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200/60 dark:border-white/5">
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">Agent Memory</h3>
                 <p className="text-xs text-gray-500 mt-0.5">{memoryModal.file}</p>
