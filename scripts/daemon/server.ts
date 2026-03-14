@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { AGENT_DEFINITIONS } from '../../lib/agents/definitions';
-import { spawnAgent, stopAgent, getRunningAgents } from './process-manager';
+import { spawnAgent, stopAgent, getRunningAgents, cleanupOrphanedRuns } from './process-manager';
 
 const CRM_ROOT = path.resolve(__dirname, '../..');
 
@@ -181,11 +181,21 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[daemon] Nexorra Agent Daemon running on http://127.0.0.1:${PORT}`);
-  console.log(`[daemon] Available agents: ${Object.keys(AGENT_DEFINITIONS).join(', ')}`);
-  if (!CRON_SECRET) console.warn('[daemon] WARNING: CRON_SECRET not set — all requests will be rejected');
-  if (!SIGNING_KEY) console.warn('[daemon] WARNING: DAEMON_SIGNING_KEY not set — HMAC verification disabled');
+// Clean up orphaned runs before accepting requests
+cleanupOrphanedRuns().then((count) => {
+  if (count > 0) console.log(`[daemon] Cleaned up ${count} orphaned run(s)`);
+
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`[daemon] Nexorra Agent Daemon running on http://127.0.0.1:${PORT}`);
+    console.log(`[daemon] Available agents: ${Object.keys(AGENT_DEFINITIONS).join(', ')}`);
+    if (!CRON_SECRET) console.warn('[daemon] WARNING: CRON_SECRET not set — all requests will be rejected');
+    if (!SIGNING_KEY) console.warn('[daemon] WARNING: DAEMON_SIGNING_KEY not set — HMAC verification disabled');
+  });
+}).catch((err) => {
+  console.error('[daemon] Failed to clean up orphaned runs:', err.message);
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`[daemon] Nexorra Agent Daemon running on http://127.0.0.1:${PORT}`);
+  });
 });
 
 // Graceful shutdown

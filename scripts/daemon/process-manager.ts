@@ -46,16 +46,26 @@ export async function spawnAgent(params: {
     throw new Error('Agent prompt file is empty');
   }
 
-  // Check for already-running
+  // Check for already-running (with 2h stale timeout)
   const { data: runningRun } = await supabaseAdmin
     .from('agent_runs')
-    .select('id')
+    .select('id, started_at')
     .eq('agent_id', agentId)
     .eq('status', 'running')
     .maybeSingle();
 
   if (runningRun) {
-    return { runId: runningRun.id, status: 'already_running' };
+    const age = Date.now() - new Date(runningRun.started_at).getTime();
+    if (age > 2 * 60 * 60 * 1000) {
+      // Stale run — mark as failed and allow new run
+      await supabaseAdmin
+        .from('agent_runs')
+        .update({ status: 'failed', finished_at: new Date().toISOString(), error_message: 'Timed out (exceeded 2h)' })
+        .eq('id', runningRun.id);
+      console.log(`[daemon] Cleaned up stale run ${runningRun.id} for ${agentId}`);
+    } else {
+      return { runId: runningRun.id, status: 'already_running' };
+    }
   }
 
   // Insert run record
@@ -168,25 +178,40 @@ export async function spawnAgent(params: {
 
 export async function stopAgent(runId: string): Promise<boolean> {
   const info = runningProcesses.get(runId);
-  if (!info) return false;
-
-  try {
-    process.kill(-info.pid, 'SIGTERM');
-  } catch {
+  if (info) {
     try {
-      process.kill(info.pid, 'SIGTERM');
-    } catch { /* process may already be dead */ }
+      process.kill(-info.pid, 'SIGTERM');
+    } catch {
+      try {
+        process.kill(info.pid, 'SIGTERM');
+      } catch { /* process may already be dead */ }
+    }
+    runningProcesses.delete(runId);
   }
-  runningProcesses.delete(runId);
 
+  // Always update DB — even if process wasn't in memory (orphaned/stale)
   await supabaseAdmin
     .from('agent_runs')
     .update({
       status: 'failed',
       finished_at: new Date().toISOString(),
-      error_message: 'Stopped via daemon',
+      error_message: info ? 'Stopped via daemon' : 'Stopped (orphaned run)',
     })
-    .eq('id', runId);
+    .eq('id', runId)
+    .eq('status', 'running');
 
   return true;
+}
+
+export async function cleanupOrphanedRuns(): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from('agent_runs')
+    .update({
+      status: 'failed',
+      finished_at: new Date().toISOString(),
+      error_message: 'Orphaned by daemon restart',
+    })
+    .eq('status', 'running')
+    .select('id');
+  return data?.length ?? 0;
 }

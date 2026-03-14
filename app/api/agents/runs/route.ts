@@ -78,19 +78,7 @@ export async function POST(request: NextRequest) {
   const agentModel = dbAgent?.model || staticDef.model;
   const agentMaxTurns = dbAgent?.max_turns || staticDef.maxTurns;
 
-  // Check for already-running runs
-  const { data: runningRun } = await supabaseAdmin
-    .from('agent_runs')
-    .select('id')
-    .eq('agent_id', agentId)
-    .eq('status', 'running')
-    .maybeSingle();
-
-  if (runningRun) {
-    return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
-  }
-
-  // If DAEMON_URL is set (Vercel production), proxy to daemon instead of running locally
+  // If DAEMON_URL is set (Vercel production), proxy to daemon — daemon handles dedup
   const daemonUrl = process.env.DAEMON_URL;
   if (daemonUrl) {
     const proxyBody = JSON.stringify({ agentId, trigger });
@@ -109,6 +97,18 @@ export async function POST(request: NextRequest) {
     } catch (err: any) {
       return NextResponse.json({ error: `Daemon unreachable: ${err.message}` }, { status: 502 });
     }
+  }
+
+  // Local execution: check for already-running runs (daemon handles its own dedup)
+  const { data: runningRun } = await supabaseAdmin
+    .from('agent_runs')
+    .select('id')
+    .eq('agent_id', agentId)
+    .eq('status', 'running')
+    .maybeSingle();
+
+  if (runningRun) {
+    return NextResponse.json({ error: 'Agent is already running' }, { status: 409 });
   }
 
   // Read agent prompt file from static definition
@@ -301,10 +301,23 @@ export async function DELETE(request: NextRequest) {
     try {
       const res = await fetch(`${daemonUrl}/runs/${id}`, { method: 'DELETE', headers: proxyHeaders });
       const data = await res.json();
-      return NextResponse.json(data, { status: res.status });
-    } catch (err: any) {
-      return NextResponse.json({ error: `Daemon unreachable: ${err.message}` }, { status: 502 });
-    }
+      if (data.success) {
+        return NextResponse.json(data, { status: res.status });
+      }
+    } catch { /* daemon unreachable — fall through to direct DB update */ }
+
+    // Fallback: directly update DB if daemon couldn't stop the process
+    await supabaseAdmin
+      .from('agent_runs')
+      .update({
+        status: 'failed',
+        finished_at: new Date().toISOString(),
+        error_message: 'Force-stopped from UI',
+      })
+      .eq('id', id)
+      .eq('status', 'running');
+
+    return NextResponse.json({ success: true, message: 'Force-stopped' });
   }
 
   // Check the run exists and is running
