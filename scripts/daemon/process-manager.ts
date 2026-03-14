@@ -87,6 +87,8 @@ export async function spawnAgent(params: {
     .eq('id', run.id);
 
   // Spawn Claude CLI
+  // Strip ANTHROPIC_API_KEY so CLI uses subscription auth instead of API credits
+  const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
   const child = spawn(
     CLAUDE_CLI,
@@ -101,7 +103,7 @@ export async function spawnAgent(params: {
     {
       cwd: CRM_ROOT,
       env: {
-        ...process.env,
+        ...cliEnv,
         PATH: `/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
       },
       detached: true,

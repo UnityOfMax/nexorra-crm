@@ -196,6 +196,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Local: spawn claude CLI with stream-json output (detached, non-blocking)
+  // Strip ANTHROPIC_API_KEY so CLI uses subscription auth instead of API credits
+  const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
   const child = spawn(
     claudeCli,
@@ -210,7 +212,7 @@ export async function POST(request: NextRequest) {
     {
       cwd: process.cwd(),
       env: {
-        ...process.env,
+        ...cliEnv,
         PATH: `/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
       },
       detached: true,
