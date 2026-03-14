@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireAccountAccess(request, accountId);
     if (auth instanceof NextResponse) return auth;
 
-    const { id: _id, created_at: _ca, ...contactFields } = body;
+    const { id: _id, created_at: _ca, accountId: _aid, ...contactFields } = body;
 
     const { data, error } = await supabaseAdmin
       .from('contacts')

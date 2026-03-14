@@ -39,14 +39,14 @@ function fmt(n: number) { return n.toLocaleString('en-US'); }
 interface KpiCardProps { label: string; value: string; sub?: string; accent?: boolean; warn?: boolean }
 function KpiCard({ label, value, sub, accent, warn }: KpiCardProps) {
   return (
-    <div className="rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-5 py-4 flex flex-col gap-1 min-w-0">
-      <p className="text-[11px] font-medium text-white/40 uppercase tracking-widest truncate">{label}</p>
+    <div className="card flex flex-col gap-1 min-w-0">
+      <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest truncate">{label}</p>
       <p className={`text-2xl font-mono font-bold tabular-nums leading-none ${
-        accent ? 'text-[var(--analytics-accent)]'
-        : warn ? 'text-[var(--analytics-negative)]'
-        : 'text-white'
+        accent ? 'text-primary-600 dark:text-primary-400'
+        : warn ? 'text-red-600 dark:text-red-400'
+        : 'text-gray-900 dark:text-gray-100'
       }`}>{value}</p>
-      {sub && <p className="text-[11px] text-white/30 truncate">{sub}</p>}
+      {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{sub}</p>}
     </div>
   );
 }
@@ -97,24 +97,24 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
   const t = adTotals;
 
   return (
-    <div className="space-y-6 p-6" style={{ color: 'var(--analytics-text)' }}>
+    <div className="space-y-6">
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-white">Performance</h2>
-          <p className="text-sm text-white/35 mt-0.5">Ad spend → leads → bookings</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Ad spend → leads → bookings</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {pendingCount > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30 animate-pulse">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 animate-pulse">
               {pendingCount} action{pendingCount !== 1 ? 's' : ''} pending
             </span>
           )}
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="text-xs bg-white/5 text-white/60 rounded-lg px-3 py-1.5 border border-white/10 focus:outline-none focus:border-white/25"
+            className="input text-sm py-1.5"
           >
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
@@ -124,20 +124,20 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
           <button
             onClick={() => loadData(true)}
             disabled={syncing}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--analytics-accent)]/15 hover:bg-[var(--analytics-accent)]/25 text-[var(--analytics-accent)] border border-[var(--analytics-accent)]/30 transition-all disabled:opacity-40"
+            className="btn btn-primary flex items-center gap-2"
           >
-            <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Pulling…' : 'Pull Data from Meta'}
           </button>
-          {lastSync && <span className="text-[11px] text-white/25">synced {lastSync}</span>}
+          {lastSync && <span className="text-xs text-gray-400">synced {lastSync}</span>}
         </div>
       </div>
 
       {/* ── Meta KPI cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl bg-white/[0.04] ring-1 ring-white/10 px-5 py-4 h-20 animate-pulse" />
+            <div key={i} className="card h-20 animate-pulse bg-gray-100 dark:bg-white/5" />
           ))
         ) : (
           <>
@@ -153,30 +153,30 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
 
       {/* ── No data empty state ────────────────────────────────── */}
       {!loading && (!t || t.spend === 0) && adRows.length === 0 && (
-        <div className="rounded-xl bg-white/[0.03] ring-1 ring-white/8 p-8 flex flex-col items-center text-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-[var(--analytics-accent)]/10 flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-[var(--analytics-accent)]" />
+        <div className="card p-8 flex flex-col items-center text-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
-            <p className="text-white/70 font-medium mb-1">No Meta ad data yet</p>
-            <p className="text-sm text-white/30 max-w-sm">
-              Connect your Meta ad account by adding your access token and ad account ID in Settings, then click <span className="text-[var(--analytics-accent)]">Pull Data from Meta</span> above.
+            <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">No Meta ad data yet</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+              Add your Meta access token and ad account ID to Vercel environment variables, then click <span className="font-semibold text-primary-600 dark:text-primary-400">Pull Data from Meta</span> above.
             </p>
           </div>
-          <div className="text-[11px] text-white/20 space-y-0.5">
-            <p>Required: META_ACCESS_TOKEN · META_AD_ACCOUNT_ID</p>
-            <p>Set in your Vercel environment variables or .env.local</p>
+          <div className="text-xs text-gray-400 space-y-1 bg-gray-50 dark:bg-white/5 rounded-lg px-4 py-3">
+            <p className="font-mono">META_ACCESS_TOKEN</p>
+            <p className="font-mono">META_AD_ACCOUNT_ID</p>
           </div>
         </div>
       )}
 
       {/* ── Funnel + Optimizer ─────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-          <h3 className="text-[11px] font-semibold text-white/40 mb-5 uppercase tracking-widest">Funnel</h3>
+        <div className="card p-5">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">Funnel</h3>
           {loading ? (
             <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 rounded-lg bg-white/5 animate-pulse" />)}
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 rounded-lg bg-gray-100 dark:bg-white/5 animate-pulse" />)}
             </div>
           ) : funnel ? (
             <FunnelChart
@@ -186,12 +186,12 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
               bookingRate={funnel.bookingRate}
             />
           ) : (
-            <p className="text-sm text-white/30">No funnel data yet.</p>
+            <p className="text-sm text-gray-400">No funnel data yet.</p>
           )}
         </div>
 
-        <div className="rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-          <h3 className="text-[11px] font-semibold text-white/40 mb-5 uppercase tracking-widest">AI Optimizer</h3>
+        <div className="card p-5">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">AI Optimizer</h3>
           <OptimizerFeed
             actions={actions.slice(0, 8)}
             onApprove={(id) => handleDecision(id, 'approve')}
@@ -202,8 +202,8 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
       </div>
 
       {/* ── Ad Set Table ───────────────────────────────────────── */}
-      <div className="rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-        <h3 className="text-[11px] font-semibold text-white/40 mb-5 uppercase tracking-widest">Ad Set Breakdown</h3>
+      <div className="card p-5">
+        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">Ad Set Breakdown</h3>
         <MetaCampaignTable rows={adRows} />
       </div>
 
