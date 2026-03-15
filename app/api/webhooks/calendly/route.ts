@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import crypto from 'crypto';
 import { sendCapiEvent } from '@/lib/meta/capi';
 import { updateLeadScore } from '@/lib/ai/lead-scoring';
+import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
+import { sendPushToUser } from '@/lib/push/send-notification';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,14 +136,29 @@ export async function POST(request: NextRequest) {
           }
 
           // Insert activity into CRM calendar
-          await supabaseAdmin.from('activities').insert({
+          const { data: calActivity } = await supabaseAdmin.from('activities').insert({
             account_id: agencyAccountId,
             created_by: agencyUserId,
             type: 'meeting',
             subject: `Calendly: ${eventName} - ${inviteeEmail}`,
             due_date: startTime || new Date().toISOString(),
             duration_minutes: durationMinutes,
-          });
+          }).select('id').single();
+
+          // Sync to Google Calendar
+          if (calActivity) {
+            syncActivityToGoogle(calActivity.id, agencyAccountId, durationMinutes).catch(err => {
+              console.error('[calendly] Google Calendar sync error:', err);
+            });
+          }
+
+          // Push notification for Calendly booking
+          sendPushToUser(agencyUserId, {
+            title: '📅 Calendly Booking',
+            body: `${inviteeEmail} booked: ${eventName}`,
+            tag: 'booking',
+            url: '/calendar',
+          }).catch(() => {});
         }
       } catch (calErr) {
         // Don't fail the webhook if calendar sync fails

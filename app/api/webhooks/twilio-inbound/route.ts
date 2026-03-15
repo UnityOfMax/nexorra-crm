@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { stopAutomation } from '@/lib/automations/enrollment';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
+import { sendPushToAccountOwner } from '@/lib/push/send-notification';
 import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
@@ -55,6 +56,17 @@ export async function POST(req: NextRequest) {
           status: 'received',
         });
       }
+      // Push notification to account owner for inbound SMS
+      if (contacts.length > 0) {
+        const first = contacts[0];
+        sendPushToAccountOwner(first.account_id, {
+          title: '💬 New SMS',
+          body: `${from}: ${body.substring(0, 100)}`,
+          tag: 'inbound-sms',
+          url: `/contacts/${first.id}`,
+        }).catch(() => {});
+      }
+
       // Trigger client reply agent to handle this inbound SMS
       triggerAgentRun('client-reply').catch(() => {});
     }
