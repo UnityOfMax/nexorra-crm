@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { anthropicClient } from '@/lib/ai/client';
-import type Anthropic from '@anthropic-ai/sdk';
+import { generateText } from '@/lib/ai/daemon-client';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
 
 // POST /api/ai/generate-response
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
     const { summary, recentMessages, upcomingSlots } = await buildAIContext(accountId, contactId);
 
     // Build Claude messages array from recent history
-    const conversationMessages: Anthropic.MessageParam[] = recentMessages.map((msg) => ({
+    const conversationMessages = recentMessages.map((msg) => ({
       role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
       content: msg.content,
     }));
@@ -103,24 +102,17 @@ export async function POST(request: NextRequest) {
       'Respond only with the message text. Do not include any meta-commentary or labels.',
     ].filter(Boolean).join('\n\n');
 
-    // Call Anthropic API
-    if (!anthropicClient) {
-      return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
-    }
-
-    const aiResponse = await anthropicClient.messages.create({
+    // Generate via daemon bridge (subscription auth)
+    const aiResult = await generateText({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
       system: systemParts,
-      messages: conversationMessages.length > 0 ? conversationMessages : [
-        { role: 'user', content: 'Hello' },
-      ],
+      messages: conversationMessages.length > 0
+        ? conversationMessages
+        : [{ role: 'user' as const, content: 'Hello' }],
+      maxTokens,
     });
 
-    const responseText = aiResponse.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => block.text)
-      .join('');
+    const responseText = aiResult.text;
 
     // Generate subject for email if needed
     let subject: string | undefined;
@@ -143,7 +135,7 @@ export async function POST(request: NextRequest) {
       response: responseText,
       subject,
       model: 'claude-haiku-4-5-20251001',
-      tokens_used: aiResponse.usage?.output_tokens || 0,
+      tokens_used: aiResult.usage.output,
     });
   } catch (error: any) {
     console.error('AI generate-response error:', error);

@@ -1,6 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { supabaseAdmin } from '@/lib/supabase';
-import { anthropicClient } from '@/lib/ai/client';
+import { generateText } from '@/lib/ai/daemon-client';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
 import { twilioClient } from '@/lib/twilio/client';
 import { resendClient } from '@/lib/resend/client';
@@ -97,10 +96,6 @@ export async function generateAIResponse(
 ): Promise<GenerateAIResponseResult> {
   const { accountId, contactId, channel, isFollowUp, followUpCount } = params;
 
-  if (!anthropicClient) {
-    throw new Error('ANTHROPIC_API_KEY not configured');
-  }
-
   // Load AI config for this account
   const { data: config } = await supabaseAdmin
     .from('ai_agent_configs')
@@ -145,7 +140,7 @@ export async function generateAIResponse(
   const { summary, recentMessages, upcomingSlots } = await buildAIContext(accountId, contactId);
 
   // Build Claude messages array from recent history
-  const conversationMessages: Anthropic.MessageParam[] = recentMessages.map((msg) => ({
+  const conversationMessages = recentMessages.map((msg) => ({
     role: msg.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
     content: msg.content,
   }));
@@ -191,24 +186,17 @@ export async function generateAIResponse(
     'Respond only with the message text. Do not include any meta-commentary or labels.',
   ].filter(Boolean).join('\n\n');
 
-  // Call Anthropic API using the singleton client (with prompt caching on system prompt)
-  const aiResponse = await anthropicClient.messages.create({
+  // Generate via daemon bridge (subscription auth)
+  const aiResult = await generateText({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: maxTokens,
-    system: [{
-      type: 'text' as const,
-      text: systemParts,
-      cache_control: { type: 'ephemeral' as const },
-    }],
-    messages: conversationMessages.length > 0 ? conversationMessages : [
-      { role: 'user', content: 'Hello' },
-    ],
+    system: systemParts,
+    messages: conversationMessages.length > 0
+      ? conversationMessages
+      : [{ role: 'user' as const, content: 'Hello' }],
+    maxTokens,
   });
 
-  const responseText = aiResponse.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
+  const responseText = aiResult.text;
 
   // Generate subject for email if needed
   let subject: string | undefined;
@@ -231,7 +219,7 @@ export async function generateAIResponse(
     response: responseText,
     subject,
     model: 'claude-haiku-4-5-20251001',
-    tokens_used: aiResponse.usage?.output_tokens || 0,
+    tokens_used: aiResult.usage.output,
   };
 }
 

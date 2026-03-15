@@ -1,9 +1,12 @@
 import http from 'http';
 import crypto from 'crypto';
 import { readFileSync, existsSync } from 'fs';
+import { spawn } from 'child_process';
 import path from 'path';
 import { AGENT_DEFINITIONS } from '../../lib/agents/definitions';
 import { spawnAgent, stopAgent, getRunningAgents, cleanupOrphanedRuns } from './process-manager';
+
+const CLAUDE_CLI = '/home/max/.npm-global/bin/claude';
 
 const CRM_ROOT = path.resolve(__dirname, '../..');
 
@@ -171,6 +174,93 @@ const server = http.createServer(async (req, res) => {
       const runId = url.pathname.split('/runs/')[1];
       const stopped = await stopAgent(runId);
       return json(res, { success: stopped, runId });
+    }
+
+    // POST /generate — AI text generation via CLI (subscription auth)
+    if (method === 'POST' && url.pathname === '/generate') {
+      const rawBody = await parseBody(req);
+      if (!verifyHmac(rawBody, req.headers['x-signature'] as string)) {
+        return json(res, { error: 'Invalid signature' }, 403);
+      }
+
+      const { model, system, messages, maxTokens } = JSON.parse(rawBody);
+
+      // Format prompt: system instructions + conversation history
+      const promptParts: string[] = [];
+      if (system) {
+        promptParts.push(`<system>\n${system}\n</system>`);
+      }
+      if (messages && messages.length > 0) {
+        const conv = messages
+          .map((m: any) => `${m.role === 'user' ? 'Human' : 'Assistant'}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+          .join('\n\n');
+        promptParts.push(conv);
+      }
+      promptParts.push('\nRespond with only the next assistant message. No labels, no "Assistant:" prefix, no meta-commentary.');
+      const prompt = promptParts.join('\n\n');
+
+      // Map SDK model names to CLI shortnames
+      let cliModel = 'haiku';
+      if (model?.includes('sonnet')) cliModel = 'sonnet';
+      else if (model?.includes('opus')) cliModel = 'opus';
+
+      const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
+
+      return new Promise<void>((resolve) => {
+        let settled = false;
+        const child = spawn(CLAUDE_CLI, [
+          '-p', prompt,
+          '--model', cliModel,
+          '--max-turns', '1',
+          '--output-format', 'stream-json',
+        ], {
+          cwd: CRM_ROOT,
+          env: {
+            ...cliEnv,
+            PATH: `/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
+          },
+        });
+
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+        child.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+
+        child.on('close', (code) => {
+          if (settled) return;
+          settled = true;
+
+          // Parse stream-json output for the result text
+          let resultText = '';
+          const lines = stdout.split('\n').filter(Boolean);
+          for (const line of lines) {
+            try {
+              const event = JSON.parse(line);
+              if (event.type === 'result') {
+                resultText = event.result || '';
+              }
+            } catch {}
+          }
+
+          if (!resultText && code !== 0) {
+            json(res, { error: stderr || `CLI exited with code ${code}` }, 500);
+          } else {
+            json(res, { text: resultText, usage: { input: 0, output: 0 } });
+          }
+          resolve();
+        });
+
+        // Timeout after 2 minutes
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          child.kill();
+          json(res, { error: 'Generate timed out (120s)' }, 504);
+          resolve();
+        }, 120_000);
+
+        child.on('close', () => clearTimeout(timeout));
+      });
     }
 
     // 404

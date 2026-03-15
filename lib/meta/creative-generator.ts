@@ -10,7 +10,7 @@
  *   GOOGLE_AI_API_KEY   — Google AI Studio (Imagen 3)
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { generateText } from '@/lib/ai/daemon-client';
 
 const IMAGEN_MODEL = 'imagen-3.0-generate-002';
 const GOOGLE_AI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -54,8 +54,6 @@ async function generateAdCopy(params: AdCreativeParams): Promise<{
   bodyText: string;
   imagePrompt: string;
 }> {
-  const client = new Anthropic();
-
   const userPrompt = `Generate Facebook ad copy for:
 Agent: ${params.agentName}
 Location: ${params.location}
@@ -65,20 +63,14 @@ ${params.uniqueAngle ? `Unique angle: ${params.uniqueAngle}` : ''}
 
 Return JSON: { "headline": "...", "bodyText": "...", "imagePrompt": "..." }`;
 
-  const response = await client.messages.create({
+  const result = await generateText({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400,
-    system: [
-      {
-        type: 'text',
-        text: COPY_SYSTEM,
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
+    system: COPY_SYSTEM,
     messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 400,
   });
 
-  const text = response.content.find((b) => b.type === 'text')?.text || '';
+  const text = result.text;
 
   // Extract JSON — strip markdown fences if present
   const jsonMatch = text.match(/\{[\s\S]*\}/);

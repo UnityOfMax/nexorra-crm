@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { anthropicClient } from '@/lib/ai/client';
-import type Anthropic from '@anthropic-ai/sdk';
+import { generateText } from '@/lib/ai/daemon-client';
 
 // POST /api/ai/test-chat
 // Simulates the AI agent responding to a message. No contact DB lookup — uses
@@ -27,10 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No AI config found for this account' }, { status: 404 });
     }
 
-    if (!anthropicClient) {
-      return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
-    }
-
     const isEmail = channel === 'email';
     const agentName = (isEmail && config.email_agent_name) ? config.email_agent_name : (config.agent_name || 'Assistant');
     const agentRepresents = (isEmail && config.email_agent_represents) ? config.email_agent_represents : (config.agent_represents || '');
@@ -48,24 +43,19 @@ export async function POST(request: NextRequest) {
       'Respond only with the message text. Do not include any meta-commentary or labels.',
     ].filter(Boolean).join('\n\n');
 
-    const aiResponse = await anthropicClient.messages.create({
+    const aiResult = await generateText({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
       system: systemParts,
       messages: messages?.length > 0
         ? messages
         : [{ role: 'user', content: 'Hello' }],
+      maxTokens,
     });
 
-    const responseText = aiResponse.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-
     return NextResponse.json({
-      response: responseText,
+      response: aiResult.text,
       model: 'claude-haiku-4-5-20251001',
-      tokens_used: aiResponse.usage?.output_tokens ?? 0,
+      tokens_used: aiResult.usage.output,
     });
   } catch (error: any) {
     console.error('AI test-chat error:', error);

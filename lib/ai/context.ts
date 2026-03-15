@@ -1,7 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { generateText } from '@/lib/ai/daemon-client';
 
 export interface AIContext {
   summary: string;
@@ -90,9 +88,8 @@ export async function updateSummary(accountId: string, contactId: string): Promi
     .map(m => `[${m.type.toUpperCase()} ${m.direction === 'inbound' ? 'Lead' : 'Agent'}]: ${m.content}`)
     .join('\n');
 
-  const response = await anthropic.messages.create({
+  const result = await generateText({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
     system: 'You summarize CRM conversations concisely for an AI sales agent.',
     messages: [
       {
@@ -100,12 +97,10 @@ export async function updateSummary(accountId: string, contactId: string): Promi
         content: `Summarize this conversation in 2-3 sentences. Focus on: what the lead is looking for, their timeline, any objections, and any commitments made.\n\n${transcript}`,
       },
     ],
+    maxTokens: 200,
   });
 
-  const summary = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map(b => b.text)
-    .join('');
+  const summary = result.text;
 
   if (!summary) return;
 
