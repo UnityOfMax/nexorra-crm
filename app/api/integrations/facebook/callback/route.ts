@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Facebook OAuth error:', error, errorDescription);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=error&message=${encodeURIComponent(errorDescription || error)}`
+        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&facebook=error&message=${encodeURIComponent(errorDescription || error)}`
       );
     }
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange code for access token
-    const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
     tokenUrl.searchParams.set('client_id', facebookAppId);
     tokenUrl.searchParams.set('client_secret', facebookAppSecret);
     tokenUrl.searchParams.set('redirect_uri', redirectUri);
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Get user info
     const userResponse = await fetch(
-      `https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${accessToken}`
+      `https://graph.facebook.com/v21.0/me?fields=id,name,email&access_token=${accessToken}`
     );
     const userData = await userResponse.json();
 
@@ -61,17 +61,45 @@ export async function GET(request: NextRequest) {
       throw new Error(userData.error?.message || 'Failed to get user info');
     }
 
-    // Get user ID from account
-    const { data: accountData } = await supabaseAdmin
+    // Resolve a user ID for this account (same fallback strategy as other integrations)
+    let resolvedUserId: string | null = null;
+
+    // Strategy 1: direct member of this account (any role)
+    const { data: directMember } = await supabaseAdmin
       .from('account_members')
       .select('user_id')
       .eq('account_id', accountId)
-      .eq('role', 'owner')
-      .single();
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (directMember) resolvedUserId = directMember.user_id;
 
-    if (!accountData) {
-      throw new Error('Account not found');
+    // Strategy 2: parent agency owner/admin (sub-accounts often have no direct members)
+    if (!resolvedUserId) {
+      const { data: accountRow } = await supabaseAdmin
+        .from('accounts')
+        .select('parent_account_id')
+        .eq('id', accountId)
+        .maybeSingle();
+
+      if (accountRow?.parent_account_id) {
+        const { data: agencyMember } = await supabaseAdmin
+          .from('account_members')
+          .select('user_id')
+          .eq('account_id', accountRow.parent_account_id)
+          .in('role', ['agency_owner', 'agency_admin', 'owner'])
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (agencyMember) resolvedUserId = agencyMember.user_id;
+      }
     }
+
+    if (!resolvedUserId) {
+      throw new Error('Account not found — no members associated with this account');
+    }
+
+    const accountData = { user_id: resolvedUserId };
 
     // Store integration in database
     const { error: dbError } = await supabaseAdmin
@@ -97,12 +125,12 @@ export async function GET(request: NextRequest) {
 
     // Redirect back to settings page with success message
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=connected`
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&facebook=connected`
     );
   } catch (error: any) {
     console.error('Error in Facebook OAuth callback:', error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?facebook=error&message=${encodeURIComponent(error.message)}`
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&facebook=error&message=${encodeURIComponent(error.message)}`
     );
   }
 }
