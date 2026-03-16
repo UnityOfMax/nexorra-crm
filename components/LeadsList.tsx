@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare, Instagram } from 'lucide-react';
+import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare, Instagram, Download, Phone } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -10,6 +10,7 @@ interface Lead {
   full_name: string;
   email: string | null;
   phone: string | null;
+  mobile_phone: string | null;
   profile_url: string | null;
   profile_picture_url: string | null;
   country: 'US' | 'CA';
@@ -17,14 +18,20 @@ interface Lead {
   city: string;
   timezone: 'EST' | 'CST' | 'MST' | 'PST' | null;
   source_brokerage: string;
+  lead_category: 'email' | 'instagram' | 'calling';
   scraped_at: string;
   pushed_to_instantly: boolean;
   instantly_campaign_id: string | null;
   instagram_handle: string | null;
   instagram_dm_sent: boolean;
+  instagram_dm_account: string | null;
   instagram_status: string;
+  csv_batch_id: string | null;
+  csv_downloaded_at: string | null;
   created_at: string;
 }
+
+type LeadCategory = 'email' | 'instagram' | 'calling';
 
 const BROKERAGES: Record<string, string> = {
   kw: 'Keller Williams',
@@ -52,6 +59,11 @@ export default function LeadsList() {
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
 
+  // Category tabs
+  const [category, setCategory] = useState<LeadCategory>('email');
+  const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ email: 0, instagram: 0, calling: 0 });
+  const [csvExporting, setCsvExporting] = useState(false);
+
   // Filters
   const [filterPushed, setFilterPushed] = useState<'all' | 'true' | 'false'>('all');
   const [filterTimezone, setFilterTimezone] = useState('');
@@ -72,7 +84,7 @@ export default function LeadsList() {
 
   const fetchLeads = useCallback(async (off = offset) => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off) });
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), category });
     if (filterPushed !== 'all') params.set('pushed', filterPushed);
     if (filterTimezone) params.set('timezone', filterTimezone);
     if (filterBrokerage) params.set('brokerage', filterBrokerage);
@@ -84,18 +96,54 @@ export default function LeadsList() {
         const json = await res.json();
         setLeads(json.leads || []);
         setTotal(json.total || 0);
+        setCategoryCounts(prev => ({ ...prev, [category]: json.total || 0 }));
       }
     } finally {
       setLoading(false);
     }
-  }, [offset, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+  }, [offset, category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+
+  // Fetch counts for all categories on mount
+  useEffect(() => {
+    const fetchCounts = async () => {
+      for (const cat of ['email', 'instagram', 'calling'] as LeadCategory[]) {
+        const res = await fetch(`/api/leads?category=${cat}&limit=1`);
+        if (res.ok) {
+          const json = await res.json();
+          setCategoryCounts(prev => ({ ...prev, [cat]: json.total || 0 }));
+        }
+      }
+    };
+    fetchCounts();
+  }, []);
 
   useEffect(() => {
     setOffset(0);
     setSelectedIds(new Set());
     fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+  }, [category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+
+  const handleCsvExport = async () => {
+    setCsvExporting(true);
+    try {
+      const res = await fetch('/api/leads/csv-export');
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = res.headers.get('content-disposition')?.split('filename=')[1] || 'calling-leads.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        fetchLeads(offset); // Refresh to show downloaded status
+      }
+    } finally {
+      setCsvExporting(false);
+    }
+  };
 
   useEffect(() => {
     fetchLeads(offset);
@@ -236,6 +284,45 @@ export default function LeadsList() {
         </button>
       </div>
 
+      {/* Category Tabs */}
+      <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-[#2c2c2e] rounded-xl w-fit">
+        {([
+          { key: 'email' as LeadCategory, label: 'Email Leads', icon: Target },
+          { key: 'instagram' as LeadCategory, label: 'Instagram Leads', icon: Instagram },
+          { key: 'calling' as LeadCategory, label: 'Calling Leads', icon: Phone },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setCategory(tab.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              category === tab.key
+                ? 'bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+            <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+              category === tab.key
+                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+            }`}>
+              {categoryCounts[tab.key].toLocaleString()}
+            </span>
+          </button>
+        ))}
+        {category === 'calling' && (
+          <button
+            onClick={handleCsvExport}
+            disabled={csvExporting || categoryCounts.calling === 0}
+            className="flex items-center gap-1.5 ml-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {csvExporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="flex items-center gap-2">
@@ -354,7 +441,8 @@ export default function LeadsList() {
                   <tr
                     key={lead.id}
                     className={`border-b border-gray-50 dark:border-gray-700/30 hover:bg-gray-50/60 dark:hover:bg-white/3 transition-colors ${
-                      selectedIds.has(lead.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''
+                      selectedIds.has(lead.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' :
+                      lead.csv_downloaded_at ? 'bg-red-50/50 dark:bg-red-900/10' : ''
                     }`}
                   >
                     {/* Checkbox */}
@@ -463,13 +551,38 @@ export default function LeadsList() {
 
                     {/* Status */}
                     <td className="px-4 py-3">
-                      {lead.pushed_to_instantly ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-                          <Check className="w-3.5 h-3.5" />
-                          Pushed
-                        </span>
+                      {category === 'email' ? (
+                        lead.pushed_to_instantly ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                            <Check className="w-3.5 h-3.5" />
+                            Pushed
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Pending</span>
+                        )
+                      ) : category === 'calling' ? (
+                        lead.csv_downloaded_at ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-red-500 dark:text-red-400">
+                            <Download className="w-3.5 h-3.5" />
+                            Downloaded
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Ready</span>
+                        )
                       ) : (
-                        <span className="text-xs text-gray-400">Pending</span>
+                        lead.instagram_dm_sent ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            lead.instagram_status === 'replied' || lead.instagram_status === 'engaged'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                              : lead.instagram_status === 'booked'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-gray-100 text-gray-600 dark:bg-white/8 dark:text-gray-400'
+                          }`}>
+                            {lead.instagram_status === 'dm_sent' ? 'DM\'d' : lead.instagram_status}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Not DM&apos;d</span>
+                        )
                       )}
                     </td>
 

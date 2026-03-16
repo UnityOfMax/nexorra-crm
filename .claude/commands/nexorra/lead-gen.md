@@ -315,6 +315,84 @@ These brokerages don't show email on the listing page. Follow this workflow:
 
 5. This is slower (~2 min per page vs ~15s for listing-only). Plan accordingly — prioritize listing-only brokerages first.
 
+### Step 4b — Scrape: Instagram + Calling Leads (remax, century21, Instagram search)
+
+**After completing email leads**, scrape these additional sources for Instagram handles and phone numbers. These use DIFFERENT lead categories.
+
+**Phase A — RE/MAX (profile visits for Instagram)**
+
+1. Navigate to RE/MAX city search:
+   ```bash
+   node scripts/chrome-tool.js navigate "https://www.remax.com/real-estate-agents/houston-tx?searchQuery=%7B%22filters%22%3A%7B%7D%7D"
+   ```
+
+2. Extract profile URLs:
+   ```bash
+   node scripts/chrome-tool.js scroll-all
+   node scripts/chrome-tool.js agents remax
+   ```
+
+3. Visit each profile:
+   ```bash
+   node scripts/chrome-tool.js navigate "{profile_url}"
+   node scripts/chrome-tool.js wait 3000
+   node scripts/chrome-tool.js profile remax
+   ```
+   Returns: `{ "full_name": "...", "email": "...", "phone": "...", "instagram_handle": "..." }`
+
+4. **Category logic (CRITICAL — no overlap):**
+   - Has `instagram_handle` → POST with `"lead_category": "instagram"`
+   - Has `phone` but NO `instagram_handle` → POST with `"lead_category": "calling"`, include `"mobile_phone": phone`
+   - Has neither → skip
+   - **If agent has BOTH phone AND Instagram → Instagram Lead ONLY (NOT calling)**
+
+5. Wait 5-10s between profile visits
+
+**Phase B — Century 21 (listing only — phones)**
+
+1. Navigate to Century 21 city search:
+   ```bash
+   node scripts/chrome-tool.js navigate "https://www.century21.com/agent/list/city/tx/houston?page=1"
+   ```
+
+2. Extract agents with phones:
+   ```bash
+   node scripts/chrome-tool.js scroll-all
+   node scripts/chrome-tool.js agents century21
+   ```
+
+3. POST each agent with `"lead_category": "calling"` and `"mobile_phone": phone`
+
+4. Pagination: increment `?page=2`, `?page=3`, etc.
+
+**Phase C — Instagram / Google Search (bonus Instagram handles)**
+
+If you still need more Instagram leads to hit 150/day:
+
+1. Google search in Chrome:
+   ```bash
+   node scripts/chrome-tool.js navigate "https://www.google.com/search?q=instagram+real+estate+agent+houston"
+   ```
+   Extract Instagram usernames from visible results.
+
+2. Instagram search in Chrome:
+   ```bash
+   node scripts/chrome-tool.js navigate "https://www.instagram.com"
+   node scripts/chrome-tool.js wait 3000
+   ```
+   Search for "real estate agent houston" and extract profile handles.
+
+3. POST each with `"lead_category": "instagram"`, `"source_brokerage": "instagram_search"`
+
+**Targets per day:**
+- ~150 Instagram leads (50 per timezone from EST/CST/PST)
+- ~200 Calling leads (from RE/MAX no-IG + Century21)
+
+**CRITICAL RULE CHANGE for non-email categories:**
+- `lead_category: 'email'` → email is REQUIRED (existing rule)
+- `lead_category: 'instagram'` → `instagram_handle` is REQUIRED, email optional
+- `lead_category: 'calling'` → `phone` or `mobile_phone` is REQUIRED, email optional
+
 ### Step 5 — Report
 "Done. Scraped N agent profiles across X cities. Y inserted, Z skipped (no email/duplicates). Breakdown: EST x, CST x, MST x, PST x."
 

@@ -82,6 +82,36 @@ Cache it in state file under the city so you don't rediscover it.
 
 ---
 
+## INSTAGRAM + CALLING LEAD BROKERAGES
+
+These brokerages are for Instagram handles and phone numbers, NOT email leads.
+
+## remax (RE/MAX) — Instagram + Phone Leads
+
+**Search URL:** `https://www.remax.com/real-estate-agents/{city-slug}-{st}?searchQuery=%7B%22filters%22%3A%7B%7D%7D`
+**Example:** `https://www.remax.com/real-estate-agents/houston-tx?searchQuery=%7B%22filters%22%3A%7B%7D%7D`
+- `city-slug` = lowercase, spaces as hyphens. `st` = 2-letter lowercase.
+- MUST visit each profile for Instagram handle and phone
+- Use `agents remax` for profile URLs, then `navigate` + `profile remax` for each
+- **Category logic (RE/MAX overlap rule):**
+  - Has Instagram handle → `lead_category: 'instagram'` (even if also has phone)
+  - Has phone but NO Instagram → `lead_category: 'calling'`
+  - Has neither → skip
+- Works: US + Canada
+
+## century21 (Century 21) — Calling Leads Only
+
+**Search URL:** `https://www.century21.com/agent/list/city/{st}/{city-slug}?page={page}`
+**Example:** `https://www.century21.com/agent/list/city/tx/houston?page=1`
+- State = 2-letter lowercase. City = lowercase, spaces as hyphens.
+- Phone on listing page — use the phone icon number (NOT speech bubble icon)
+- Use `agents century21` — returns names + mobile phones directly
+- All leads → `lead_category: 'calling'`
+- No Instagram available on this brokerage
+- Works: US only
+
+---
+
 ## URL Construction Rules
 
 - **Slugs** (in URL path): lowercase, spaces→hyphens (e.g., "Salt Lake City" → `salt-lake-city`)

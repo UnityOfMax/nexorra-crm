@@ -533,6 +533,161 @@ async function extractSothebysProfile(page) {
   return page.evaluate(profilePageExtractor());
 }
 
+// RE/MAX — listing page (profile URLs only, need profile visit for Instagram/phone)
+async function extractRemax(page) {
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+    // Find all profile links — RE/MAX IDs start with 10xxxxxxx
+    const links = document.querySelectorAll('a[href*="/real-estate-agents/"]');
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || !href.match(/\/\d{6,}$/)) return; // Must end with numeric ID
+      const fullUrl = href.startsWith('http') ? href : 'https://www.remax.com' + href;
+      if (seen.has(fullUrl)) return;
+      seen.add(fullUrl);
+
+      // Walk up to card container
+      const container = link.closest('[class*="card"], [class*="Card"], li, article, [class*="agent"]') || link.parentElement?.parentElement;
+      if (!container) return;
+
+      const nameEl = container.querySelector('.agent-name, [class*="agent-name"], h2, h3');
+      let name = nameEl?.textContent?.trim();
+      if (!name) {
+        // Try extracting from URL slug: /real-estate-agents/name-city-st/id
+        const slugMatch = href.match(/\/real-estate-agents\/([^/]+)-[a-z]{2}\/\d/);
+        if (slugMatch) {
+          name = slugMatch[1].split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
+      }
+      if (!name || name.length < 3 || name.length > 80) return;
+      if (/view|more|search|page|next|prev/i.test(name)) return;
+
+      const phoneEl = container.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+      const picture = img?.src || null;
+
+      const nameParts = name.trim().split(/\s+/);
+      agents.push({
+        full_name: name,
+        first_name: nameParts[0] || null,
+        last_name: nameParts.slice(1).join(' ') || null,
+        profile_url: fullUrl,
+        profile_picture_url: picture,
+        email: null,
+        phone,
+        instagram_handle: null, // Must visit profile
+      });
+    });
+    return agents;
+  });
+}
+
+// RE/MAX — profile page (Instagram handle + phone + email)
+async function extractRemaxProfile(page) {
+  return page.evaluate(() => {
+    // Find Instagram — exclude the generic @remax account
+    const igLinks = document.querySelectorAll('a[href*="instagram.com"]');
+    let igHandle = null;
+    for (const link of igLinks) {
+      const match = link.href.match(/instagram\.com\/([^/?#&]+)/);
+      if (match && match[1].toLowerCase() !== 'remax') {
+        igHandle = match[1];
+        break;
+      }
+    }
+
+    const mailtoEl = document.querySelector('a[href^="mailto:"]');
+    const email = mailtoEl?.href?.replace('mailto:', '')?.split('?')[0]?.trim()?.toLowerCase() || null;
+
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+    const nameEl = document.querySelector('h1, [class*="agent-name"]');
+    const name = nameEl?.textContent?.trim() || null;
+
+    return { full_name: name, email, phone, instagram_handle: igHandle };
+  });
+}
+
+// Century 21 — listing page (names + mobile phones directly, no profile visit needed)
+async function extractCentury21(page) {
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+
+    // C21 uses .agent-list-card-component or similar card wrappers
+    // Each card has: .agent-name, .contact-info-item with phone SVG, profile link
+    const cards = document.querySelectorAll('[class*="agent-list-card"], [class*="AgentCard"]');
+
+    // Fallback: find all profile links if card selector doesn't work
+    const profileLinks = cards.length > 0 ? [] : document.querySelectorAll('a[href*="/agent/detail/"]');
+
+    const elements = cards.length > 0 ? cards : profileLinks;
+
+    elements.forEach(el => {
+      const container = cards.length > 0 ? el : (el.closest('li, article, [class*="card"]') || el.parentElement?.parentElement?.parentElement);
+      if (!container) return;
+
+      // Name
+      const nameEl = container.querySelector('.agent-name, [class*="agent-name"]');
+      const name = nameEl?.textContent?.trim();
+      if (!name || name.length < 3 || name.length > 80 || seen.has(name)) return;
+      seen.add(name);
+
+      // Phone — first phone number (phone icon, not speech bubble)
+      // C21 uses <button class="contact-info-item"> with fa-phone SVG for mobile
+      const phoneButtons = container.querySelectorAll('.contact-info-item, [class*="contact-info"]');
+      let phone = null;
+      for (const btn of phoneButtons) {
+        const hasPhoneIcon = btn.querySelector('[data-icon="phone"], .fa-phone');
+        if (hasPhoneIcon) {
+          const span = btn.querySelector('span');
+          phone = span?.textContent?.trim()?.replace(/\s+/g, '').replace(/-/g, '') || null;
+          break;
+        }
+      }
+      // Fallback: first phone number found
+      if (!phone) {
+        const anyPhone = container.querySelector('.contact-info-item span, a[href^="tel:"]');
+        phone = anyPhone?.textContent?.trim()?.replace(/\s+/g, '').replace(/-/g, '') || null;
+      }
+
+      if (!phone) return; // C21 is for phone leads — skip if no phone
+
+      // Profile URL
+      const profileLink = container.querySelector('a[href*="/agent/detail/"]');
+      const href = profileLink?.getAttribute('href');
+      const profileUrl = href ? (href.startsWith('http') ? href : 'https://www.century21.com' + href) : null;
+
+      // Picture
+      const img = container.querySelector('img.profile-pic, img[src]:not([src*="logo"])');
+      const picture = img?.src || null;
+
+      // Office name
+      const officeEl = container.querySelector('.office-name, [class*="office"]');
+      const office = officeEl?.textContent?.trim() || null;
+
+      const nameParts = name.trim().split(/\s+/);
+      agents.push({
+        full_name: name,
+        first_name: nameParts[0] || null,
+        last_name: nameParts.slice(1).join(' ') || null,
+        profile_url: profileUrl,
+        profile_picture_url: picture,
+        email: null,
+        phone,
+        mobile_phone: phone, // C21 phone icon = mobile
+        instagram_handle: null,
+        office,
+      });
+    });
+    return agents;
+  });
+}
+
 
 const EXTRACTORS = {
   kw: extractKW,
@@ -542,11 +697,14 @@ const EXTRACTORS = {
   bhhs: extractBHHS,
   compass: extractCompass,
   sothebys: extractSothebys,
+  remax: extractRemax,
+  century21: extractCentury21,
 };
 
 const PROFILE_EXTRACTORS = {
   exp: extractExpProfile,
   bhhs: extractBHHSProfile,
+  remax: extractRemaxProfile,
   sothebys: extractSothebysProfile,
 };
 

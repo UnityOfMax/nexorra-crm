@@ -4,12 +4,13 @@ import { requireAuth } from '@/lib/auth/require-account-access';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/leads?pushed=false&timezone=EST&brokerage=kw&limit=100&offset=0&country=US
+// GET /api/leads?category=email&pushed=false&timezone=EST&brokerage=kw&limit=100&offset=0&country=US
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = request.nextUrl;
+  const category = searchParams.get('category');  // 'email' | 'instagram' | 'calling' | null (all)
   const pushed = searchParams.get('pushed');      // 'true' | 'false' | null (all)
   const timezone = searchParams.get('timezone');  // 'EST' | 'CST' | 'MST' | 'PST' | null
   const brokerage = searchParams.get('brokerage');
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     .order('scraped_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (category) query = query.eq('lead_category', category);
   if (pushed === 'true') query = query.eq('pushed_to_instantly', true);
   if (pushed === 'false') query = query.eq('pushed_to_instantly', false);
   if (timezone) query = query.eq('timezone', timezone);
