@@ -6,9 +6,10 @@ USE ONLY THESE 6 BROKERAGES. Do not guess or construct URLs for any other broker
 
 ## kw (Keller Williams)
 
-**Search URL:** `https://kw.com/agents?agentName={city+name}&page={page}`
-**Example:** `https://kw.com/agents?agentName=Salt+Lake+City&page=1`
-- Spaces as `+` in city name
+**Search URL:** `https://kw.com/agents?location={City}%2C+{ST}&page={page}`
+**Example:** `https://kw.com/agents?location=Houston%2C+TX&page=1`
+- Use `location=` param (NOT `agentName=` which searches by name not city)
+- City and state URL-encoded with `%2C` for comma and `+` for spaces
 - `page` starts at 1, increment until 0 results
 - **Email on listing page** — use `agents kw`
 - Works: US + Canada
@@ -22,6 +23,7 @@ USE ONLY THESE 6 BROKERAGES. Do not guess or construct URLs for any other broker
 - `page` starts at 1, increment until 0 results
 - **MUST visit each profile for email** — use `agents exp` for profile URLs, then `navigate` + `profile exp` for each
 - Profile URL format: `https://www.exprealty.com/agents-search/{Name}_{uuid}`
+- **WARNING:** eXp has aggressive Cloudflare bot protection — may block automated access. If blocked, wait 30s and retry once. If still blocked, skip and move to next brokerage.
 - Works: US + Canada
 
 ## coldwellbanker (Coldwell Banker) — US ONLY
@@ -66,16 +68,13 @@ Cache it in state file under the city so you don't rediscover it.
 
 ## sothebys (Sotheby's International Realty)
 
+**STATUS: DEPRIORITIZED** — city-based URL filtering is broken (always shows worldwide results).
+If needed, try navigating and interacting with their search UI manually.
+
 **US Search URL:** `https://www.sothebysrealty.com/eng/associates/{city-slug}-{st}-area`
-**CA Search URL:** `https://www.sothebysrealty.com/eng/associates/{city-slug}-{province}-can`
 **Example US:** `https://www.sothebysrealty.com/eng/associates/austin-tx-area`
-**Example CA:** `https://www.sothebysrealty.com/eng/associates/toronto-on-can`
-- City and state/province lowercase with hyphens
-- Pagination: look for pagination links or "Load More" on the page
-- **MUST visit each profile for email** — use `agents sothebys` for profile URLs, then `navigate` + `profile sothebys` for each
-- Profile URL format: `https://www.sothebysrealty.com/eng/associate/180-a-{id}/{name-slug}`
-- Email is `mailto:` link on profile page
-- Works: US + Canada
+- **WARNING:** These URLs currently redirect to worldwide results — city filter does not work via URL
+- Skip this brokerage unless other brokerages don't yield enough leads for a city
 
 ---
 
