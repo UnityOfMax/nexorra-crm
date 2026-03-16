@@ -37,6 +37,7 @@ const allSections: MenuSection[] = [
     items: [
       { id: 'workflows', label: 'Workflows', icon: Workflow, agencyOnly: false, ownerAdminOnly: false },
       { id: 'pages', label: 'Landing Pages', icon: FileText, agencyOnly: false, ownerAdminOnly: false },
+      { id: 'analytics', label: 'Analytics', icon: BarChart2, agencyOnly: false, ownerAdminOnly: true },
       { id: 'ai-agent', label: 'AI Agent', icon: Bot, agencyOnly: false, ownerAdminOnly: true },
     ],
   },

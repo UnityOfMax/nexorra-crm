@@ -32,19 +32,31 @@ export async function GET(request: NextRequest) {
 
     // Get ad accounts
     const adAccountsResponse = await fetch(
-      `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status&access_token=${accessToken}`
+      `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status&access_token=${accessToken}`
     );
     const adAccountsData = await adAccountsResponse.json();
 
     // Get pages
     const pagesResponse = await fetch(
-      `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`
     );
     const pagesData = await pagesResponse.json();
 
+    // Log errors from Facebook for debugging
+    if (adAccountsData.error) {
+      console.error('[facebook/accounts] Ad accounts error:', JSON.stringify(adAccountsData.error));
+    }
+    if (pagesData.error) {
+      console.error('[facebook/accounts] Pages error:', JSON.stringify(pagesData.error));
+    }
+
     return NextResponse.json({
       adAccounts: adAccountsData.data || [],
-      pages: pagesData.data || []
+      pages: pagesData.data || [],
+      debug: {
+        adAccountsError: adAccountsData.error || null,
+        pagesError: pagesData.error || null,
+      }
     });
   } catch (error: any) {
     console.error('Error fetching Facebook accounts:', error);
@@ -87,7 +99,7 @@ export async function POST(request: NextRequest) {
     let adAccountName = null;
     if (adAccountId) {
       const adResponse = await fetch(
-        `https://graph.facebook.com/v18.0/${adAccountId}?fields=name&access_token=${accessToken}`
+        `https://graph.facebook.com/v21.0/${adAccountId}?fields=name&access_token=${accessToken}`
       );
       const adData = await adResponse.json();
       adAccountName = adData.name;
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest) {
     let instagramUsername = null;
     if (pageId) {
       const pageResponse = await fetch(
-        `https://graph.facebook.com/v18.0/${pageId}?fields=name,instagram_business_account{id,username}&access_token=${accessToken}`
+        `https://graph.facebook.com/v21.0/${pageId}?fields=name,instagram_business_account{id,username}&access_token=${accessToken}`
       );
       const pageData = await pageResponse.json();
       pageName = pageData.name;
