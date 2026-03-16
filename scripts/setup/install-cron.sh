@@ -41,6 +41,9 @@ PATH=/usr/local/bin:/usr/bin:/bin:/home/max/.local/bin
 
 # Auto-Sleep — 2:00 AM daily (wake at 9:50 AM)
 0 2 * * * $SETUP_DIR/sleep-schedule.sh
+
+# Save Claude Code remote URL on boot (60s delay for session to start)
+@reboot sleep 60 && $SETUP_DIR/remote-control.sh >> /home/max/crm/logs/remote.log 2>&1
 "
 
 # Remove existing Nexorra entries and add new ones
