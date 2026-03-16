@@ -63,6 +63,7 @@ export default function LeadsList() {
   const [category, setCategory] = useState<LeadCategory>('email');
   const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ email: 0, instagram: 0, calling: 0 });
   const [csvExporting, setCsvExporting] = useState(false);
+  const [csvCount, setCsvCount] = useState(150);
 
   // Filters
   const [filterPushed, setFilterPushed] = useState<'all' | 'true' | 'false'>('all');
@@ -127,7 +128,7 @@ export default function LeadsList() {
   const handleCsvExport = async () => {
     setCsvExporting(true);
     try {
-      const res = await fetch('/api/leads/csv-export');
+      const res = await fetch(`/api/leads/csv-export?count=${csvCount}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -312,14 +313,25 @@ export default function LeadsList() {
           </button>
         ))}
         {category === 'calling' && (
-          <button
-            onClick={handleCsvExport}
-            disabled={csvExporting || categoryCounts.calling === 0}
-            className="flex items-center gap-1.5 ml-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            {csvExporting ? 'Exporting...' : 'Export CSV'}
-          </button>
+          <div className="flex items-center gap-1.5 ml-2">
+            <input
+              type="number"
+              value={csvCount}
+              onChange={e => setCsvCount(Math.max(1, Math.min(1000, Number(e.target.value) || 150)))}
+              className="w-16 px-2 py-2 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+              min={1}
+              max={1000}
+              title="Number of leads to export"
+            />
+            <button
+              onClick={handleCsvExport}
+              disabled={csvExporting || categoryCounts.calling === 0}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {csvExporting ? 'Exporting...' : 'Export CSV'}
+            </button>
+          </div>
         )}
       </div>
 

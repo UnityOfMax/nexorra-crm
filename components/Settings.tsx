@@ -692,13 +692,10 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
   const renderClaudeCode = () => {
     const claudeUrl = (account.settings as any)?.claude_code_url || '';
-    const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
       if (claudeUrl) {
         navigator.clipboard.writeText(claudeUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
       }
     };
 
@@ -727,7 +724,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                   className="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
                   title="Copy URL"
                 >
-                  {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  <Copy className="w-4 h-4" />
                 </button>
                 <a
                   href={claudeUrl}

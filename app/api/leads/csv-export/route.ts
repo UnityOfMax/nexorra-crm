@@ -5,20 +5,22 @@ import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/leads/csv-export — generate and download a CSV batch of calling leads
+// GET /api/leads/csv-export?count=150 — generate and download a CSV batch of calling leads
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
   const batchId = randomUUID();
+  const requestedCount = Math.min(Math.max(Number(request.nextUrl.searchParams.get('count') || 150), 1), 1000);
 
-  // Fetch up to 150 calling leads not yet batched, ordered by timezone (EST→PST)
+  // Fetch calling leads not yet batched, ordered by timezone (EST→PST)
   const timezoneOrder = ['EST', 'CST', 'MST', 'PST'];
   const allLeads: any[] = [];
 
+  const perTimezone = Math.ceil(requestedCount / timezoneOrder.length);
   for (const tz of timezoneOrder) {
-    if (allLeads.length >= 150) break;
-    const remaining = Math.min(50, 150 - allLeads.length);
+    if (allLeads.length >= requestedCount) break;
+    const remaining = Math.min(perTimezone, requestedCount - allLeads.length);
 
     const { data } = await supabaseAdmin
       .from('leads')
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
     if (data) allLeads.push(...data);
   }
 
-  // If we didn't hit 150, fill from any timezone
-  if (allLeads.length < 150) {
+  // If we didn't hit target, fill from any timezone
+  if (allLeads.length < requestedCount) {
     const existingIds = allLeads.map(l => l.id);
     const { data } = await supabaseAdmin
       .from('leads')
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
       .eq('lead_category', 'calling')
       .is('csv_batch_id', null)
       .order('scraped_at', { ascending: false })
-      .limit(150 - allLeads.length);
+      .limit(requestedCount - allLeads.length);
 
     if (data) {
       for (const lead of data) {
