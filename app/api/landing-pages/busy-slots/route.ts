@@ -37,7 +37,13 @@ export async function GET(request: NextRequest) {
   const busyMs = new Set<number>();
 
   for (const a of activities || []) {
-    if (a.due_date) busyMs.add(new Date(a.due_date).getTime());
+    if (a.due_date) {
+      const start = new Date(a.due_date).getTime();
+      // Cover full 60-min meeting duration in 30-min intervals
+      for (let t = start; t < start + 60 * 60 * 1000; t += 30 * 60 * 1000) {
+        busyMs.add(t);
+      }
+    }
   }
 
   // ── 2. Google Calendar FreeBusy across ALL connected calendars ─────────────

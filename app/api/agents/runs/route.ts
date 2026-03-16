@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth/require-account-access';
 import { spawn } from 'child_process';
-import { readFileSync, createWriteStream, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { runAgentWithSDK } from '@/lib/agents/serverless-runner';
 import { AGENT_DEFINITIONS } from '@/lib/agents/definitions';
 
 export const dynamic = 'force-dynamic';
@@ -153,46 +152,15 @@ export async function POST(request: NextRequest) {
     .update({ log_file: `logs/runs/${run.id}.jsonl` })
     .eq('id', run.id);
 
-  // On Vercel (or when claude CLI is not available), use the Anthropic SDK runner.
-  // On local dev, use the claude CLI spawn for full tool support.
+  // Local: spawn claude CLI with stream-json output (detached, non-blocking)
   const claudeCli = '/home/max/.npm-global/bin/claude';
-  const useSDK = process.env.VERCEL || !existsSync(claudeCli);
-
-  if (useSDK) {
-    // SDK runner — runs synchronously within this request (up to maxDuration=300s)
-    const startTime = Date.now();
-    const events: Record<string, unknown>[] = [];
-
-    const result = await runAgentWithSDK({
-      promptContent,
-      model: agentModel,
-      maxTurns: agentMaxTurns,
-      onEvent: (event) => {
-        events.push(event);
-        // Write event to log file in real-time
-        try {
-          writeFileSync(logFile, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
-        } catch { /* non-fatal */ }
-      },
-    });
-
-    const duration = Math.round((Date.now() - startTime) / 1000);
-
+  if (!existsSync(claudeCli)) {
+    // No CLI available and no daemon — can't run agents
     await supabaseAdmin
       .from('agent_runs')
-      .update({
-        status: result.success ? 'completed' : 'failed',
-        finished_at: new Date().toISOString(),
-        duration_seconds: duration,
-        cost_usd: result.costUsd,
-        input_tokens: result.inputTokens,
-        output_tokens: result.outputTokens,
-        num_turns: result.numTurns,
-        error_message: result.error || null,
-      })
+      .update({ status: 'failed', finished_at: new Date().toISOString(), error_message: 'Daemon bridge not configured and CLI not available' })
       .eq('id', run.id);
-
-    return NextResponse.json({ runId: run.id, status: result.success ? 'completed' : 'failed' });
+    return NextResponse.json({ error: 'Daemon bridge not configured. Set DAEMON_URL to route agents through the daemon.' }, { status: 503 });
   }
 
   // Local: spawn claude CLI with stream-json output (detached, non-blocking)

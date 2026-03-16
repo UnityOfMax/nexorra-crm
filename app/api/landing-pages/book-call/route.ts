@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { syncActivityToGoogle } from '@/lib/google-calendar/sync';
+import { syncActivityToGoogle, getGoogleCalendarClient } from '@/lib/google-calendar/sync';
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
 import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
 import { sendPushToUser } from '@/lib/push/send-notification';
@@ -112,6 +112,48 @@ export async function POST(request: NextRequest) {
           .eq('account_id', accountId);
       }
     }
+
+    // ── Server-side double-booking guard ──────────────────────────────────────
+    const slotMs = new Date(slotUtc).getTime();
+    const windowStart = new Date(slotMs - 29 * 60 * 1000).toISOString();
+    const windowEnd = new Date(slotMs + 59 * 60 * 1000).toISOString();
+
+    const { data: conflicts } = await supabaseAdmin
+      .from('activities')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('type', 'meeting')
+      .gte('due_date', windowStart)
+      .lte('due_date', windowEnd)
+      .limit(1);
+
+    if (conflicts && conflicts.length > 0) {
+      return NextResponse.json(
+        { error: 'This time slot is no longer available. Please choose another time.' },
+        { status: 409 }
+      );
+    }
+
+    // Check Google Calendar for conflicts too
+    try {
+      const calendar = await getGoogleCalendarClient(accountId);
+      if (calendar) {
+        const { data: freeBusy } = await calendar.freebusy.query({
+          requestBody: {
+            timeMin: new Date(slotMs).toISOString(),
+            timeMax: new Date(slotMs + 60 * 60 * 1000).toISOString(),
+            items: [{ id: 'primary' }],
+          },
+        });
+        const busy = freeBusy.calendars?.primary?.busy || [];
+        if (busy.length > 0) {
+          return NextResponse.json(
+            { error: 'This time slot is no longer available. Please choose another time.' },
+            { status: 409 }
+          );
+        }
+      }
+    } catch { /* non-fatal — proceed with booking */ }
 
     // ── Build description with all form answers ───────────────────────────────
     const answerSummary = Object.entries(formAnswers || {})

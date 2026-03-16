@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enrollNewLead } from '@/lib/automations/enrollment';
 import { triggerContactCreated } from '@/lib/workflow-engine/triggers';
-import { sendPushToAccountOwner } from '@/lib/push/send-notification';
+import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 import { normalizePhone, phoneVariants } from '@/lib/utils/phone';
 import { sendCapiEvent } from '@/lib/meta/capi';
 import { updateLeadScore } from '@/lib/ai/lead-scoring';
@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
         console.error('[form-submit] workflow trigger error:', err)
       );
 
-      // Push notification to account owner for new leads (non-blocking)
-      sendPushToAccountOwner(accountId, {
+      // Push notification to account owner for new leads (non-blocking, respects preferences)
+      sendPushToAccountOwnerIfEnabled(accountId, 'new_leads', {
         title: '🔥 New Lead',
         body: `${contactName} just submitted a form`,
         tag: 'new-lead',

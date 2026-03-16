@@ -136,16 +136,20 @@ export async function spawnAgent(params: {
     ws.end();
     runningProcesses.delete(run.id);
     const duration = Math.round((Date.now() - startTime) / 1000);
-    const status = code === 0 ? 'completed' : 'failed';
 
     let costUsd: number | null = null;
     let inputTokens: number | null = null;
     let outputTokens: number | null = null;
     let numTurns: number | null = null;
+    let resultError: string | null = null;
 
     try {
       const result = JSON.parse(lastLine);
       if (result.type === 'result') {
+        // Detect errors even when exit code is 0 (e.g. billing errors)
+        if (result.is_error) {
+          resultError = result.result || 'Agent returned an error';
+        }
         costUsd = result.cost_usd ?? result.total_cost_usd ?? null;
         numTurns = result.num_turns ?? null;
         if (result.usage) {
@@ -154,6 +158,8 @@ export async function spawnAgent(params: {
         }
       }
     } catch { /* ignore */ }
+
+    const status = (code === 0 && !resultError) ? 'completed' : 'failed';
 
     await supabaseAdmin
       .from('agent_runs')
@@ -165,7 +171,7 @@ export async function spawnAgent(params: {
         input_tokens: inputTokens,
         output_tokens: outputTokens,
         num_turns: numTurns,
-        error_message: status === 'failed' && code !== null ? `Exit code: ${code}` : null,
+        error_message: resultError || (status === 'failed' && code !== null ? `Exit code: ${code}` : null),
       })
       .eq('id', run.id);
 

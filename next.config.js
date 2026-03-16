@@ -9,7 +9,6 @@ const nextConfig = {
       'googleapis',
       'google-auth-library',
       'twilio',
-      '@anthropic-ai/sdk',
       'resend',
       'web-push',
     ],

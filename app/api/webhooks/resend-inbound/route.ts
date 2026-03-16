@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
-import { sendPushToAccountOwner } from '@/lib/push/send-notification';
+import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Push notification to account owner for inbound email
-    sendPushToAccountOwner(account.id, {
+    sendPushToAccountOwnerIfEnabled(account.id, 'new_emails', {
       title: '📧 New Email',
       body: `${fromEmail}: ${(subject || '(no subject)').substring(0, 100)}`,
       tag: 'inbound-email',

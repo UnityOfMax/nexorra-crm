@@ -98,3 +98,48 @@ export async function sendPushToAccountOwner(
   const owner = members.find((m) => m.role === 'owner') ?? members[0];
   await sendPushToUser(owner.user_id, payload);
 }
+
+export type NotificationType = 'new_leads' | 'new_texts' | 'new_emails' | 'no_bookings' | 'reports';
+
+/**
+ * Sends a push notification only if the user has the notification type enabled.
+ * Defaults to enabled if no preferences are set.
+ */
+export async function sendPushToUserIfEnabled(
+  userId: string,
+  accountId: string,
+  notificationType: NotificationType,
+  payload: PushPayload
+): Promise<void> {
+  const { data: member } = await supabaseAdmin
+    .from('account_members')
+    .select('notification_preferences')
+    .eq('user_id', userId)
+    .eq('account_id', accountId)
+    .maybeSingle();
+
+  const prefs = member?.notification_preferences as Record<string, boolean> | null;
+  if (prefs && prefs[notificationType] === false) return;
+
+  await sendPushToUser(userId, payload);
+}
+
+/**
+ * Sends a push notification to the account owner, respecting their notification preferences.
+ */
+export async function sendPushToAccountOwnerIfEnabled(
+  accountId: string,
+  notificationType: NotificationType,
+  payload: PushPayload
+): Promise<void> {
+  const { data: members } = await supabaseAdmin
+    .from('account_members')
+    .select('user_id, role')
+    .eq('account_id', accountId)
+    .order('created_at', { ascending: true });
+
+  if (!members || members.length === 0) return;
+
+  const owner = members.find((m) => m.role === 'owner') ?? members[0];
+  await sendPushToUserIfEnabled(owner.user_id, accountId, notificationType, payload);
+}
