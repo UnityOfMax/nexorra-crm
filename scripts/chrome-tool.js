@@ -15,6 +15,7 @@
  *   node scripts/chrome-tool.js screenshot [file]        Save screenshot to file
  *   node scripts/chrome-tool.js agents <brokerage>       Extract agent data from listing page
  *   node scripts/chrome-tool.js profile <brokerage>      Extract email from individual profile page
+ *   node scripts/chrome-tool.js dismiss-cookies           Dismiss cookie/consent banners
  *   node scripts/chrome-tool.js wait <ms>                Wait for specified milliseconds
  *   node scripts/chrome-tool.js url                      Get current page URL
  *   node scripts/chrome-tool.js status                   Check if Chrome is connected
@@ -45,6 +46,158 @@ async function humanScroll(page, amount = 800) {
     await randomDelay(100, 300);
   }
 }
+
+/**
+ * Dismiss common cookie/consent banners by clicking accept buttons.
+ * Tries multiple common selectors and text patterns.
+ */
+async function dismissCookieBanners(page) {
+  const dismissed = await page.evaluate(() => {
+    const patterns = [
+      // Common button text patterns (case-insensitive)
+      'accept all', 'accept cookies', 'accept', 'agree', 'allow all',
+      'allow cookies', 'got it', 'i agree', 'ok', 'okay', 'save',
+      'continue', 'dismiss', 'close', 'reject non-essential',
+    ];
+
+    // Common selectors for cookie banners
+    const selectors = [
+      '[class*="cookie"] button',
+      '[class*="Cookie"] button',
+      '[class*="consent"] button',
+      '[class*="Consent"] button',
+      '[class*="banner"] button',
+      '[class*="osano"] button',
+      '[id*="cookie"] button',
+      '[id*="consent"] button',
+      '[data-testid*="cookie"] button',
+      '[data-testid*="consent"] button',
+      'button[class*="accept"]',
+      'button[class*="Accept"]',
+      'a[class*="accept"]',
+      '[role="dialog"] button',
+    ];
+
+    let found = false;
+
+    // Strategy 1: Click buttons matching text patterns
+    const allButtons = document.querySelectorAll('button, a[role="button"], [role="button"]');
+    for (const btn of allButtons) {
+      const text = (btn.textContent || '').trim().toLowerCase();
+      if (patterns.some(p => text === p || text.startsWith(p))) {
+        btn.click();
+        found = true;
+        break;
+      }
+    }
+
+    // Strategy 2: Try known selectors
+    if (!found) {
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          el.click();
+          found = true;
+          break;
+        }
+      }
+    }
+
+    // Strategy 3: Osano-specific (KW uses this)
+    if (!found) {
+      const osanoAccept = document.querySelector('.osano-cm-accept-all, .osano-cm-save');
+      if (osanoAccept) {
+        osanoAccept.click();
+        found = true;
+      }
+    }
+
+    return found;
+  });
+  return dismissed;
+}
+
+/**
+ * Check if current page is a Cloudflare challenge and wait for it to pass.
+ * Returns true if challenge was detected (and waited), false if page is normal.
+ */
+async function handleCloudflare(page) {
+  const title = await page.title();
+  const isChallenge = /just a moment|cloudflare|security check|verif/i.test(title);
+  if (isChallenge) {
+    console.error(JSON.stringify({ cloudflare: true, waiting: 25000 }));
+    await new Promise(r => setTimeout(r, 25000));
+    // Check again
+    const newTitle = await page.title();
+    return /just a moment|cloudflare|security check|verif/i.test(newTitle);
+  }
+  return false;
+}
+
+/**
+ * Navigate with retry — handles timeouts by falling back to 'load' event.
+ * Also auto-dismisses cookie banners and handles Cloudflare.
+ */
+async function smartNavigate(page, url) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  } catch (err) {
+    if (err.message.includes('timeout')) {
+      // Page may have loaded but background requests are still running
+      // Check if we have content
+      const hasContent = await page.evaluate(() => document.body?.innerText?.length > 100).catch(() => false);
+      if (!hasContent) {
+        // Try with less strict wait
+        try {
+          await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+        } catch {
+          // Still timeout — page may be partially loaded, continue anyway
+        }
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  await randomDelay(2000, 4000);
+
+  // Handle Cloudflare challenge
+  const stillBlocked = await handleCloudflare(page);
+  if (stillBlocked) {
+    return { success: false, blocked: true, title: await page.title(), url: page.url() };
+  }
+
+  // Auto-dismiss cookie banners
+  await dismissCookieBanners(page).catch(() => {});
+
+  const title = await page.title();
+  const currentUrl = page.url();
+  return { success: true, blocked: false, title, url: currentUrl };
+}
+
+/**
+ * Scroll to bottom of page to trigger all lazy loading, then back to top.
+ * Smarter than fixed scroll — detects when page stops growing.
+ */
+async function scrollToLoadAll(page, maxScrolls = 15) {
+  let lastHeight = 0;
+  let sameCount = 0;
+
+  for (let i = 0; i < maxScrolls; i++) {
+    await humanScroll(page, 1000);
+    await randomDelay(500, 1000);
+
+    const newHeight = await page.evaluate(() => document.body.scrollHeight);
+    if (newHeight === lastHeight) {
+      sameCount++;
+      if (sameCount >= 2) break; // Page has stopped growing
+    } else {
+      sameCount = 0;
+    }
+    lastHeight = newHeight;
+  }
+}
+
 
 // ====== LISTING EXTRACTORS (extract agents from search/listing pages) ======
 
@@ -91,7 +244,6 @@ function mailtoScanExtractor(baseUrl, profileLinkPattern) {
         }
       }
       if (!profileUrl) {
-        // Try any <a> that wraps the name or is nearby
         const anyLink = nameEl?.closest('a') || container.querySelector('a[href]:not([href^="mailto:"]):not([href^="tel:"])');
         const href = anyLink?.getAttribute('href');
         if (href && href !== '#' && href !== '/') {
@@ -103,9 +255,12 @@ function mailtoScanExtractor(baseUrl, profileLinkPattern) {
       const phoneEl = container.querySelector('a[href^="tel:"]');
       const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
 
-      // Find picture
+      // Find picture — normalize to absolute URL
       const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
-      const picture = img?.src || null;
+      let picture = img?.src || null;
+      if (picture && !picture.startsWith('http')) {
+        try { picture = new URL(picture, baseUrl).href; } catch { picture = null; }
+      }
 
       // Find Instagram handle
       const igLink = container.querySelector('a[href*="instagram.com"]');
@@ -119,7 +274,6 @@ function mailtoScanExtractor(baseUrl, profileLinkPattern) {
 }
 
 // Profile-link-based extractor helper for brokerages where email is NOT on listing page.
-// Finds agent cards with profile links, returns them with email=null.
 function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
   return () => {
     const agents = [];
@@ -142,7 +296,6 @@ function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
         : container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
       let name = nameEl?.textContent?.trim();
       if (!name) {
-        // Try the link text itself
         name = link.textContent?.trim()?.split('\n')[0]?.trim();
       }
       if (!name || name.length < 3 || name.length > 80) return;
@@ -156,9 +309,11 @@ function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
       const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
 
       const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
-      const picture = img?.src || null;
+      let picture = img?.src || null;
+      if (picture && !picture.startsWith('http')) {
+        try { picture = new URL(picture, baseUrl).href; } catch { picture = null; }
+      }
 
-      // Find Instagram handle
       const igLink = container.querySelector('a[href*="instagram.com"]');
       const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
 
@@ -211,12 +366,126 @@ function profilePageExtractor() {
 
 // KW (Keller Williams) — email on listing page
 async function extractKW(page) {
-  return page.evaluate(mailtoScanExtractor('https://kw.com', '/agent'));
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+    const cards = document.querySelectorAll('.agent-card-info');
+    cards.forEach(card => {
+      const emailEl = card.querySelector('a[href^="mailto:"]');
+      if (!emailEl) return;
+      const email = emailEl.href.replace('mailto:', '').split('?')[0].trim().toLowerCase();
+      if (!email || !email.includes('@') || seen.has(email)) return;
+      seen.add(email);
+
+      const name = card.querySelector('.agent-card-name')?.textContent?.trim() || null;
+      if (!name || name.length < 3 || name.length > 80) return;
+
+      // Profile picture from background-image style
+      const avatarEl = card.querySelector('.agent-card-avatar');
+      let picture = null;
+      if (avatarEl) {
+        const bg = avatarEl.getAttribute('style') || '';
+        const m = bg.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+        if (m) picture = m[1];
+      }
+
+      const phoneEl = card.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      const profileLink = card.querySelector('a[href*="/agent/"]');
+      const href = profileLink?.getAttribute('href');
+      let profileUrl = null;
+      if (href) profileUrl = href.startsWith('http') ? href : 'https://kw.com' + href;
+
+      const igLink = card.querySelector('a[href*="instagram.com"]');
+      const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+
+      const nameParts = name.trim().split(/\s+/);
+      const first_name = nameParts[0] || null;
+      const last_name = nameParts.slice(1).join(' ') || null;
+
+      agents.push({ full_name: name, first_name, last_name, profile_url: profileUrl, profile_picture_url: picture, email, phone, instagram_handle: igHandle });
+    });
+    return agents;
+  });
 }
 
 // Coldwell Banker — email on listing page via mailto:
+// Uses dual strategy: URL slug for name + visible text fallback
 async function extractColdwellBanker(page) {
-  return page.evaluate(mailtoScanExtractor('https://www.coldwellbanker.com', 'real-estate-agent'));
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+
+    // Strategy: find all mailto links, walk up to MUI Grid container
+    const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
+    mailtoLinks.forEach(mailtoEl => {
+      const email = mailtoEl.href.replace('mailto:', '').split('?')[0].trim().toLowerCase();
+      if (!email || !email.includes('@') || seen.has(email)) return;
+
+      // Walk up to find the grid item container (MUI uses MuiGrid-item)
+      let container = mailtoEl;
+      for (let i = 0; i < 15 && container; i++) {
+        container = container.parentElement;
+        if (!container) break;
+        const cls = container.className || '';
+        if (cls.includes('MuiGrid-item') || cls.includes('agent-card') || cls.includes('Agent')) break;
+      }
+      if (!container) return;
+
+      // Find profile link (has /agents/ and aid- in href)
+      const profileLink = container.querySelector('a[href*="/agents/"][href*="aid-"]');
+      const href = profileLink?.getAttribute('href');
+      if (!href) return; // Skip if no profile link — can't identify agent
+
+      if (seen.has(href)) return;
+      seen.add(email);
+      seen.add(href);
+
+      // Name: try URL slug first, then visible text
+      let name = null;
+      const slugMatch = href.match(/\/agents\/([^/]+)\/aid-/);
+      if (slugMatch) {
+        name = slugMatch[1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      // Fallback: look for visible name text near the profile link
+      if (!name) {
+        const linkText = profileLink.textContent?.trim();
+        // CB link text is like "DADyar Abbas(832)..." — extract letters only
+        if (linkText) {
+          const cleaned = linkText.replace(/\([^)]*\)/g, '').replace(/Contact/gi, '').trim();
+          // Remove leading initials (2 uppercase chars stuck to name)
+          const nameMatch = cleaned.match(/^[A-Z]{0,3}([A-Z][a-z].+)/);
+          if (nameMatch) name = nameMatch[1].trim();
+          else if (cleaned.length >= 3 && cleaned.length <= 80) name = cleaned;
+        }
+      }
+
+      if (!name || name.length < 3 || name.length > 80) return;
+
+      const profileUrl = href.startsWith('http') ? href : 'https://www.coldwellbanker.com' + href;
+
+      const phoneEl = container.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"]):not([src*="placeholder"])');
+      let picture = img?.src || null;
+      if (picture && !picture.startsWith('http')) {
+        try { picture = new URL(picture, 'https://www.coldwellbanker.com').href; } catch { picture = null; }
+      }
+
+      const igLink = container.querySelector('a[href*="instagram.com"]');
+      const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+
+      const nameParts = name.trim().split(/\s+/);
+      const first_name = nameParts[0] || null;
+      const last_name = nameParts.slice(1).join(' ') || null;
+
+      agents.push({ full_name: name, first_name, last_name, profile_url: profileUrl, profile_picture_url: picture, email, phone, instagram_handle: igHandle });
+    });
+    return agents;
+  });
 }
 
 // Compass — email on listing page via mailto:
@@ -291,15 +560,17 @@ async function main() {
     console.log(`Chrome Tool — Controls your real Chrome browser via CDP
 
 Commands:
-  navigate <url>           Navigate to URL, wait for page load
+  navigate <url>           Navigate to URL (auto-handles timeouts, Cloudflare, cookies)
   html [selector]          Get rendered HTML (full page or CSS selector)
   text [selector]          Get text content (cleaner output)
   scroll [pixels]          Scroll down (default: 800px)
+  scroll-all               Scroll entire page to trigger all lazy loading
   click <selector>         Click an element
   type <selector> <text>   Type text into an input field
   screenshot [file]        Save screenshot (default: /tmp/chrome-screenshot.png)
   agents <brokerage>       Extract agent data from listing page (kw, exp, coldwellbanker, bhhs, compass, sothebys)
   profile <brokerage>      Extract email from individual profile page (exp, bhhs, sothebys)
+  dismiss-cookies          Dismiss cookie/consent banners
   instagram-search <handle>  Search/navigate to an Instagram profile
   instagram-dm <message>     Send a DM to the current Instagram profile
   wait <ms>                Wait for milliseconds
@@ -344,11 +615,8 @@ Prerequisites:
         const url = args[1];
         if (!url) { console.error('Usage: navigate <url>'); break; }
         console.log(`Navigating to: ${url}`);
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-        await randomDelay(2000, 4000);
-        const title = await page.title();
-        const currentUrl = page.url();
-        console.log(JSON.stringify({ success: true, title, url: currentUrl }));
+        const result = await smartNavigate(page, url);
+        console.log(JSON.stringify(result));
         break;
       }
 
@@ -397,6 +665,13 @@ Prerequisites:
         break;
       }
 
+      case 'scroll-all': {
+        await scrollToLoadAll(page);
+        const height = await page.evaluate(() => document.body.scrollHeight);
+        console.log(JSON.stringify({ scrolled: 'all', pageHeight: height }));
+        break;
+      }
+
       case 'click': {
         const selector = args[1];
         if (!selector) { console.error('Usage: click <selector>'); break; }
@@ -426,6 +701,12 @@ Prerequisites:
         break;
       }
 
+      case 'dismiss-cookies': {
+        const dismissed = await dismissCookieBanners(page);
+        console.log(JSON.stringify({ dismissed }));
+        break;
+      }
+
       case 'agents': {
         const brokerage = args[1];
         if (!brokerage) { console.error('Usage: agents <brokerage>'); break; }
@@ -436,28 +717,36 @@ Prerequisites:
           break;
         }
 
-        // Scroll through page first to trigger lazy loading
-        await humanScroll(page, 2000);
-        await randomDelay(1000, 2000);
+        // Smart scroll to trigger lazy loading
+        await scrollToLoadAll(page);
+        await randomDelay(500, 1000);
 
         let agents = await extractor(page);
 
-        // Deduplicate by name
-        const seen = new Set();
+        // Deduplicate by email (preferred) or name as fallback
+        const seenEmails = new Set();
+        const seenNames = new Set();
         agents = agents.filter(a => {
-          const key = a.full_name?.toLowerCase();
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
+          if (a.email) {
+            if (seenEmails.has(a.email)) return false;
+            seenEmails.add(a.email);
+            return true;
+          }
+          // For profile-visit brokerages (no email yet), dedup by profile URL or name
+          const key = a.profile_url || a.full_name?.toLowerCase();
+          if (!key || seenNames.has(key)) return false;
+          seenNames.add(key);
           return true;
         });
 
-        // Split names into first/last
+        // Split names into first/last (only if not already set)
         agents = agents.map(a => {
+          if (a.first_name && a.last_name) return a;
           const parts = a.full_name.trim().split(/\s+/);
           return {
             ...a,
-            first_name: parts[0] || '',
-            last_name: parts.slice(1).join(' ') || '',
+            first_name: a.first_name || parts[0] || '',
+            last_name: a.last_name || parts.slice(1).join(' ') || '',
           };
         });
 
@@ -497,45 +786,35 @@ Prerequisites:
       }
 
       case 'instagram-search': {
-        // Search for an Instagram user by handle
         const handle = args[1];
         if (!handle) { console.error('Usage: instagram-search <handle>'); break; }
-
-        // Make sure we're on Instagram
         const currentUrl = page.url();
         if (!currentUrl.includes('instagram.com')) {
           await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 30000 });
           await randomDelay(2000, 3000);
         }
-
-        // Click the search icon/area
         try {
           await page.click('a[href="/explore/"]').catch(() => null);
           await randomDelay(500, 800);
-          // Try the search input that appears
           const searchInput = await page.$('input[placeholder*="Search"]') || await page.$('input[aria-label*="Search"]');
           if (searchInput) {
             await searchInput.click();
             await randomDelay(300, 500);
-            // Clear any existing text
             await page.keyboard.down('Control');
             await page.keyboard.press('a');
             await page.keyboard.up('Control');
             await randomDelay(100, 200);
-            // Type the handle character by character
             for (const char of handle) {
               await page.keyboard.type(char, { delay: Math.random() * 90 + 60 });
             }
-            await randomDelay(1500, 2500); // Wait for search results
+            await randomDelay(1500, 2500);
             console.log(JSON.stringify({ searched: handle, success: true }));
           } else {
-            // Fallback: navigate directly to the profile
             await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2', timeout: 30000 });
             await randomDelay(2000, 3000);
             console.log(JSON.stringify({ searched: handle, success: true, method: 'direct_nav' }));
           }
         } catch (err) {
-          // Fallback: direct navigation
           await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'networkidle2', timeout: 30000 });
           await randomDelay(2000, 3000);
           console.log(JSON.stringify({ searched: handle, success: true, method: 'direct_nav' }));
@@ -544,17 +823,12 @@ Prerequisites:
       }
 
       case 'instagram-dm': {
-        // Send a DM to the currently viewed Instagram profile
         const messageText = args.slice(1).join(' ');
         if (!messageText) { console.error('Usage: instagram-dm <message text>'); break; }
-
         try {
-          // Click the "Message" button on the profile
           const messageBtn = await page.$('div[role="button"]:has-text("Message")') ||
                              await page.$x('//div[@role="button"][contains(., "Message")]').then(els => els[0]);
-
           if (!messageBtn) {
-            // Try alternative selectors
             const btns = await page.$$('div[role="button"]');
             let found = false;
             for (const btn of btns) {
@@ -572,32 +846,22 @@ Prerequisites:
           } else {
             await messageBtn.click();
           }
-
-          await randomDelay(2000, 3500); // Wait for DM thread to open
-
-          // Find the message input
+          await randomDelay(2000, 3500);
           const msgInput = await page.$('textarea[placeholder*="Message"]') ||
                            await page.$('div[role="textbox"][contenteditable="true"]') ||
                            await page.$('textarea');
-
           if (!msgInput) {
             console.error(JSON.stringify({ success: false, error: 'Message input not found' }));
             break;
           }
-
           await msgInput.click();
           await randomDelay(300, 600);
-
-          // Type message character by character (human-like)
           for (const char of messageText) {
             await page.keyboard.type(char, { delay: Math.random() * 90 + 60 });
           }
           await randomDelay(500, 1000);
-
-          // Press Enter to send
           await page.keyboard.press('Enter');
           await randomDelay(1000, 2000);
-
           console.log(JSON.stringify({ success: true, sent: messageText.substring(0, 50) + '...' }));
         } catch (err) {
           console.error(JSON.stringify({ success: false, error: err.message }));

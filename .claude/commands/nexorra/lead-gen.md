@@ -30,10 +30,11 @@ node scripts/chrome-tool.js url                        # Get current page URL
 
 ### kw (Keller Williams)
 ```
-https://kw.com/agents?agentName={city+name}&page={page}
+https://kw.com/agents?location={City}%2C+{ST}&page={page}
 ```
-Example: `https://kw.com/agents?agentName=Austin&page=1`
-- Spaces as `+` in city name. Page starts at 1.
+Example: `https://kw.com/agents?location=Houston%2C+TX&page=1`
+- Use `location=` param (NOT `agentName=` which searches by name not city)
+- Comma = `%2C`, space = `+`. Page starts at 1.
 - **Email on listing** — use `agents kw`
 
 ### exp (eXp Realty)
@@ -81,12 +82,12 @@ Example: `https://www.compass.com/agents/locations/austin-tx/12345/page-1/`
 
 ### sothebys (Sotheby's International Realty)
 ```
-US:  https://www.sothebysrealty.com/eng/associates/{city-slug}-{st}-area
-CA:  https://www.sothebysrealty.com/eng/associates/{city-slug}-{province}-can
+US:  https://www.sothebysrealty.com/eng/associates/{city-slug}-{st}-usa
+CA:  https://www.sothebysrealty.com/eng/associates/{city-slug}-{province}-canada
 ```
-Example US: `https://www.sothebysrealty.com/eng/associates/austin-tx-area`
-Example CA: `https://www.sothebysrealty.com/eng/associates/toronto-on-can`
-- City and state lowercase with hyphens.
+Example US: `https://www.sothebysrealty.com/eng/associates/houston-tx-usa`
+Example CA: `https://www.sothebysrealty.com/eng/associates/toronto-on-canada`
+- City and state lowercase with hyphens. Country suffix: `-usa` or `-canada` (NOT `-area` or `-can`)
 - **MUST visit profiles for email** — use `agents sothebys` for profile URLs, then visit each with `navigate` + `profile sothebys`
 
 ### URL Slug Rules
@@ -238,21 +239,13 @@ If Chrome is not connected, output this message and STOP:
 
 1. Construct the URL using the exact pattern:
    ```bash
-   node scripts/chrome-tool.js navigate "https://kw.com/agents?agentName=Austin&page=1"
+   node scripts/chrome-tool.js navigate "https://kw.com/agents?location=Austin%2C+TX&page=1"
    ```
+   The `navigate` command auto-handles timeouts, Cloudflare, and cookie banners.
 
-2. Wait for page to load:
+2. Extract agents (scroll-all loads the full page first):
    ```bash
-   node scripts/chrome-tool.js wait 5000
-   ```
-
-3. Scroll to trigger lazy loading:
-   ```bash
-   node scripts/chrome-tool.js scroll 2000
-   ```
-
-4. Extract agents:
-   ```bash
+   node scripts/chrome-tool.js scroll-all
    node scripts/chrome-tool.js agents kw
    ```
    Returns JSON array: `[{ "full_name": "...", "first_name": "...", "last_name": "...", "profile_url": "...", "email": ..., "phone": ..., "profile_picture_url": ..., "instagram_handle": ... }]`
@@ -343,13 +336,43 @@ Append results to `agents/memory/lead-gen.md`. If > 4KB, condense.
 
 ---
 
+## Cookie Banners & Consent
+
+The `navigate` command auto-dismisses common cookie banners (Osano, GDPR consent, etc.). If a banner persists:
+```bash
+node scripts/chrome-tool.js dismiss-cookies
+```
+**Always accept/dismiss cookies when asked** — they are needed for the site to work properly. If auto-dismiss fails, manually click the accept button:
+```bash
+node scripts/chrome-tool.js click ".osano-cm-accept-all"    # KW uses Osano
+node scripts/chrome-tool.js click "button[id*='accept']"     # Generic accept
+```
+
 ## Cloudflare Handling
 
-- Challenge page (title contains "Just a moment" or "Cloudflare"): `wait 25000`, then reload
-- Take a screenshot if unsure: `node scripts/chrome-tool.js screenshot /tmp/cloudflare.png`
+The `navigate` command auto-detects Cloudflare challenges and waits 25s for them to resolve. If you get a `blocked: true` response:
+- Try once more after 30s
+- If still blocked, mark `rate_limited` and move on
+
+**eXp Realty Cloudflare bypass:** Navigate to `https://www.exprealty.com` first and wait 8s to get cookies, THEN navigate to the agent search URL:
+```bash
+node scripts/chrome-tool.js navigate "https://www.exprealty.com"
+node scripts/chrome-tool.js wait 8000
+node scripts/chrome-tool.js navigate "https://www.exprealty.com/agents-search?page=1&country=US&m=f&location=Houston%2C+TX"
+```
+
 - Interactive CAPTCHA: stop immediately, report
 - Blocked twice on same brokerage: mark `rate_limited`, switch
 - Never retry a blocked URL more than twice per run
+
+## Lazy Loading
+
+Use `scroll-all` to trigger all lazy loading before extracting:
+```bash
+node scripts/chrome-tool.js scroll-all
+node scripts/chrome-tool.js agents kw
+```
+This is smarter than fixed scrolling — it detects when the page stops growing.
 
 ---
 
