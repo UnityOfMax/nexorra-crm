@@ -42,7 +42,7 @@ next-env.d.ts
 .env*.local
 
 # Agent runtime files (logs, state, learnings contain runtime data)
-logs/
+/logs/
 agents/state/
 agents/memory/
 
