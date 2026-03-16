@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Account, NotificationPreferences } from '@/types';
 import type { UserRole } from '@/types/agency';
 import { supabase } from '@/lib/supabase-browser';
-import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun } from 'lucide-react';
+import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
 // ── Section definitions with role-based visibility ──────────────────
@@ -24,6 +24,7 @@ const SETTINGS_SECTIONS: SectionDef[] = [
   { id: 'branding', label: 'Branding', icon: Globe, roles: ['agency_owner', 'agency_admin'], hideForSubAccounts: true },
   { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['agency_owner', 'agency_admin', 'client_owner', 'client_admin', 'client_user'] },
   { id: 'appearance', label: 'Appearance', icon: Palette, roles: ['agency_owner', 'agency_admin', 'client_owner', 'client_admin', 'client_user'] },
+  { id: 'claude-code', label: 'Claude Code', icon: Terminal, roles: ['agency_owner'], hideForSubAccounts: true },
 ];
 
 interface SettingsProps {
@@ -689,6 +690,73 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     </div>
   );
 
+  const renderClaudeCode = () => {
+    const claudeUrl = (account.settings as any)?.claude_code_url || '';
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+      if (claudeUrl) {
+        navigator.clipboard.writeText(claudeUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Claude Code Remote</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Access Claude Code for this project from claude.ai on any device.
+          </p>
+        </div>
+
+        <div className="card p-5 space-y-4">
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+            Session URL
+          </h4>
+          {claudeUrl ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-[#1c1c1e] rounded-lg text-gray-800 dark:text-gray-200 overflow-x-auto whitespace-nowrap">
+                  {claudeUrl}
+                </code>
+                <button
+                  onClick={handleCopy}
+                  className="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+                  title="Copy URL"
+                >
+                  {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <a
+                  href={claudeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                This URL updates automatically when the system restarts. Open it in your browser to access Claude Code remotely.
+              </p>
+            </div>
+          ) : (
+            <div className="px-4 py-6 text-center bg-gray-50 dark:bg-[#1c1c1e] rounded-lg">
+              <Terminal className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">No active session</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                The remote control service will start automatically on the next system boot.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'account-info': return renderAccountInfo();
@@ -698,6 +766,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
       case 'branding': return renderBranding();
       case 'notifications': return renderNotifications();
       case 'appearance': return renderAppearance();
+      case 'claude-code': return renderClaudeCode();
       default: return null;
     }
   };

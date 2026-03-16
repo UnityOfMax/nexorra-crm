@@ -46,7 +46,7 @@ const allSections: MenuSection[] = [
       { id: 'leads', label: 'Leads', icon: Target, agencyOnly: true, ownerAdminOnly: false },
       { id: 'campaigns', label: 'Email Campaigns', icon: Mail, agencyOnly: true, ownerAdminOnly: false },
       { id: 'instagram-conversations', label: 'Instagram DMs', icon: Instagram, agencyOnly: true, ownerAdminOnly: false },
-      { id: 'agency-analytics', label: 'Analytics', icon: BarChart2, agencyOnly: true, ownerAdminOnly: false },
+      { id: 'agency-analytics', label: 'Analytics', icon: BarChart2, agencyOnly: true, ownerAdminOnly: true },
       { id: 'command-center', label: 'Command Center', icon: Terminal, agencyOnly: true, ownerAdminOnly: true },
       { id: 'sub-accounts', label: 'Sub-Accounts', icon: Building2, agencyOnly: true, ownerAdminOnly: false },
     ],

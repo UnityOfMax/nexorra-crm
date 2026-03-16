@@ -24,22 +24,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Facebook OAuth scopes for ads and pages
+    // Facebook OAuth scopes — only request what the app needs and has approved.
+    // Meta integration is for ad metrics + campaign management.
+    // Instagram DMs are handled via Chrome/Peoples DM (no Graph API needed).
     const scopes = [
       'public_profile',
-      'email',
       'pages_show_list',
       'pages_read_engagement',
       'pages_manage_metadata',
-      'pages_messaging',
       'ads_read',
+      'ads_management',
       'leads_retrieval',
-      'instagram_basic',
-      'instagram_manage_messages',
-      'instagram_manage_comments'
     ].join(',');
 
-    const authUrl = new URL('https://www.facebook.com/v18.0/dialog/oauth');
+    const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
     authUrl.searchParams.set('client_id', facebookAppId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', scopes);
