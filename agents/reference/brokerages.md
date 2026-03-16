@@ -23,7 +23,7 @@ USE ONLY THESE 6 BROKERAGES. Do not guess or construct URLs for any other broker
 - `page` starts at 1, increment until 0 results
 - **MUST visit each profile for email** — use `agents exp` for profile URLs, then `navigate` + `profile exp` for each
 - Profile URL format: `https://www.exprealty.com/agents-search/{Name}_{uuid}`
-- **WARNING:** eXp has aggressive Cloudflare bot protection — may block automated access. If blocked, wait 30s and retry once. If still blocked, skip and move to next brokerage.
+- **Cloudflare protection:** eXp uses Cloudflare. Navigate to `https://www.exprealty.com` first and wait 8s to get cookies, THEN navigate to the agent search URL. This bypasses the challenge.
 - Works: US + Canada
 
 ## coldwellbanker (Coldwell Banker) — US ONLY
@@ -68,13 +68,17 @@ Cache it in state file under the city so you don't rediscover it.
 
 ## sothebys (Sotheby's International Realty)
 
-**STATUS: DEPRIORITIZED** — city-based URL filtering is broken (always shows worldwide results).
-If needed, try navigating and interacting with their search UI manually.
-
-**US Search URL:** `https://www.sothebysrealty.com/eng/associates/{city-slug}-{st}-area`
-**Example US:** `https://www.sothebysrealty.com/eng/associates/austin-tx-area`
-- **WARNING:** These URLs currently redirect to worldwide results — city filter does not work via URL
-- Skip this brokerage unless other brokerages don't yield enough leads for a city
+**US Search URL:** `https://www.sothebysrealty.com/eng/associates/{city-slug}-{st}-usa`
+**CA Search URL:** `https://www.sothebysrealty.com/eng/associates/{city-slug}-{province}-canada`
+**Example US:** `https://www.sothebysrealty.com/eng/associates/houston-tx-usa`
+**Example CA:** `https://www.sothebysrealty.com/eng/associates/toronto-on-canada`
+- City and state/province lowercase with hyphens
+- Country suffix: `-usa` for US, `-canada` for Canada (NOT `-area` or `-can`)
+- Pagination: look for pagination links or "Load More" on the page
+- **MUST visit each profile for email** — use `agents sothebys` for profile URLs, then `navigate` + `profile sothebys` for each
+- Profile URL format: `https://www.sothebysrealty.com/eng/associate/180-a-{id}/{name-slug}`
+- Email is `mailto:` link on profile page
+- Works: US + Canada
 
 ---
 
