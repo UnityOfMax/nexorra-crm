@@ -200,10 +200,15 @@ Read `agents/state/jeff-state.json` at session start. Write after every page of 
 **IMPORTANT: Do NOT run these in parallel. Do them sequentially.**
 
 First, read all state and reference files:
-1. Read `agents/state/jeff-state.json`. If missing, create default.
+1. Read `agents/state/jeff-state.json`. If missing, create default `{"mode":"both"}`.
 2. Read `agents/reference/brokerages.md`
 3. Read `agents/reference/city-pools.md`
 4. Read `agents/memory/lead-gen.md`
+
+**Check mode from jeff-state.json:**
+- `"mode": "email"` → run Phase 1 (email scraping) only. Skip Phase 2 entirely.
+- `"mode": "instagram"` → skip Phase 1 (Steps 2–6). Jump directly to Phase 2.
+- `"mode": "both"` → run both Phase 1 and Phase 2 (default behavior).
 
 Then **query Supabase for today's actual lead count** (the user may have deleted leads):
 ```bash

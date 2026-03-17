@@ -30,8 +30,9 @@ if [ "$RUNNING" != "0" ]; then
   fi
 fi
 
-# Calculate wake time: 9:50 AM tomorrow
-WAKE_AT=$(date -d "tomorrow 09:50" +%s)
+# Calculate wake time: 9:50 AM today (same day — script runs at 2 AM)
+# "today 09:50" = ~7h50m from now, which is correct
+WAKE_AT=$(date -d "today 09:50" +%s)
 echo "$(date): Sleeping until $(date -d @$WAKE_AT '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
 
 # Suspend to RAM — RTC hardware alarm wakes the machine

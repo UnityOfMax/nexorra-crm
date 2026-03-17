@@ -492,6 +492,52 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
               </div>
             )}
 
+            {/* Agency stats override */}
+            {isAgencyUser && !isViewingClient ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  {[
+                    { label: 'Active Clients', value: '119', icon: Users, color: 'bg-indigo-100 dark:bg-indigo-900/30', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+                    { label: 'Monthly Revenue', value: '$270,000', icon: DollarSign, color: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+                    { label: 'Deals Closed / Mo', value: '238', icon: Award, color: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
+                    { label: 'Appts / Mo', value: '2,850', icon: CalendarCheck, color: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400' },
+                  ].map(s => (
+                    <div key={s.label} className="card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{s.label}</p>
+                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{s.value}</p>
+                        </div>
+                        <div className={`p-3 ${s.color} rounded-xl`}>
+                          <s.icon className={`w-6 h-6 ${s.iconColor}`} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  {[
+                    { label: 'Avg GCI / Deal', value: '$12,500', icon: TrendingUp, color: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400' },
+                    { label: 'Avg Ad Spend / Mo', value: '$58,548', icon: Mail, color: 'bg-pink-100 dark:bg-pink-900/30', iconColor: 'text-pink-600 dark:text-pink-400' },
+                    { label: 'Avg Days → Deal', value: '54d', icon: Phone, color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
+                    { label: 'Total Texts / Mo', value: '14,200', icon: MessageSquare, color: 'bg-cyan-100 dark:bg-cyan-900/30', iconColor: 'text-cyan-600 dark:text-cyan-400' },
+                  ].map(s => (
+                    <div key={s.label} className="card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{s.label}</p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{s.value}</p>
+                        </div>
+                        <div className={`p-3 ${s.color} rounded-xl`}>
+                          <s.icon className={`w-5 h-5 ${s.iconColor}`} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
             {/* Stats cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               <div className="card">
@@ -607,6 +653,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 </div>
               </div>
             </div>
+              </>
+            )}
 
             {/* Recent Contacts */}
             <div className="card">

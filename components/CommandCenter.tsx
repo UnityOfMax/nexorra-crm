@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Terminal, Play, Clock, Brain, ChevronDown, ChevronUp,
-  RefreshCw, Power, PowerOff, Zap, Users, Code, BarChart3,
+  RefreshCw, Power, PowerOff, Zap, Code, BarChart3,
   X, AlertTriangle, Radio, Send, FileText, Loader2,
   DollarSign, Hash, Wrench, MessageSquare, Eye, EyeOff,
-  ChevronRight, ArrowRight, Square, StopCircle, Search, Bot,
+  ChevronRight, Square, Bot, Activity, Cpu, Wifi,
+  WifiOff, Database, Circle, TrendingUp, ChevronLeft,
+  LayoutGrid, Monitor, Layers, Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -73,23 +75,62 @@ interface ContentBlock {
   tool_use_id?: string;
 }
 
+interface SystemStatus {
+  daemon: ServiceStatus;
+  chrome: ServiceStatus;
+  cloudflared: ServiceStatus;
+  supabase: ServiceStatus;
+  runsToday: number;
+  activeCount: number;
+  monthlyCost: number;
+}
+
+interface ServiceStatus {
+  online: boolean;
+  uptime?: string;
+  label: string;
+}
+
 // --- Persona Config ---
 
 type PersonaKey = 'jeff' | 'stacey' | 'barny' | 'ops';
 
-const PERSONAS: Record<PersonaKey, { label: string; icon: string; gradient: string; description: string }> = {
-  jeff: { label: 'Jeff', icon: '🔍', gradient: 'from-blue-500 to-cyan-500', description: 'Lead Generation' },
-  stacey: { label: 'Stacey', icon: '✉️', gradient: 'from-purple-500 to-pink-500', description: 'Cold Email Outreach' },
-  barny: { label: 'Barny', icon: '🛠️', gradient: 'from-amber-500 to-orange-500', description: 'Development' },
-  ops: { label: 'Ops', icon: '📊', gradient: 'from-green-500 to-emerald-500', description: 'Operations & Client' },
+const PERSONAS: Record<PersonaKey, { label: string; icon: string; color: string; accent: string; description: string }> = {
+  jeff: {
+    label: 'Jeff',
+    icon: '🔍',
+    color: '#3b82f6',
+    accent: 'border-blue-500/40',
+    description: 'Lead Generation',
+  },
+  stacey: {
+    label: 'Stacey',
+    icon: '✉️',
+    color: '#a855f7',
+    accent: 'border-purple-500/40',
+    description: 'Cold Email Outreach',
+  },
+  barny: {
+    label: 'Barny',
+    icon: '🛠️',
+    color: '#f59e0b',
+    accent: 'border-amber-500/40',
+    description: 'Development',
+  },
+  ops: {
+    label: 'Ops',
+    icon: '📊',
+    color: '#22c55e',
+    accent: 'border-green-500/40',
+    description: 'Operations & Client',
+  },
 };
 
-const TABS: Array<{ key: string; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'jeff', label: 'Jeff' },
-  { key: 'stacey', label: 'Stacey' },
-  { key: 'barny', label: 'Barny' },
-  { key: 'ops', label: 'Ops' },
+const TABS: Array<{ key: string; label: string; icon: any }> = [
+  { key: 'jeff', label: 'Jeff', icon: '🔍' },
+  { key: 'stacey', label: 'Stacey', icon: '✉️' },
+  { key: 'barny', label: 'Barny', icon: '🛠️' },
+  { key: 'ops', label: 'Ops', icon: '📊' },
 ];
 
 // --- Formatters ---
@@ -140,45 +181,54 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function categoryColor(category: string): string {
-  switch (category) {
-    case 'jeff': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'stacey': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-    case 'barny': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-    case 'ops': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-    case 'client': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-    case 'nexorra': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-    case 'dev': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-    default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-  }
-}
-
-// Map any category to a persona key for grouping
 function getPersonaKey(category: string): PersonaKey {
   if (category === 'jeff') return 'jeff';
   if (category === 'stacey' || category === 'nexorra') return 'stacey';
   if (category === 'barny' || category === 'dev') return 'barny';
-  return 'ops'; // ops, client, anything else
+  return 'ops';
 }
 
-// Short display name: strip persona prefix (e.g. "Stacey — Upload" -> "Upload")
 function shortName(agent: AgentConfig): string {
   const parts = agent.name.split(' — ');
   return parts.length > 1 ? parts[1] : agent.name;
 }
 
-// --- Tool icon for log events ---
+// --- Tool icon ---
 function ToolIcon({ tool }: { tool: string }) {
-  const cls = 'w-3.5 h-3.5 flex-shrink-0';
+  const cls = 'w-3 h-3 flex-shrink-0';
   switch (tool) {
-    case 'Bash': return <Terminal className={`${cls} text-amber-500`} />;
-    case 'Read': return <Eye className={`${cls} text-blue-500`} />;
-    case 'Write': return <FileText className={`${cls} text-green-500`} />;
-    case 'Edit': return <FileText className={`${cls} text-purple-500`} />;
-    case 'Grep': return <Hash className={`${cls} text-pink-500`} />;
-    case 'Glob': return <Hash className={`${cls} text-cyan-500`} />;
-    default: return <Wrench className={`${cls} text-gray-500`} />;
+    case 'Bash': return <Terminal className={`${cls} text-amber-400`} />;
+    case 'Read': return <Eye className={`${cls} text-blue-400`} />;
+    case 'Write': return <FileText className={`${cls} text-green-400`} />;
+    case 'Edit': return <FileText className={`${cls} text-purple-400`} />;
+    case 'Grep': return <Hash className={`${cls} text-pink-400`} />;
+    case 'Glob': return <Hash className={`${cls} text-cyan-400`} />;
+    default: return <Wrench className={`${cls} text-zinc-500`} />;
   }
+}
+
+// --- Elapsed timer ---
+function useElapsed(startedAt: string | null, running: boolean): string {
+  const [elapsed, setElapsed] = useState('0s');
+  useEffect(() => {
+    if (!startedAt || !running) {
+      setElapsed('0s');
+      return;
+    }
+    const tick = () => {
+      const secs = Math.round((Date.now() - new Date(startedAt).getTime()) / 1000);
+      if (secs < 60) setElapsed(`${secs}s`);
+      else {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        setElapsed(`${m}m ${s}s`);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startedAt, running]);
+  return elapsed;
 }
 
 // --- Live Log Viewer ---
@@ -224,41 +274,41 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
 
   if (events.length === 0 && !isComplete) {
     return (
-      <div className="flex items-center gap-2 py-4 text-xs text-gray-500 dark:text-gray-400">
-        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Waiting for output...
+      <div className="flex items-center gap-2 py-3 text-xs text-zinc-500 font-mono">
+        <Loader2 className="w-3 h-3 animate-spin text-zinc-600" /> Awaiting output...
       </div>
     );
   }
 
   return (
-    <div ref={scrollRef} className={`overflow-y-auto space-y-1 ${maxHeight || 'max-h-96'}`}>
+    <div ref={scrollRef} className={`overflow-y-auto space-y-0.5 ${maxHeight || 'max-h-96'}`}>
       {events.map((event, i) => {
         if (event.type === 'system') return (
-          <div key={i} className="text-[10px] text-gray-400 dark:text-gray-600 font-mono py-0.5">Session started</div>
+          <div key={i} className="text-[10px] text-zinc-700 font-mono py-0.5">// session init</div>
         );
         if (event.type === 'stderr') return (
-          <div key={i} className="text-xs text-red-500 dark:text-red-400 font-mono py-0.5 flex items-start gap-1.5">
+          <div key={i} className="text-xs text-red-400 font-mono py-0.5 flex items-start gap-1.5">
             <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
             <span className="break-all">{event.text}</span>
           </div>
         );
         if (event.type === 'assistant' && event.blocks) return (
-          <div key={i} className="space-y-1">
+          <div key={i} className="space-y-0.5">
             {event.blocks.map((block, j) => {
               if (block.type === 'text' && block.text) return (
                 <div key={j} className="flex items-start gap-1.5 py-0.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap line-clamp-4 hover:line-clamp-none cursor-pointer">{block.text}</div>
+                  <MessageSquare className="w-3 h-3 text-zinc-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-zinc-300 font-mono whitespace-pre-wrap line-clamp-4 hover:line-clamp-none cursor-pointer leading-relaxed">{block.text}</div>
                 </div>
               );
               if (block.type === 'tool_use') return (
                 <div key={j} className="flex items-start gap-1.5 py-0.5 pl-0.5">
                   <ToolIcon tool={block.tool || ''} />
                   <div className="min-w-0">
-                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{block.tool}</span>
+                    <span className="text-[11px] font-semibold text-zinc-200 font-mono">{block.tool}</span>
                     {block.input && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-mono ml-1.5 break-all">
-                        {block.input.length > 120 ? block.input.slice(0, 120) + '...' : block.input}
+                      <span className="text-[11px] text-zinc-500 font-mono ml-1.5 break-all">
+                        {block.input.length > 120 ? block.input.slice(0, 120) + '…' : block.input}
                       </span>
                     )}
                   </div>
@@ -275,17 +325,17 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
               const isCollapsed = !collapsedResults.has(resultId);
               const output = block.output || '';
               return (
-                <div key={j} className="pl-5">
+                <div key={j} className="pl-4">
                   <button
                     onClick={() => output.length > 0 && toggleResult(resultId)}
-                    className={`flex items-center gap-1 text-[10px] ${block.is_error ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-500'} ${output.length > 0 ? 'cursor-pointer hover:underline' : ''}`}
+                    className={`flex items-center gap-1 text-[10px] font-mono ${block.is_error ? 'text-red-400' : 'text-green-500/70'} ${output.length > 0 ? 'cursor-pointer hover:underline' : ''}`}
                   >
                     {output.length > 0 && <ChevronRight className={`w-2.5 h-2.5 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />}
-                    {block.is_error ? 'Error' : 'OK'}
+                    {block.is_error ? '✗ error' : '✓ ok'}
                     {output.length > 0 && ` (${output.split('\n').length} lines)`}
                   </button>
                   {!isCollapsed && output.length > 0 && (
-                    <pre className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-500 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto bg-gray-50 dark:bg-[#1c1c1e] rounded p-1.5 break-all">{output.slice(0, 2000)}</pre>
+                    <pre className="mt-0.5 text-[10px] text-zinc-500 font-mono whitespace-pre-wrap max-h-28 overflow-y-auto bg-black/30 rounded p-1.5 break-all border border-white/5">{output.slice(0, 2000)}</pre>
                   )}
                 </div>
               );
@@ -293,180 +343,274 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
           </div>
         );
         if (event.type === 'result') return (
-          <div key={i} className={`flex items-center gap-3 py-2 mt-1 border-t text-xs font-medium ${event.is_error ? 'text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30' : 'text-green-600 dark:text-green-400 border-green-200 dark:border-green-900/30'}`}>
-            <span>{event.is_error ? 'Failed' : 'Completed'}</span>
-            {event.cost_usd != null && <span className="flex items-center gap-0.5"><DollarSign className="w-3 h-3" />{event.cost_usd.toFixed(4)}</span>}
-            {(event.input_tokens || event.output_tokens) && <span className="text-gray-500 dark:text-gray-400">{formatTokens(event.input_tokens)}in / {formatTokens(event.output_tokens)}out</span>}
-            {event.num_turns != null && <span className="text-gray-500 dark:text-gray-400">{event.num_turns} turns</span>}
+          <div key={i} className={`flex items-center gap-3 py-2 mt-1 border-t text-[11px] font-mono font-medium ${event.is_error ? 'text-red-400 border-red-900/40' : 'text-green-400 border-green-900/30'}`}>
+            <span>{event.is_error ? '✗ failed' : '✓ complete'}</span>
+            {event.cost_usd != null && <span className="text-zinc-500">${event.cost_usd.toFixed(4)}</span>}
+            {(event.input_tokens || event.output_tokens) && <span className="text-zinc-600">{formatTokens(event.input_tokens)}↑ {formatTokens(event.output_tokens)}↓</span>}
+            {event.num_turns != null && <span className="text-zinc-600">{event.num_turns} turns</span>}
           </div>
         );
         return null;
       })}
       {!isComplete && isActive && (
-        <div className="flex items-center gap-2 py-1 text-[10px] text-gray-400"><Loader2 className="w-3 h-3 animate-spin" /> Running...</div>
+        <div className="flex items-center gap-2 py-1 text-[10px] text-zinc-600 font-mono"><Loader2 className="w-3 h-3 animate-spin" /> processing…</div>
       )}
     </div>
   );
 }
 
-// --- Shannon Chat Section ---
+// --- System Status Bar ---
 
-function ShannonChat() {
-  const [prompt, setPrompt] = useState('');
-  const [sending, setSending] = useState(false);
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
-  const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
-  const [history, setHistory] = useState<Array<{ prompt: string; runId: string; status: string; run?: AgentRun }>>([]);
-  const [expandedRun, setExpandedRun] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+function SystemStatusBar({ agents }: { agents: AgentConfig[] }) {
+  const [status, setStatus] = useState<SystemStatus | null>(null);
+  const activeCount = agents.filter(a => a.latest_run?.status === 'running').length;
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const res = await fetch('/api/system/status');
+        if (res.ok) setStatus(await res.json());
+      } catch { /* graceful */ }
+    };
+    fetch_();
+    const id = setInterval(fetch_, 30000);
+    return () => clearInterval(id);
   }, []);
 
-  const pollForStatus = useCallback((runId: string, promptText: string) => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/agents/chat?runId=${runId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setActiveRun(data.run);
-        if (data.run?.status === 'completed' || data.run?.status === 'failed') {
-          stopPolling();
-          setSending(false);
-          setHistory(prev => [...prev, { prompt: promptText, runId, status: data.run.status, run: data.run }]);
-          setExpandedRun(runId);
-          setActiveRunId(null);
-          setActiveRun(null);
-        }
-      } catch { /* ignore */ }
-    }, 3000);
-  }, [stopPolling]);
-
-  useEffect(() => () => stopPolling(), [stopPolling]);
-
-  const sendPrompt = async () => {
-    if (!prompt.trim() || sending) return;
-    const text = prompt.trim();
-    setPrompt('');
-    setSending(true);
-    setActiveRun(null);
-    try {
-      const res = await fetch('/api/agents/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActiveRunId(data.runId);
-        setExpandedRun(data.runId);
-        toast.success('Shannon is on it');
-        pollForStatus(data.runId, text);
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to send');
-        setSending(false);
-      }
-    } catch {
-      toast.error('Failed to send');
-      setSending(false);
-    }
-  };
+  const services = [
+    { key: 'daemon', label: 'Daemon', online: status?.daemon?.online },
+    { key: 'chrome', label: 'Chrome', online: status?.chrome?.online },
+    { key: 'cloudflared', label: 'Tunnel', online: status?.cloudflared?.online },
+    { key: 'supabase', label: 'Supabase', online: status?.supabase?.online },
+  ];
 
   return (
-    <div className="card mb-6 border-l-2 border-l-primary-500">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center">
-          <Terminal className="w-4 h-4 text-white" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Shannon</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-500">Orchestrator</p>
-        </div>
-        {sending && <span className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Working...</span>}
+    <div
+      className="flex items-center gap-0 border-b overflow-x-auto"
+      style={{ background: '#0d0d0e', borderColor: 'rgba(255,255,255,0.05)' }}
+    >
+      {/* Left: brand */}
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-r shrink-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+        <span className="text-[11px] font-semibold tracking-widest uppercase text-zinc-300 font-mono">Mission Control</span>
       </div>
-      {history.map((h, i) => (
-        <div key={i} className="mb-3">
-          <div className="flex items-start gap-2 mb-1">
-            <ArrowRight className="w-3.5 h-3.5 text-primary-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-gray-800 dark:text-gray-200">{h.prompt}</p>
-          </div>
-          {h.run && (
-            <div className="flex items-center gap-3 ml-6 mb-1 text-[10px] text-gray-500 dark:text-gray-500">
-              <span className={h.status === 'completed' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{h.status}</span>
-              {h.run.cost_usd != null && <span>{formatCost(h.run.cost_usd)}</span>}
-              {h.run.input_tokens != null && <span>{formatTokens(h.run.input_tokens)}in / {formatTokens(h.run.output_tokens)}out</span>}
-              {h.run.duration_seconds != null && <span>{formatDuration(h.run.duration_seconds)}</span>}
-            </div>
-          )}
-          <div className="ml-6">
-            <button onClick={() => setExpandedRun(expandedRun === h.runId ? null : h.runId)} className="text-[10px] text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-0.5 mb-1">
-              <ChevronRight className={`w-2.5 h-2.5 transition-transform ${expandedRun === h.runId ? 'rotate-90' : ''}`} />
-              {expandedRun === h.runId ? 'Hide' : 'Show'} thinking logs
-            </button>
-            {expandedRun === h.runId && (
-              <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200/60 dark:border-white/5">
-                <LiveLogViewer runId={h.runId} isActive={false} maxHeight="max-h-80" />
-              </div>
-            )}
-          </div>
+
+      {/* Services */}
+      {services.map((svc) => (
+        <div
+          key={svc.key}
+          className="flex items-center gap-2 px-4 py-2.5 border-r shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              svc.online === undefined ? 'bg-zinc-600' :
+              svc.online ? 'bg-green-500' : 'bg-red-500'
+            }`}
+            style={svc.online ? { boxShadow: '0 0 6px #22c55e' } : {}}
+          />
+          <span className="text-[11px] text-zinc-400 font-mono">{svc.label}</span>
+          <span className={`text-[10px] font-mono ${
+            svc.online === undefined ? 'text-zinc-700' :
+            svc.online ? 'text-green-500/70' : 'text-red-500/70'
+          }`}>
+            {svc.online === undefined ? 'unknown' : svc.online ? 'online' : 'offline'}
+          </span>
         </div>
       ))}
-      {activeRunId && (
-        <div className="mb-3">
-          <div className="bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-3 border border-gray-200/60 dark:border-white/5">
-            <LiveLogViewer runId={activeRunId} isActive={true} maxHeight="max-h-96" />
-          </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right: vitals */}
+      <div className="flex items-center gap-0 shrink-0">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <Activity className="w-3 h-3 text-zinc-600" />
+          <span className="text-[11px] font-mono text-zinc-400">Active</span>
+          <span className={`text-[11px] font-mono font-semibold ${activeCount > 0 ? 'text-green-400' : 'text-zinc-600'}`}>{activeCount}</span>
         </div>
-      )}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); } }}
-          placeholder="Ask Shannon to do something..."
-          disabled={sending}
-          className="input flex-1 text-sm"
-        />
-        <button onClick={sendPrompt} disabled={!prompt.trim() || sending} className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 text-sm font-medium">
-          <Send className="w-4 h-4" />
-        </button>
+        {status?.runsToday !== undefined && (
+          <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            <TrendingUp className="w-3 h-3 text-zinc-600" />
+            <span className="text-[11px] font-mono text-zinc-400">Runs today</span>
+            <span className="text-[11px] font-mono font-semibold text-zinc-300">{status.runsToday}</span>
+          </div>
+        )}
+        {status?.monthlyCost !== undefined && (
+          <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            <DollarSign className="w-3 h-3 text-zinc-600" />
+            <span className="text-[11px] font-mono text-zinc-400">Month</span>
+            <span className="text-[11px] font-mono font-semibold text-zinc-300">${status.monthlyCost.toFixed(2)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// --- Progress Bar ---
+// --- Active Agent Card (large, prominent) ---
 
-function ProgressBar({ agent }: { agent: AgentConfig }) {
-  const run = agent.latest_run;
-  if (!run || run.status !== 'running') return null;
-
-  const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
-  const estimated = agent.avg_duration || 120;
-  const progress = Math.min(99, Math.round((elapsed / estimated) * 100));
-  const overEstimate = elapsed > estimated;
+function ActiveAgentCard({
+  agent,
+  onStop,
+  onViewLogs,
+  showLogs,
+}: {
+  agent: AgentConfig;
+  onStop: () => void;
+  onViewLogs: () => void;
+  showLogs: boolean;
+}) {
+  const run = agent.latest_run!;
+  const elapsed = useElapsed(run.started_at, true);
 
   return (
-    <div className="w-full mb-2">
-      <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[10px] text-gray-500 dark:text-gray-400">{formatDuration(Math.round(elapsed))}</span>
-        <span className={`text-[10px] font-medium ${overEstimate ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'}`}>{progress}%</span>
-      </div>
-      <div className="w-full h-1.5 bg-gray-200 dark:bg-[#3a3a3c] rounded-full overflow-hidden">
+    <div
+      className="relative rounded-xl overflow-hidden"
+      style={{
+        background: '#111113',
+        border: '1px solid rgba(34, 197, 94, 0.25)',
+        boxShadow: '0 0 24px rgba(34, 197, 94, 0.06), inset 0 0 0 1px rgba(34, 197, 94, 0.08)',
+      }}
+    >
+      {/* Green glow top edge */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px"
+        style={{ background: 'linear-gradient(90deg, transparent, #22c55e60, transparent)' }}
+      />
+
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
+                style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.2)' }}
+              >
+                {PERSONAS[getPersonaKey(agent.category)].icon}
+              </div>
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500"
+                style={{ boxShadow: '0 0 8px #22c55e', animation: 'pulse 2s infinite' }}
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-white">{shortName(agent)}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-mono" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.2)' }}>RUNNING</span>
+              </div>
+              <span className="text-[11px] text-zinc-500 font-mono">{agent.description || agent.category}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-lg font-mono font-bold text-green-400">{elapsed}</span>
+          </div>
+        </div>
+
+        {/* Live mini-log preview */}
         <div
-          className={`h-full rounded-full transition-all duration-1000 ease-linear ${overEstimate ? 'bg-amber-400 animate-pulse' : 'bg-gradient-to-r from-blue-400 to-blue-500'}`}
-          style={{ width: `${progress}%` }}
-        />
+          className="rounded-lg p-2.5 mb-3 font-mono text-[10px] leading-relaxed overflow-hidden"
+          style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.04)', maxHeight: 60 }}
+        >
+          <LiveLogPreview runId={run.id} />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onStop}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+            style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+          >
+            <Square className="w-3 h-3" /> Stop
+          </button>
+          <button
+            onClick={onViewLogs}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${showLogs ? 'text-blue-300' : 'text-zinc-400'}`}
+            style={{
+              background: showLogs ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.04)',
+              border: showLogs ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <Eye className="w-3 h-3" /> {showLogs ? 'Hide logs' : 'Live logs'}
+          </button>
+        </div>
+
+        {/* Expanded log viewer */}
+        {showLogs && (
+          <div
+            className="mt-3 rounded-lg p-3"
+            style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.05)' }}
+          >
+            <LiveLogViewer runId={run.id} isActive={true} maxHeight="max-h-64" />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// --- Agent Card ---
+// --- Live log preview (last 2 lines) ---
+function LiveLogPreview({ runId }: { runId: string }) {
+  const [lastLines, setLastLines] = useState<string[]>([]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetch_ = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/logs?runId=${runId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const events: LogEvent[] = data.events || [];
+      const lines: string[] = [];
+      for (let i = events.length - 1; i >= 0 && lines.length < 2; i--) {
+        const ev = events[i];
+        if (ev.type === 'assistant' && ev.blocks) {
+          for (let j = ev.blocks.length - 1; j >= 0 && lines.length < 2; j--) {
+            const b = ev.blocks[j];
+            if (b.type === 'tool_use') {
+              lines.unshift(`  ${b.tool} ${(b.input || '').slice(0, 60)}`);
+            } else if (b.type === 'text' && b.text) {
+              lines.unshift(`> ${b.text.slice(0, 80).replace(/\n/g, ' ')}`);
+            }
+          }
+        }
+      }
+      setLastLines(lines.length > 0 ? lines : ['…']);
+    } catch { /* ignore */ }
+  }, [runId]);
+
+  useEffect(() => {
+    fetch_();
+    pollRef.current = setInterval(fetch_, 2000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [fetch_]);
+
+  return (
+    <>
+      {lastLines.map((l, i) => (
+        <div key={i} className={`truncate ${i === lastLines.length - 1 ? 'text-zinc-300' : 'text-zinc-600'}`}>{l}</div>
+      ))}
+    </>
+  );
+}
+
+// --- Idle panel ---
+function AllIdlePanel() {
+  return (
+    <div
+      className="rounded-xl flex items-center justify-center py-8"
+      style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div className="flex items-center gap-3 text-zinc-600">
+        <span className="w-2 h-2 rounded-full bg-zinc-700 animate-pulse" style={{ animationDuration: '3s' }} />
+        <span className="text-sm font-mono">All systems idle</span>
+      </div>
+    </div>
+  );
+}
+
+// --- Agent Card (grid) ---
 
 function AgentCard({
   agent,
@@ -497,110 +641,194 @@ function AgentCard({
 }) {
   const run = agent.latest_run;
   const isRunning = run?.status === 'running';
+  const isFailed = run?.status === 'failed';
   const webhook = agent.schedule === 'webhook';
+  const persona = PERSONAS[getPersonaKey(agent.category)];
+
+  // Left accent bar color
+  const accentColor = !agent.is_enabled
+    ? '#3f3f46'
+    : isRunning
+    ? '#22c55e'
+    : isFailed
+    ? '#ef4444'
+    : webhook || run?.status === 'completed'
+    ? '#3b82f6'
+    : '#3f3f46';
 
   return (
-    <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl border border-gray-200/60 dark:border-white/5 p-3 shadow-sm">
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            !agent.is_enabled ? 'bg-gray-400 dark:bg-gray-600' :
-            isRunning ? 'bg-yellow-400 animate-pulse' :
-            webhook ? 'bg-green-500' :
-            run?.status === 'completed' ? 'bg-green-500' :
-            run?.status === 'failed' ? 'bg-red-500' :
-            'bg-gray-300 dark:bg-gray-600'
-          }`} />
-          <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{shortName(agent)}</span>
+    <div
+      className="relative rounded-xl overflow-hidden flex"
+      style={{
+        background: '#111113',
+        border: '1px solid rgba(255,255,255,0.05)',
+        boxShadow: isRunning ? '0 0 16px rgba(34,197,94,0.06)' : 'none',
+      }}
+    >
+      {/* Left accent bar */}
+      <div className="w-0.5 shrink-0 rounded-l-full" style={{ background: accentColor, opacity: agent.is_enabled ? 1 : 0.4 }} />
+
+      <div className="flex-1 p-3 min-w-0">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {isRunning && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" style={{ boxShadow: '0 0 5px #22c55e', animation: 'pulse 2s infinite' }} />
+              )}
+              <span className="text-[13px] font-semibold text-zinc-100 truncate">{shortName(agent)}</span>
+            </div>
+            {agent.description && (
+              <p className="text-[11px] text-zinc-600 truncate">{agent.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(255,255,255,0.04)', color: '#71717a', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              {formatSchedule(agent.schedule)}
+            </span>
+            {agent.schedule && (
+              <button
+                onClick={onToggle}
+                className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+                style={{
+                  color: agent.is_enabled ? '#22c55e' : '#52525b',
+                  background: agent.is_enabled ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.03)',
+                }}
+                title={agent.is_enabled ? 'Disable' : 'Enable'}
+              >
+                {agent.is_enabled ? <Power className="w-3 h-3" /> : <PowerOff className="w-3 h-3" />}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-gray-400">{formatSchedule(agent.schedule)}</span>
-          {agent.schedule && (
-            <button onClick={onToggle} className={`p-1 rounded transition-colors ${agent.is_enabled ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
-              {agent.is_enabled ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
+
+        {/* Status row */}
+        <div className="flex items-center gap-3 mb-2">
+          {run?.started_at && (
+            <span className="text-[10px] text-zinc-600 font-mono">{timeAgo(run.started_at)}</span>
+          )}
+          {run?.duration_seconds != null && !isRunning && (
+            <span className="text-[10px] text-zinc-600 font-mono">{formatDuration(run.duration_seconds)}</span>
+          )}
+          {run?.cost_usd != null && (
+            <span className="text-[10px] text-zinc-600 font-mono">${run.cost_usd.toFixed(4)}</span>
+          )}
+          {run?.status === 'failed' && (
+            <span className="text-[10px] text-red-500 font-mono">failed</span>
+          )}
+          {run?.status === 'completed' && !isRunning && (
+            <span className="text-[10px] text-green-600 font-mono">ok</span>
+          )}
+        </div>
+
+        {/* Error */}
+        {isFailed && run?.error_message && (
+          <div
+            className="flex items-start gap-1.5 p-1.5 mb-2 rounded text-[10px] text-red-400 font-mono"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}
+          >
+            <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5 shrink-0" />
+            <span className="line-clamp-2">{run.error_message}</span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 pt-2 border-t flex-wrap" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          {agent.prompt_file && !isRunning && (
+            <button
+              onClick={onTrigger}
+              disabled={isTriggering || !agent.is_enabled}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}
+            >
+              {isTriggering ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Play className="w-2.5 h-2.5" />}
+              Run
+            </button>
+          )}
+          {isRunning && (
+            <button
+              onClick={onStop}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all"
+              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+            >
+              <Square className="w-2.5 h-2.5" /> Stop
+            </button>
+          )}
+          {run?.id && (
+            <button
+              onClick={onViewLogs}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
+              style={{
+                background: showLogs ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)',
+                color: showLogs ? '#60a5fa' : '#71717a',
+                border: `1px solid ${showLogs ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)'}`,
+              }}
+            >
+              <Eye className="w-2.5 h-2.5" />
+              Logs
+            </button>
+          )}
+          <button
+            onClick={onViewHistory}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
+            style={{ background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            {expanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+            History
+          </button>
+          {agent.memory_file && (
+            <button
+              onClick={onViewMemory}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all"
+              style={{ background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.06)' }}
+              title="View memory"
+            >
+              <Brain className="w-2.5 h-2.5" />
             </button>
           )}
         </div>
-      </div>
 
-      {/* Meta row */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[10px] text-gray-500 dark:text-gray-500">{agent.model}</span>
-        {run && run.started_at && <span className="text-[10px] text-gray-400">{timeAgo(run.started_at)}</span>}
-        {run && run.duration_seconds != null && !isRunning && <span className="text-[10px] text-gray-400">{formatDuration(run.duration_seconds)}</span>}
-        {run && run.cost_usd != null && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><DollarSign className="w-2.5 h-2.5" />{run.cost_usd.toFixed(4)}</span>}
-      </div>
-
-      {/* Progress bar for running */}
-      <ProgressBar agent={agent} />
-
-      {/* Error */}
-      {run?.status === 'failed' && run.error_message && (
-        <div className="flex items-start gap-1.5 p-1.5 mb-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-[10px] text-red-700 dark:text-red-300">
-          <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-          <span className="line-clamp-1">{run.error_message}</span>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 pt-1.5 border-t border-gray-100 dark:border-white/5 flex-wrap">
-        {agent.prompt_file && !isRunning && (
-          <button onClick={onTrigger} disabled={isTriggering || !agent.is_enabled}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary-500/10 text-primary-700 dark:text-primary-400 hover:bg-primary-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Play className="w-3 h-3" /> Run
-          </button>
+        {/* Inline logs */}
+        {showLogs && run?.id && (
+          <div
+            className="mt-2.5 rounded-lg p-2.5"
+            style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.04)' }}
+          >
+            <LiveLogViewer runId={run.id} isActive={isRunning} maxHeight="max-h-48" />
+          </div>
         )}
-        {isRunning && (
-          <button onClick={onStop}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20 transition-colors">
-            <Square className="w-3 h-3" /> Stop
-          </button>
-        )}
-        {run?.id && (
-          <button onClick={onViewLogs} className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md transition-colors ${showLogs ? 'bg-primary-500/20 text-primary-700 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#3a3a3c]'}`}>
-            {showLogs ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />} Logs
-          </button>
-        )}
-        <button onClick={onViewHistory} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#3a3a3c] transition-colors">
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} History
-        </button>
-        {agent.memory_file && (
-          <button onClick={onViewMemory} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#3a3a3c] transition-colors">
-            <Brain className="w-3 h-3" />
-          </button>
+
+        {/* History */}
+        {expanded && (
+          <div className="mt-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            {runHistory.length === 0 ? (
+              <p className="text-[10px] text-zinc-700 font-mono py-1">no history</p>
+            ) : (
+              <div className="space-y-0.5">
+                {runHistory.slice(0, 5).map(r => (
+                  <div key={r.id} className="flex items-center gap-2.5 text-[10px] text-zinc-600 font-mono py-0.5">
+                    <span className={`${r.status === 'completed' ? 'text-green-500' : r.status === 'failed' ? 'text-red-500' : 'text-yellow-500'}`}>
+                      {r.status === 'completed' ? '✓' : r.status === 'failed' ? '✗' : '~'}
+                    </span>
+                    <span>{new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <span>{formatDuration(r.duration_seconds)}</span>
+                    {r.cost_usd != null && <span>{formatCost(r.cost_usd)}</span>}
+                    <button
+                      onClick={() => logModal(r.id, `${agent.name} — ${new Date(r.started_at).toLocaleString()}`)}
+                      className="ml-auto text-blue-500 hover:underline"
+                    >
+                      view
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Inline logs */}
-      {showLogs && run?.id && (
-        <div className="mt-2 bg-gray-50 dark:bg-[#1c1c1e] rounded-lg p-2 border border-gray-200/60 dark:border-white/5">
-          <LiveLogViewer runId={run.id} isActive={isRunning} maxHeight="max-h-48" />
-        </div>
-      )}
-
-      {/* History */}
-      {expanded && (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5">
-          {runHistory.length === 0 ? (
-            <p className="text-[10px] text-gray-500 py-1">No history</p>
-          ) : (
-            <div className="space-y-0.5">
-              {runHistory.slice(0, 5).map(r => (
-                <div key={r.id} className="flex items-center gap-2 text-[10px] text-gray-600 dark:text-gray-400 py-0.5">
-                  <span className={`font-medium ${r.status === 'completed' ? 'text-green-600 dark:text-green-400' : r.status === 'failed' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600'}`}>
-                    {r.status === 'completed' ? 'OK' : r.status === 'failed' ? 'Fail' : 'Run'}
-                  </span>
-                  <span>{new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                  <span>{formatDuration(r.duration_seconds)}</span>
-                  {r.cost_usd != null && <span>{formatCost(r.cost_usd)}</span>}
-                  <button onClick={() => logModal(r.id, `${agent.name} — ${new Date(r.started_at).toLocaleString()}`)} className="text-primary-600 dark:text-primary-400 hover:underline ml-auto">View</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -609,14 +837,28 @@ function AgentCard({
 
 function LogViewerModal({ runId, title, onClose }: { runId: string; title: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-200/60 dark:border-white/5">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl max-w-4xl w-full mx-4 flex flex-col"
+        style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.07)', maxHeight: '85vh', boxShadow: '0 40px 80px rgba(0,0,0,0.6)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Run Logs</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{title}</p>
+            <h3 className="font-semibold text-zinc-100 text-sm">Run Logs</h3>
+            <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{title}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color: '#71717a', background: 'rgba(255,255,255,0.04)' }}
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           <LiveLogViewer runId={runId} isActive={false} maxHeight="max-h-none" />
@@ -626,46 +868,237 @@ function LogViewerModal({ runId, title, onClose }: { runId: string; title: strin
   );
 }
 
-// --- Persona Section ---
+// --- Shannon Panel ---
 
-function PersonaSection({
-  personaKey,
-  agents,
-  renderCard,
-}: {
-  personaKey: PersonaKey;
-  agents: AgentConfig[];
-  renderCard: (agent: AgentConfig) => React.ReactNode;
-}) {
-  const persona = PERSONAS[personaKey];
-  if (agents.length === 0) return null;
+interface ChatMessage {
+  role: 'user' | 'shannon';
+  text: string;
+  timestamp: Date;
+  runId?: string;
+  run?: AgentRun;
+  status?: string;
+}
 
-  const runningCount = agents.filter(a => a.latest_run?.status === 'running').length;
+function ShannonPanel() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  const pollForStatus = useCallback((runId: string, userText: string) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/agents/chat?runId=${runId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.run?.status === 'completed' || data.run?.status === 'failed') {
+          stopPolling();
+          setSending(false);
+          setActiveRunId(null);
+          setMessages(prev => [...prev, {
+            role: 'shannon',
+            text: data.run.status === 'completed' ? 'Done.' : 'Failed.',
+            timestamp: new Date(),
+            runId,
+            run: data.run,
+            status: data.run.status,
+          }]);
+          setExpandedRun(runId);
+          setTimeout(() => {
+            if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }, 50);
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+  }, [stopPolling]);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || sending) return;
+    const text = input.trim();
+    setInput('');
+    setSending(true);
+    setMessages(prev => [...prev, { role: 'user', text, timestamp: new Date() }]);
+    try {
+      const res = await fetch('/api/agents/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveRunId(data.runId);
+        setExpandedRun(data.runId);
+        toast.success('Shannon is working on it');
+        pollForStatus(data.runId, text);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to send');
+        setSending(false);
+        setMessages(prev => [...prev, { role: 'shannon', text: 'Error: ' + (err.error || 'Failed'), timestamp: new Date() }]);
+      }
+    } catch {
+      toast.error('Failed to send');
+      setSending(false);
+    }
+  };
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${persona.gradient} flex items-center justify-center text-base`}>
-          {persona.icon}
+    <div
+      className="flex flex-col h-full"
+      style={{ background: '#0f0f11', borderLeft: '1px solid rgba(255,255,255,0.05)' }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-4 py-3 border-b shrink-0"
+        style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+      >
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', boxShadow: '0 0 16px rgba(59,130,246,0.3)' }}
+        >
+          <Bot className="w-4 h-4 text-white" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{persona.label}</h3>
-            <span className="text-xs text-gray-500 dark:text-gray-500">{persona.description}</span>
+            <span className="text-sm font-semibold text-zinc-100">Shannon</span>
+            <span
+              className="text-[9px] font-mono px-1.5 py-0.5 rounded tracking-wider"
+              style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}
+            >
+              ORCHESTRATOR
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" style={{ boxShadow: '0 0 4px #22c55e' }} />
+            <span className="text-[10px] text-zinc-500">available</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-          {runningCount > 0 && (
-            <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              {runningCount} active
-            </span>
-          )}
-          <span>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
-        </div>
+        {sending && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+            <span className="text-[10px] text-blue-400 font-mono">working…</span>
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {agents.map(agent => renderCard(agent))}
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 py-8">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}
+            >
+              <MessageSquare className="w-5 h-5 text-blue-500/50" />
+            </div>
+            <p className="text-[12px] text-zinc-700 text-center font-mono leading-relaxed">
+              Ask Shannon to run an agent,<br />review the pipeline, or analyze data.
+            </p>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i}>
+            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className="max-w-[85%] rounded-xl px-3 py-2 text-[12px] leading-relaxed"
+                style={
+                  msg.role === 'user'
+                    ? { background: 'rgba(59,130,246,0.18)', color: '#bfdbfe', border: '1px solid rgba(59,130,246,0.2)' }
+                    : { background: 'rgba(255,255,255,0.05)', color: '#d4d4d8', border: '1px solid rgba(255,255,255,0.07)' }
+                }
+              >
+                {msg.text}
+              </div>
+            </div>
+            {/* Run stats for shannon messages */}
+            {msg.role === 'shannon' && msg.run && (
+              <div className="mt-1 ml-0">
+                <div className="flex items-center gap-3 text-[10px] text-zinc-600 font-mono mb-1">
+                  <span className={msg.status === 'completed' ? 'text-green-500' : 'text-red-500'}>{msg.status}</span>
+                  {msg.run.cost_usd != null && <span>${msg.run.cost_usd.toFixed(4)}</span>}
+                  {msg.run.duration_seconds != null && <span>{formatDuration(msg.run.duration_seconds)}</span>}
+                  {msg.runId && (
+                    <button
+                      onClick={() => setExpandedRun(expandedRun === msg.runId ? null : msg.runId!)}
+                      className="flex items-center gap-0.5 text-blue-500 hover:underline ml-auto"
+                    >
+                      <ChevronRight className={`w-2.5 h-2.5 transition-transform ${expandedRun === msg.runId ? 'rotate-90' : ''}`} />
+                      {expandedRun === msg.runId ? 'hide' : 'show'} logs
+                    </button>
+                  )}
+                </div>
+                {expandedRun === msg.runId && msg.runId && (
+                  <div
+                    className="rounded-lg p-2.5 mt-1"
+                    style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)' }}
+                  >
+                    <LiveLogViewer runId={msg.runId} isActive={false} maxHeight="max-h-64" />
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Active run logs */}
+            {msg.role === 'user' && activeRunId && i === messages.length - 1 && (
+              <div className="mt-2">
+                <div
+                  className="rounded-lg p-2.5"
+                  style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <LiveLogViewer runId={activeRunId} isActive={true} maxHeight="max-h-64" />
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Input */}
+      <div className="p-3 shrink-0 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div
+          className="flex items-end gap-2 rounded-xl p-2"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Ask Shannon…"
+            disabled={sending}
+            rows={1}
+            className="flex-1 bg-transparent text-[13px] text-zinc-200 placeholder:text-zinc-700 resize-none outline-none leading-relaxed font-mono disabled:opacity-50"
+            style={{ maxHeight: 100 }}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || sending}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ background: 'rgba(59,130,246,0.8)', color: 'white' }}
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <p className="text-[9px] text-zinc-800 font-mono text-center mt-1.5">shift+enter for newline</p>
       </div>
     </div>
   );
@@ -675,7 +1108,7 @@ function PersonaSection({
 
 export default function CommandCenter() {
   const [agents, setAgents] = useState<AgentConfig[]>([]);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<PersonaKey>('jeff');
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [runHistory, setRunHistory] = useState<Record<string, AgentRun[]>>({});
   const [memoryModal, setMemoryModal] = useState<{ agentId: string; file: string; content: string } | null>(null);
@@ -683,6 +1116,8 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [triggeringAgent, setTriggeringAgent] = useState<string | null>(null);
   const [viewingLogs, setViewingLogs] = useState<string | null>(null);
+  const [shannonMobileOpen, setShannonMobileOpen] = useState(false);
+  const [agentModes, setAgentModes] = useState<Record<string, 'email' | 'both' | 'instagram'>>({});
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -771,21 +1206,25 @@ export default function CommandCenter() {
     }
   };
 
-  // Filter out shannon (separate section) and group by persona
-  const nonShannon = agents.filter(a => a.id !== 'shannon');
-  const activeCount = nonShannon.filter(a => a.latest_run?.status === 'running').length;
+  const setAgentMode = async (personaId: 'jeff' | 'stacey', mode: 'email' | 'both' | 'instagram') => {
+    setAgentModes(prev => ({ ...prev, [personaId]: mode }));
+    try {
+      await fetch('/api/agents/state', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: personaId, mode }),
+      });
+    } catch { /* graceful — endpoint may not exist */ }
+  };
 
-  // Group agents by persona
+  const nonShannon = agents.filter(a => a.id !== 'shannon');
+  const runningAgents = nonShannon.filter(a => a.latest_run?.status === 'running');
+
   const grouped: Record<PersonaKey, AgentConfig[]> = { jeff: [], stacey: [], barny: [], ops: [] };
   for (const agent of nonShannon) {
     const key = getPersonaKey(agent.category);
     grouped[key].push(agent);
   }
-
-  // Filter by active tab
-  const visiblePersonas: PersonaKey[] = activeTab === 'all'
-    ? (['jeff', 'stacey', 'barny', 'ops'] as PersonaKey[])
-    : [activeTab as PersonaKey];
 
   const renderCard = (agent: AgentConfig) => (
     <AgentCard
@@ -806,87 +1245,242 @@ export default function CommandCenter() {
   );
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><RefreshCw className="w-6 h-6 animate-spin text-gray-400" /></div>;
+    return (
+      <div
+        className="flex items-center justify-center"
+        style={{ height: '100%', background: '#0a0a0b' }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+          <span className="text-[11px] text-zinc-600 font-mono tracking-wider">INITIALIZING</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Command Center</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {activeCount > 0 && <span className="text-yellow-600 dark:text-yellow-400 font-medium">{activeCount} active</span>}
-            {activeCount > 0 && ' · '}
-            {nonShannon.length} agents
-          </p>
+    <div
+      className="flex flex-col min-h-screen"
+      style={{
+        background: '#0a0a0b',
+        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.015) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+      }}
+    >
+      {/* Status Bar */}
+      <SystemStatusBar agents={nonShannon} />
+
+      {/* Main content */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Left: Agent area (65%) */}
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Active Agents Section */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">Active Now</span>
+                  {runningAgents.length > 0 && (
+                    <span
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}
+                    >
+                      {runningAgents.length} running
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setLoading(true); fetchAgents(); }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono transition-colors"
+                  style={{ color: '#52525b', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <RefreshCw className="w-3 h-3" /> Refresh
+                </button>
+              </div>
+
+              {runningAgents.length === 0 ? (
+                <AllIdlePanel />
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {runningAgents.map(agent => (
+                    <ActiveAgentCard
+                      key={agent.id}
+                      agent={agent}
+                      onStop={() => agent.latest_run && stopRun(agent.latest_run.id)}
+                      onViewLogs={() => setViewingLogs(viewingLogs === agent.id ? null : agent.id)}
+                      showLogs={viewingLogs === agent.id}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Agent Grid */}
+            <div>
+              <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600 block mb-3">Agent Roster</span>
+
+              {/* Tabs */}
+              <div
+                className="flex items-center gap-1 p-1 rounded-xl mb-4 inline-flex"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+              >
+                {TABS.map(tab => {
+                  const isActive = activeTab === tab.key;
+                  const tabRunning = (grouped[tab.key as PersonaKey] || []).filter(a => a.latest_run?.status === 'running').length;
+                  const persona = PERSONAS[tab.key as PersonaKey];
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key as PersonaKey)}
+                      className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                      style={{
+                        background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                        color: isActive ? '#f4f4f5' : '#71717a',
+                        border: isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
+                      }}
+                    >
+                      <span className="text-[13px]">{tab.icon}</span>
+                      <span>{tab.label}</span>
+                      <span
+                        className="text-[9px] font-mono"
+                        style={{ color: isActive ? '#71717a' : '#3f3f46' }}
+                      >
+                        {(grouped[tab.key as PersonaKey] || []).length}
+                      </span>
+                      {tabRunning > 0 && (
+                        <span
+                          className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500"
+                          style={{ boxShadow: '0 0 6px #22c55e' }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mode toggle for jeff/stacey */}
+              {(activeTab === 'jeff' || activeTab === 'stacey') && (
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-[10px] text-zinc-600 font-mono">Mode</span>
+                  <div
+                    className="flex items-center rounded-lg p-0.5"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    {(['email', 'both', 'instagram'] as const).map(mode => {
+                      const isSelected = (agentModes[activeTab] || 'email') === mode;
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => setAgentMode(activeTab as 'jeff' | 'stacey', mode)}
+                          className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all capitalize font-mono"
+                          style={{
+                            background: isSelected ? 'rgba(59,130,246,0.2)' : 'transparent',
+                            color: isSelected ? '#60a5fa' : '#52525b',
+                            border: isSelected ? '1px solid rgba(59,130,246,0.25)' : '1px solid transparent',
+                          }}
+                        >
+                          {mode}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Agent cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                {(grouped[activeTab] || []).map(agent => renderCard(agent))}
+                {(grouped[activeTab] || []).length === 0 && (
+                  <div
+                    className="col-span-full rounded-xl py-8 flex items-center justify-center text-[12px] text-zinc-700 font-mono"
+                    style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.04)' }}
+                  >
+                    no agents in this group
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-        <button onClick={() => { setLoading(true); fetchAgents(); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#3a3a3c] dark:hover:bg-[#4a4a4c] text-gray-700 dark:text-gray-300 transition-colors">
-          <RefreshCw className="w-4 h-4" /> Refresh
+
+        {/* Right: Shannon panel (35%) — desktop */}
+        <div
+          className="hidden lg:flex flex-col shrink-0"
+          style={{ width: '35%', minWidth: 320, maxWidth: 480 }}
+        >
+          <ShannonPanel />
+        </div>
+      </div>
+
+      {/* Mobile Shannon: floating button + modal */}
+      <div className="lg:hidden">
+        <button
+          onClick={() => setShannonMobileOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-xl text-sm font-semibold"
+          style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', boxShadow: '0 8px 32px rgba(59,130,246,0.4)' }}
+        >
+          <Bot className="w-4 h-4" />
+          Ask Shannon
         </button>
+
+        {shannonMobileOpen && (
+          <div
+            className="fixed inset-0 z-50 flex flex-col"
+            style={{ background: '#0a0a0b' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              <span className="text-sm font-semibold text-zinc-100">Shannon</span>
+              <button
+                onClick={() => setShannonMobileOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg"
+                style={{ background: 'rgba(255,255,255,0.05)', color: '#71717a' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ShannonPanel />
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Shannon */}
-      <ShannonChat />
-
-      {/* Persona Tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-gray-200/60 dark:border-white/5">
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.key;
-          const tabAgents = tab.key === 'all' ? nonShannon : grouped[tab.key as PersonaKey] || [];
-          const tabRunning = tabAgents.filter(a => a.latest_run?.status === 'running').length;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors relative ${
-                isActive
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-200/60 dark:hover:border-white/8'
-              }`}
-            >
-              {tab.label}
-              {tab.key !== 'all' && (
-                <span className="ml-1.5 text-[10px] text-gray-400">{(grouped[tab.key as PersonaKey] || []).length}</span>
-              )}
-              {tabRunning > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Persona Sections */}
-      {visiblePersonas.map(key => (
-        <PersonaSection
-          key={key}
-          personaKey={key}
-          agents={grouped[key]}
-          renderCard={renderCard}
-        />
-      ))}
 
       {/* Memory modal */}
       {memoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setMemoryModal(null)}>
-          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-gray-200/60 dark:border-white/5">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+          style={{ background: 'rgba(0,0,0,0.75)' }}
+          onClick={() => setMemoryModal(null)}
+        >
+          <div
+            className="rounded-2xl max-w-2xl w-full mx-4 flex flex-col"
+            style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.07)', maxHeight: '80vh', boxShadow: '0 40px 80px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Agent Memory</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{memoryModal.file}</p>
+                <h3 className="font-semibold text-zinc-100 text-sm">Agent Memory</h3>
+                <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{memoryModal.file}</p>
               </div>
-              <button onClick={() => setMemoryModal(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
+              <button
+                onClick={() => setMemoryModal(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg"
+                style={{ color: '#71717a', background: 'rgba(255,255,255,0.04)' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 font-mono leading-relaxed">{memoryModal.content}</pre>
+              <pre className="whitespace-pre-wrap text-[12px] text-zinc-300 font-mono leading-relaxed">{memoryModal.content}</pre>
             </div>
           </div>
         </div>
       )}
 
       {/* Log viewer modal */}
-      {logModal && <LogViewerModal runId={logModal.runId} title={logModal.title} onClose={() => setLogModal(null)} />}
+      {logModal && (
+        <LogViewerModal runId={logModal.runId} title={logModal.title} onClose={() => setLogModal(null)} />
+      )}
     </div>
   );
 }

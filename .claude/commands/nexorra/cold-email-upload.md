@@ -14,6 +14,15 @@ Upload unpushed leads from Supabase to Instantly campaign with Loom link distrib
 
 ## Workflow
 
+### Step 0: Check Stacey's mode
+Read `agents/state/stacey-state.json`. If missing, use default `{"mode":"both"}`.
+
+- `"mode": "email"` → run Steps 1–6 only. Skip Step 7 (Instagram DMs).
+- `"mode": "instagram"` → skip Steps 1–6 (email upload). Jump directly to Step 7.
+- `"mode": "both"` → run all steps (default).
+
+---
+
 ### Step 1: Fetch unpushed leads (scraped before today)
 Only push leads scraped **yesterday or earlier** — Jeff scrapes today's leads at 10 AM and they should be pushed the following day after the nightly quality check has run.
 

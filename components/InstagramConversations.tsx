@@ -267,7 +267,7 @@ export default function InstagramConversations() {
 
       <div className={`flex gap-4 ${selectedId ? 'items-start' : ''}`}>
         {/* Conversation list */}
-        <div className={`card p-0 overflow-hidden ${selectedId ? 'w-[420px] flex-shrink-0' : 'flex-1'}`}>
+        <div className={`card p-0 overflow-hidden ${selectedId ? 'hidden md:block w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -401,10 +401,16 @@ export default function InstagramConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
             {/* Thread header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={() => { setSelectedId(null); setThread([]); }}
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                   <User className="w-4 h-4 text-white" />
                 </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Users, Search, Building2, Globe, MapPin, Mail } from 'lucide-react';
+import { Plus, Users, Search, Building2, Globe, MapPin, Mail, LayoutGrid, Table2 } from 'lucide-react';
 import CreateSubAccountModal from './CreateSubAccountModal';
 import ClientDetailModal from './ClientDetailModal';
+import ClientDataTable from './ClientDataTable';
 
 interface SubAccountsViewProps {
   agencyId: string;
@@ -27,6 +28,7 @@ export default function SubAccountsView({ agencyId, userId, onRefreshClientAccou
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<SubAccount | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   useEffect(() => {
     loadSubAccounts();
@@ -60,16 +62,35 @@ export default function SubAccountsView({ agencyId, userId, onRefreshClientAccou
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sub-Accounts</h2>
-          <p className="text-gray-600 mt-1">Manage all your sub-accounts and their users</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sub-Accounts</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage all your sub-accounts and their users</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Add Sub-Account
-        </button>
+        <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-white/8 rounded-xl p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-white/15 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'table' ? 'bg-white dark:bg-white/15 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+            >
+              <Table2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Data Table</span>
+            </button>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Add Sub-Account</span>
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -127,8 +148,11 @@ export default function SubAccountsView({ agencyId, userId, onRefreshClientAccou
         </div>
       </div>
 
+      {/* Data Table view */}
+      {viewMode === 'table' && <ClientDataTable />}
+
       {/* Sub-Account Grid */}
-      {loading ? (
+      {viewMode === 'grid' && (loading ? (
         <div className="text-center py-12">
           <div className="text-gray-500">Loading sub-accounts...</div>
         </div>
@@ -233,7 +257,7 @@ export default function SubAccountsView({ agencyId, userId, onRefreshClientAccou
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* Modals */}
       {showCreateModal && (

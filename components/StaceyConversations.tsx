@@ -199,7 +199,7 @@ export default function StaceyConversations() {
 
       <div className={`flex gap-4 ${selectedId ? 'items-start' : ''}`}>
         {/* Conversation list */}
-        <div className={`card p-0 overflow-hidden ${selectedId ? 'w-[420px] flex-shrink-0' : 'flex-1'}`}>
+        <div className={`card p-0 overflow-hidden ${selectedId ? 'hidden md:block w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -328,14 +328,22 @@ export default function StaceyConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
             {/* Thread header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={() => { setSelectedId(null); setThread([]); }}
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
               <div className="min-w-0">
                 <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {selectedConv.lead?.full_name || selectedConv.lead_email}
                 </p>
                 <p className="text-xs text-gray-400 truncate">{selectedConv.lead_email}</p>
+              </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedConv.status]}`}>
