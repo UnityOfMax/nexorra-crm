@@ -93,7 +93,7 @@ interface ServiceStatus {
 
 // --- Persona Config ---
 
-type PersonaKey = 'jeff' | 'stacey' | 'barny' | 'ops';
+type PersonaKey = 'jeff' | 'stacey' | 'barny' | 'ops' | 'shannon';
 
 const PERSONAS: Record<PersonaKey, { label: string; icon: string; color: string; accent: string; description: string }> = {
   jeff: {
@@ -124,6 +124,13 @@ const PERSONAS: Record<PersonaKey, { label: string; icon: string; color: string;
     accent: 'border-green-500/40',
     description: 'Operations & Client',
   },
+  shannon: {
+    label: 'Shannon',
+    icon: '🤖',
+    color: '#3b82f6',
+    accent: 'border-blue-500/40',
+    description: 'Orchestrator',
+  },
 };
 
 const TABS: Array<{ key: string; label: string; icon: any }> = [
@@ -131,6 +138,7 @@ const TABS: Array<{ key: string; label: string; icon: any }> = [
   { key: 'stacey', label: 'Stacey', icon: '✉️' },
   { key: 'barny', label: 'Barny', icon: '🛠️' },
   { key: 'ops', label: 'Ops', icon: '📊' },
+  { key: 'shannon', label: 'Shannon', icon: '🤖' },
 ];
 
 // --- Formatters ---
@@ -281,10 +289,10 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
   }
 
   return (
-    <div ref={scrollRef} className={`overflow-y-auto space-y-0.5 ${maxHeight || 'max-h-96'}`}>
+    <div ref={scrollRef} className={`overflow-y-auto space-y-0.5 ${maxHeight || 'max-h-96'}`} style={{ background: '#0a0a0a' }}>
       {events.map((event, i) => {
         if (event.type === 'system') return (
-          <div key={i} className="text-[10px] text-zinc-700 font-mono py-0.5">// session init</div>
+          <div key={i} className="text-[10px] text-[#22c55e]/40 font-mono py-0.5">// session init</div>
         );
         if (event.type === 'stderr') return (
           <div key={i} className="text-xs text-red-400 font-mono py-0.5 flex items-start gap-1.5">
@@ -298,16 +306,16 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
               if (block.type === 'text' && block.text) return (
                 <div key={j} className="flex items-start gap-1.5 py-0.5">
                   <MessageSquare className="w-3 h-3 text-zinc-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-[11px] text-zinc-300 font-mono whitespace-pre-wrap line-clamp-4 hover:line-clamp-none cursor-pointer leading-relaxed">{block.text}</div>
+                  <div className="text-[11px] text-[#22c55e] font-mono whitespace-pre-wrap line-clamp-4 hover:line-clamp-none cursor-pointer leading-relaxed">{block.text}</div>
                 </div>
               );
               if (block.type === 'tool_use') return (
                 <div key={j} className="flex items-start gap-1.5 py-0.5 pl-0.5">
                   <ToolIcon tool={block.tool || ''} />
                   <div className="min-w-0">
-                    <span className="text-[11px] font-semibold text-zinc-200 font-mono">{block.tool}</span>
+                    <span className="text-[11px] font-semibold text-[#22c55e] font-mono">{block.tool}</span>
                     {block.input && (
-                      <span className="text-[11px] text-zinc-500 font-mono ml-1.5 break-all">
+                      <span className="text-[11px] text-[#22c55e]/40 font-mono ml-1.5 break-all">
                         {block.input.length > 120 ? block.input.slice(0, 120) + '…' : block.input}
                       </span>
                     )}
@@ -335,7 +343,7 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
                     {output.length > 0 && ` (${output.split('\n').length} lines)`}
                   </button>
                   {!isCollapsed && output.length > 0 && (
-                    <pre className="mt-0.5 text-[10px] text-zinc-500 font-mono whitespace-pre-wrap max-h-28 overflow-y-auto bg-black/30 rounded p-1.5 break-all border border-white/5">{output.slice(0, 2000)}</pre>
+                    <pre className="mt-0.5 text-[10px] text-zinc-500 font-mono whitespace-pre-wrap max-h-28 overflow-y-auto bg-black/60 rounded p-1.5 break-all border border-white/5">{output.slice(0, 2000)}</pre>
                   )}
                 </div>
               );
@@ -353,7 +361,9 @@ function LiveLogViewer({ runId, isActive, maxHeight }: { runId: string; isActive
         return null;
       })}
       {!isComplete && isActive && (
-        <div className="flex items-center gap-2 py-1 text-[10px] text-zinc-600 font-mono"><Loader2 className="w-3 h-3 animate-spin" /> processing…</div>
+        <div className="py-1 text-[10px] font-mono text-[#22c55e]">
+          <span className="animate-pulse">█</span>
+        </div>
       )}
     </div>
   );
@@ -385,12 +395,9 @@ function SystemStatusBar({ agents }: { agents: AgentConfig[] }) {
   ];
 
   return (
-    <div
-      className="flex items-center gap-0 border-b overflow-x-auto"
-      style={{ background: '#0d0d0e', borderColor: 'rgba(255,255,255,0.05)' }}
-    >
+    <div className="flex items-center gap-0 overflow-x-auto bg-gray-50 dark:bg-[#0d0d0e] border-b border-gray-200 dark:border-white/5">
       {/* Left: brand */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-r shrink-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-r border-gray-200 dark:border-white/5 shrink-0">
         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
         <span className="text-[11px] font-semibold tracking-widest uppercase text-zinc-300 font-mono">Mission Control</span>
       </div>
@@ -399,8 +406,7 @@ function SystemStatusBar({ agents }: { agents: AgentConfig[] }) {
       {services.map((svc) => (
         <div
           key={svc.key}
-          className="flex items-center gap-2 px-4 py-2.5 border-r shrink-0"
-          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+          className="flex items-center gap-2 px-4 py-2.5 border-r border-gray-200 dark:border-white/5 shrink-0"
         >
           <span
             className={`w-1.5 h-1.5 rounded-full shrink-0 ${
@@ -424,20 +430,20 @@ function SystemStatusBar({ agents }: { agents: AgentConfig[] }) {
 
       {/* Right: vitals */}
       <div className="flex items-center gap-0 shrink-0">
-        <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-2 px-4 py-2.5 border-l border-gray-200 dark:border-white/5">
           <Activity className="w-3 h-3 text-zinc-600" />
           <span className="text-[11px] font-mono text-zinc-400">Active</span>
           <span className={`text-[11px] font-mono font-semibold ${activeCount > 0 ? 'text-green-400' : 'text-zinc-600'}`}>{activeCount}</span>
         </div>
         {status?.runsToday !== undefined && (
-          <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <div className="flex items-center gap-2 px-4 py-2.5 border-l border-gray-200 dark:border-white/5">
             <TrendingUp className="w-3 h-3 text-zinc-600" />
             <span className="text-[11px] font-mono text-zinc-400">Runs today</span>
             <span className="text-[11px] font-mono font-semibold text-zinc-300">{status.runsToday}</span>
           </div>
         )}
         {status?.monthlyCost !== undefined && (
-          <div className="flex items-center gap-2 px-4 py-2.5 border-l" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <div className="flex items-center gap-2 px-4 py-2.5 border-l border-gray-200 dark:border-white/5">
             <DollarSign className="w-3 h-3 text-zinc-600" />
             <span className="text-[11px] font-mono text-zinc-400">Month</span>
             <span className="text-[11px] font-mono font-semibold text-zinc-300">${status.monthlyCost.toFixed(2)}</span>
@@ -466,9 +472,8 @@ function ActiveAgentCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden"
+      className="relative rounded-xl overflow-hidden bg-white dark:bg-[#111113]"
       style={{
-        background: '#111113',
         border: '1px solid rgba(34, 197, 94, 0.25)',
         boxShadow: '0 0 24px rgba(34, 197, 94, 0.06), inset 0 0 0 1px rgba(34, 197, 94, 0.08)',
       }}
@@ -511,7 +516,7 @@ function ActiveAgentCard({
         {/* Live mini-log preview */}
         <div
           className="rounded-lg p-2.5 mb-3 font-mono text-[10px] leading-relaxed overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.04)', maxHeight: 60 }}
+          style={{ background: '#080808', border: '1px solid rgba(255,255,255,0.04)', maxHeight: 60 }}
         >
           <LiveLogPreview runId={run.id} />
         </div>
@@ -599,8 +604,8 @@ function LiveLogPreview({ runId }: { runId: string }) {
 function AllIdlePanel() {
   return (
     <div
-      className="rounded-xl flex items-center justify-center py-8"
-      style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.04)' }}
+      className="rounded-xl flex items-center justify-center py-8 bg-gray-50 dark:bg-[#111113]"
+      style={{ border: '1px solid rgba(255,255,255,0.04)' }}
     >
       <div className="flex items-center gap-3 text-zinc-600">
         <span className="w-2 h-2 rounded-full bg-zinc-700 animate-pulse" style={{ animationDuration: '3s' }} />
@@ -658,13 +663,13 @@ function AgentCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden flex"
+      className={`relative rounded-xl overflow-hidden flex bg-white dark:bg-[#111113] border border-gray-200 dark:border-white/5 ${isRunning ? 'cc-scan-overlay' : ''}`}
       style={{
-        background: '#111113',
-        border: '1px solid rgba(255,255,255,0.05)',
-        boxShadow: isRunning ? '0 0 16px rgba(34,197,94,0.06)' : 'none',
+        boxShadow: isRunning ? '0 0 16px rgba(34,197,94,0.08)' : 'none',
+        ...(isRunning ? { borderColor: 'rgba(34,197,94,0.3)' } : {}),
       }}
     >
+      {isRunning && <div className="absolute top-0 left-0 right-0 h-px cc-shimmer-line" />}
       {/* Left accent bar */}
       <div className="w-0.5 shrink-0 rounded-l-full" style={{ background: accentColor, opacity: agent.is_enabled ? 1 : 0.4 }} />
 
@@ -676,7 +681,7 @@ function AgentCard({
               {isRunning && (
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" style={{ boxShadow: '0 0 5px #22c55e', animation: 'pulse 2s infinite' }} />
               )}
-              <span className="text-[13px] font-semibold text-zinc-100 truncate">{shortName(agent)}</span>
+              <span className="text-[13px] font-semibold text-gray-900 dark:text-zinc-100 truncate">{shortName(agent)}</span>
             </div>
             {agent.description && (
               <p className="text-[11px] text-zinc-600 truncate">{agent.description}</p>
@@ -795,7 +800,7 @@ function AgentCard({
         {showLogs && run?.id && (
           <div
             className="mt-2.5 rounded-lg p-2.5"
-            style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.04)' }}
+            style={{ background: '#080808', border: '1px solid rgba(255,255,255,0.04)' }}
           >
             <LiveLogViewer runId={run.id} isActive={isRunning} maxHeight="max-h-48" />
           </div>
@@ -1116,7 +1121,6 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [triggeringAgent, setTriggeringAgent] = useState<string | null>(null);
   const [viewingLogs, setViewingLogs] = useState<string | null>(null);
-  const [shannonMobileOpen, setShannonMobileOpen] = useState(false);
   const [agentModes, setAgentModes] = useState<Record<string, 'email' | 'both' | 'instagram'>>({});
 
   const fetchAgents = useCallback(async () => {
@@ -1220,7 +1224,7 @@ export default function CommandCenter() {
   const nonShannon = agents.filter(a => a.id !== 'shannon');
   const runningAgents = nonShannon.filter(a => a.latest_run?.status === 'running');
 
-  const grouped: Record<PersonaKey, AgentConfig[]> = { jeff: [], stacey: [], barny: [], ops: [] };
+  const grouped: Record<PersonaKey, AgentConfig[]> = { jeff: [], stacey: [], barny: [], ops: [], shannon: [] };
   for (const agent of nonShannon) {
     const key = getPersonaKey(agent.category);
     grouped[key].push(agent);
@@ -1247,8 +1251,8 @@ export default function CommandCenter() {
   if (loading) {
     return (
       <div
-        className="flex items-center justify-center"
-        style={{ height: '100%', background: '#0a0a0b' }}
+        className="flex items-center justify-center bg-white dark:bg-[#0a0a0b]"
+        style={{ height: '100%' }}
       >
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
@@ -1259,187 +1263,146 @@ export default function CommandCenter() {
   }
 
   return (
-    <div
-      className="flex flex-col min-h-screen"
-      style={{
-        background: '#0a0a0b',
-        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.015) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-      }}
-    >
+    <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0b] cc-dot-grid">
       {/* Status Bar */}
       <SystemStatusBar agents={nonShannon} />
 
       {/* Main content */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left: Agent area (65%) */}
-        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Active Agents Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">Active Now</span>
-                  {runningAgents.length > 0 && (
-                    <span
-                      className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                      style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}
-                    >
-                      {runningAgents.length} running
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => { setLoading(true); fetchAgents(); }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono transition-colors"
-                  style={{ color: '#52525b', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
-                >
-                  <RefreshCw className="w-3 h-3" /> Refresh
-                </button>
-              </div>
-
-              {runningAgents.length === 0 ? (
-                <AllIdlePanel />
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {runningAgents.map(agent => (
-                    <ActiveAgentCard
-                      key={agent.id}
-                      agent={agent}
-                      onStop={() => agent.latest_run && stopRun(agent.latest_run.id)}
-                      onViewLogs={() => setViewingLogs(viewingLogs === agent.id ? null : agent.id)}
-                      showLogs={viewingLogs === agent.id}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Agent Grid */}
-            <div>
-              <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600 block mb-3">Agent Roster</span>
-
-              {/* Tabs */}
-              <div
-                className="flex items-center gap-1 p-1 rounded-xl mb-4 inline-flex"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
-              >
-                {TABS.map(tab => {
-                  const isActive = activeTab === tab.key;
-                  const tabRunning = (grouped[tab.key as PersonaKey] || []).filter(a => a.latest_run?.status === 'running').length;
-                  const persona = PERSONAS[tab.key as PersonaKey];
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key as PersonaKey)}
-                      className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                      style={{
-                        background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
-                        color: isActive ? '#f4f4f5' : '#71717a',
-                        border: isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
-                      }}
-                    >
-                      <span className="text-[13px]">{tab.icon}</span>
-                      <span>{tab.label}</span>
+        {activeTab === 'shannon' ? (
+          <div className="flex-1 overflow-hidden">
+            <ShannonPanel />
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* Active Agents Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">Active Now</span>
+                    {runningAgents.length > 0 && (
                       <span
-                        className="text-[9px] font-mono"
-                        style={{ color: isActive ? '#71717a' : '#3f3f46' }}
+                        className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}
                       >
-                        {(grouped[tab.key as PersonaKey] || []).length}
+                        {runningAgents.length} running
                       </span>
-                      {tabRunning > 0 && (
-                        <span
-                          className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500"
-                          style={{ boxShadow: '0 0 6px #22c55e' }}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Mode toggle for jeff/stacey */}
-              {(activeTab === 'jeff' || activeTab === 'stacey') && (
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[10px] text-zinc-600 font-mono">Mode</span>
-                  <div
-                    className="flex items-center rounded-lg p-0.5"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                  >
-                    {(['email', 'both', 'instagram'] as const).map(mode => {
-                      const isSelected = (agentModes[activeTab] || 'email') === mode;
-                      return (
-                        <button
-                          key={mode}
-                          onClick={() => setAgentMode(activeTab as 'jeff' | 'stacey', mode)}
-                          className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all capitalize font-mono"
-                          style={{
-                            background: isSelected ? 'rgba(59,130,246,0.2)' : 'transparent',
-                            color: isSelected ? '#60a5fa' : '#52525b',
-                            border: isSelected ? '1px solid rgba(59,130,246,0.25)' : '1px solid transparent',
-                          }}
-                        >
-                          {mode}
-                        </button>
-                      );
-                    })}
+                    )}
                   </div>
-                </div>
-              )}
-
-              {/* Agent cards grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
-                {(grouped[activeTab] || []).map(agent => renderCard(agent))}
-                {(grouped[activeTab] || []).length === 0 && (
-                  <div
-                    className="col-span-full rounded-xl py-8 flex items-center justify-center text-[12px] text-zinc-700 font-mono"
-                    style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.04)' }}
+                  <button
+                    onClick={() => { setLoading(true); fetchAgents(); }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono transition-colors"
+                    style={{ color: '#52525b', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
                   >
-                    no agents in this group
+                    <RefreshCw className="w-3 h-3" /> Refresh
+                  </button>
+                </div>
+
+                {runningAgents.length === 0 ? (
+                  <AllIdlePanel />
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {runningAgents.map(agent => (
+                      <ActiveAgentCard
+                        key={agent.id}
+                        agent={agent}
+                        onStop={() => agent.latest_run && stopRun(agent.latest_run.id)}
+                        onViewLogs={() => setViewingLogs(viewingLogs === agent.id ? null : agent.id)}
+                        showLogs={viewingLogs === agent.id}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Right: Shannon panel (35%) — desktop */}
-        <div
-          className="hidden lg:flex flex-col shrink-0"
-          style={{ width: '35%', minWidth: 320, maxWidth: 480 }}
-        >
-          <ShannonPanel />
-        </div>
-      </div>
+              {/* Agent Grid */}
+              <div>
+                <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-600 block mb-3">Agent Roster</span>
 
-      {/* Mobile Shannon: floating button + modal */}
-      <div className="lg:hidden">
-        <button
-          onClick={() => setShannonMobileOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-xl text-sm font-semibold"
-          style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', boxShadow: '0 8px 32px rgba(59,130,246,0.4)' }}
-        >
-          <Bot className="w-4 h-4" />
-          Ask Shannon
-        </button>
+                {/* Tabs */}
+                <div
+                  className="flex items-center gap-1 p-1 rounded-xl mb-4 inline-flex"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  {TABS.map(tab => {
+                    const isActive = activeTab === tab.key;
+                    const isShannon = tab.key === 'shannon';
+                    const tabRunning = isShannon ? 0 : (grouped[tab.key as PersonaKey] || []).filter(a => a.latest_run?.status === 'running').length;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key as PersonaKey)}
+                        className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                        style={{
+                          background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                          color: isActive ? '#f4f4f5' : '#71717a',
+                          border: isActive ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
+                        }}
+                      >
+                        <span className="text-[13px]">{tab.icon}</span>
+                        <span>{tab.label}</span>
+                        {!isShannon && (
+                          <span
+                            className="text-[9px] font-mono"
+                            style={{ color: isActive ? '#71717a' : '#3f3f46' }}
+                          >
+                            {(grouped[tab.key as PersonaKey] || []).length}
+                          </span>
+                        )}
+                        {tabRunning > 0 && (
+                          <span
+                            className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500"
+                            style={{ boxShadow: '0 0 6px #22c55e' }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-        {shannonMobileOpen && (
-          <div
-            className="fixed inset-0 z-50 flex flex-col"
-            style={{ background: '#0a0a0b' }}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-              <span className="text-sm font-semibold text-zinc-100">Shannon</span>
-              <button
-                onClick={() => setShannonMobileOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg"
-                style={{ background: 'rgba(255,255,255,0.05)', color: '#71717a' }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <ShannonPanel />
+                {/* Mode toggle for jeff/stacey */}
+                {(activeTab === 'jeff' || activeTab === 'stacey') && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-[10px] text-zinc-600 font-mono">Mode</span>
+                    <div
+                      className="flex items-center rounded-lg p-0.5"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      {(['email', 'both', 'instagram'] as const).map(mode => {
+                        const isSelected = (agentModes[activeTab] || 'email') === mode;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => setAgentMode(activeTab as 'jeff' | 'stacey', mode)}
+                            className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all capitalize font-mono"
+                            style={{
+                              background: isSelected ? 'rgba(59,130,246,0.2)' : 'transparent',
+                              color: isSelected ? '#60a5fa' : '#52525b',
+                              border: isSelected ? '1px solid rgba(59,130,246,0.25)' : '1px solid transparent',
+                            }}
+                          >
+                            {mode}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Agent cards grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                  {(grouped[activeTab] || []).map(agent => renderCard(agent))}
+                  {(grouped[activeTab] || []).length === 0 && (
+                    <div
+                      className="col-span-full rounded-xl py-8 flex items-center justify-center text-[12px] text-zinc-700 font-mono"
+                      style={{ background: '#111113', border: '1px solid rgba(255,255,255,0.04)' }}
+                    >
+                      no agents in this group
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

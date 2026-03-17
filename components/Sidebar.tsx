@@ -14,6 +14,7 @@ interface MenuItem {
   icon: any;
   agencyOnly: boolean;
   ownerAdminOnly: boolean;
+  hideForAgency?: boolean;
 }
 
 interface MenuSection {
@@ -27,7 +28,7 @@ const allSections: MenuSection[] = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, agencyOnly: false, ownerAdminOnly: false },
       { id: 'contacts', label: 'Contacts', icon: Users, agencyOnly: false, ownerAdminOnly: false },
-      { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false, ownerAdminOnly: false },
+      { id: 'conversations', label: 'Conversations', icon: MessageSquare, agencyOnly: false, ownerAdminOnly: false, hideForAgency: true },
       { id: 'calendar', label: 'Calendar', icon: Calendar, agencyOnly: false, ownerAdminOnly: false },
       { id: 'pipelines', label: 'Opportunities', icon: KanbanSquare, agencyOnly: false, ownerAdminOnly: false },
     ],
@@ -176,6 +177,7 @@ export default function Sidebar({
       ...section,
       items: section.items.filter((item) => {
         if (item.agencyOnly && isViewingClient) return false;
+        if (item.hideForAgency && !isViewingClient) return false;
         if (item.ownerAdminOnly && userRole && !OWNER_ADMIN_ROLES.includes(userRole)) return false;
         return true;
       }),

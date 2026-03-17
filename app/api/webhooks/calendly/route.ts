@@ -166,6 +166,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Create pipeline deal for Booked Appointment ──
+    const AGENCY_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
+    ;(async () => {
+      try {
+        const { data: pipeline } = await supabaseAdmin
+          .from('pipelines')
+          .select('id')
+          .eq('account_id', AGENCY_ID)
+          .eq('is_default', true)
+          .maybeSingle();
+        if (!pipeline) return;
+
+        const { data: stage } = await supabaseAdmin
+          .from('pipeline_stages')
+          .select('id')
+          .eq('pipeline_id', pipeline.id)
+          .eq('name', 'Booked Appointment')
+          .maybeSingle();
+        if (!stage) return;
+
+        const { data: contact } = await supabaseAdmin
+          .from('contacts')
+          .select('id')
+          .eq('account_id', AGENCY_ID)
+          .eq('email', inviteeEmail)
+          .maybeSingle();
+
+        const inviteeName = (inviteeData.resource?.name as string) || inviteeEmail;
+        await supabaseAdmin.from('deals').insert({
+          account_id: AGENCY_ID,
+          pipeline_id: pipeline.id,
+          pipeline_stage_id: stage.id,
+          contact_id: contact?.id ?? null,
+          title: `${inviteeName} - Discovery Call`,
+          value: 5000,
+          stage: 'Booked Appointment',
+          probability: 40,
+          status: 'open',
+          custom_fields: { source: 'calendly', calendly_event_uri: eventUri ?? null },
+        });
+      } catch (dealErr) {
+        console.error('[calendly] Pipeline deal creation error:', dealErr);
+      }
+    })();
+
     // ── Client sub-account funnel tracking + CAPI ──
     // Search for a contact across all client accounts with this email (non-blocking)
     ;(async () => {

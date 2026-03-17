@@ -130,6 +130,11 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
     return values;
   }, [stageDeals]);
 
+  const totalPipelineValue = useMemo(
+    () => Object.values(stageValues).reduce((sum, v) => sum + v, 0),
+    [stageValues]
+  );
+
   const calculateStageValue = (stageId: string): number => stageValues[stageId] ?? 0;
 
   if (loading) {
@@ -143,11 +148,20 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
   return (
     <div className="h-full flex flex-col">
       {/* Pipeline Header */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">{pipeline.name}</h3>
-        {pipeline.description && (
-          <p className="text-sm text-gray-600 mt-1">{pipeline.description}</p>
-        )}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{pipeline.name}</h3>
+          {pipeline.description && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{pipeline.description}</p>
+          )}
+        </div>
+        <div className="text-right ml-4">
+          <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-medium">Total Pipeline</div>
+          <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            ${(totalPipelineValue / 1000).toFixed(0)}k
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">{deals.length} deals</div>
+        </div>
       </div>
 
       {/* Kanban Board */}
