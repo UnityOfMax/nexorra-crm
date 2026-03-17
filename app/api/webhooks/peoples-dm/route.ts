@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendPushToUser } from '@/lib/push/send-notification';
+import { triggerAgentRun } from '@/lib/agents/trigger-run';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/webhooks/peoples-dm
 // Receives inbound DM reply notifications from Peoples DM Instagram app.
-// TODO: Update payload parsing once webhook format is confirmed.
+// Secret: body.secret or X-Peoples-DM-Secret header must equal 'bananas'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Expected fields (adjust based on actual Peoples DM webhook payload):
+    // Verify shared secret
+    const secret = body.secret || request.headers.get('x-peoples-dm-secret');
+    if (secret !== 'bananas') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Expected fields from Peoples DM webhook payload:
     const { instagram_handle, message, sender_name, timestamp } = body;
 
     if (!instagram_handle) {
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Find the lead by Instagram handle
     const { data: lead } = await supabaseAdmin
       .from('leads')
-      .select('id, full_name, instagram_status')
+      .select('id, full_name, instagram_status, instagram_reply_channel')
       .eq('instagram_handle', handle)
       .eq('lead_category', 'instagram')
       .maybeSingle();
@@ -33,19 +40,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, matched: false });
     }
 
-    // Update lead status to replied
+    // Update lead status + reply channel
     if (lead.instagram_status !== 'booked') {
       await supabaseAdmin
         .from('leads')
-        .update({ instagram_status: 'replied' })
+        .update({
+          instagram_status: 'replied',
+          instagram_reply_channel: 'peoples_dm',
+        })
         .eq('id', lead.id);
     }
 
-    // Save the inbound message
     // Find or create conversation
     let { data: conversation } = await supabaseAdmin
       .from('instagram_conversations')
-      .select('id')
+      .select('id, message_count')
       .eq('lead_id', lead.id)
       .maybeSingle();
 
@@ -55,18 +64,20 @@ export async function POST(request: NextRequest) {
         .insert({
           lead_id: lead.id,
           status: 'active',
+          reply_channel: 'peoples_dm',
           last_message_at: new Date().toISOString(),
           message_count: 1,
         })
-        .select('id')
+        .select('id, message_count')
         .single();
       conversation = newConvo;
     } else {
       await supabaseAdmin
         .from('instagram_conversations')
         .update({
+          reply_channel: 'peoples_dm',
           last_message_at: new Date().toISOString(),
-          message_count: (conversation as any).message_count + 1,
+          message_count: ((conversation as any).message_count || 0) + 1,
         })
         .eq('id', conversation!.id);
     }
@@ -83,8 +94,7 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // Notify agency owner of the reply
-    // Agency owner user ID from memory
+    // Notify agency owner
     const agencyUserId = '54ae626a-4291-4a7e-beb4-26f7814c2491';
     sendPushToUser(agencyUserId, {
       title: '💬 Instagram Reply',
@@ -92,6 +102,9 @@ export async function POST(request: NextRequest) {
       tag: 'instagram-reply',
       url: '/instagram-conversations',
     }).catch(() => {});
+
+    // Trigger the instagram-replies agent to respond
+    triggerAgentRun('instagram-replies').catch(() => {});
 
     return NextResponse.json({ received: true, matched: true, leadId: lead.id });
   } catch (error: any) {

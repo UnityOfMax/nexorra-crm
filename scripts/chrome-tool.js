@@ -1027,6 +1027,131 @@ Prerequisites:
         break;
       }
 
+      case 'instagram-login': {
+        const igUser = args[1];
+        const igPass = args[2];
+        if (!igUser || !igPass) { console.error('Usage: instagram-login <username> <password>'); break; }
+        try {
+          await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
+          await randomDelay(2000, 3000);
+          // Dismiss cookie banner if present
+          const cookieBtn = await page.$('button[class*="accept"]') || await page.$('button[data-cookiebanner="accept_button"]');
+          if (cookieBtn) { await cookieBtn.click(); await randomDelay(500, 800); }
+          const userInput = await page.$('input[name="username"]');
+          const passInput = await page.$('input[name="password"]');
+          if (!userInput || !passInput) { console.error(JSON.stringify({ success: false, error: 'Login form not found' })); break; }
+          await userInput.click();
+          await randomDelay(300, 500);
+          for (const char of igUser) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
+          await randomDelay(400, 700);
+          await passInput.click();
+          await randomDelay(200, 400);
+          for (const char of igPass) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
+          await randomDelay(500, 1000);
+          await page.keyboard.press('Enter');
+          await randomDelay(4000, 6000);
+          const currentUrl = page.url();
+          if (currentUrl.includes('/challenge') || currentUrl.includes('/two_factor')) {
+            console.error(JSON.stringify({ success: false, error: '2FA or challenge required — manual action needed', url: currentUrl }));
+            break;
+          }
+          if (currentUrl.includes('/accounts/login')) {
+            console.error(JSON.stringify({ success: false, error: 'Login failed — check credentials', url: currentUrl }));
+            break;
+          }
+          console.log(JSON.stringify({ success: true, username: igUser, url: currentUrl }));
+        } catch (err) {
+          console.error(JSON.stringify({ success: false, error: err.message }));
+        }
+        break;
+      }
+
+      case 'instagram-logout': {
+        try {
+          const currentUrl = page.url();
+          if (!currentUrl.includes('instagram.com')) {
+            await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 30000 });
+            await randomDelay(2000, 3000);
+          }
+          // Click profile avatar in nav
+          const profileLink = await page.$('a[href*="/accounts/"][role="link"]') ||
+                              await page.$('nav a[tabindex="0"]:last-child');
+          if (profileLink) {
+            await profileLink.click();
+            await randomDelay(1500, 2500);
+          }
+          // Find Settings gear or More button
+          const moreBtn = await page.$('div[role="button"]::-p-text(More)') ||
+                          await page.$('div[aria-label="More options"]') ||
+                          await page.$('svg[aria-label="Settings"]');
+          if (moreBtn) { await moreBtn.click(); await randomDelay(1000, 1500); }
+          // Click Log out
+          const btns = await page.$$('div[role="menuitem"], button, div[role="button"]');
+          let loggedOut = false;
+          for (const btn of btns) {
+            const txt = await page.evaluate(el => el.textContent?.trim(), btn);
+            if (txt === 'Log out' || txt === 'Log Out') {
+              await btn.click();
+              await randomDelay(2000, 3000);
+              loggedOut = true;
+              break;
+            }
+          }
+          if (!loggedOut) {
+            // Fallback: navigate directly to logout URL
+            await page.goto('https://www.instagram.com/accounts/logout/', { waitUntil: 'networkidle2', timeout: 15000 }).catch(() => null);
+            await randomDelay(2000, 3000);
+          }
+          console.log(JSON.stringify({ success: true }));
+        } catch (err) {
+          console.error(JSON.stringify({ success: false, error: err.message }));
+        }
+        break;
+      }
+
+      case 'instagram-send-gif': {
+        const gifPath = args[1];
+        if (!gifPath) { console.error('Usage: instagram-send-gif <filepath>'); break; }
+        const fs = require('fs');
+        if (!fs.existsSync(gifPath)) { console.error(JSON.stringify({ success: false, error: `File not found: ${gifPath}` })); break; }
+        try {
+          // Look for the media/attachment upload button in the DM input area
+          const mediaBtn = await page.$('button[aria-label*="Media"]') ||
+                           await page.$('button[aria-label*="Attachment"]') ||
+                           await page.$('div[role="button"][aria-label*="photo"]') ||
+                           await page.$('svg[aria-label*="media"]');
+          if (!mediaBtn) { console.error(JSON.stringify({ success: false, error: 'Media button not found in DM thread' })); break; }
+          // Find the hidden file input associated with the media button area
+          const fileInput = await page.$('input[type="file"]');
+          if (fileInput) {
+            await fileInput.uploadFile(gifPath);
+          } else {
+            // Click the button to reveal the file picker, then upload
+            await mediaBtn.click();
+            await randomDelay(1000, 1500);
+            const fileInputAfter = await page.$('input[type="file"]');
+            if (!fileInputAfter) { console.error(JSON.stringify({ success: false, error: 'File input not found after clicking media button' })); break; }
+            await fileInputAfter.uploadFile(gifPath);
+          }
+          await randomDelay(2000, 3500);
+          // Click Send button
+          const sendBtn = await page.$('button[type="submit"]:not([disabled])') ||
+                          await page.$('div[role="button"]::-p-text(Send)');
+          if (sendBtn) {
+            await sendBtn.click();
+            await randomDelay(1500, 2500);
+          } else {
+            // Try pressing Enter
+            await page.keyboard.press('Enter');
+            await randomDelay(1500, 2500);
+          }
+          console.log(JSON.stringify({ success: true, file: gifPath }));
+        } catch (err) {
+          console.error(JSON.stringify({ success: false, error: err.message }));
+        }
+        break;
+      }
+
       default:
         console.error(`Unknown command: ${command}. Run with 'help' for usage.`);
     }

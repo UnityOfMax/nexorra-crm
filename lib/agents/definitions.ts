@@ -4,6 +4,7 @@
  */
 export const AGENT_DEFINITIONS: Record<string, { promptFile: string; model: string; maxTurns: number }> = {
   'lead-gen':                { promptFile: '.claude/commands/nexorra/lead-gen.md',                model: 'sonnet', maxTurns: 120 },
+  'lead-gen-quality-check':  { promptFile: '.claude/commands/nexorra/lead-gen-quality-check.md',  model: 'sonnet', maxTurns: 40  },
   'cold-email-upload':       { promptFile: '.claude/commands/nexorra/cold-email-upload.md',       model: 'haiku',  maxTurns: 60  },
   'cold-email-replies':      { promptFile: '.claude/commands/nexorra/cold-email-replies.md',      model: 'haiku',  maxTurns: 80  },
   'cold-email-maintenance':  { promptFile: '.claude/commands/nexorra/cold-email-maintenance.md',  model: 'haiku',  maxTurns: 60  },
@@ -13,4 +14,5 @@ export const AGENT_DEFINITIONS: Record<string, { promptFile: string; model: stri
   'ops-report':              { promptFile: '.claude/commands/ops/report.md',                      model: 'haiku',  maxTurns: 40  },
   'instagram-outreach':      { promptFile: '.claude/commands/nexorra/instagram-outreach.md',      model: 'sonnet', maxTurns: 100 },
   'instagram-replies':       { promptFile: '.claude/commands/nexorra/instagram-replies.md',       model: 'haiku',  maxTurns: 80  },
+  'instagram-followup':      { promptFile: '.claude/commands/nexorra/instagram-followup.md',      model: 'sonnet', maxTurns: 150 },
 };

@@ -14,12 +14,19 @@ Upload unpushed leads from Supabase to Instantly campaign with Loom link distrib
 
 ## Workflow
 
-### Step 1: Fetch unpushed leads
+### Step 1: Fetch unpushed leads (scraped before today)
+Only push leads scraped **yesterday or earlier** — Jeff scrapes today's leads at 10 AM and they should be pushed the following day after the nightly quality check has run.
+
+Calculate today's midnight UTC:
+```bash
+TODAY_MIDNIGHT=$(date -u +%Y-%m-%dT00:00:00Z)
 ```
-GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage&limit=1000&order=scraped_at.asc
+
+```
+GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage&limit=1000&order=scraped_at.asc
 Headers: SB
 ```
-If zero rows: exit immediately, report "No unpushed leads."
+If zero rows: exit immediately, report "No unpushed leads from previous days."
 
 ### Step 2: Look up campaign ID (cache for session)
 ```
@@ -60,8 +67,94 @@ Headers: SB+W
 Body: { "pushed_to_instantly": true, "instantly_campaign_id": "{campaign_id}" }
 ```
 
-### Step 7: Report
-"Uploaded N leads to campaign '$INSTANTLY_CAMPAIGN'. Loom distribution: {count per sender}."
+### Step 7: Instagram DM Outreach
+After the email upload is complete, send the 3-part DM sequence to yesterday's Instagram leads via Chrome.
+
+**7a. Fetch instagram leads to DM (scraped before today, not yet DMed)**
+```bash
+TODAY_MIDNIGHT=$(date -u +%Y-%m-%dT00:00:00Z)
+```
+```
+GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?lead_category=eq.instagram&instagram_dm_sent=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&select=id,first_name,last_name,instagram_handle,city,source_brokerage&limit=700&order=scraped_at.asc
+Headers: SB
+```
+If zero rows: skip this step, report "No Instagram leads to DM today."
+
+**7b. Load accounts and loom link**
+- Read `agents/state/instagram-accounts.json` — load list of 7 accounts (skip any with empty username/password)
+- Read `agents/state/sender-loom-config.json` — use `"Stacey"` loom URL as the video link for all DMs
+- If loom URL is empty: send Message 2 as `"(Video link coming soon)"` and continue
+
+**7c. DM sequence — Round 1 (25 per account)**
+For each active account in order:
+
+1. Log in:
+   ```bash
+   node scripts/chrome-tool.js instagram-login "{username}" "{password}"
+   ```
+   If login fails (2FA, wrong password): skip this account, log the error, continue to next.
+
+2. Send 25 DMs from the lead queue (each account gets the next 25 unprocessed leads):
+   For each lead:
+   a. Navigate to profile:
+      ```bash
+      node scripts/chrome-tool.js navigate "https://www.instagram.com/{instagram_handle}/"
+      node scripts/chrome-tool.js wait 3000
+      ```
+      If page returns 404 or shows "Sorry, this page isn't available": mark lead `instagram_status='ignored'`, skip.
+
+   b. Send Message 1:
+      ```bash
+      node scripts/chrome-tool.js instagram-dm "Hey {first_name} I just came across your profile, I don't much like wasting time so I recorded a video just now for you:"
+      ```
+   c. Wait 8-15 seconds (human gap inside same thread):
+      ```bash
+      node scripts/chrome-tool.js wait 11000
+      ```
+   d. Send Message 2 (loom link):
+      ```bash
+      node scripts/chrome-tool.js instagram-dm "{loom_url}"
+      ```
+   e. Wait 8-15 seconds:
+      ```bash
+      node scripts/chrome-tool.js wait 12000
+      ```
+   f. Send Message 3:
+      ```bash
+      node scripts/chrome-tool.js instagram-dm "It basically goes over how we've helped over 100 other agents add another 8-30k/m in GCI on average using AI, if you're interested just shoot me a thumbs up or something and I'll shoot over me calendly link so we can chat over a 10-15min call"
+      ```
+   g. Mark in Supabase:
+      ```
+      PATCH $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?id=eq.{lead_id}
+      Headers: SB+W
+      Body: { "instagram_dm_sent": true, "instagram_dm_sent_at": "{now_iso}", "instagram_messages_sent": 3, "instagram_status": "dm_sent", "instagram_dm_account": "{username}" }
+      ```
+   h. Wait 60-120 seconds before next DM:
+      ```bash
+      node scripts/chrome-tool.js wait 90000
+      ```
+      Vary: 60000 to 120000ms randomly.
+
+3. After 25 DMs for this account:
+   ```bash
+   node scripts/chrome-tool.js instagram-logout
+   ```
+   Wait 3-5 minutes before next account: `node scripts/chrome-tool.js wait 240000`
+
+**7d. DM sequence — Round 2 (25 more per account)**
+After ALL 7 accounts have completed Round 1, loop through accounts again:
+- Same process as Round 1 but takes the NEXT 25 leads from the queue (leads 176-350)
+- Each account sends to its next 25, not the same 25 again
+- Same 60-120s wait between DMs, 3-5 min between accounts
+
+**7e. DM rate limits / safety**
+- If Instagram shows a "Try again later" or rate limit warning: stop all DMs for that account, log error, move to next account
+- If Chrome loses connection mid-session: log error, mark current lead as `instagram_messages_sent=1` or `2` (however many messages were sent), continue from next lead on next account
+- Never send more than 50 DMs per account per day (25+25)
+
+### Step 8: Report
+"Email: Uploaded N leads to campaign '$INSTANTLY_CAMPAIGN'. Loom distribution: {count per sender}.
+Instagram DMs: Sent {total} DMs across {accounts} accounts. Round 1: {r1}. Round 2: {r2}. Skipped (private/404): {skipped}."
 
 ---
 

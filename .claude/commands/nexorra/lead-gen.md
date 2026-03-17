@@ -315,89 +315,112 @@ These brokerages don't show email on the listing page. Follow this workflow:
 
 5. This is slower (~2 min per page vs ~15s for listing-only). Plan accordingly — prioritize listing-only brokerages first.
 
-### Step 4b — Scrape: Instagram + Calling Leads (remax, century21, Instagram search)
+### Step 5 — Report (Email Phase)
+"Email phase done. Scraped N agent profiles across X cities. Y inserted, Z skipped. Breakdown: EST x, CST x, MST x, PST x."
 
-**After completing email leads**, scrape these additional sources for Instagram handles and phone numbers. These use DIFFERENT lead categories.
+### Step 6 — Update learnings (mid-session)
+Append email phase results to `agents/memory/lead-gen.md`. If > 4KB, condense.
 
-**Phase A — RE/MAX (profile visits for Instagram)**
+---
 
-1. Navigate to RE/MAX city search:
+## Phase 2: Instagram + Phone Leads
+
+**Run this phase AFTER the email phase is complete and 1,000 email leads have been collected.**
+
+Target: **350 Instagram handles/day** + phone numbers as they come.
+Sources: RE/MAX (Instagram via profile), Century 21 (phones), Instagram/Google search (bonus handles).
+These leads are stored with `"lead_category": "instagram"` or `"lead_category": "calling"`.
+
+### URL Patterns for Phase 2
+
+#### RE/MAX (Instagram profiles)
+```
+https://www.remax.com/real-estate-agents/{city-slug}-{st}
+```
+Example: `https://www.remax.com/real-estate-agents/houston-tx`
+- Use `agents remax` extractor — returns `{ full_name, profile_url, instagram_handle, phone }`
+- Agent cards show Instagram links directly on listing page
+
+#### Century 21 (phones — calling leads)
+```
+https://www.century21.com/find-a-real-estate-agent/{city-slug}-{st}
+```
+Example: `https://www.century21.com/find-a-real-estate-agent/houston-tx`
+- Use `agents century21` extractor — returns `{ full_name, phone }`
+- Phone numbers shown on listing cards
+
+### Phase 2 Workflow
+
+#### Step P1 — RE/MAX: Instagram + Calling Leads
+For each city in your session (prioritise US cities, same timezone balance as email phase):
+
+1. Navigate to RE/MAX city page:
    ```bash
-   node scripts/chrome-tool.js navigate "https://www.remax.com/real-estate-agents/houston-tx?searchQuery=%7B%22filters%22%3A%7B%7D%7D"
-   ```
-
-2. Extract profile URLs:
-   ```bash
+   node scripts/chrome-tool.js navigate "https://www.remax.com/real-estate-agents/{city-slug}-{st}"
    node scripts/chrome-tool.js scroll-all
    node scripts/chrome-tool.js agents remax
    ```
 
-3. Visit each profile:
-   ```bash
-   node scripts/chrome-tool.js navigate "{profile_url}"
-   node scripts/chrome-tool.js wait 3000
-   node scripts/chrome-tool.js profile remax
-   ```
-   Returns: `{ "full_name": "...", "email": "...", "phone": "...", "instagram_handle": "..." }`
-
-4. **Category logic (CRITICAL — no overlap):**
-   - Has `instagram_handle` → POST with `"lead_category": "instagram"`
+2. For each agent returned:
+   - Has `instagram_handle` → POST with `"lead_category": "instagram"`:
+     ```bash
+     curl -s -X POST "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads" \
+       -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+       -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+       -H "Content-Type: application/json" \
+       -H "Prefer: return=minimal" \
+       -d '{"full_name":"...","first_name":"...","last_name":"...","instagram_handle":"...","profile_url":"...","source_brokerage":"remax","lead_category":"instagram","country":"US","state_province":"TX","city":"Houston","timezone":"CST"}'
+     ```
    - Has `phone` but NO `instagram_handle` → POST with `"lead_category": "calling"`, include `"mobile_phone": phone`
-   - Has neither → skip
-   - **If agent has BOTH phone AND Instagram → Instagram Lead ONLY (NOT calling)**
+   - **If agent has BOTH phone AND Instagram → Instagram lead only (not calling)**
+   - No instagram, no phone → skip
 
-5. Wait 5-10s between profile visits
+3. Paginate until 0 results or 50 Instagram leads per city. Wait 8-20s between pages.
 
-**Phase B — Century 21 (listing only — phones)**
+#### Step P2 — Century 21: Calling Leads (phones)
+For each city:
 
-1. Navigate to Century 21 city search:
+1. Navigate:
    ```bash
-   node scripts/chrome-tool.js navigate "https://www.century21.com/agent/list/city/tx/houston?page=1"
-   ```
-
-2. Extract agents with phones:
-   ```bash
+   node scripts/chrome-tool.js navigate "https://www.century21.com/find-a-real-estate-agent/{city-slug}-{st}"
    node scripts/chrome-tool.js scroll-all
    node scripts/chrome-tool.js agents century21
    ```
 
-3. POST each agent with `"lead_category": "calling"` and `"mobile_phone": phone`
-
-4. Pagination: increment `?page=2`, `?page=3`, etc.
-
-**Phase C — Instagram / Google Search (bonus Instagram handles)**
-
-If you still need more Instagram leads to hit 150/day:
-
-1. Google search in Chrome:
+2. Extract agents with phone numbers:
    ```bash
-   node scripts/chrome-tool.js navigate "https://www.google.com/search?q=instagram+real+estate+agent+houston"
+   POST lead_category: "calling", mobile_phone: "+1..."
    ```
-   Extract Instagram usernames from visible results.
 
-2. Instagram search in Chrome:
+3. Paginate until 0 results or 30 calling leads per city.
+
+#### Step P3 — Google/Instagram Search (bonus handles, if under 350 total)
+If total Instagram leads collected is still under 350:
+
+1. Search Google for Instagram handles by city:
    ```bash
-   node scripts/chrome-tool.js navigate "https://www.instagram.com"
-   node scripts/chrome-tool.js wait 3000
+   node scripts/chrome-tool.js navigate "https://www.google.com/search?q=instagram+real+estate+agent+{city}+{state}"
+   node scripts/chrome-tool.js text "body"
    ```
-   Search for "real estate agent houston" and extract profile handles.
+   Extract handles from visible results (format: `@handle` or `instagram.com/handle`).
 
-3. POST each with `"lead_category": "instagram"`, `"source_brokerage": "instagram_search"`
+2. POST each with `"lead_category": "instagram"`, `"source_brokerage": "instagram_search"`.
 
-**Targets per day:**
-- ~150 Instagram leads (50 per timezone from EST/CST/PST)
-- ~200 Calling leads (from RE/MAX no-IG + Century21)
+3. Stop when 350 Instagram leads total for the session.
 
-**CRITICAL RULE CHANGE for non-email categories:**
-- `lead_category: 'email'` → email is REQUIRED (existing rule)
-- `lead_category: 'instagram'` → `instagram_handle` is REQUIRED, email optional
-- `lead_category: 'calling'` → `phone` or `mobile_phone` is REQUIRED, email optional
+### Phase 2 Validation Rules
+- `lead_category: 'instagram'` → `instagram_handle` is REQUIRED (no @ prefix — store as `handle` not `@handle`)
+- `lead_category: 'calling'` → `mobile_phone` is REQUIRED
+- Validate phone format: must start with `+1` or be a 10-digit US number
+- Skip duplicates (409 = already exists, silently continue)
+- Never insert an Instagram lead without an instagram_handle
+- Never insert a calling lead without a mobile_phone
 
-### Step 5 — Report
-"Done. Scraped N agent profiles across X cities. Y inserted, Z skipped (no email/duplicates). Breakdown: EST x, CST x, MST x, PST x."
+### Step P4 — Final Report
+"Phase 2 done. Instagram leads: N. Calling leads: M. Cities covered: X."
 
-### Step 6 — Update learnings
-Append results to `agents/memory/lead-gen.md`. If > 4KB, condense.
+### Step P5 — Update learnings
+Append Phase 2 results to `agents/memory/lead-gen.md`. Include: which cities yielded best Instagram handles, which brokerages had most phones.
 
 ---
 
