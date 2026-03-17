@@ -411,14 +411,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Agency Overview</h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">All clients — last 30 days</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Client Performance</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">All sub-accounts</p>
             </div>
-            <AgencyOverview />
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Client Performance Data</h3>
-              <ClientDataTable />
-            </div>
+            <ClientDataTable />
           </div>
         );
       default:
