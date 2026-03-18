@@ -4,6 +4,7 @@ import { sendPushToUser } from '@/lib/push/send-notification';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const WEBHOOK_SECRET = process.env.PEOPLES_DM_WEBHOOK_SECRET || '';
 
