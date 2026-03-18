@@ -21,8 +21,7 @@ import StaceyConversations from './StaceyConversations';
 import CommandCenter from './CommandCenter';
 import AnalyticsDashboard from './analytics/AnalyticsDashboard';
 import AgencyOverview from './analytics/AgencyOverview';
-import InstagramConversations from './InstagramConversations';
-import InstagramUnibox from './InstagramUnibox';
+import InstagramDMs from './InstagramDMs';
 import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
@@ -406,10 +405,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return <CommandCenter />;
       case 'analytics':
         return <AnalyticsDashboard accountId={currentAccount?.id || ''} />;
-      case 'instagram-conversations':
-        return <InstagramConversations />;
-      case 'instagram-unibox':
-        return <InstagramUnibox />;
+      case 'instagram-dms':
+        return <InstagramDMs />;
       case 'agency-analytics':
         return (
           <div>
@@ -727,8 +724,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'campaigns' ? 'Email Campaigns' :
                  activeView === 'command-center' ? 'Command Center' :
                  activeView === 'analytics' ? 'Analytics' :
-                 activeView === 'instagram-conversations' ? 'Instagram DMs' :
-                 activeView === 'instagram-unibox' ? 'Instagram Inbox' :
+                 activeView === 'instagram-dms' ? 'Instagram' :
                  activeView === 'agency-analytics' ? 'Agency Analytics' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>

@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
         sendPushToUser(agencyUserId, {
           title: '💬 Instagram DM',
           body: `${processed} new message${processed > 1 ? 's' : ''} received`,
-          tag: 'instagram-unibox',
-          url: '/?view=instagram-unibox',
+          tag: 'instagram-dms',
+          url: '/?view=instagram-dms',
         }).catch(() => {});
         triggerAgentRun('instagram-replies').catch(() => {});
       }
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
       title: '💬 Instagram Reply',
       body: `${lead.full_name || handle} replied`,
       tag: 'instagram-reply',
-      url: '/?view=instagram-unibox',
+      url: '/?view=instagram-dms',
     }).catch(() => {});
     triggerAgentRun('instagram-replies').catch(() => {});
 
