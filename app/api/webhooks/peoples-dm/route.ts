@@ -5,16 +5,45 @@ import { triggerAgentRun } from '@/lib/agents/trigger-run';
 
 export const dynamic = 'force-dynamic';
 
+const WEBHOOK_SECRET = process.env.PEOPLES_DM_WEBHOOK_SECRET || '';
+
+// GET /api/webhooks/peoples-dm
+// Handles the verification challenge when you click "Verify" in People's DM settings.
+// Supports both Meta-style (hub.challenge) and simple challenge echo patterns.
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+
+  const secret = searchParams.get('secret') || searchParams.get('verify_token') || searchParams.get('hub.verify_token');
+  const challenge = searchParams.get('challenge') || searchParams.get('hub.challenge');
+  const mode = searchParams.get('hub.mode');
+
+  // Meta-style verification
+  if (mode === 'subscribe') {
+    if (secret === WEBHOOK_SECRET) {
+      console.log('[peoples-dm] Meta-style verification successful');
+      return new NextResponse(challenge, { status: 200 });
+    }
+    return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+  }
+
+  // Simple challenge-echo verification (secret in query param, echo challenge back)
+  if (secret === WEBHOOK_SECRET) {
+    console.log('[peoples-dm] Verification successful');
+    return new NextResponse(challenge || 'ok', { status: 200 });
+  }
+
+  return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+}
+
 // POST /api/webhooks/peoples-dm
 // Receives inbound DM reply notifications from Peoples DM Instagram app.
-// Secret: body.secret or X-Peoples-DM-Secret header must equal 'bananas'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
     // Verify shared secret
     const secret = body.secret || request.headers.get('x-peoples-dm-secret');
-    if (secret !== 'bananas') {
+    if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

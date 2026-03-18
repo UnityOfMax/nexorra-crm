@@ -1,16 +1,16 @@
 #!/bin/bash
-# Instagram Follow-up — 6:00 PM daily
-# Sends follow-up GIFs/messages to non-repliers (Chrome) and Peoples DM repliers (API)
-# Crontab: 0 18 * * * /home/max/crm/scripts/cron/instagram-followup.sh
+# Lead Quality Check — 1:00 AM daily
+# Jeff reviews yesterday's leads, deletes bad names, updates his memory
+# Crontab: 0 1 * * * /home/max/crm/scripts/cron/lead-gen-quality-check.sh
 
 set -a && source /home/max/crm/.env.local && set +a
 
-LOG="/home/max/crm/logs/cron-instagram-followup.log"
+LOG="/home/max/crm/logs/cron-quality-check.log"
 mkdir -p /home/max/crm/logs
 
-echo "$(date): Triggering instagram-followup via daemon..." >> "$LOG"
+echo "$(date): Triggering lead-gen-quality-check via daemon..." >> "$LOG"
 
-BODY='{"agentId": "instagram-followup", "trigger": "cron"}'
+BODY='{"agentId": "lead-gen-quality-check", "trigger": "cron"}'
 SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
   -H "Content-Type: application/json" \

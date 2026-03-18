@@ -256,11 +256,12 @@ If Chrome is not connected, output this message and STOP:
    Returns JSON array: `[{ "full_name": "...", "first_name": "...", "last_name": "...", "profile_url": "...", "email": ..., "phone": ..., "profile_picture_url": ..., "instagram_handle": ... }]`
    The `instagram_handle` field is extracted automatically from Instagram links on the page. Include it in the Supabase POST when present (null if not found).
 
-5. **Validate before inserting:**
+5. **Normalize and validate before inserting:**
    - **SKIP any agent without a real email** — do not insert
    - Only insert agents where `full_name` is a real name (not navigation text)
    - Email must contain `@` and a real domain — reject `@city.local`, `@example.com`
    - Set any suspicious data to `null` rather than guessing
+   - **Name capitalization**: Convert `full_name`, `first_name`, `last_name` to Title Case (first letter uppercase, rest lowercase). Example: `SARAH JOHNSON` → `Sarah Johnson`, `sarah johnson` → `Sarah Johnson`. Use this logic: each word gets its first character uppercased, rest lowercased. Preserve hyphens in hyphenated names (e.g. `Mary-Jane` → `Mary-Jane`).
 
 6. POST each valid agent (WITH email) to Supabase:
    ```bash
@@ -376,7 +377,7 @@ For each city in your session (prioritise US cities, same timezone balance as em
        -H "Prefer: return=minimal" \
        -d '{"full_name":"...","first_name":"...","last_name":"...","instagram_handle":"...","profile_url":"...","source_brokerage":"remax","lead_category":"instagram","country":"US","state_province":"TX","city":"Houston","timezone":"CST"}'
      ```
-   - Has `phone` but NO `instagram_handle` → POST with `"lead_category": "calling"`, include `"mobile_phone": phone`
+   - Has `phone` but NO `instagram_handle` → POST with `"lead_category": "calling"`, include `"phone": phone`
    - **If agent has BOTH phone AND Instagram → Instagram lead only (not calling)**
    - No instagram, no phone → skip
 
@@ -394,7 +395,7 @@ For each city:
 
 2. Extract agents with phone numbers:
    ```bash
-   POST lead_category: "calling", mobile_phone: "+1..."
+   POST lead_category: "calling", phone: "+1..."
    ```
 
 3. Paginate until 0 results or 30 calling leads per city.
@@ -415,11 +416,11 @@ If total Instagram leads collected is still under 350:
 
 ### Phase 2 Validation Rules
 - `lead_category: 'instagram'` → `instagram_handle` is REQUIRED (no @ prefix — store as `handle` not `@handle`)
-- `lead_category: 'calling'` → `mobile_phone` is REQUIRED
+- `lead_category: 'calling'` → `phone` is REQUIRED
 - Validate phone format: must start with `+1` or be a 10-digit US number
 - Skip duplicates (409 = already exists, silently continue)
 - Never insert an Instagram lead without an instagram_handle
-- Never insert a calling lead without a mobile_phone
+- Never insert a calling lead without a phone
 
 ### Step P4 — Final Report
 "Phase 2 done. Instagram leads: N. Calling leads: M. Cities covered: X."

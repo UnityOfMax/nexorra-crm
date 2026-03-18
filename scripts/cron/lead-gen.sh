@@ -12,9 +12,12 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') — Triggering lead-gen" >> "$LOG"
 bash scripts/chrome-launch.sh >> "$LOG" 2>&1
 
 # Trigger via daemon — it handles spawning, logging, status
+BODY='{"agentId": "lead-gen", "trigger": "cron"}'
+SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"agentId": "lead-gen", "trigger": "cron"}')
+  -H "x-signature: $SIGNATURE" \
+  -d "$BODY")
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') — $RESPONSE" >> "$LOG"

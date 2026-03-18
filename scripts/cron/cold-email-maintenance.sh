@@ -9,9 +9,12 @@ mkdir -p logs
 echo "$(date '+%Y-%m-%d %H:%M:%S') — Triggering cold-email-maintenance" >> "$LOG"
 
 # Trigger via daemon — it handles spawning, logging, status
+BODY='{"agentId": "cold-email-maintenance", "trigger": "cron"}'
+SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"agentId": "cold-email-maintenance", "trigger": "cron"}')
+  -H "x-signature: $SIGNATURE" \
+  -d "$BODY")
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') — $RESPONSE" >> "$LOG"

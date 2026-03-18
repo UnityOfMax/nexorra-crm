@@ -61,13 +61,33 @@ Split leads into 5 equal chunks (round-robin by index):
 
 For 1000 leads: 200 per sender. For other counts: distribute as evenly as possible.
 
-### Step 5: Bulk upload (100/batch)
+### Step 5: Bulk upload (1000 leads per request)
+The correct Instantly v2 bulk endpoint is `/api/v2/leads/add` (NOT `/api/v2/leads/bulk`, NOT `/api/v2/leads`):
 ```
-POST https://api.instantly.ai/api/v2/leads/bulk
+POST https://api.instantly.ai/api/v2/leads/add
 Headers: INST + Content-Type: application/json
-Body: { "campaign_id": "{id}", "skip_if_in_workspace": true, "leads": [{email, first_name, last_name, custom_variables: {city, state, brokerage, timezone, loom_link}}] }
+Body: {
+  "campaign_id": "{id}",
+  "skip_if_in_workspace": false,
+  "skip_if_in_campaign": false,
+  "leads": [
+    {
+      "email": "{email}",
+      "first_name": "{first_name}",
+      "last_name": "{last_name}",
+      "custom_variables": {
+        "city": "{city}",
+        "state": "{state_province}",
+        "brokerage": "{source_brokerage}",
+        "timezone": "{timezone}",
+        "loom_link": "{loom_url_or_empty_string}"
+      }
+    },
+    ...up to 1000 leads...
+  ]
+}
 ```
-5s between Instantly API calls. On 429: wait 60s, retry once. Second 429: stop, report. Other 4xx: log, continue.
+Send all leads in a single request (up to 1000). On 429: wait 60s, retry once. Response includes `leads_uploaded`, `duplicated_leads`, `invalid_email_count`. Mark leads pushed ONLY after a successful response (`status: "success"`).
 
 ### Step 6: Mark pushed
 ```
