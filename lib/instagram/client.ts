@@ -101,6 +101,91 @@ export async function getInstagramUserId(
   }
 }
 
+// ── Unibox account token helpers (uses instagram_account_configs) ─────────────
+
+import { supabaseAdmin } from '@/lib/supabase';
+
+/**
+ * Get the access token for one of our 5 Instagram accounts by ig_account_id.
+ */
+export async function getTokenForOurAccount(
+  igAccountId: string
+): Promise<{ token: string; username: string } | null> {
+  const { data } = await supabaseAdmin
+    .from('instagram_account_configs')
+    .select('access_token, username')
+    .eq('ig_account_id', igAccountId)
+    .eq('active', true)
+    .maybeSingle();
+  if (!data?.access_token) return null;
+  return { token: data.access_token, username: data.username };
+}
+
+/**
+ * Send an Instagram DM from one of our accounts to a recipient PSID.
+ * Stores the outbound message in instagram_unibox_messages.
+ */
+export async function sendUniboxDM(
+  igAccountId: string,
+  recipientId: string,
+  text: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const account = await getTokenForOurAccount(igAccountId);
+  if (!account) {
+    return { success: false, error: `No access token for account ${igAccountId}` };
+  }
+
+  const res = await fetch(`${GRAPH_API_BASE.replace('facebook', 'instagram')}/me/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${account.token}`,
+    },
+    body: JSON.stringify({
+      recipient: { id: recipientId },
+      message: { text },
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    console.error('[instagram] sendUniboxDM error:', data);
+    return { success: false, error: data.error?.message || 'Send failed' };
+  }
+
+  void supabaseAdmin.from('instagram_unibox_messages').insert({
+    our_account_id: igAccountId,
+    our_username: account.username,
+    sender_id: recipientId,
+    direction: 'outbound',
+    content: text,
+    meta_message_id: data.message_id,
+  });
+
+  return { success: true, messageId: data.message_id };
+}
+
+/**
+ * Subscribe one of our Instagram accounts to webhook event fields.
+ * Call this once per account from /api/instagram/subscribe.
+ */
+export async function subscribeAccountToWebhooks(
+  igAccountId: string,
+  fields = 'messages,message_reactions'
+): Promise<{ success: boolean; error?: string }> {
+  const account = await getTokenForOurAccount(igAccountId);
+  if (!account) return { success: false, error: `No token for ${igAccountId}` };
+
+  const url = `https://graph.instagram.com/v21.0/me/subscribed_apps?subscribed_fields=${encodeURIComponent(fields)}&access_token=${account.token}`;
+  const res = await fetch(url, { method: 'POST' });
+  const data = await res.json();
+
+  if (!res.ok || !data.success) {
+    return { success: false, error: data.error?.message || JSON.stringify(data) };
+  }
+  return { success: true };
+}
+
 /**
  * Get the Instagram account ID and page access token from facebook_integrations.
  */
