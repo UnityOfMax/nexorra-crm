@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
 
-const supabaseUrl = "https://nhflmisklsanfiiywrfo.supabase.co";
-const serviceRoleKey = "***REMOVED***";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
