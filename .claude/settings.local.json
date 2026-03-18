@@ -29,7 +29,12 @@
       "WebFetch(domain:api.github.com)",
       "WebSearch",
       "WebFetch(domain:developers.facebook.com)",
-      "Bash(chmod +x /home/max/crm/scripts/cron/campaign-optimizer.sh)"
+      "Bash(chmod +x /home/max/crm/scripts/cron/campaign-optimizer.sh)",
+      "Bash(npx web-push:*)",
+      "Bash(/home/max/crm/.env.local:*)",
+      "Bash(for file:*)",
+      "Bash(do tail:*)",
+      "Bash(node scripts/chrome-tool.js navigate \"https://www.coldwellbanker.com/city/tx/houston/agents\")"
     ]
   }
 }
