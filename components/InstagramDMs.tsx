@@ -121,6 +121,9 @@ function InboxTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [accountFilter, setAccountFilter] = useState('all');
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
@@ -146,6 +149,41 @@ function InboxTab() {
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, [load]);
+
+  const sendReply = async () => {
+    if (!selected || !replyText.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch('/api/instagram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          our_account_id: selected.our_account_id,
+          recipient_id: selected.sender_id,
+          message: replyText.trim(),
+        }),
+      });
+      if (res.ok) {
+        setReplyText('');
+        // Refresh to show the sent message
+        await load(true);
+        // Re-select to refresh thread
+        const refreshed = conversations.find(c => c.key === selected.key);
+        if (refreshed) setSelected(refreshed);
+      } else {
+        const err = await res.json();
+        console.error('Send failed:', err);
+        alert(`Send failed: ${err.error || 'Unknown error'}`);
+      }
+    } finally { setSending(false); }
+  };
+
+  // Scroll to bottom when selected changes
+  useEffect(() => {
+    if (selected && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selected]);
 
   const filtered = conversations.filter(c => {
     if (!search) return true;
@@ -270,9 +308,23 @@ function InboxTab() {
               </div>
             ))}
           </div>
-          <div className="px-4 py-2.5 border-t border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
-            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">Replies sent via Instagram. Read-only view.</p>
+          <div className="px-3 py-2.5 border-t border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+            <div className="flex items-end gap-2">
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+                placeholder="Type a message…"
+                rows={1}
+                className="flex-1 resize-none px-3 py-2 text-sm rounded-xl bg-gray-100 dark:bg-[#2c2c2e] border-0 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500/30 max-h-24"
+              />
+              <button onClick={sendReply} disabled={!replyText.trim() || sending}
+                className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0">
+                <Send className={`w-4 h-4 ${sending ? 'animate-pulse' : ''}`} />
+              </button>
+            </div>
           </div>
+          <div ref={messagesEndRef} />
         </div>
       ) : (
         <div className="hidden md:flex flex-1 items-center justify-center flex-col gap-4 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#141414]">

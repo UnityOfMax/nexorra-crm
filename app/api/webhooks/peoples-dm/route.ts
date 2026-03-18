@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendPushToUser } from '@/lib/push/send-notification';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
+import { handleInstagramAutoReply } from '@/lib/instagram/auto-reply';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -59,6 +60,13 @@ export async function POST(request: NextRequest) {
 
         const ourUsername = accountConfig?.username || null;
 
+        // Get access token for username lookups
+        const { data: fullConfig } = await supabaseAdmin
+          .from('instagram_account_configs')
+          .select('username, access_token')
+          .eq('ig_account_id', ourAccountId)
+          .maybeSingle();
+
         const messaging: any[] = entry.messaging || [];
         for (const event of messaging) {
           const senderId: string = event.sender?.id;
@@ -72,6 +80,34 @@ export async function POST(request: NextRequest) {
           const text: string = msg.text || '';
           const attachments = msg.attachments || null;
 
+          // Resolve sender username from IGSID
+          let senderUsername: string | null = null;
+          // Check if we already have this sender's username cached
+          const { data: existingMsg } = await supabaseAdmin
+            .from('instagram_unibox_messages')
+            .select('sender_username')
+            .eq('sender_id', senderId)
+            .not('sender_username', 'is', null)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingMsg?.sender_username) {
+            senderUsername = existingMsg.sender_username;
+          } else if (fullConfig?.access_token) {
+            // Look up username via Instagram Graph API
+            try {
+              const userRes = await fetch(
+                `https://graph.instagram.com/v21.0/${senderId}?fields=username,name&access_token=${fullConfig.access_token}`
+              );
+              if (userRes.ok) {
+                const userData = await userRes.json();
+                senderUsername = userData.username || null;
+              }
+            } catch (e) {
+              console.error('[peoples-dm] Username lookup failed:', e);
+            }
+          }
+
           // Dedup by meta_message_id
           const { error: insertError } = await supabaseAdmin
             .from('instagram_unibox_messages')
@@ -79,6 +115,7 @@ export async function POST(request: NextRequest) {
               our_account_id: ourAccountId,
               our_username: ourUsername,
               sender_id: senderId,
+              sender_username: senderUsername,
               direction: 'inbound',
               content: text,
               attachments: attachments,
@@ -90,18 +127,39 @@ export async function POST(request: NextRequest) {
           processed++;
 
           // Also handle leads-based flow if this sender is a known lead
-          if (ourUsername) {
-            const { data: lead } = await supabaseAdmin
+          const handleToCheck = senderUsername || senderId;
+          const { data: lead } = await supabaseAdmin
+            .from('leads')
+            .select('id, full_name, instagram_status')
+            .or(`instagram_handle.eq.${handleToCheck},instagram_handle.eq.@${handleToCheck}`)
+            .maybeSingle();
+
+          if (lead && lead.instagram_status !== 'booked') {
+            void supabaseAdmin
               .from('leads')
-              .select('id, full_name, instagram_status')
-              .eq('instagram_handle', senderId)
+              .update({ instagram_status: 'replied', instagram_reply_channel: 'meta_webhook' })
+              .eq('id', lead.id);
+
+            // Bridge into cold outreach conversation too
+            let { data: convo } = await supabaseAdmin
+              .from('instagram_conversations')
+              .select('id, message_count')
+              .eq('lead_id', lead.id)
               .maybeSingle();
 
-            if (lead && lead.instagram_status !== 'booked') {
-              void supabaseAdmin
-                .from('leads')
-                .update({ instagram_status: 'replied', instagram_reply_channel: 'meta_webhook' })
-                .eq('id', lead.id);
+            if (convo) {
+              void supabaseAdmin.from('instagram_conversations').update({
+                last_message_at: new Date().toISOString(),
+                message_count: (convo.message_count || 0) + 1,
+              }).eq('id', convo.id);
+
+              void supabaseAdmin.from('instagram_messages').insert({
+                conversation_id: convo.id,
+                lead_id: lead.id,
+                direction: 'inbound',
+                content: text || '(no text)',
+                sent_via: 'meta_webhook',
+              });
             }
           }
         }
@@ -116,7 +174,22 @@ export async function POST(request: NextRequest) {
           tag: 'instagram-dms',
           url: '/?view=instagram-dms',
         }).catch(() => {});
-        triggerAgentRun('instagram-replies').catch(() => {});
+
+        // Trigger AI auto-replies for each new conversation (fire-and-forget)
+        for (const entry of body.entry) {
+          const acctId = entry.id;
+          const senderList: string[] = [];
+          for (const evt of (entry.messaging || [])) {
+            if (evt.sender?.id && !evt.message?.is_echo && !senderList.includes(evt.sender.id)) {
+              senderList.push(evt.sender.id);
+            }
+          }
+          for (const sid of senderList) {
+            handleInstagramAutoReply(acctId, sid).catch(e =>
+              console.error('[peoples-dm] Auto-reply error:', e)
+            );
+          }
+        }
       }
 
       return NextResponse.json({ received: true, processed });
