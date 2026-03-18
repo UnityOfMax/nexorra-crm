@@ -22,6 +22,7 @@ import CommandCenter from './CommandCenter';
 import AnalyticsDashboard from './analytics/AnalyticsDashboard';
 import AgencyOverview from './analytics/AgencyOverview';
 import InstagramConversations from './InstagramConversations';
+import InstagramUnibox from './InstagramUnibox';
 import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
@@ -407,6 +408,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         return <AnalyticsDashboard accountId={currentAccount?.id || ''} />;
       case 'instagram-conversations':
         return <InstagramConversations />;
+      case 'instagram-unibox':
+        return <InstagramUnibox />;
       case 'agency-analytics':
         return (
           <div>
@@ -725,6 +728,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'command-center' ? 'Command Center' :
                  activeView === 'analytics' ? 'Analytics' :
                  activeView === 'instagram-conversations' ? 'Instagram DMs' :
+                 activeView === 'instagram-unibox' ? 'Instagram Inbox' :
                  activeView === 'agency-analytics' ? 'Agency Analytics' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
