@@ -4,17 +4,28 @@
 
 /* ─── PWA / Mobile Shell ─────────────────────────────────────────────────── */
 html, body {
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  position: fixed;
+  width: 100%;
+  touch-action: pan-y;
 }
 
-/* Hide scrollbars on mobile while keeping scroll functional */
+/* Prevent rubber-banding / bounce scroll on iOS */
 @media (max-width: 767px) {
-  * {
+  html, body {
+    position: fixed;
+    inset: 0;
+  }
+  /* Hide scrollbars on mobile but keep scroll functional in content areas */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  *::-webkit-scrollbar {
+  .mobile-scroll::-webkit-scrollbar {
     display: none;
   }
 }

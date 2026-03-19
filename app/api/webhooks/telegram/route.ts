@@ -139,9 +139,9 @@ Departments: Research (Jeff), Marketing (Stacey), Client Success (Ava), Service 
 
     await sendMessage(chatId, result.text);
   } catch (err: any) {
-    console.error('[telegram] Lena generation error:', err.message);
-    // Fallback if generation fails
-    await sendMessage(chatId, "Sorry, brain glitch. Try again?");
+    console.error('[telegram] Lena generation error:', err.message, err.stack?.slice(0, 300));
+    // Fallback — still respond so user isn't left hanging
+    await sendMessage(chatId, "Sorry, had a moment there. Can you try again?");
   }
 
   return NextResponse.json({ ok: true });

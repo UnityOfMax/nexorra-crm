@@ -745,7 +745,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         </header>
 
         {/* pb-16 on mobile so content isn't hidden behind the bottom nav bar */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
+        <main className="flex-1 overflow-y-auto mobile-scroll p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>

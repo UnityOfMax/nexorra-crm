@@ -213,6 +213,7 @@ const server = http.createServer(async (req, res) => {
           '-p', prompt,
           '--model', cliModel,
           '--max-turns', '1',
+          '--verbose',
           '--output-format', 'stream-json',
         ], {
           cwd: CRM_ROOT,
