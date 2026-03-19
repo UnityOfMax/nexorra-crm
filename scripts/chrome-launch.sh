@@ -1,15 +1,21 @@
 #!/bin/bash
-# Launch Chrome with remote debugging enabled for Jeff (lead gen agent)
-# Uses a dedicated debug profile so remote debugging is permitted by Chrome.
-# Supports both foreground (interactive) and background (cron) usage
+# Launch Chrome with remote debugging for Jeff (lead gen agent).
+# Smart: works whether a regular Chrome session exists or not.
+# Safe to call repeatedly — exits immediately if port 9222 is already up.
 
-# Check if Chrome is already running with debugging
-if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
-  echo "Chrome is already running with remote debugging on port 9222."
+set -euo pipefail
+
+PORT=9222
+DEBUG_PROFILE="/home/max/.config/chrome-debug"
+LOG="/home/max/crm/logs/chrome-debug.log"
+
+# Already running with debug port? Done.
+if curl -s --connect-timeout 2 "http://localhost:${PORT}/json/version" > /dev/null 2>&1; then
+  echo "Chrome debug port ${PORT} already up."
   exit 0
 fi
 
-# Try common Chrome locations
+# Find Chrome binary
 CHROME=""
 for cmd in google-chrome google-chrome-stable chromium chromium-browser; do
   if command -v "$cmd" > /dev/null 2>&1; then
@@ -19,33 +25,35 @@ for cmd in google-chrome google-chrome-stable chromium chromium-browser; do
 done
 
 if [ -z "$CHROME" ]; then
-  echo "ERROR: Chrome not found. Install Google Chrome or Chromium."
+  echo "ERROR: Chrome not found."
   exit 1
 fi
 
-echo "Launching Chrome ($CHROME) with remote debugging on port 9222..."
+# Ensure dirs exist
+mkdir -p "$DEBUG_PROFILE" "$(dirname "$LOG")"
 
-# Chrome requires a non-default user-data-dir to enable remote debugging
-DEBUG_PROFILE="/home/max/.config/chrome-debug"
-mkdir -p "$DEBUG_PROFILE"
+echo "[$(date)] Launching Chrome debug instance on port ${PORT}..." | tee -a "$LOG"
 
-# Launch on Wayland session with dedicated debug profile
+# Launch with dedicated profile (separate from any running Chrome session)
 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port=${PORT} \
   --remote-debugging-address=127.0.0.1 \
   --user-data-dir="$DEBUG_PROFILE" \
   --no-first-run \
-  "$@" >> /home/max/crm/logs/chrome.log 2>&1 &
+  --disable-background-timer-throttling \
+  --disable-backgrounding-occluded-windows \
+  --disable-renderer-backgrounding \
+  "$@" >> "$LOG" 2>&1 &
 disown
 
-# Wait for Chrome to be ready (up to 20s)
-for i in $(seq 1 20); do
-  if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
-    echo "Chrome is ready on port 9222."
+# Wait up to 30s for debug port
+for i in $(seq 1 30); do
+  if curl -s --connect-timeout 2 "http://localhost:${PORT}/json/version" > /dev/null 2>&1; then
+    echo "[$(date)] Chrome debug ready on port ${PORT}." | tee -a "$LOG"
     exit 0
   fi
   sleep 1
 done
 
-echo "WARNING: Chrome launched but not responding on port 9222 after 20s."
+echo "[$(date)] ERROR: Chrome launched but port ${PORT} not responding after 30s." | tee -a "$LOG"
 exit 1

@@ -45,6 +45,46 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Cross-check: any "running" records that the daemon doesn't know about are stale
+  const runningRuns = Object.values(latestRunMap).filter((r: any) => r.status === 'running');
+  if (runningRuns.length > 0) {
+    try {
+      const daemonUrl = process.env.DAEMON_URL || 'http://localhost:4200';
+      const cronSecret = process.env.CRON_SECRET || '';
+      const statusRes = await fetch(`${daemonUrl}/status`, {
+        headers: { 'x-cron-secret': cronSecret },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (statusRes.ok) {
+        const daemonStatus = await statusRes.json();
+        const daemonRunIds = new Set((daemonStatus.agents || []).map((a: any) => a.runId));
+
+        for (const run of runningRuns) {
+          if (!daemonRunIds.has(run.id)) {
+            // Daemon doesn't know about this run — it's stale, mark as completed/failed
+            const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
+            void supabaseAdmin.from('agent_runs').update({
+              status: elapsed > 600 ? 'failed' : 'completed',
+              finished_at: new Date().toISOString(),
+              duration_seconds: Math.round(elapsed),
+              error_message: elapsed > 600 ? 'Stale — process not found in daemon' : null,
+            }).eq('id', run.id);
+
+            // Update in-memory map immediately so this response is correct
+            latestRunMap[run.agent_id] = {
+              ...run,
+              status: elapsed > 600 ? 'failed' : 'completed',
+              finished_at: new Date().toISOString(),
+              duration_seconds: Math.round(elapsed),
+            };
+          }
+        }
+      }
+    } catch {
+      // Daemon unreachable — can't verify, leave as-is
+    }
+  }
+
   // Compute avg_duration from last 5 completed runs per agent
   const { data: recentRuns } = await supabaseAdmin
     .from('agent_runs')

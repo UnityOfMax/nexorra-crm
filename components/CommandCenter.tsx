@@ -1137,11 +1137,13 @@ export default function CommandCenter() {
     }
   }, []);
 
+  // Poll faster (3s) when agents are running, slower (10s) when idle
+  const hasRunning = agents.some(a => a.latest_run?.status === 'running');
   useEffect(() => {
     fetchAgents();
-    const interval = setInterval(fetchAgents, 10000);
+    const interval = setInterval(fetchAgents, hasRunning ? 3000 : 10000);
     return () => clearInterval(interval);
-  }, [fetchAgents]);
+  }, [fetchAgents, hasRunning]);
 
   const toggleAgent = async (agentId: string, currentEnabled: boolean) => {
     const res = await fetch(`/api/agents?id=${agentId}`, {
