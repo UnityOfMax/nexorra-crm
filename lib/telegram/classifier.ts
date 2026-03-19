@@ -1,10 +1,9 @@
 /**
- * Intent classifier for Lena (PA).
- * Uses a lightweight inline classification — no LLM call needed for obvious routing.
- * Falls back to Haiku via daemon for ambiguous messages.
+ * Intent classifier for Lena — routes ACTION requests to departments.
+ * Only called when the message is clearly an action (build, fix, create, etc).
  */
 
-import { DEPARTMENTS, type DepartmentKey } from '@/lib/agents/definitions';
+import { type DepartmentKey } from '@/lib/agents/definitions';
 
 interface ClassificationResult {
   department: DepartmentKey;
@@ -13,72 +12,34 @@ interface ClassificationResult {
   taskSummary: string;
 }
 
-const KEYWORD_MAP: Record<string, { department: DepartmentKey; head: string }> = {
-  // Research
-  lead: { department: 'research', head: 'jeff' },
-  scrape: { department: 'research', head: 'jeff' },
-  brokerage: { department: 'research', head: 'jeff' },
-  research: { department: 'research', head: 'jeff' },
-  market: { department: 'research', head: 'jeff' },
+const DEPARTMENT_KEYWORDS: Array<{ keywords: string[]; department: DepartmentKey; head: string }> = [
+  // Research — lead gen, scraping, market research
+  { keywords: ['lead', 'scrape', 'brokerage', 'research', 'market', 'jeff', 'nina', 'derek', 'city', 'agent list'], department: 'research', head: 'jeff' },
 
-  // Marketing
-  email: { department: 'marketing', head: 'stacey' },
-  instantly: { department: 'marketing', head: 'stacey' },
-  instagram: { department: 'marketing', head: 'stacey' },
-  dm: { department: 'marketing', head: 'stacey' },
-  outreach: { department: 'marketing', head: 'stacey' },
-  campaign: { department: 'marketing', head: 'stacey' },
-  copy: { department: 'marketing', head: 'stacey' },
-  ad: { department: 'marketing', head: 'stacey' },
+  // Marketing — outreach, email, instagram, ads, copy
+  { keywords: ['email', 'instantly', 'instagram', 'dm', 'outreach', 'campaign', 'copy', 'ad', 'stacey', 'priya', 'tara', 'malik', 'jess', 'vera', 'lionel', 'subject line', 'template', 'cold email'], department: 'marketing', head: 'stacey' },
 
-  // Client
-  client: { department: 'client', head: 'ava' },
-  onboard: { department: 'client', head: 'ava' },
-  subaccount: { department: 'client', head: 'ava' },
-  avatar: { department: 'client', head: 'ava' },
-  'sub-account': { department: 'client', head: 'ava' },
+  // Client — sub-accounts, onboarding, client-specific
+  { keywords: ['client', 'onboard', 'subaccount', 'sub-account', 'avatar', 'ava', 'omar', 'riya', 'nadia', 'iris', 'buyer', 'seller', 'landing page copy'], department: 'client', head: 'ava' },
 
-  // Delivery
-  optimize: { department: 'delivery', head: 'marcus' },
-  meta: { department: 'delivery', head: 'marcus' },
-  funnel: { department: 'delivery', head: 'marcus' },
-  report: { department: 'delivery', head: 'marcus' },
-  analytics: { department: 'delivery', head: 'marcus' },
+  // Delivery — optimization, reporting, meta, funnel
+  { keywords: ['optimize', 'meta', 'funnel', 'report', 'analytics', 'marcus', 'fiona', 'glen', 'ad set', 'budget', 'performance'], department: 'delivery', head: 'marcus' },
 
-  // Engineering
-  bug: { department: 'engineering', head: 'barny' },
-  fix: { department: 'engineering', head: 'barny' },
-  build: { department: 'engineering', head: 'barny' },
-  deploy: { department: 'engineering', head: 'barny' },
-  code: { department: 'engineering', head: 'barny' },
-  feature: { department: 'engineering', head: 'barny' },
-  ui: { department: 'engineering', head: 'barny' },
-  api: { department: 'engineering', head: 'barny' },
-  frontend: { department: 'engineering', head: 'barny' },
-  backend: { department: 'engineering', head: 'barny' },
+  // Experiments — testing, A/B, experiment, simulate
+  { keywords: ['experiment', 'a/b', 'simulate', 'hugo', 'mira', 'quinn', 'variant', 'hypothesis'], department: 'experiments', head: 'hugo' },
 
-  // Experiments
-  experiment: { department: 'experiments', head: 'hugo' },
-  test: { department: 'experiments', head: 'hugo' },
-  'a/b': { department: 'experiments', head: 'hugo' },
-  simulate: { department: 'experiments', head: 'hugo' },
-};
+  // Engineering — code, build, deploy, fix bugs, UI, API
+  { keywords: ['bug', 'fix', 'build', 'deploy', 'code', 'feature', 'ui', 'api', 'frontend', 'backend', 'barny', 'archie', 'kai', 'liam', 'sophie', 'zara', 'component', 'route', 'database', 'mobile', 'pwa', 'responsive', 'css', 'dark mode', 'light mode', 'sidebar', 'dashboard', 'page', 'redesign', 'refactor'], department: 'engineering', head: 'barny' },
+];
 
 const URGENCY_KEYWORDS: Record<string, 'urgent' | 'high'> = {
-  urgent: 'urgent',
-  asap: 'urgent',
-  emergency: 'urgent',
-  broken: 'urgent',
-  down: 'urgent',
-  important: 'high',
-  priority: 'high',
-  'right now': 'urgent',
-  immediately: 'urgent',
+  urgent: 'urgent', asap: 'urgent', emergency: 'urgent', broken: 'urgent',
+  down: 'urgent', 'right now': 'urgent', immediately: 'urgent',
+  important: 'high', priority: 'high',
 };
 
 export function classifyMessage(text: string): ClassificationResult {
   const lower = text.toLowerCase();
-  const words = lower.split(/\s+/);
 
   // Detect urgency
   let urgency: 'urgent' | 'high' | 'normal' | 'low' = 'normal';
@@ -86,32 +47,36 @@ export function classifyMessage(text: string): ClassificationResult {
     if (lower.includes(keyword)) { urgency = level; break; }
   }
 
-  // Match department by keywords
-  const scores: Record<string, number> = {};
-  for (const word of words) {
-    const match = KEYWORD_MAP[word];
-    if (match) {
-      scores[match.department] = (scores[match.department] || 0) + 1;
+  // Score each department
+  const scores: Record<string, { score: number; dept: DepartmentKey; head: string }> = {};
+  for (const { keywords, department, head } of DEPARTMENT_KEYWORDS) {
+    let score = 0;
+    for (const kw of keywords) {
+      if (lower.includes(kw)) score++;
+    }
+    if (score > 0) {
+      scores[department] = { score, dept: department, head };
     }
   }
 
-  // Find best match
-  let bestDept: DepartmentKey = 'engineering'; // default
-  let bestHead = 'barny';
+  // Pick the best match
+  let best: { dept: DepartmentKey; head: string } | null = null;
   let bestScore = 0;
-
-  for (const [dept, score] of Object.entries(scores)) {
-    if (score > bestScore) {
-      bestScore = score;
-      bestDept = dept as DepartmentKey;
-      const match = Object.values(KEYWORD_MAP).find(m => m.department === dept);
-      if (match) bestHead = match.head;
+  for (const entry of Object.values(scores)) {
+    if (entry.score > bestScore) {
+      bestScore = entry.score;
+      best = { dept: entry.dept, head: entry.head };
     }
+  }
+
+  // If no match, default to engineering (most action requests are dev work)
+  if (!best) {
+    best = { dept: 'engineering', head: 'barny' };
   }
 
   return {
-    department: bestDept,
-    headAgent: bestHead,
+    department: best.dept,
+    headAgent: best.head,
     urgency,
     taskSummary: text.slice(0, 200),
   };

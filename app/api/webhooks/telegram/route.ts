@@ -3,53 +3,24 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { sendMessage } from '@/lib/telegram/client';
 import { classifyMessage } from '@/lib/telegram/classifier';
 import { DEPARTMENTS, AGENT_DEFINITIONS, type DepartmentKey } from '@/lib/agents/definitions';
+import { generateText } from '@/lib/ai/daemon-client';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
-// Lena's personality — casual, warm, concise. Like a real PA texting you.
-const ROUTING_RESPONSES: Record<string, string[]> = {
-  engineering: [
-    "On it — sending this over to Barny and the dev team now.",
-    "Got it, passing this to engineering. Barny will take a look.",
-    "Sure thing. Engineering's on it.",
-  ],
-  marketing: [
-    "Sent to Stacey — she'll handle this with the marketing crew.",
-    "Marketing's got it. Stacey will sort this out.",
-    "Passing this to Stacey and the outreach team now.",
-  ],
-  research: [
-    "Jeff's on it. I'll let you know what the research team finds.",
-    "Sent over to research. Jeff will dig into this.",
-    "Got it — handing this off to Jeff and the research team.",
-  ],
-  client: [
-    "Ava's got this. She'll loop in whoever's needed on the client side.",
-    "Passing to Ava and client success now.",
-    "Client team's handling it. Ava will follow up.",
-  ],
-  delivery: [
-    "Marcus is on it. He'll check the numbers and get back to you.",
-    "Sent to Marcus — delivery team will take care of this.",
-    "Got it, routing to service delivery now.",
-  ],
-  experiments: [
-    "Hugo's on it. The experiments team will look into this.",
-    "Interesting — sending this to Hugo for testing.",
-    "Passing to the experiments team. Hugo will figure it out.",
-  ],
-};
-
-const GREETINGS = [
-  "Hey! What can I do for you?",
-  "What's up? Send me a task and I'll get the right people on it.",
-  "Hey Max — what do you need?",
+// Words that signal "do something" vs "tell me something"
+const ACTION_SIGNALS = [
+  'build', 'create', 'make', 'add', 'fix', 'deploy', 'change', 'update', 'remove',
+  'delete', 'set up', 'configure', 'install', 'run', 'launch', 'start', 'stop',
+  'scrape', 'upload', 'send', 'write', 'redesign', 'implement', 'refactor',
+  'onboard', 'optimize', 'test', 'review', 'push', 'ship',
 ];
 
-function pick(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
+function isActionRequest(text: string): boolean {
+  const lower = text.toLowerCase();
+  return ACTION_SIGNALS.some(s => lower.includes(s));
 }
 
 export async function POST(request: NextRequest) {
@@ -70,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   // First-time setup
   if (!ADMIN_CHAT_ID) {
-    await sendMessage(chatId, `Hey there! I'm Lena, your PA at Nexorra. Your chat ID is \`${chatId}\` — add this as TELEGRAM_ADMIN_CHAT_ID in your env vars and I'll be all set.`);
+    await sendMessage(chatId, `Hey! I'm Lena. Your chat ID is \`${chatId}\`. Add it as TELEGRAM_ADMIN_CHAT_ID and I'm good to go.`);
     return NextResponse.json({ ok: true });
   }
 
@@ -78,59 +49,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // Simple greetings
-  const greetings = ['hi', 'hey', 'hello', 'yo', 'sup', '/start'];
-  if (greetings.includes(text.toLowerCase())) {
-    await sendMessage(chatId, pick(GREETINGS), { parse_mode: 'Markdown' });
-    return NextResponse.json({ ok: true });
-  }
+  // ── If it's an ACTION request, classify and delegate to a department ──
+  if (isActionRequest(text)) {
+    const classification = classifyMessage(text);
+    const dept = DEPARTMENTS[classification.department];
+    const headDef = AGENT_DEFINITIONS[classification.headAgent];
 
-  // Status check
-  if (text.toLowerCase().includes('status') || text.toLowerCase().includes('what\'s running')) {
-    const { data: running } = await supabaseAdmin
-      .from('agent_runs')
-      .select('agent_id, started_at')
-      .eq('status', 'running');
-
-    if (!running || running.length === 0) {
-      await sendMessage(chatId, "All quiet right now — nobody's running.", { parse_mode: 'Markdown' });
+    // Lena acknowledges naturally
+    const acks = [
+      `On it. Sending this to ${headDef?.displayName || 'the team'}.`,
+      `Got it, passing to ${headDef?.displayName || 'the right people'}.`,
+      `Sure thing. ${headDef?.displayName || 'The team'}'s on it.`,
+      `Routing to ${dept.label}. I'll let you know when it's done.`,
+    ];
+    const ack = acks[Math.floor(Math.random() * acks.length)];
+    if (classification.urgency === 'urgent') {
+      await sendMessage(chatId, `${ack} Marked urgent.`);
     } else {
-      const lines = running.map(r => {
-        const def = AGENT_DEFINITIONS[r.agent_id];
-        const name = def?.displayName || r.agent_id;
-        const elapsed = Math.round((Date.now() - new Date(r.started_at).getTime()) / 1000);
-        return `• *${name}* — running for ${elapsed}s`;
-      });
-      await sendMessage(chatId, `Currently active:\n${lines.join('\n')}`, { parse_mode: 'Markdown' });
+      await sendMessage(chatId, ack);
     }
-    return NextResponse.json({ ok: true });
-  }
 
-  // Classify and route
-  const classification = classifyMessage(text);
-  const dept = DEPARTMENTS[classification.department];
-  const headDef = AGENT_DEFINITIONS[classification.headAgent];
-  const responses = ROUTING_RESPONSES[classification.department] || ROUTING_RESPONSES.engineering;
-
-  let reply = pick(responses);
-
-  // Add urgency note for urgent tasks
-  if (classification.urgency === 'urgent') {
-    reply += " Marked as urgent — they'll prioritize this.";
-  }
-
-  await sendMessage(chatId, reply, { parse_mode: 'Markdown' });
-
-  // Write to agent_messages
-  const { error } = await supabaseAdmin
-    .from('agent_messages')
-    .insert({
+    await supabaseAdmin.from('agent_messages').insert({
       from_agent: 'lena',
       to_agent: classification.headAgent,
       message_type: 'task',
       payload: {
-        source: 'telegram',
-        chat_id: chatId,
+        source: 'telegram', chat_id: chatId,
         message_id: message.message_id,
         text: classification.taskSummary,
         urgency: classification.urgency,
@@ -139,9 +83,65 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     });
 
-  if (error) {
-    console.error('[telegram] Failed to create agent_message:', error);
-    await sendMessage(chatId, "Hmm, had trouble routing that. Mind trying again?");
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── Otherwise, Lena answers directly using Claude ──
+  // She's the PA. She answers questions, gives status, has conversations.
+  try {
+    const systemPrompt = `You are Lena, Max's personal assistant at Nexorra (an AI appointment-setting agency for real estate agents).
+
+You're texting Max on Telegram. Keep it casual, short, and helpful. Like a real PA.
+
+Rules:
+- Short messages. 1-3 sentences max unless he asks for detail.
+- No bullet points, no markdown headers, no em dashes.
+- Don't start with "Hey!" every time. Vary your openers.
+- No corporate speak. No "I'd be happy to". No "Great question!".
+- If you don't know something, say so. Don't make stuff up.
+- You know the Nexorra CRM inside and out (Next.js, Supabase, 30 AI agents across 7 departments).
+- You can check agent status, recent runs, and project info.
+
+Departments: Research (Jeff), Marketing (Stacey), Client Success (Ava), Service Delivery (Marcus), Engineering (Barny), Experiments (Hugo).`;
+
+    // Get recent context
+    const { data: recentRuns } = await supabaseAdmin
+      .from('agent_runs')
+      .select('agent_id, status, started_at, duration_seconds')
+      .order('started_at', { ascending: false })
+      .limit(5);
+
+    const { data: pendingMsgs } = await supabaseAdmin
+      .from('agent_messages')
+      .select('to_agent, status, created_at')
+      .in('status', ['pending', 'acknowledged'])
+      .limit(5);
+
+    let context = '';
+    if (recentRuns && recentRuns.length > 0) {
+      context += '\nRecent agent activity:\n';
+      for (const r of recentRuns) {
+        const def = AGENT_DEFINITIONS[r.agent_id];
+        context += `- ${def?.displayName || r.agent_id}: ${r.status} (${r.duration_seconds || '?'}s ago)\n`;
+      }
+    }
+    if (pendingMsgs && pendingMsgs.length > 0) {
+      context += `\n${pendingMsgs.length} pending task(s) in the queue.\n`;
+    }
+
+    const result = await generateText({
+      model: 'claude-haiku-4-5-20251001',
+      system: systemPrompt + context,
+      messages: [{ role: 'user', content: text }],
+      maxTokens: 300,
+      temperature: 0.8,
+    });
+
+    await sendMessage(chatId, result.text);
+  } catch (err: any) {
+    console.error('[telegram] Lena generation error:', err.message);
+    // Fallback if generation fails
+    await sendMessage(chatId, "Sorry, brain glitch. Try again?");
   }
 
   return NextResponse.json({ ok: true });
