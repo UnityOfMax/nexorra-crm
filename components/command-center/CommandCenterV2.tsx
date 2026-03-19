@@ -11,7 +11,8 @@ import ReactFlow, {
   type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Play, Square, Clock, Activity, TrendingUp, ChevronRight, X, RefreshCw } from 'lucide-react';
+import { Play, Square, Clock, Activity, TrendingUp, ChevronRight, X, RefreshCw, LayoutGrid, ListTodo } from 'lucide-react';
+import TaskBoard from './panels/TaskBoard';
 import { PANode } from './nodes/PANode';
 import { DepartmentNode } from './nodes/DepartmentNode';
 import { AgentNode } from './nodes/AgentNode';
@@ -272,6 +273,7 @@ export default function CommandCenterV2() {
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bottomPanel, setBottomPanel] = useState<'none' | 'tasks'>('none');
 
   // Fetch agents
   const fetchAgents = useCallback(async () => {
@@ -354,7 +356,15 @@ export default function CommandCenterV2() {
             <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{todayRuns}</span>
           </div>
         </div>
-        <UsageBar />
+        <div className="flex items-center gap-3">
+          <UsageBar />
+          <button onClick={() => setBottomPanel(bottomPanel === 'tasks' ? 'none' : 'tasks')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+              bottomPanel === 'tasks' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/8'
+            }`}>
+            <ListTodo className="w-3 h-3" /> Tasks
+          </button>
+        </div>
       </div>
 
       {/* Main content */}
@@ -408,6 +418,13 @@ export default function CommandCenterV2() {
           />
         )}
       </div>
+
+      {/* Bottom Panel — Task Board */}
+      {bottomPanel === 'tasks' && (
+        <div className="border border-t-0 border-gray-200 dark:border-gray-800 rounded-b-xl bg-white dark:bg-[#111113] max-h-[40vh] overflow-y-auto">
+          <TaskBoard />
+        </div>
+      )}
     </div>
   );
 }

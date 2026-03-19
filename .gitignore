@@ -52,3 +52,6 @@ agents/memory/
 
 # GitHub token
 .gh-token
+
+# MCP config (contains API keys)
+.mcp.json

@@ -19,12 +19,8 @@ INSERT INTO instagram_account_configs (ig_account_id, username, display_name) VA
   ('pending_5', 'maxwellfawctt', 'Maxwell Fawctt')
 ON CONFLICT DO NOTHING;
 
--- Set access tokens
-UPDATE instagram_account_configs SET access_token = '***REMOVED***' WHERE username = 'maximillian_fawcett';
-UPDATE instagram_account_configs SET access_token = '***REMOVED***' WHERE username = '_mmmmmmmax';
-UPDATE instagram_account_configs SET access_token = '***REMOVED***' WHERE username = 'maximefawcett';
-UPDATE instagram_account_configs SET access_token = '***REMOVED***' WHERE username = 'fawcettmaximilian';
-UPDATE instagram_account_configs SET access_token = '***REMOVED***' WHERE username = 'maxwellfawctt';
+-- Access tokens are stored directly in Supabase (not in migration files for security).
+-- Run token updates via Supabase SQL Editor or admin API only.
 
 -- Unified inbox messages table
 CREATE TABLE IF NOT EXISTS instagram_unibox_messages (
