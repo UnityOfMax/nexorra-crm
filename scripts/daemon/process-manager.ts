@@ -33,17 +33,23 @@ export async function spawnAgent(params: {
   model: string;
   maxTurns: number;
   trigger: string;
+  extraContext?: string;
 }): Promise<{ runId: string; status: string }> {
-  const { agentId, promptFile, model, maxTurns, trigger } = params;
+  const { agentId, promptFile, model, maxTurns, trigger, extraContext } = params;
 
   // Read prompt file
   const promptPath = path.join(CRM_ROOT, promptFile);
   if (!existsSync(promptPath)) {
     throw new Error(`Prompt file not found: ${promptFile}`);
   }
-  const promptContent = readFileSync(promptPath, 'utf-8');
+  let promptContent = readFileSync(promptPath, 'utf-8');
   if (!promptContent) {
     throw new Error('Agent prompt file is empty');
+  }
+
+  // Append extra context (e.g. from agent_messages task)
+  if (extraContext) {
+    promptContent += extraContext;
   }
 
   // Check for already-running (with 2h stale timeout)

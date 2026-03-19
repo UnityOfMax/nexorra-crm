@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
-import { AGENT_DEFINITIONS } from '../../lib/agents/definitions';
+import { createClient } from '@supabase/supabase-js';
+import { AGENT_DEFINITIONS, resolveAgent } from '../../lib/agents/definitions';
 import { spawnAgent, stopAgent, getRunningAgents, cleanupOrphanedRuns } from './process-manager';
 
 const CLAUDE_CLI = '/home/max/.npm-global/bin/claude';
@@ -287,6 +288,155 @@ cleanupOrphanedRuns().then((count) => {
     console.log(`[daemon] Nexorra Agent Daemon running on http://127.0.0.1:${PORT}`);
   });
 });
+
+// ─── Agent Message Poller ──────────────────────────────────────────────────
+// Watches agent_messages table for pending tasks and spawns the target agent.
+// When complete, updates the message and notifies via Telegram.
+
+const POLL_INTERVAL_MS = 15_000; // 15 seconds
+const processingMessages = new Set<string>(); // prevent double-processing
+
+async function pollAgentMessages() {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: pending } = await supabase
+      .from('agent_messages')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(5);
+
+    if (!pending || pending.length === 0) return;
+
+    for (const msg of pending) {
+      if (processingMessages.has(msg.id)) continue;
+
+      const resolved = resolveAgent(msg.to_agent);
+      if (!resolved) {
+        console.log(`[poller] Unknown agent: ${msg.to_agent} — skipping message ${msg.id}`);
+        await supabase.from('agent_messages').update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          result: { error: `Unknown agent: ${msg.to_agent}` },
+        }).eq('id', msg.id);
+        continue;
+      }
+
+      // Check if this agent is already running
+      const running = getRunningAgents();
+      if (running.some(r => r.agentId === resolved.agentId)) {
+        continue; // Wait for it to finish
+      }
+
+      processingMessages.add(msg.id);
+      console.log(`[poller] Processing message ${msg.id} → ${resolved.def.displayName} (${resolved.agentId})`);
+
+      // Mark as acknowledged
+      await supabase.from('agent_messages').update({ status: 'acknowledged' }).eq('id', msg.id);
+
+      // Build context from the message payload
+      const taskText = msg.payload?.text || JSON.stringify(msg.payload);
+      const taskContext = `\n\n---\nYou have a new task from ${msg.from_agent}:\n${taskText}\n\nPriority: ${msg.payload?.urgency || 'normal'}\nMessage ID: ${msg.id}\n---`;
+
+      try {
+        // Spawn the agent with the task context appended to the prompt
+        const result = await spawnAgent({
+          agentId: resolved.agentId,
+          promptFile: resolved.def.promptFile,
+          model: resolved.def.model,
+          maxTurns: Math.min(resolved.def.maxTurns, 30), // Cap at 30 for message-triggered tasks
+          trigger: 'message',
+          extraContext: taskContext,
+        });
+
+        console.log(`[poller] Spawned ${resolved.def.displayName} — run ${result.runId}`);
+
+        // Watch for completion (poll every 5s for up to 10 min)
+        const watchCompletion = async () => {
+          for (let i = 0; i < 120; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const still = getRunningAgents().find(r => r.runId === result.runId);
+            if (!still) {
+              // Agent finished — get the run result
+              const { data: run } = await supabase
+                .from('agent_runs')
+                .select('status, summary, error_message, duration_seconds')
+                .eq('id', result.runId)
+                .maybeSingle();
+
+              const resultPayload = {
+                run_id: result.runId,
+                status: run?.status || 'completed',
+                summary: run?.summary || null,
+                error: run?.error_message || null,
+                duration: run?.duration_seconds || null,
+              };
+
+              await supabase.from('agent_messages').update({
+                status: run?.status === 'failed' ? 'failed' : 'completed',
+                completed_at: new Date().toISOString(),
+                result: resultPayload,
+              }).eq('id', msg.id);
+
+              // Notify via Telegram if the message came from there
+              if (msg.payload?.chat_id) {
+                const botToken = process.env.TELEGRAM_BOT_TOKEN;
+                if (botToken) {
+                  const agentName = resolved.def.displayName;
+                  const status = run?.status === 'failed' ? '❌' : '✅';
+                  const summary = run?.summary
+                    ? run.summary.slice(0, 500)
+                    : (run?.error_message || 'Task completed.');
+                  const text = `${status} *${agentName}* finished (${run?.duration_seconds || '?'}s)\n\n${summary}`;
+
+                  fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      chat_id: msg.payload.chat_id,
+                      text,
+                      parse_mode: 'Markdown',
+                    }),
+                  }).catch(() => {});
+                }
+              }
+
+              processingMessages.delete(msg.id);
+              return;
+            }
+          }
+          // Timed out watching
+          processingMessages.delete(msg.id);
+        };
+
+        // Fire and forget the watcher
+        watchCompletion().catch(e => {
+          console.error(`[poller] Watch error for ${msg.id}:`, e);
+          processingMessages.delete(msg.id);
+        });
+
+      } catch (err: any) {
+        console.error(`[poller] Failed to spawn ${resolved.agentId}:`, err.message);
+        await supabase.from('agent_messages').update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          result: { error: err.message },
+        }).eq('id', msg.id);
+        processingMessages.delete(msg.id);
+      }
+    }
+  } catch (err: any) {
+    console.error('[poller] Poll error:', err.message);
+  }
+}
+
+// Start polling
+setInterval(pollAgentMessages, POLL_INTERVAL_MS);
+console.log(`[daemon] Message poller active (every ${POLL_INTERVAL_MS / 1000}s)`);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
