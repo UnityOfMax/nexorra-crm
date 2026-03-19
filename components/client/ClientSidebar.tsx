@@ -85,7 +85,8 @@ export default function ClientSidebar({
   accountName = 'CRM',
 }: ClientSidebarProps) {
   return (
-    <aside className="w-60 flex flex-col flex-shrink-0 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/5">
+    // Desktop-only sidebar — mobile nav is handled by MobileNav bottom tabs
+    <aside className="hidden md:flex w-60 flex-col flex-shrink-0 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/5">
       <div className="p-4 border-b border-gray-200/40 dark:border-white/5">
         <ClientAccountDropdown accountName={accountName} onSignOut={onSignOut} />
       </div>

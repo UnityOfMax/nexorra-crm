@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Menu, X, Bot, Target, Mail, Terminal, BarChart2, Instagram } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, MessageSquare, Workflow, KanbanSquare, Calendar, Building2, FileText, Bot, Target, Mail, Terminal, BarChart2, Instagram } from 'lucide-react';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import type { Account } from '@/types';
 import type { UserRole } from '@/types/agency';
@@ -169,8 +168,6 @@ export default function Sidebar({
   isViewingClient = false,
   userRole,
 }: SidebarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   // Filter sections based on role/account type, removing empty sections
   const sections = allSections
     .map((section) => ({
@@ -196,42 +193,9 @@ export default function Sidebar({
   };
 
   return (
-    <>
-      {/* Mobile hamburger */}
-      <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white/90 dark:bg-[#2c2c2e]/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/60 dark:border-white/8"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open menu"
-      >
-        <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-      </button>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={() => setMobileOpen(false)}
-        >
-          <aside
-            className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-[#1c1c1e] flex flex-col"
-            style={{ boxShadow: '4px 0 32px rgba(0,0,0,0.18)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/40 dark:border-white/5">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">Menu</span>
-              <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/8 transition-colors">
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            <SidebarContent {...sharedProps} onClose={() => setMobileOpen(false)} />
-          </aside>
-        </div>
-      )}
-
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 flex-col flex-shrink-0 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/5">
-        <SidebarContent {...sharedProps} />
-      </aside>
-    </>
+    // Desktop-only sidebar — mobile nav is handled by MobileNav bottom tabs
+    <aside className="hidden md:flex w-60 flex-col flex-shrink-0 bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/5">
+      <SidebarContent {...sharedProps} />
+    </aside>
   );
 }

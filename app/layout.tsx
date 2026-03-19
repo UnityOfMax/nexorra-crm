@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { DM_Sans, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import ThemeProvider from '@/components/ThemeProvider';
@@ -8,15 +8,24 @@ const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'CRM Platform',
-  description: 'Complete CRM solution with landing pages, email campaigns, and more',
+  title: 'Nexorra CRM',
+  description: 'AI-powered CRM for real estate appointment setting',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'CRM',
+    statusBarStyle: 'black-translucent',
+    title: 'Nexorra',
   },
   formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#0ea5e9',
 };
 
 export default function RootLayout({
@@ -27,7 +36,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#3b82f6" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>

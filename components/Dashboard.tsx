@@ -26,6 +26,7 @@ import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
+import MobileNav from './MobileNav';
 
 interface DashboardProps {
   user: User;
@@ -687,7 +688,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }
 
   return (
-    <div className="flex h-screen bg-[#f5f5f7] dark:bg-[#1c1c1e]">
+    <div className="flex h-[100dvh] bg-[#f5f5f7] dark:bg-[#1c1c1e]">
       {currentAccount && <PushNotificationSetup accountId={currentAccount.id} />}
       {isAgencyUser ? (
         <Sidebar
@@ -711,8 +712,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Header — add left padding on mobile for hamburger button */}
-        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 pl-16 md:pl-6 sticky top-0 z-30">
+        {/* Header */}
+        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -743,12 +744,21 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 dark:text-gray-100">
+        {/* pb-16 on mobile so content isn't hidden behind the bottom nav bar */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>
         </main>
       </div>
+
+      {/* Mobile bottom tab navigation */}
+      <MobileNav
+        activeView={activeView}
+        onViewChange={setActiveView}
+        isAgencyUser={isAgencyUser}
+        isViewingClient={isViewingClient}
+      />
     </div>
   );
 }
