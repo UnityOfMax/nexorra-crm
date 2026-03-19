@@ -382,16 +382,36 @@ async function pollAgentMessages() {
                 result: resultPayload,
               }).eq('id', msg.id);
 
-              // Notify via Telegram if the message came from there
+              // Notify via Telegram as Lena (she's the single point of contact)
               if (msg.payload?.chat_id) {
                 const botToken = process.env.TELEGRAM_BOT_TOKEN;
                 if (botToken) {
                   const agentName = resolved.def.displayName;
-                  const status = run?.status === 'failed' ? '❌' : '✅';
+                  const failed = run?.status === 'failed';
+                  const duration = run?.duration_seconds;
                   const summary = run?.summary
                     ? run.summary.slice(0, 500)
-                    : (run?.error_message || 'Task completed.');
-                  const text = `${status} *${agentName}* finished (${run?.duration_seconds || '?'}s)\n\n${summary}`;
+                    : (run?.error_message || null);
+
+                  // Lena speaks naturally — not like a system notification
+                  const successPhrases = [
+                    `${agentName} just finished up.`,
+                    `Done — ${agentName} handled it.`,
+                    `${agentName}'s wrapped up on this.`,
+                    `All done. ${agentName} took care of it.`,
+                  ];
+                  const failPhrases = [
+                    `${agentName} ran into an issue.`,
+                    `Heads up — ${agentName} hit a problem.`,
+                    `${agentName} couldn't finish this one.`,
+                  ];
+
+                  const phrases = failed ? failPhrases : successPhrases;
+                  const opener = phrases[Math.floor(Math.random() * phrases.length)];
+                  let text = opener;
+                  if (duration) text += ` (${duration}s)`;
+                  if (summary) text += `\n\n${summary}`;
+                  if (failed && run?.error_message) text += `\n\nError: ${run.error_message.slice(0, 300)}`;
 
                   fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                     method: 'POST',
