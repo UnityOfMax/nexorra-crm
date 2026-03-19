@@ -2,6 +2,13 @@
 # Campaign Optimizer — analyze Meta + funnel data, propose ad changes
 # Schedule: 10:00 PM daily
 cd /home/max/crm || exit 1
+
+# Operating hours guard: 10am-2am only
+HOUR=$(date +%H)
+if [ "$HOUR" -ge 2 ] && [ "$HOUR" -lt 10 ]; then
+  echo "$(date) — Outside operating hours (10am-2am). Skipping." >> "$LOG"
+  exit 0
+fi
 set -a && source .env.local && set +a
 LOG="logs/campaign-optimizer.log"
 mkdir -p logs
