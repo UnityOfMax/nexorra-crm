@@ -18,7 +18,7 @@ import LandingPageList from './landing-pages/LandingPageList';
 import AIAgent from './AIAgent';
 import LeadsList from './LeadsList';
 import StaceyConversations from './StaceyConversations';
-import CommandCenter from './CommandCenter';
+import CommandCenterV2 from './command-center/CommandCenterV2';
 import AnalyticsDashboard from './analytics/AnalyticsDashboard';
 import AgencyOverview from './analytics/AgencyOverview';
 import InstagramDMs from './InstagramDMs';
@@ -402,7 +402,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       case 'campaigns':
         return <StaceyConversations />;
       case 'command-center':
-        return <CommandCenter />;
+        return <CommandCenterV2 />;
       case 'analytics':
         return <AnalyticsDashboard accountId={currentAccount?.id || ''} />;
       case 'instagram-dms':
