@@ -51,14 +51,14 @@ export default function DealCard({ deal, isDragging }: DealCardProps) {
       )}
 
       {/* Deal Title */}
-      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 line-clamp-2 pl-1">
+      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 line-clamp-2 pl-1 break-words min-w-0">
         {deal.title}
       </h5>
 
       {/* Deal Value */}
-      <div className={`flex items-center gap-1 font-semibold mb-2 pl-1 ${isWon ? 'text-emerald-600 dark:text-emerald-400' : isLost ? 'text-red-500 dark:text-red-400' : 'text-primary-600'}`}>
-        <DollarSign className="w-4 h-4" />
-        <span>{formatCurrency(deal.value || 0)}</span>
+      <div className={`flex items-center gap-1 font-semibold mb-2 pl-1 min-w-0 ${isWon ? 'text-emerald-600 dark:text-emerald-400' : isLost ? 'text-red-500 dark:text-red-400' : 'text-primary-600'}`}>
+        <DollarSign className="w-4 h-4 flex-shrink-0" />
+        <span className="truncate">{formatCurrency(deal.value || 0)}</span>
       </div>
 
       {/* Deal Metadata */}

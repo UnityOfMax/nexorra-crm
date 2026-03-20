@@ -8,7 +8,7 @@ import Sidebar from './Sidebar';
 import ClientSidebar from './client/ClientSidebar';
 import SubAccountsView from './agency/SubAccountsView';
 import ContactsList from './ContactsList';
-import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign, Settings as SettingsIcon } from 'lucide-react';
 import Settings from './Settings';
 import Conversations from './Conversations';
 import PipelineManager from './pipelines/PipelineManager';
@@ -504,14 +504,14 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                     { label: 'Deals Closed / Mo', value: '238', icon: Award, color: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
                     { label: 'Appts / Mo', value: '2,850', icon: CalendarCheck, color: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400' },
                   ].map(s => (
-                    <div key={s.label} className="card">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{s.label}</p>
-                          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{s.value}</p>
+                    <div key={s.label} className="card min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
+                          <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{s.value}</p>
                         </div>
-                        <div className={`p-3 ${s.color} rounded-xl`}>
-                          <s.icon className={`w-6 h-6 ${s.iconColor}`} />
+                        <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
+                          <s.icon className={`w-5 h-5 md:w-6 md:h-6 ${s.iconColor}`} />
                         </div>
                       </div>
                     </div>
@@ -521,17 +521,17 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   {[
                     { label: 'Avg GCI / Deal', value: '$12,500', icon: TrendingUp, color: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400' },
                     { label: 'Avg Ad Spend / Mo', value: '$58,548', icon: Mail, color: 'bg-pink-100 dark:bg-pink-900/30', iconColor: 'text-pink-600 dark:text-pink-400' },
-                    { label: 'Avg Days → Deal', value: '54d', icon: Phone, color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
+                    { label: 'Avg Days to Deal', value: '54d', icon: Phone, color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
                     { label: 'Total Texts / Mo', value: '14,200', icon: MessageSquare, color: 'bg-cyan-100 dark:bg-cyan-900/30', iconColor: 'text-cyan-600 dark:text-cyan-400' },
                   ].map(s => (
-                    <div key={s.label} className="card">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{s.label}</p>
-                          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{s.value}</p>
+                    <div key={s.label} className="card min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
+                          <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{s.value}</p>
                         </div>
-                        <div className={`p-3 ${s.color} rounded-xl`}>
-                          <s.icon className={`w-5 h-5 ${s.iconColor}`} />
+                        <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
+                          <s.icon className={`w-4 h-4 md:w-5 md:h-5 ${s.iconColor}`} />
                         </div>
                       </div>
                     </div>
@@ -541,116 +541,116 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
             ) : (
               <>
             {/* Stats cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Contacts</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalContacts}</p>
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Total Contacts</p>
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalContacts}</p>
                   </div>
-                  <div className="p-3 bg-primary-100 rounded-xl">
-                    <Users className="w-6 h-6 text-primary-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Active Leads</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalLeads}</p>
-                  </div>
-                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                    <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  <div className="p-2 md:p-3 bg-primary-100 rounded-xl flex-shrink-0">
+                    <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-600" />
                   </div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Customers</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.totalCustomers}</p>
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Leads</p>
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalLeads}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                    <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
+                    <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-400" />
                   </div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Active Deals</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.activeDeals}</p>
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Customers</p>
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalCustomers}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                    <Phone className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
+                    <Mail className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Deals</p>
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.activeDeals}</p>
+                  </div>
+                  <div className="p-2 md:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex-shrink-0">
+                    <Phone className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Extended stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Emails Sent</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.emailsSent}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Emails Sent</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.emailsSent}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Texts Sent</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.textsSent}</p>
-                  </div>
-                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                    <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
+                    <Mail className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Bookings</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.bookings}</p>
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Texts Sent</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.textsSent}</p>
                   </div>
-                  <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-                    <CalendarCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Closings</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{stats.closings}</p>
-                  </div>
-                  <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                    <Award className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
+                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-green-600 dark:text-green-400" />
                   </div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Bookings</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.bookings}</p>
+                  </div>
+                  <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex-shrink-0">
+                    <CalendarCheck className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Closings</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.closings}</p>
+                  </div>
+                  <div className="p-2 md:p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex-shrink-0">
+                    <Award className="w-4 h-4 md:w-5 md:h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Revenue</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">
                       ${stats.revenue.toLocaleString()}
                     </p>
                   </div>
-                  <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="p-2 md:p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex-shrink-0">
+                    <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                 </div>
               </div>
@@ -715,7 +715,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         {/* Header */}
         <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
                 {activeView === 'dashboard' ? 'Dashboard' :
                  activeView === 'sub-accounts' ? 'Sub-Accounts' :
@@ -727,6 +727,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                  activeView === 'analytics' ? 'Analytics' :
                  activeView === 'instagram-dms' ? 'Instagram' :
                  activeView === 'agency-analytics' ? 'Agency Analytics' :
+                 activeView === 'settings' ? 'Settings' :
                  activeView.charAt(0).toUpperCase() + activeView.slice(1)}
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">
@@ -741,11 +742,22 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 )}
               </p>
             </div>
+            <button
+              onClick={() => setActiveView('settings')}
+              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                activeView === 'settings'
+                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/8 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+              aria-label="Settings"
+            >
+              <SettingsIcon className="w-5 h-5" />
+            </button>
           </div>
         </header>
 
         {/* pb-16 on mobile so content isn't hidden behind the bottom nav bar */}
-        <main className="flex-1 overflow-y-auto mobile-scroll p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
+        <main className="flex-1 overflow-y-auto mobile-scroll main-content p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>

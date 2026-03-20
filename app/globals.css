@@ -30,6 +30,13 @@ html, body {
   }
 }
 
+/* Main scrollable content area — only this scrolls, not the page */
+.main-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Safe area padding utilities */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 .pt-safe { padding-top: env(safe-area-inset-top); }

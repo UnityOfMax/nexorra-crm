@@ -127,6 +127,42 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // POST /deploy/preview — start local preview with cloudflare tunnel
+  if (method === 'POST' && url.pathname === '/deploy/preview') {
+    const body = await parseBody(req);
+    const sig = req.headers['x-signature'] as string | undefined;
+    if (!verifyHmac(body, sig)) return json(res, { error: 'Invalid signature' }, 401);
+    try {
+      const { spawn: spawnProc } = await import('child_process');
+      const preview = spawnProc('bash', ['-c', `
+        cd /home/max/crm
+        PORT=3456 npx vercel dev --listen 0.0.0.0:3456 &
+        sleep 5
+        cloudflared tunnel --url http://localhost:3456 2>&1 | grep -oP 'https://[^ ]+\\.trycloudflare\\.com' | head -1
+      `], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let previewUrl = '';
+      preview.stdout?.on('data', (d: Buffer) => { previewUrl += d.toString(); });
+      await new Promise(r => setTimeout(r, 15000));
+      return json(res, { url: previewUrl.trim() || 'Preview starting... check logs' });
+    } catch (err: any) {
+      return json(res, { error: err.message }, 500);
+    }
+  }
+
+  // POST /deploy/prod — push to git + trigger Vercel production build
+  if (method === 'POST' && url.pathname === '/deploy/prod') {
+    const body = await parseBody(req);
+    const sig = req.headers['x-signature'] as string | undefined;
+    if (!verifyHmac(body, sig)) return json(res, { error: 'Invalid signature' }, 401);
+    try {
+      const { execSync } = await import('child_process');
+      const pushResult = execSync('cd /home/max/crm && GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/nexorra-crm.git main 2>&1', { timeout: 30000 }).toString();
+      return json(res, { status: 'pushed', output: pushResult.slice(0, 500) });
+    } catch (err: any) {
+      return json(res, { error: err.message }, 500);
+    }
+  }
+
   // Rate limiting
   if (!checkRateLimit()) {
     return json(res, { error: 'Rate limit exceeded (10/min)' }, 429);

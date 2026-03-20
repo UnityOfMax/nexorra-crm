@@ -484,8 +484,8 @@ export default function LeadsList() {
                             </span>
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{lead.full_name}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px]">{lead.full_name}</p>
                           <span className="text-xs text-gray-400">{lead.country}</span>
                         </div>
                       </div>
@@ -493,12 +493,12 @@ export default function LeadsList() {
 
                     {/* Contact */}
                     <td className="px-4 py-3">
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 min-w-0">
                         {lead.email && (
-                          <p className="text-gray-700 dark:text-gray-300 text-xs">{lead.email}</p>
+                          <p className="text-gray-700 dark:text-gray-300 text-xs truncate max-w-[180px]">{lead.email}</p>
                         )}
                         {lead.phone && (
-                          <p className="text-gray-500 dark:text-gray-400 text-xs">{lead.phone}</p>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs truncate">{lead.phone}</p>
                         )}
                         {!lead.email && !lead.phone && (
                           <p className="text-gray-300 dark:text-gray-500 text-xs italic">No contact info</p>

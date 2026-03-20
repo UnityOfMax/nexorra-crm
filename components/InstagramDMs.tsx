@@ -201,7 +201,7 @@ function InboxTab() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+    <div className="flex h-full rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
       {/* Left panel */}
       <div className={`${selected ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 border-r border-gray-200/60 dark:border-gray-700/40 flex-shrink-0`}>
         <div className="p-3 border-b border-gray-200/60 dark:border-gray-700/40 space-y-2">

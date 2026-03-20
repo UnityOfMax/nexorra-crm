@@ -363,7 +363,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const isAiActive = aiConfig?.enabled && contactAiEnabled;
 
   return (
-    <div className="h-[calc(100vh-180px)] flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
+    <div className="h-full flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
       {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
       <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200/60 dark:border-white/5 flex-col`}>
         {/* Search */}

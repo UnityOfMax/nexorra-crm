@@ -189,7 +189,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
   const isError = saveMessage.startsWith('Error') || saveMessage.startsWith('Publish error');
 
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)]">
+    <div className="flex flex-col h-[calc(100dvh-130px)]">
       {/* Toolbar */}
       <div className="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-2 -mt-6 -mx-6 mb-4">
         <div className="flex items-center gap-3">

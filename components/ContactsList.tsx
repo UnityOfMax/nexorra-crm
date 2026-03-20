@@ -154,22 +154,22 @@ export default function ContactsList({
                     onClick={() => setPanelContact(contact)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[180px]">
                         {contact.first_name} {contact.last_name}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         {contact.email && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <Mail className="w-4 h-4" />
-                            {contact.email}
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 min-w-0">
+                            <Mail className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate max-w-[180px]">{contact.email}</span>
                           </div>
                         )}
                         {contact.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <Phone className="w-4 h-4" />
-                            {contact.phone}
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 min-w-0">
+                            <Phone className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{contact.phone}</span>
                           </div>
                         )}
                       </div>

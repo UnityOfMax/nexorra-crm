@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Account, NotificationPreferences } from '@/types';
 import type { UserRole } from '@/types/agency';
 import { supabase } from '@/lib/supabase-browser';
-import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink } from 'lucide-react';
+import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink, ArrowLeft, ChevronRight } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
 // ── Section definitions with role-based visibility ──────────────────
@@ -93,6 +93,8 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
   });
 
   const [activeSection, setActiveSection] = useState(visibleSections[0]?.id || 'notifications');
+  // Mobile: null = show section list, string = show that section's content
+  const [mobileSectionId, setMobileSectionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (account.settings) {
@@ -704,45 +706,111 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
   // ── Layout ────────────────────────────────────────────────────────
 
-  return (
-    <div className="flex gap-6 max-w-5xl">
-      {/* Sidebar nav */}
-      <div className="w-56 flex-shrink-0">
-        <nav className="space-y-0.5">
-          {visibleSections.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.id;
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 ${
-                  isActive
-                    ? 'bg-primary-500/10 text-primary-700 font-semibold dark:bg-primary-500/20 dark:text-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
-              >
-                <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : ''}`} />
-                <span>{section.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+  // Mobile section renderer (uses mobileSectionId to pick content)
+  const renderMobileSection = () => {
+    switch (mobileSectionId) {
+      case 'account-info': return renderAccountInfo();
+      case 'phone': return renderPhoneService();
+      case 'email': return renderEmailService();
+      case 'integrations': return renderIntegrations();
+      case 'branding': return renderBranding();
+      case 'notifications': return renderNotifications();
+      case 'appearance': return renderAppearance();
+      default: return null;
+    }
+  };
 
-      {/* Content area */}
-      <div className="flex-1 min-w-0">
-        {message && (
-          <div className={`mb-4 p-3 rounded-lg text-sm ${
-            message.toLowerCase().includes('error') ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-          }`}>
-            {message}
+  const mobileSectionLabel = visibleSections.find(s => s.id === mobileSectionId)?.label || '';
+
+  return (
+    <>
+      {/* ── Desktop layout (>= md) ── */}
+      <div className="hidden md:flex gap-6 max-w-5xl">
+        {/* Sidebar nav */}
+        <div className="w-56 flex-shrink-0">
+          <nav className="space-y-0.5">
+            {visibleSections.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 ${
+                    isActive
+                      ? 'bg-primary-500/10 text-primary-700 font-semibold dark:bg-primary-500/20 dark:text-primary-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : ''}`} />
+                  <span>{section.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 min-w-0">
+          {message && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              message.toLowerCase().includes('error') ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+            }`}>
+              {message}
+            </div>
+          )}
+          <div className="card">
+            {renderSection()}
           </div>
-        )}
-        <div className="card">
-          {renderSection()}
         </div>
       </div>
-    </div>
+
+      {/* ── Mobile layout (< md) ── */}
+      <div className="md:hidden">
+        {mobileSectionId === null ? (
+          /* Section list */
+          <div className="space-y-1">
+            {visibleSections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setMobileSectionId(section.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/6"
+                >
+                  <div className="p-2 bg-gray-100 dark:bg-white/8 rounded-lg">
+                    <Icon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100">{section.label}</span>
+                  <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          /* Section content with back button */
+          <div>
+            <button
+              onClick={() => setMobileSectionId(null)}
+              className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{mobileSectionLabel}</span>
+            </button>
+
+            {message && (
+              <div className={`mb-4 p-3 rounded-lg text-sm ${
+                message.toLowerCase().includes('error') ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+              }`}>
+                {message}
+              </div>
+            )}
+            <div className="card">
+              {renderMobileSection()}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

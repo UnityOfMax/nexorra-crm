@@ -186,31 +186,35 @@ Nexorra is an AI appointment-setting agency for real estate agents. You oversee 
 
 CRITICAL: ONLY state facts from the CURRENT SYSTEM STATE below. The data is LIVE and ACCURATE. NEVER invent numbers, statuses, or activity. If you don't know, say so.
 
-PERSONALITY: Sharp, casual, direct. Text like a real person. Short messages. Contractions.
+PERSONALITY: Sharp, casual, direct. Text like a real person. Short messages. No corporate speak. Write like you would actually text someone.
 
-NEVER: Em dashes. Bullet points (unless asked). "Great question!". "I'd be happy to". "Absolutely!". Starting with "Hey!" every time. Markdown. Emoji spam. Making up data. Code blocks around JSON.
+NEVER: Em dashes (use commas or periods instead). Bullet lists. "Great question!". "I'd be happy to". "Absolutely!". Starting with "Hey!" every time. Markdown formatting. Emoji spam. Making up data. Code blocks around JSON. Saying "let me check" and then not checking.
 
-THREE MODES OF OPERATION:
+FOUR MODES (choose the FASTEST one that works):
 
-1. ANSWER DIRECTLY — When you have the data in your context (primers, numbers, recent runs).
-   Just respond naturally with the facts.
+1. ANSWER DIRECTLY (preferred, 90% of the time)
+   Your CURRENT SYSTEM STATE has agent primers, recent runs, metrics, pending tasks. USE IT.
+   If the answer is in your context, just answer. Don't query an agent when you already have the info.
+   Examples: "is jeff running?" (check running agents in state), "how many leads?" (check metrics), "what's barny working on?" (check primers/recent runs)
 
-2. QUERY AN AGENT — When you need info you don't have. Ask the right agent based on the AGENT REGISTRY.
-   Respond with ONLY this raw JSON (NO code blocks, NO markdown):
+2. QUICK DB LOOKUP — When you need a specific number or recent data not in your context.
+   Respond with ONLY this raw JSON (NO code blocks):
+   {"db_query":true,"table":"leads","select":"*","limit":5,"order":"created_at.desc"}
+   Supported: table, select, limit, order. I'll query Supabase REST and give you the result fast (2-3s).
+
+3. QUERY AN AGENT — Only when you need an agent's TOOLS (filesystem, web, Chrome, complex analysis).
+   Respond with ONLY this raw JSON (NO code blocks):
    {"query":true,"agent":"agent_id","question":"specific question"}
-   IMPORTANT: "agent" must be the agent's lowercase ID (e.g. "jeff", "liam", "barny"), NOT the display name.
-   The agent will fire up, use their tools (Supabase, filesystem, etc.), and report back. You relay the answer.
-   Pick the agent by their capabilities (MCPs/skills). If unsure, ask the HEAD of the relevant department.
+   IMPORTANT: "agent" must be the lowercase ID (e.g. "jeff", "liam", "barny"), NOT display name.
+   This takes 15-40s because it spawns a real Claude Code process. Only use when modes 1-2 can't answer.
 
-3. DELEGATE A TASK — When actual WORK needs doing (build, fix, deploy, create, change).
+4. DELEGATE A TASK — When actual WORK needs doing (build, fix, deploy, create, change).
    Respond with ONLY this raw JSON (NO code blocks):
    {"route":true,"department":"engineering","head":"barny","urgency":"normal","task":"description"}
-   IMPORTANT: "department" must be the lowercase key (engineering, research, marketing, client, delivery, experiments), NOT the display label.
+   IMPORTANT: "department" must be the lowercase key (engineering, research, marketing, client, delivery, experiments).
 
-4. ESCALATE — When no agent has the capability needed.
-   Respond with raw JSON: {"escalate":true,"need":"what's needed","reason":"why nobody can do it"}
-
-CRITICAL: When outputting JSON, output it as PLAIN TEXT on a single line. NO \`\`\`json code blocks. NO markdown formatting. Just the raw JSON object.
+CRITICAL: When outputting JSON, output it as PLAIN TEXT. NO code blocks. NO markdown. Just the raw JSON.
+CRITICAL: Mode 1 first. Always. Only escalate to 2/3/4 when 1 genuinely can't answer.
 
 For everything else, just respond as text.`;
 
@@ -295,7 +299,45 @@ export async function POST(request: NextRequest) {
     // Strip markdown code blocks — Sonnet sometimes wraps JSON in ```json ... ```
     const response = rawResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
-    // ── Mode 2: QUERY an agent ──
+    // ── Tier 2: QUICK DB LOOKUP ──
+    const dbMatch = response.match(/\{"db_query"\s*:\s*true[\s\S]*?\}/);
+    if (dbMatch) {
+      try {
+        const q = JSON.parse(dbMatch[0]);
+        const naturalBefore = response.replace(dbMatch[0], '').trim();
+        if (naturalBefore) await sendMessage(chatId, naturalBefore);
+
+        const { table, select = '*', limit = 10, order } = q;
+        let url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}&limit=${limit}`;
+        if (order) url += `&order=${order}`;
+
+        const dbRes = await fetch(url, {
+          headers: {
+            'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Prefer': 'count=exact',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        const data = await dbRes.json();
+        const count = dbRes.headers.get('content-range')?.split('/')?.pop();
+
+        // Feed DB result back to Lena to format naturally
+        const followUp = await generate(
+          `${LENA_SYSTEM}\n\nYou just ran a database query on "${table}" and got this result:\n\n${JSON.stringify(data).slice(0, 2000)}\nTotal count: ${count || (data as any[]).length}\n\nRelay this info to Max naturally and concisely. Just the facts.`,
+          [{ role: 'user', content: text }],
+          300
+        );
+        await sendMessage(chatId, followUp);
+        await saveMsg('lena', 'user', followUp);
+        return NextResponse.json({ ok: true });
+      } catch (dbErr) {
+        console.error('[telegram] DB query error:', dbErr);
+        // Fall through to normal response
+      }
+    }
+
+    // ── Tier 3: QUERY an agent (slow path, 15-45s) ──
     const queryMatch = response.match(/\{"query"\s*:\s*true[\s\S]*?\}/);
     if (queryMatch) {
       try {
@@ -303,21 +345,33 @@ export async function POST(request: NextRequest) {
         const agentName = AGENT_DEFINITIONS[q.agent]?.displayName || q.agent;
         const naturalBefore = response.replace(queryMatch[0], '').trim();
 
-        // Send immediate acknowledgment so Max isn't left waiting
+        // Send immediate acknowledgment
         await sendMessage(chatId, naturalBefore || `Checking with ${agentName}, one sec...`);
+
+        // Progress messages while waiting
+        const progressMsgs = [
+          `${agentName} is pulling up the data...`,
+          `Still on it, ${agentName} is running some queries...`,
+          `Almost there, just finishing up...`,
+        ];
+        let progressIdx = 0;
+        const progressTimer = setInterval(async () => {
+          if (progressIdx < progressMsgs.length) {
+            try { await sendMessage(chatId, progressMsgs[progressIdx]); } catch {}
+            progressIdx++;
+          }
+        }, 10000); // every 10s
 
         // Query the agent (up to 40s)
         const result = await queryAgentViaDeamon(q.agent, q.question);
+        clearInterval(progressTimer);
 
         if (result && result.text) {
-          // Send the agent's answer directly — don't waste time on a second LLM call
-          // Just clean it up slightly
           let answer = result.text.trim();
           if (answer.length > 1500) answer = answer.slice(0, 1500) + '...';
           await sendMessage(chatId, answer);
           await saveMsg('lena', 'user', answer);
         } else {
-          // Agent timed out — fall back to async delegation
           const fallback = `${agentName} is taking a while. I've queued it up, I'll message you when there's an answer.`;
           await sendMessage(chatId, fallback);
           await saveMsg('lena', 'user', fallback);
@@ -329,7 +383,6 @@ export async function POST(request: NextRequest) {
         }
         return NextResponse.json({ ok: true });
       } catch (parseErr) {
-        // JSON parse failed — send the raw response as text
         console.error('[telegram] Query parse error:', parseErr);
         await sendMessage(chatId, response);
         await saveMsg('lena', 'user', response);

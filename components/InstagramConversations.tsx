@@ -401,7 +401,7 @@ export default function InstagramConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0">
             {/* Thread header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">

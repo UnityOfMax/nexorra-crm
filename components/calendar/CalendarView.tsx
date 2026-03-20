@@ -330,7 +330,7 @@ const WeekView = memo(function WeekView({
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 200px)', minHeight: 500 }}>
       <div style={{ display: 'flex', borderBottom: '1px solid var(--cal-border)', flexShrink: 0 }}>
         <div style={{ width: 52, flexShrink: 0 }} />
         {days.map((day, i) => {
@@ -369,7 +369,7 @@ const DayView = memo(function DayView({
   const isToday = isSameDayTz(date, today, timezone);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 500 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 200px)', minHeight: 500 }}>
       <div style={{ borderBottom: '1px solid var(--cal-border)', padding: '8px 0 8px 52px', flexShrink: 0 }}>
         <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isToday ? 'var(--cal-event-bg)' : 'var(--cal-text)' }}>
           {dayNames[date.getDay()]}, {date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}

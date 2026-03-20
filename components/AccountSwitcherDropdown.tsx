@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Building2, Check, LogOut } from 'lucide-react';
+import { ChevronDown, Building2, Check, LogOut, Search } from 'lucide-react';
 import type { Account } from '@/types';
 
 interface AccountSwitcherDropdownProps {
@@ -20,6 +20,7 @@ export default function AccountSwitcherDropdown({
   onSignOut,
 }: AccountSwitcherDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,13 +35,23 @@ export default function AccountSwitcherDropdown({
 
   const allAccounts = [...accounts, ...clientAccounts];
 
+  const searchLower = search.toLowerCase().trim();
+  const filteredAgencyAccounts = accounts.filter(a =>
+    !searchLower || a.name.toLowerCase().includes(searchLower) || (a.slug && a.slug.toLowerCase().includes(searchLower))
+  );
+  const filteredClientAccounts = clientAccounts.filter(a =>
+    !searchLower || a.name.toLowerCase().includes(searchLower) || (a.slug && a.slug.toLowerCase().includes(searchLower))
+  );
+
   const handleAccountSelect = (accountId: string) => {
     setIsOpen(false);
+    setSearch('');
     onAccountSwitch(accountId);
   };
 
   const handleSignOut = () => {
     setIsOpen(false);
+    setSearch('');
     onSignOut();
   };
 
@@ -73,26 +84,42 @@ export default function AccountSwitcherDropdown({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-[400px] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-white/10 rounded-lg shadow-lg z-50 max-h-[400px] flex flex-col">
+          {/* Search input */}
+          <div className="px-3 py-2 border-b border-gray-200 dark:border-white/8 flex-shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search accounts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1">
           {/* Agency Accounts Section */}
-          {accounts.length > 0 && (
+          {filteredAgencyAccounts.length > 0 && (
             <div>
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/8">
                 AGENCY
               </div>
-              {accounts.map((account) => (
+              {filteredAgencyAccounts.map((account) => (
                 <button
                   key={account.id}
                   onClick={() => handleAccountSelect(account.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-b-0"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Building2 className="w-4 h-4 text-primary-600 flex-shrink-0" />
                     <div className="text-left min-w-0 flex-1">
-                      <div className="text-sm font-medium text-gray-900 truncate">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {account.name}
                       </div>
-                      <div className="text-xs text-gray-500">{account.slug}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{account.slug}</div>
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
@@ -104,28 +131,28 @@ export default function AccountSwitcherDropdown({
           )}
 
           {/* Sub-Accounts Section */}
-          {clientAccounts.length > 0 && (
+          {filteredClientAccounts.length > 0 && (
             <div>
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-200">
-                SUB-ACCOUNTS ({clientAccounts.length})
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/8">
+                SUB-ACCOUNTS ({filteredClientAccounts.length})
               </div>
-              {clientAccounts.map((account) => (
+              {filteredClientAccounts.map((account) => (
                 <button
                   key={account.id}
                   onClick={() => handleAccountSelect(account.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-b-0"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-purple-100 rounded flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-semibold text-primary-700">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-semibold text-primary-700 dark:text-primary-400">
                         {account.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="text-left min-w-0 flex-1">
-                      <div className="text-sm font-medium text-gray-900 truncate">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {account.name}
                       </div>
-                      <div className="text-xs text-gray-500">{account.slug}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{account.slug}</div>
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
@@ -136,11 +163,12 @@ export default function AccountSwitcherDropdown({
             </div>
           )}
 
-          {allAccounts.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-gray-500">
-              No accounts available
+          {filteredAgencyAccounts.length === 0 && filteredClientAccounts.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              {search ? 'No matching accounts' : 'No accounts available'}
             </div>
           )}
+          </div>
 
           {/* Sign Out — always at the bottom */}
           <div className="border-t border-gray-200">

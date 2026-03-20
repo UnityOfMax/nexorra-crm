@@ -20,10 +20,13 @@ fi
 # Register run start
 DAEMON_URL="http://localhost:4200"
 
+BODY='{"agentId": "instagram-outreach", "trigger": "cron"}'
+SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RUN_RESPONSE=$(curl -s -X POST "$DAEMON_URL/run" \
   -H "Content-Type: application/json" \
   -H "x-cron-secret: $CRON_SECRET" \
-  -d '{"agentId": "instagram-outreach", "trigger": "cron"}')
+  -H "x-signature: $SIGNATURE" \
+  -d "$BODY")
 
 RUN_ID=$(echo "$RUN_RESPONSE" | grep -o '"runId":"[^"]*"' | head -1 | cut -d'"' -f4)
 
