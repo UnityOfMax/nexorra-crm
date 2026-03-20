@@ -296,30 +296,31 @@ export async function POST(request: NextRequest) {
     const response = rawResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
     // ── Mode 2: QUERY an agent ──
-    const queryMatch = response.match(/\{"query"\s*:\s*true[\s\S]*?\}/);  // [\s\S] to match across newlines
+    const queryMatch = response.match(/\{"query"\s*:\s*true[\s\S]*?\}/);
     if (queryMatch) {
       try {
         const q = JSON.parse(queryMatch[0]);
+        const agentName = AGENT_DEFINITIONS[q.agent]?.displayName || q.agent;
         const naturalBefore = response.replace(queryMatch[0], '').trim();
-        if (naturalBefore) await sendMessage(chatId, naturalBefore);
-        else await sendMessage(chatId, `Checking with ${AGENT_DEFINITIONS[q.agent]?.displayName || q.agent}...`);
 
+        // Send immediate acknowledgment so Max isn't left waiting
+        await sendMessage(chatId, naturalBefore || `Checking with ${agentName}, one sec...`);
+
+        // Query the agent (up to 40s)
         const result = await queryAgentViaDeamon(q.agent, q.question);
 
         if (result && result.text) {
-          // Feed agent's answer back to Lena for natural formatting
-          const followUp = await generate(
-            `${LENA_SYSTEM}\n\nYou just asked ${result.agentName} a question and got this answer:\n\n${result.text}\n\nRelay this to Max naturally in your voice. Be concise. Don't add info that isn't in the answer.`,
-            [{ role: 'user', content: text }],
-            400
-          );
-          await sendMessage(chatId, followUp);
-          await saveMsg('lena', 'user', followUp);
+          // Send the agent's answer directly — don't waste time on a second LLM call
+          // Just clean it up slightly
+          let answer = result.text.trim();
+          if (answer.length > 1500) answer = answer.slice(0, 1500) + '...';
+          await sendMessage(chatId, answer);
+          await saveMsg('lena', 'user', answer);
         } else {
-          const fallback = `${AGENT_DEFINITIONS[q.agent]?.displayName || q.agent} didn't get back to me in time. I'll follow up when they do.`;
+          // Agent timed out — fall back to async delegation
+          const fallback = `${agentName} is taking a while. I've queued it up, I'll message you when there's an answer.`;
           await sendMessage(chatId, fallback);
           await saveMsg('lena', 'user', fallback);
-          // Fall back to async
           await supabaseAdmin.from('agent_messages').insert({
             from_agent: 'lena', to_agent: q.agent, message_type: 'task',
             payload: { source: 'telegram', chat_id: chatId, message_id: message.message_id, text: q.question, urgency: 'normal' },
@@ -327,7 +328,9 @@ export async function POST(request: NextRequest) {
           });
         }
         return NextResponse.json({ ok: true });
-      } catch {
+      } catch (parseErr) {
+        // JSON parse failed — send the raw response as text
+        console.error('[telegram] Query parse error:', parseErr);
         await sendMessage(chatId, response);
         await saveMsg('lena', 'user', response);
         return NextResponse.json({ ok: true });
