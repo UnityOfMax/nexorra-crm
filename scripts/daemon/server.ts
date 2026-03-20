@@ -6,7 +6,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { AGENT_DEFINITIONS, resolveAgent } from '../../lib/agents/definitions';
-import { spawnAgent, stopAgent, getRunningAgents, cleanupOrphanedRuns } from './process-manager';
+import { spawnAgent, stopAgent, getRunningAgents, cleanupOrphanedRuns, queryAgent } from './process-manager';
 
 const CLAUDE_CLI = '/home/max/.npm-global/bin/claude';
 
@@ -87,6 +87,43 @@ const server = http.createServer(async (req, res) => {
       return json(res, data);
     } catch {
       return json(res, { ok: false, error: 'Bridge offline' }, 503);
+    }
+  }
+
+  // POST /query — synchronous agent query (Lena uses this to ask agents questions)
+  // No auth — Vercel needs unauthenticated access (same as /lena)
+  if (method === 'POST' && url.pathname === '/query') {
+    try {
+      const body = JSON.parse(await parseBody(req));
+      const { agentId, question, maxTurns, timeout: queryTimeout } = body;
+
+      if (!agentId || !question) {
+        return json(res, { error: 'agentId and question are required' }, 400);
+      }
+
+      const resolved = resolveAgent(agentId);
+      if (!resolved) {
+        return json(res, { error: `Unknown agent: ${agentId}` }, 404);
+      }
+
+      console.log(`[query] ${resolved.def.displayName} asked: "${question.slice(0, 80)}"`);
+
+      const result = await queryAgent({
+        agentId: resolved.agentId,
+        promptFile: resolved.def.promptFile,
+        model: resolved.def.model,
+        question,
+        maxTurns: maxTurns || 5,
+        timeout: queryTimeout || 45000,
+        mcps: resolved.def.mcps,
+        skills: resolved.def.skills,
+      });
+
+      console.log(`[query] ${resolved.def.displayName} responded in ${result.duration}s`);
+      return json(res, { text: result.text, agentId: resolved.agentId, agentName: resolved.def.displayName, duration: result.duration });
+    } catch (err: any) {
+      console.error('[query] Error:', err.message);
+      return json(res, { error: err.message }, 500);
     }
   }
 

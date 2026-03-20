@@ -117,6 +117,23 @@ export async function spawnAgent(params: {
     throw new Error('Agent prompt file is empty');
   }
 
+  // Layer 2: Prepend primer (agent's own state from last run)
+  const primerPath = path.join(CRM_ROOT, 'agents', 'primers', `${agentId}.md`);
+  if (existsSync(primerPath)) {
+    const primer = readFileSync(primerPath, 'utf-8');
+    if (primer.trim()) {
+      promptContent = `--- YOUR CURRENT STATE (from your last run) ---\n${primer}\n--- END STATE ---\n\n${promptContent}`;
+    }
+  }
+
+  // Layer 3: Run git context hook
+  try {
+    const gitHook = path.join(CRM_ROOT, 'scripts', 'hooks', 'git-context.sh');
+    if (existsSync(gitHook)) {
+      require('child_process').execSync(`bash ${gitHook}`, { cwd: CRM_ROOT, timeout: 5000 });
+    }
+  } catch {}
+
   // Prepend skills to prompt (so agent has skill context in its first turn)
   if (skills && skills.length > 0) {
     const skillContent = loadSkills(skills);
@@ -129,6 +146,9 @@ export async function spawnAgent(params: {
   if (extraContext) {
     promptContent += extraContext;
   }
+
+  // Append primer rewrite instruction (agent updates its own primer on completion)
+  promptContent += `\n\n--- IMPORTANT: BEFORE YOU FINISH ---\nUpdate your primer file at agents/primers/${agentId}.md with:\n- What you just did\n- Current state\n- Next steps\n- Any blockers\nThis helps you and Lena know where things stand.\n---`;
 
   // Check for already-running (with 2h stale timeout)
   const { data: runningRun } = await supabaseAdmin
@@ -316,4 +336,107 @@ export async function cleanupOrphanedRuns(): Promise<number> {
     .eq('status', 'running')
     .select('id');
   return data?.length ?? 0;
+}
+
+/**
+ * Synchronous agent query — spawns an agent, WAITS for completion, returns output text.
+ * Used by Lena for real-time queries (not async tasks).
+ * Max 5 turns, 45s timeout. No DB recording (too noisy for lookups).
+ */
+export async function queryAgent(params: {
+  agentId: string;
+  promptFile: string;
+  model: string;
+  question: string;
+  maxTurns?: number;
+  timeout?: number;
+  mcps?: string[];
+  skills?: string[];
+}): Promise<{ text: string; duration: number }> {
+  const { agentId, promptFile, model, question, maxTurns = 5, timeout = 45000, mcps, skills } = params;
+
+  const promptPath = path.join(CRM_ROOT, promptFile);
+  if (!existsSync(promptPath)) throw new Error(`Prompt file not found: ${promptFile}`);
+
+  let promptContent = readFileSync(promptPath, 'utf-8');
+
+  // Prepend primer if it exists (Layer 2 memory)
+  const primerPath = path.join(CRM_ROOT, 'agents', 'primers', `${agentId}.md`);
+  if (existsSync(primerPath)) {
+    const primer = readFileSync(primerPath, 'utf-8');
+    promptContent = `--- YOUR CURRENT STATE (from your last run) ---\n${primer}\n--- END STATE ---\n\n${promptContent}`;
+  }
+
+  // Prepend skills
+  if (skills && skills.length > 0) {
+    const skillContent = loadSkills(skills);
+    if (skillContent) promptContent = skillContent + '\n' + promptContent;
+  }
+
+  // Append the query
+  promptContent += `\n\n---\nQUICK QUERY from Lena (Max's PA):\n${question}\n\nRespond concisely with the answer. Use your tools to look up real data. Max 2-3 turns. Don't start long workflows.\n---`;
+
+  // Build MCP config
+  const mcpConfigPath = buildMcpConfig(`query-${agentId}`, mcps || []);
+
+  const cliArgs = [
+    '-p', promptContent,
+    '--model', model,
+    '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
+    '--max-turns', String(maxTurns),
+    '--output-format', 'stream-json',
+  ];
+  if (mcpConfigPath) cliArgs.push('--mcp-config', mcpConfigPath);
+
+  const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    let output = '';
+    let lastAssistantText = '';
+
+    const child = spawn(CLAUDE_CLI, cliArgs, {
+      cwd: CRM_ROOT,
+      env: {
+        ...cliEnv,
+        PATH: `/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const timer = setTimeout(() => {
+      try { child.kill('SIGTERM'); } catch {}
+      const duration = Math.round((Date.now() - startTime) / 1000);
+      resolve({ text: lastAssistantText || 'Query timed out. The agent took too long.', duration });
+    }, timeout);
+
+    child.stdout?.on('data', (data: Buffer) => {
+      const text = data.toString();
+      output += text;
+      // Parse JSONL for assistant messages
+      for (const line of text.split('\n').filter((l: string) => l.trim())) {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === 'assistant' && parsed.message?.content) {
+            for (const block of parsed.message.content) {
+              if (block.type === 'text') lastAssistantText = block.text;
+            }
+          }
+        } catch {}
+      }
+    });
+
+    child.stderr?.on('data', () => {}); // Suppress stderr
+
+    child.on('close', () => {
+      clearTimeout(timer);
+      const duration = Math.round((Date.now() - startTime) / 1000);
+      resolve({ text: lastAssistantText || 'Agent returned no output.', duration });
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
 }

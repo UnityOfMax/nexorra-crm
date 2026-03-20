@@ -8,91 +8,68 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 55;
 
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
-const LENA_BRIDGE_URL = process.env.DAEMON_URL;
+const DAEMON_URL = process.env.DAEMON_URL;
 const CRON_SECRET = process.env.CRON_SECRET || '';
 const SONNET_MODEL = 'claude-sonnet-4-5';
 
-// ─── Gather full system context for Lena ────────────────────────────────────
+// ─── Build dynamic agent registry for Lena's context ────────────────────────
 
-// ─── Fetch logs for a specific agent run ────────────────────────────────────
+function buildAgentRegistry(): string {
+  const lines: string[] = ['AGENT REGISTRY (all agents and their capabilities):'];
+  const byDept: Record<string, Array<{ id: string; def: typeof AGENT_DEFINITIONS[string] }>> = {};
 
-async function fetchAgentLogs(agentId: string): Promise<string> {
-  // Get the most recent run for this agent
-  const { data: runs } = await supabaseAdmin
-    .from('agent_runs')
-    .select('id, status, started_at, finished_at, duration_seconds, error_message, summary, log_file')
-    .eq('agent_id', agentId)
-    .order('started_at', { ascending: false })
-    .limit(3);
-
-  if (!runs || runs.length === 0) return `No runs found for ${agentId}.`;
-
-  const parts: string[] = [];
-  for (const run of runs) {
-    const def = AGENT_DEFINITIONS[agentId];
-    const name = def?.displayName || agentId;
-    const when = new Date(run.started_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-    parts.push(`${name} run at ${when}: ${run.status}${run.duration_seconds ? ` (${run.duration_seconds}s)` : ''}`);
-    if (run.error_message) parts.push(`  Error: ${run.error_message}`);
-    if (run.summary) parts.push(`  Summary: ${run.summary}`);
-
-    // Try to fetch actual log content from daemon
-    if (run.log_file && LENA_BRIDGE_URL) {
-      try {
-        const logRes = await fetch(`${LENA_BRIDGE_URL}/runs/${run.id}/logs`, {
-          headers: { 'x-cron-secret': CRON_SECRET },
-          signal: AbortSignal.timeout(3000),
-        });
-        if (logRes.ok) {
-          const logText = await logRes.text();
-          // Parse JSONL and extract assistant messages (last 1500 chars)
-          const lines = logText.split('\n').filter(Boolean);
-          const outputs: string[] = [];
-          for (const line of lines) {
-            try {
-              const parsed = JSON.parse(line);
-              if (parsed.type === 'assistant' && parsed.message?.content) {
-                for (const block of parsed.message.content) {
-                  if (block.type === 'text') outputs.push(block.text);
-                }
-              }
-              if (parsed.type === 'tool_result' && typeof parsed.output === 'string') {
-                outputs.push(`[tool output]: ${parsed.output.slice(0, 200)}`);
-              }
-            } catch {}
-          }
-          if (outputs.length > 0) {
-            const logOutput = outputs.join('\n').slice(-1500);
-            parts.push(`  Log output (last portion):\n${logOutput}`);
-          }
-        }
-      } catch {}
-    }
-  }
-
-  return parts.join('\n');
-}
-
-// ─── Detect which agents the user is asking about ───────────────────────────
-
-function detectMentionedAgents(text: string): string[] {
-  const lower = text.toLowerCase();
-  const mentioned: string[] = [];
   for (const [id, def] of Object.entries(AGENT_DEFINITIONS)) {
-    if (lower.includes(def.displayName.toLowerCase()) || lower.includes(id)) {
-      mentioned.push(id);
+    if (!byDept[def.department]) byDept[def.department] = [];
+    byDept[def.department].push({ id, def });
+  }
+
+  for (const [dept, agents] of Object.entries(byDept)) {
+    const deptInfo = DEPARTMENTS[dept as DepartmentKey];
+    lines.push(`\n${deptInfo?.icon || ''} ${deptInfo?.label || dept}:`);
+    for (const { id, def } of agents) {
+      const role = def.role === 'head' ? ' [HEAD]' : '';
+      const tools = def.mcps?.length ? ` tools:[${def.mcps.join(',')}]` : '';
+      const sk = def.skills?.length ? ` skills:[${def.skills.join(',')}]` : '';
+      lines.push(`  ${def.displayName} (${id})${role}${tools}${sk} — ${def.schedule || 'manual'}`);
     }
   }
-  return mentioned;
+
+  return lines.join('\n');
 }
+
+// ─── Read all agent primers for Lena's overview ─────────────────────────────
+
+async function readAllPrimers(): Promise<string> {
+  const parts: string[] = [];
+  try {
+    const { readFileSync, readdirSync, existsSync } = await import('fs');
+    const { join } = await import('path');
+    const primerDir = join(process.cwd(), 'agents', 'primers');
+    if (!existsSync(primerDir)) return 'No agent primers found.';
+
+    const files = readdirSync(primerDir).filter(f => f.endsWith('.md'));
+    if (files.length === 0) return 'No agent primers found.';
+
+    for (const file of files) {
+      const content = readFileSync(join(primerDir, file), 'utf-8').trim();
+      if (content) parts.push(content);
+    }
+  } catch {
+    return 'Could not read agent primers.';
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : 'No agent primers with content.';
+}
+
+// ─── Gather full system context for Lena ────────────────────────────────────
 
 async function gatherContext(): Promise<string> {
   const parts: string[] = [];
 
-  // 1. Live daemon status (what's actually running RIGHT NOW)
-  if (LENA_BRIDGE_URL) {
+  // 1. Live daemon status
+  if (DAEMON_URL) {
     try {
-      const res = await fetch(`${LENA_BRIDGE_URL}/status`, {
+      const res = await fetch(`${DAEMON_URL}/status`, {
         headers: { 'x-cron-secret': CRON_SECRET },
         signal: AbortSignal.timeout(3000),
       });
@@ -102,135 +79,80 @@ async function gatherContext(): Promise<string> {
           parts.push('CURRENTLY RUNNING RIGHT NOW:');
           for (const a of daemon.agents) {
             const def = AGENT_DEFINITIONS[a.agentId];
-            parts.push(`  ${def?.displayName || a.agentId}: running for ${a.uptime}s (pid ${a.pid})`);
+            parts.push(`  ${def?.displayName || a.agentId}: running for ${a.uptime}s`);
           }
         } else {
           parts.push('CURRENTLY RUNNING: Nothing. All agents idle.');
         }
       }
     } catch {
-      parts.push('DAEMON STATUS: Could not reach daemon (may be offline)');
+      parts.push('DAEMON: Could not reach daemon (may be offline)');
     }
   }
 
-  // 2. Recent agent runs (last 24h)
+  // 2. Agent primers (Layer 2 memory — each agent's current state)
+  const primers = await readAllPrimers();
+  parts.push(`\nAGENT PRIMERS (each agent's self-reported state):\n${primers}`);
+
+  // 3. Recent agent runs (last 24h)
   const { data: runs, error: runsErr } = await supabaseAdmin
     .from('agent_runs')
-    .select('agent_id, status, started_at, finished_at, duration_seconds, error_message, summary')
+    .select('agent_id, status, started_at, duration_seconds, error_message, summary')
     .gte('started_at', new Date(Date.now() - 86400000).toISOString())
     .order('started_at', { ascending: false })
-    .limit(15);
-
-  if (runsErr) {
-    parts.push('\nRECENT RUNS: [Error fetching agent runs]');
-  } else if (!runs || runs.length === 0) {
-    parts.push('\nRECENT RUNS: No agent activity in the last 24 hours.');
-  } else {
-    parts.push(`\nRECENT RUNS (last 24h, ${runs.length} total):`);
-    for (const r of runs) {
-      const def = AGENT_DEFINITIONS[r.agent_id];
-      const name = def?.displayName || r.agent_id;
-      const when = new Date(r.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      const dur = r.duration_seconds ? `took ${r.duration_seconds}s` : '';
-      const err = r.error_message ? ` ERROR: ${r.error_message.slice(0, 80)}` : '';
-      const sum = r.summary ? ` Result: ${r.summary.slice(0, 100)}` : '';
-      parts.push(`  ${name}: ${r.status} at ${when} ${dur}${err}${sum}`);
-    }
-  }
-
-  // 3. Pending/in-progress tasks
-  const { data: pending, error: pendErr } = await supabaseAdmin
-    .from('agent_messages')
-    .select('from_agent, to_agent, message_type, payload, status, created_at')
-    .in('status', ['pending', 'acknowledged'])
-    .order('created_at', { ascending: false })
     .limit(10);
 
-  if (pendErr) {
-    parts.push('\nTASK QUEUE: [Error fetching tasks]');
-  } else if (!pending || pending.length === 0) {
-    parts.push('\nTASK QUEUE: Empty. No pending or in-progress tasks.');
+  if (runsErr) {
+    parts.push('\nRECENT RUNS: [Error fetching]');
+  } else if (!runs || runs.length === 0) {
+    parts.push('\nRECENT RUNS: None in the last 24h.');
   } else {
-    parts.push(`\nTASK QUEUE (${pending.length} pending):`);
-    for (const m of pending) {
-      const toName = AGENT_DEFINITIONS[m.to_agent]?.displayName || m.to_agent;
-      const taskText = (m.payload as any)?.text?.slice(0, 80) || 'no description';
-      parts.push(`  → ${toName}: "${taskText}" (${m.status})`);
+    parts.push(`\nRECENT RUNS (last 24h):`);
+    for (const r of runs) {
+      const name = AGENT_DEFINITIONS[r.agent_id]?.displayName || r.agent_id;
+      const when = new Date(r.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const dur = r.duration_seconds ? `${r.duration_seconds}s` : 'running';
+      const err = r.error_message ? ` ERROR: ${r.error_message.slice(0, 60)}` : '';
+      const sum = r.summary ? ` → ${r.summary.slice(0, 80)}` : '';
+      parts.push(`  ${name}: ${r.status} at ${when} (${dur})${err}${sum}`);
     }
   }
 
-  // 4. Recently completed tasks (last 6h) with results
-  const { data: completed } = await supabaseAdmin
+  // 4. Pending tasks
+  const { data: pending } = await supabaseAdmin
     .from('agent_messages')
-    .select('to_agent, payload, result, completed_at')
-    .eq('status', 'completed')
-    .eq('message_type', 'task')
-    .gte('completed_at', new Date(Date.now() - 6 * 3600000).toISOString())
-    .order('completed_at', { ascending: false })
+    .select('to_agent, payload, status, created_at')
+    .in('status', ['pending', 'acknowledged'])
+    .order('created_at', { ascending: false })
     .limit(5);
 
-  if (completed && completed.length > 0) {
-    parts.push(`\nRECENTLY COMPLETED TASKS (last 6h):`);
-    for (const c of completed) {
-      const name = AGENT_DEFINITIONS[c.to_agent]?.displayName || c.to_agent;
-      const task = (c.payload as any)?.text?.slice(0, 60) || '?';
-      const res = (c.result as any)?.summary?.slice(0, 100) || (c.result as any)?.status || 'done';
-      parts.push(`  ${name}: "${task}" → ${res}`);
+  if (pending && pending.length > 0) {
+    parts.push(`\nTASK QUEUE (${pending.length} pending):`);
+    for (const m of pending) {
+      const name = AGENT_DEFINITIONS[m.to_agent]?.displayName || m.to_agent;
+      parts.push(`  → ${name}: "${(m.payload as any)?.text?.slice(0, 60) || '?'}" (${m.status})`);
     }
-  }
-
-  // 5. Lead counts
-  const { count: totalLeads, error: leadsErr } = await supabaseAdmin
-    .from('leads').select('id', { count: 'exact', head: true });
-  const { count: recentLeads } = await supabaseAdmin
-    .from('leads').select('id', { count: 'exact', head: true })
-    .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
-  const { count: todayLeads } = await supabaseAdmin
-    .from('leads').select('id', { count: 'exact', head: true })
-    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
-
-  // 6. Client counts
-  const { count: clientCount } = await supabaseAdmin
-    .from('accounts').select('id', { count: 'exact', head: true })
-    .neq('id', 'da99b768-79dd-48f8-af86-abf95e61a69f');
-
-  // 7. Cold email stats
-  const { count: activeConvos } = await supabaseAdmin
-    .from('lead_conversations').select('id', { count: 'exact', head: true })
-    .eq('status', 'active');
-  const { count: repliedConvos } = await supabaseAdmin
-    .from('lead_conversations').select('id', { count: 'exact', head: true })
-    .eq('status', 'replied');
-  const { count: bookedConvos } = await supabaseAdmin
-    .from('lead_conversations').select('id', { count: 'exact', head: true })
-    .eq('status', 'booked');
-
-  // 8. Instagram messages
-  const { count: igToday } = await supabaseAdmin
-    .from('instagram_unibox_messages').select('id', { count: 'exact', head: true })
-    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
-
-  // 9. Contacts
-  const { count: totalContacts } = await supabaseAdmin
-    .from('contacts').select('id', { count: 'exact', head: true });
-
-  if (leadsErr) {
-    parts.push('\nNUMBERS: [Error fetching stats]');
   } else {
-    parts.push(`\nNUMBERS (exact from database):`);
-    parts.push(`  Leads: ${totalLeads ?? 0} total, ${recentLeads ?? 0} this week, ${todayLeads ?? 0} today`);
-    parts.push(`  Clients: ${clientCount ?? 0} sub-accounts`);
-    parts.push(`  Contacts: ${totalContacts ?? 0} total across all clients`);
-    parts.push(`  Cold email: ${activeConvos ?? 0} active, ${repliedConvos ?? 0} replied, ${bookedConvos ?? 0} booked`);
-    parts.push(`  Instagram: ${igToday ?? 0} messages today`);
+    parts.push('\nTASK QUEUE: Empty.');
   }
+
+  // 5. Key numbers
+  const { count: totalLeads } = await supabaseAdmin.from('leads').select('id', { count: 'exact', head: true });
+  const { count: todayLeads } = await supabaseAdmin.from('leads').select('id', { count: 'exact', head: true })
+    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
+  const { count: clientCount } = await supabaseAdmin.from('accounts').select('id', { count: 'exact', head: true })
+    .neq('id', 'da99b768-79dd-48f8-af86-abf95e61a69f');
+  const { count: activeConvos } = await supabaseAdmin.from('lead_conversations').select('id', { count: 'exact', head: true })
+    .eq('status', 'active');
+
+  parts.push(`\nNUMBERS: ${totalLeads ?? 0} leads total, ${todayLeads ?? 0} today, ${clientCount ?? 0} clients, ${activeConvos ?? 0} active cold email convos`);
 
   return parts.join('\n');
 }
 
-// ─── Get conversation history with Max ──────────────────────────────────────
+// ─── Conversation history ───────────────────────────────────────────────────
 
-async function getConversationHistory(limit = 10): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+async function getHistory(limit = 8): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   const { data } = await supabaseAdmin
     .from('agent_messages')
     .select('from_agent, payload, result, created_at')
@@ -239,7 +161,6 @@ async function getConversationHistory(limit = 10): Promise<Array<{ role: 'user' 
     .limit(limit);
 
   if (!data || data.length === 0) return [];
-
   return data.reverse().map(m => ({
     role: (m.from_agent === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
     content: m.from_agent === 'user'
@@ -248,216 +169,211 @@ async function getConversationHistory(limit = 10): Promise<Array<{ role: 'user' 
   })).filter(m => m.content);
 }
 
-// ─── Save message to conversation history ───────────────────────────────────
-
-async function saveMessage(from: string, to: string, text: string) {
+async function saveMsg(from: string, to: string, text: string) {
   await supabaseAdmin.from('agent_messages').insert({
-    from_agent: from,
-    to_agent: to,
-    message_type: 'chat',
+    from_agent: from, to_agent: to, message_type: 'chat',
     payload: { text, source: 'telegram', timestamp: Date.now() },
-    status: 'completed',
-    completed_at: new Date().toISOString(),
+    status: 'completed', completed_at: new Date().toISOString(),
     result: from === 'lena' ? { text } : null,
   });
 }
 
-// ─── Lena's brain ───────────────────────────────────────────────────────────
+// ─── Lena's system prompt ───────────────────────────────────────────────────
 
 const LENA_SYSTEM = `You are Lena, Max's personal assistant at Nexorra. You're texting him on Telegram.
 
-Nexorra is an AI appointment-setting agency for real estate agents in the US and Canada. You run the CRM (Next.js + Supabase) and oversee 30 AI agents across 7 departments.
+Nexorra is an AI appointment-setting agency for real estate agents. You oversee 30 AI agents across 7 departments. You are the SINGLE POINT OF CONTACT. All information flows through you.
 
-CRITICAL RULE: ONLY state facts from the CURRENT SYSTEM STATE section below. The numbers and statuses there are LIVE and ACCURATE. Report them EXACTLY as shown. If a section says "no data", "error", or "empty", say that honestly. NEVER invent numbers, agent statuses, or activity. If you don't have data on something, say "I don't have that info right now" or "let me check on that."
+CRITICAL: ONLY state facts from the CURRENT SYSTEM STATE below. The data is LIVE and ACCURATE. NEVER invent numbers, statuses, or activity. If you don't know, say so.
 
-YOUR PERSONALITY:
-You're sharp, casual, and direct. You text like a real person. Short messages. Contractions. Don't over-explain. If something's broken you say it straight. If things are going well you keep it brief.
+PERSONALITY: Sharp, casual, direct. Text like a real person. Short messages. Contractions.
 
-NEVER DO:
-- Em dashes. Use commas or periods.
-- Bullet points or lists (unless Max asks for a breakdown).
-- "Great question!", "I'd be happy to", "Absolutely!", "Certainly!".
-- Starting with "Hey!" every time. Mix it up.
-- "It's worth noting", "In terms of", "When it comes to".
-- Markdown headers, bold, or code blocks.
-- More than 1-2 emoji, and only when natural.
-- Sign-offs or closings.
-- MAKING UP DATA. This is the worst thing you can do. If you don't know, say so.
+NEVER: Em dashes. Bullet points (unless asked). "Great question!". "I'd be happy to". "Absolutely!". Starting with "Hey!" every time. Markdown. Emoji spam. Making up data.
 
-HOW YOU RESPOND:
-- Status questions: Read the CURRENT SYSTEM STATE and report EXACTLY what it says. "Jeff ran at 10am, took 45s, completed." Not "Jeff's been busy today doing great work."
-- Number questions: Give the EXACT number from the data. "We have 4,232 leads, 89 this week." Not "several thousand."
-- Action requests (build, fix, deploy, create, change, update, remove, etc.): Respond with ONLY the JSON routing format below.
-- Casual chat: Be human. Brief. But still don't make stuff up.
+THREE MODES OF OPERATION:
 
-DEPARTMENTS & HEADS:
-- Research & Intel: Jeff (lead gen, scraping)
-- Marketing & Outreach: Stacey (cold email, Instagram, copy)
-- Client Success: Ava (sub-accounts, onboarding)
-- Service Delivery: Marcus (campaign optimization, reporting)
-- Engineering: Barny (code, UI, API, bugs, deploy)
-- Experiments: Hugo (A/B tests, research experiments)
+1. ANSWER DIRECTLY — When you have the data in your context (primers, numbers, recent runs).
+   Just respond naturally with the facts.
 
-ROUTING FORMAT (for action requests ONLY):
-{"route":true,"department":"engineering","head":"barny","urgency":"normal","task":"description of what needs to be done"}
+2. QUERY AN AGENT — When you need info you don't have. Ask the right agent based on the AGENT REGISTRY.
+   Respond with ONLY: {"query":true,"agent":"agent_id","question":"specific question"}
+   The agent will fire up, use their tools, and report back. You'll then relay the answer.
+   Use this for: database lookups, file checks, campaign stats, anything needing tool access.
+   Pick the agent by their capabilities (MCPs/skills), not a fixed mapping.
+   If unsure who to ask, ask the HEAD of the most relevant department.
 
-For everything else, respond as text. No JSON.`;
+3. DELEGATE A TASK — When actual WORK needs doing (build, fix, deploy, create, change).
+   Respond with ONLY: {"route":true,"department":"dept","head":"agent_id","urgency":"normal","task":"description"}
+   This is async. The agent works on it and you'll update Max when done.
 
-// ─── Generate via bridge or direct SDK ──────────────────────────────────────
+4. ESCALATE — When no agent has the capability needed.
+   Respond with: {"escalate":true,"need":"what's needed","reason":"why nobody can do it"}
+   Hugo (Experiments) will propose adding it. You'll ask Max for approval.
 
-async function generateLenaResponse(
+For everything else, just respond as text.`;
+
+// ─── Generate via bridge ────────────────────────────────────────────────────
+
+async function generate(
   system: string,
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  maxTokens = 500
 ): Promise<string> {
-  // Try the Lena bridge first (fast, uses Sonnet via local OAuth)
-  if (LENA_BRIDGE_URL) {
+  if (DAEMON_URL) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch(`${LENA_BRIDGE_URL}/lena`, {
+      const res = await fetch(`${DAEMON_URL}/lena`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system, messages, maxTokens: 500, model: SONNET_MODEL }),
-        signal: controller.signal,
+        body: JSON.stringify({ system, messages, maxTokens, model: SONNET_MODEL }),
+        signal: AbortSignal.timeout(15000),
       });
-      clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         if (data.text) return data.text;
       }
-    } catch {
-      // Bridge offline, fall through to direct SDK
-    }
+    } catch {}
   }
 
-  // Fallback: direct Anthropic SDK with Sonnet
+  const result = await fastGenerate({ system, messages, model: SONNET_MODEL, maxTokens, temperature: 0.5 });
+  return result.text;
+}
+
+// ─── Query an agent synchronously ───────────────────────────────────────────
+
+async function queryAgentViaDeamon(agentId: string, question: string): Promise<{ text: string; agentName: string; duration: number } | null> {
+  if (!DAEMON_URL) return null;
   try {
-    const result = await fastGenerate({
-      system,
-      messages,
-      model: SONNET_MODEL,
-      maxTokens: 500,
-      temperature: 0.5,
+    const res = await fetch(`${DAEMON_URL}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId, question, maxTurns: 5, timeout: 40000 }),
+      signal: AbortSignal.timeout(45000),
     });
-    return result.text;
-  } catch {
-    throw new Error('Both bridge and direct SDK failed');
-  }
+    if (res.ok) return await res.json();
+  } catch {}
+  return null;
 }
 
 // ─── Main webhook handler ───────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   let update: any;
-  try {
-    update = await request.json();
-  } catch {
-    return NextResponse.json({ ok: true });
-  }
+  try { update = await request.json(); } catch { return NextResponse.json({ ok: true }); }
 
   const message = update.message;
-  if (!message?.text || !message.chat?.id) {
-    return NextResponse.json({ ok: true });
-  }
+  if (!message?.text || !message.chat?.id) return NextResponse.json({ ok: true });
 
   const chatId = String(message.chat.id);
   const text = message.text.trim();
 
   if (!ADMIN_CHAT_ID) {
-    await sendMessage(chatId, `Chat ID: ${chatId}. Add it as TELEGRAM_ADMIN_CHAT_ID in .env.local.`);
+    await sendMessage(chatId, `Chat ID: ${chatId}. Set TELEGRAM_ADMIN_CHAT_ID.`);
     return NextResponse.json({ ok: true });
   }
-
-  if (chatId !== ADMIN_CHAT_ID) {
-    return NextResponse.json({ ok: true });
-  }
-
-  if (text === '/start') {
-    await sendMessage(chatId, "I'm here. What do you need?");
-    return NextResponse.json({ ok: true });
-  }
+  if (chatId !== ADMIN_CHAT_ID) return NextResponse.json({ ok: true });
+  if (text === '/start') { await sendMessage(chatId, "I'm here. What do you need?"); return NextResponse.json({ ok: true }); }
 
   try {
-    await saveMessage('user', 'lena', text);
+    await saveMsg('user', 'lena', text);
 
-    // Fetch general context + conversation history
-    const [context, history] = await Promise.all([
+    const [context, history, registry] = await Promise.all([
       gatherContext(),
-      getConversationHistory(8),
+      getHistory(8),
+      Promise.resolve(buildAgentRegistry()),
     ]);
-
-    // If user mentions specific agents, fetch their detailed logs
-    const mentionedAgents = detectMentionedAgents(text);
-    let agentDetail = '';
-    if (mentionedAgents.length > 0) {
-      const logPromises = mentionedAgents.slice(0, 3).map(id => fetchAgentLogs(id));
-      const logs = await Promise.all(logPromises);
-      agentDetail = '\n\nDETAILED AGENT DATA (requested):\n' + logs.join('\n\n');
-    }
-
-    // If user asks about "logs" or "status" generically, fetch last 3 agents that ran
-    const lower = text.toLowerCase();
-    if (!agentDetail && (lower.includes('log') || lower.includes('what happened') || lower.includes('what did'))) {
-      const { data: recentAgents } = await supabaseAdmin
-        .from('agent_runs')
-        .select('agent_id')
-        .order('started_at', { ascending: false })
-        .limit(3);
-      if (recentAgents && recentAgents.length > 0) {
-        const uniqueIds = Array.from(new Set(recentAgents.map(r => r.agent_id)));
-        const logs = await Promise.all(uniqueIds.map(id => fetchAgentLogs(id)));
-        agentDetail = '\n\nRECENT AGENT LOGS:\n' + logs.join('\n\n');
-      }
-    }
 
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
       ...history.slice(0, -1),
       { role: 'user', content: text },
     ];
 
-    const systemWithContext = `${LENA_SYSTEM}\n\n--- CURRENT SYSTEM STATE (live data, report exactly) ---\n${context}${agentDetail}\n--- END STATE ---`;
+    const fullSystem = `${LENA_SYSTEM}\n\n${registry}\n\n--- CURRENT SYSTEM STATE (live, report exactly) ---\n${context}\n--- END ---`;
 
-    const response = await generateLenaResponse(systemWithContext, messages);
+    const response = await generate(fullSystem, messages);
 
-    // Check if Lena wants to route this to a department
+    // ── Mode 2: QUERY an agent ──
+    const queryMatch = response.match(/\{"query"\s*:\s*true[^}]+\}/);
+    if (queryMatch) {
+      try {
+        const q = JSON.parse(queryMatch[0]);
+        const naturalBefore = response.replace(queryMatch[0], '').trim();
+        if (naturalBefore) await sendMessage(chatId, naturalBefore);
+        else await sendMessage(chatId, `Checking with ${AGENT_DEFINITIONS[q.agent]?.displayName || q.agent}...`);
+
+        const result = await queryAgentViaDeamon(q.agent, q.question);
+
+        if (result && result.text) {
+          // Feed agent's answer back to Lena for natural formatting
+          const followUp = await generate(
+            `${LENA_SYSTEM}\n\nYou just asked ${result.agentName} a question and got this answer:\n\n${result.text}\n\nRelay this to Max naturally in your voice. Be concise. Don't add info that isn't in the answer.`,
+            [{ role: 'user', content: text }],
+            400
+          );
+          await sendMessage(chatId, followUp);
+          await saveMsg('lena', 'user', followUp);
+        } else {
+          const fallback = `${AGENT_DEFINITIONS[q.agent]?.displayName || q.agent} didn't get back to me in time. I'll follow up when they do.`;
+          await sendMessage(chatId, fallback);
+          await saveMsg('lena', 'user', fallback);
+          // Fall back to async
+          await supabaseAdmin.from('agent_messages').insert({
+            from_agent: 'lena', to_agent: q.agent, message_type: 'task',
+            payload: { source: 'telegram', chat_id: chatId, message_id: message.message_id, text: q.question, urgency: 'normal' },
+            status: 'pending',
+          });
+        }
+        return NextResponse.json({ ok: true });
+      } catch {
+        await sendMessage(chatId, response);
+        await saveMsg('lena', 'user', response);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ── Mode 3: DELEGATE a task ──
     const routeMatch = response.match(/\{"route"\s*:\s*true[^}]+\}/);
     if (routeMatch) {
       try {
         const route = JSON.parse(routeMatch[0]);
-        const headDef = AGENT_DEFINITIONS[route.head];
-        const headName = headDef?.displayName || route.head;
-
+        const headName = AGENT_DEFINITIONS[route.head]?.displayName || route.head;
         const naturalText = response.replace(routeMatch[0], '').trim();
-        const ackText = naturalText || `Sending this to ${headName}.`;
-
-        await sendMessage(chatId, ackText);
-        await saveMessage('lena', 'user', ackText);
+        await sendMessage(chatId, naturalText || `Sending this to ${headName}.`);
+        await saveMsg('lena', 'user', naturalText || `Sending to ${headName}.`);
 
         await supabaseAdmin.from('agent_messages').insert({
-          from_agent: 'lena',
-          to_agent: route.head,
-          message_type: 'task',
-          payload: {
-            source: 'telegram',
-            chat_id: chatId,
-            message_id: message.message_id,
-            text: route.task || text,
-            urgency: route.urgency || 'normal',
-            department: route.department,
-          },
+          from_agent: 'lena', to_agent: route.head, message_type: 'task',
+          payload: { source: 'telegram', chat_id: chatId, message_id: message.message_id, text: route.task || text, urgency: route.urgency || 'normal', department: route.department },
           status: 'pending',
         });
       } catch {
         await sendMessage(chatId, response);
-        await saveMessage('lena', 'user', response);
+        await saveMsg('lena', 'user', response);
       }
-    } else {
-      await sendMessage(chatId, response);
-      await saveMessage('lena', 'user', response);
+      return NextResponse.json({ ok: true });
     }
+
+    // ── Mode 4: ESCALATE ──
+    const escalateMatch = response.match(/\{"escalate"\s*:\s*true[^}]+\}/);
+    if (escalateMatch) {
+      try {
+        const esc = JSON.parse(escalateMatch[0]);
+        const msg = `Nobody on the team can handle this right now. We'd need: ${esc.need}. Reason: ${esc.reason}. Want me to have Hugo look into adding this?`;
+        await sendMessage(chatId, msg);
+        await saveMsg('lena', 'user', msg);
+      } catch {
+        await sendMessage(chatId, response);
+        await saveMsg('lena', 'user', response);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── Mode 1: DIRECT ANSWER ──
+    await sendMessage(chatId, response);
+    await saveMsg('lena', 'user', response);
+
   } catch (err: any) {
     console.error('[telegram] Lena error:', err.message);
-    if (err.message?.includes('Both bridge and direct SDK failed') || err.message?.includes('fetch failed')) {
+    if (err.message?.includes('failed')) {
       await sendMessage(chatId, "Workforce is offline right now. I'll be back when the system's up.");
     } else {
       await sendMessage(chatId, "Something went wrong on my end. Try again in a sec.");
