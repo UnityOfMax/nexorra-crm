@@ -355,26 +355,22 @@ export async function queryAgent(params: {
 }): Promise<{ text: string; duration: number }> {
   const { agentId, promptFile, model, question, maxTurns = 5, timeout = 45000, mcps, skills } = params;
 
-  const promptPath = path.join(CRM_ROOT, promptFile);
-  if (!existsSync(promptPath)) throw new Error(`Prompt file not found: ${promptFile}`);
-
-  let promptContent = readFileSync(promptPath, 'utf-8');
-
-  // Prepend primer if it exists (Layer 2 memory)
+  // For queries, use a MINIMAL prompt — not the full agent workflow file (which can be 20KB+)
+  // Just identity + primer + question. The agent uses tools to find the answer.
   const primerPath = path.join(CRM_ROOT, 'agents', 'primers', `${agentId}.md`);
+  let primer = '';
   if (existsSync(primerPath)) {
-    const primer = readFileSync(primerPath, 'utf-8');
-    promptContent = `--- YOUR CURRENT STATE (from your last run) ---\n${primer}\n--- END STATE ---\n\n${promptContent}`;
+    primer = readFileSync(primerPath, 'utf-8').trim();
   }
 
-  // Prepend skills
-  if (skills && skills.length > 0) {
-    const skillContent = loadSkills(skills);
-    if (skillContent) promptContent = skillContent + '\n' + promptContent;
-  }
+  const promptContent = `You are ${agentId} at Nexorra CRM. This is a QUICK QUERY from Lena (Max's PA).
+Your working directory is /home/max/crm. You have access to Bash, Read, Write, Edit, Grep, Glob.
+Read CLAUDE.md for project context if needed. Supabase admin client uses SUPABASE_SERVICE_ROLE_KEY from .env.local.
 
-  // Append the query
-  promptContent += `\n\n---\nQUICK QUERY from Lena (Max's PA):\n${question}\n\nRespond concisely with the answer. Use your tools to look up real data. Max 2-3 turns. Don't start long workflows.\n---`;
+${primer ? `Your current state:\n${primer}\n` : ''}
+QUESTION: ${question}
+
+Answer concisely. Use your tools to look up real data. Do NOT start long workflows or make changes. Just find the answer and report it.`;
 
   // Build MCP config
   const mcpConfigPath = buildMcpConfig(`query-${agentId}`, mcps || []);
@@ -384,6 +380,7 @@ export async function queryAgent(params: {
     '--model', model,
     '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
     '--max-turns', String(maxTurns),
+    '--verbose',
     '--output-format', 'stream-json',
   ];
   if (mcpConfigPath) cliArgs.push('--mcp-config', mcpConfigPath);
