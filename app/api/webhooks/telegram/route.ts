@@ -14,6 +14,78 @@ const SONNET_MODEL = 'claude-sonnet-4-5';
 
 // ─── Gather full system context for Lena ────────────────────────────────────
 
+// ─── Fetch logs for a specific agent run ────────────────────────────────────
+
+async function fetchAgentLogs(agentId: string): Promise<string> {
+  // Get the most recent run for this agent
+  const { data: runs } = await supabaseAdmin
+    .from('agent_runs')
+    .select('id, status, started_at, finished_at, duration_seconds, error_message, summary, log_file')
+    .eq('agent_id', agentId)
+    .order('started_at', { ascending: false })
+    .limit(3);
+
+  if (!runs || runs.length === 0) return `No runs found for ${agentId}.`;
+
+  const parts: string[] = [];
+  for (const run of runs) {
+    const def = AGENT_DEFINITIONS[agentId];
+    const name = def?.displayName || agentId;
+    const when = new Date(run.started_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    parts.push(`${name} run at ${when}: ${run.status}${run.duration_seconds ? ` (${run.duration_seconds}s)` : ''}`);
+    if (run.error_message) parts.push(`  Error: ${run.error_message}`);
+    if (run.summary) parts.push(`  Summary: ${run.summary}`);
+
+    // Try to fetch actual log content from daemon
+    if (run.log_file && LENA_BRIDGE_URL) {
+      try {
+        const logRes = await fetch(`${LENA_BRIDGE_URL}/runs/${run.id}/logs`, {
+          headers: { 'x-cron-secret': CRON_SECRET },
+          signal: AbortSignal.timeout(3000),
+        });
+        if (logRes.ok) {
+          const logText = await logRes.text();
+          // Parse JSONL and extract assistant messages (last 1500 chars)
+          const lines = logText.split('\n').filter(Boolean);
+          const outputs: string[] = [];
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line);
+              if (parsed.type === 'assistant' && parsed.message?.content) {
+                for (const block of parsed.message.content) {
+                  if (block.type === 'text') outputs.push(block.text);
+                }
+              }
+              if (parsed.type === 'tool_result' && typeof parsed.output === 'string') {
+                outputs.push(`[tool output]: ${parsed.output.slice(0, 200)}`);
+              }
+            } catch {}
+          }
+          if (outputs.length > 0) {
+            const logOutput = outputs.join('\n').slice(-1500);
+            parts.push(`  Log output (last portion):\n${logOutput}`);
+          }
+        }
+      } catch {}
+    }
+  }
+
+  return parts.join('\n');
+}
+
+// ─── Detect which agents the user is asking about ───────────────────────────
+
+function detectMentionedAgents(text: string): string[] {
+  const lower = text.toLowerCase();
+  const mentioned: string[] = [];
+  for (const [id, def] of Object.entries(AGENT_DEFINITIONS)) {
+    if (lower.includes(def.displayName.toLowerCase()) || lower.includes(id)) {
+      mentioned.push(id);
+    }
+  }
+  return mentioned;
+}
+
 async function gatherContext(): Promise<string> {
   const parts: string[] = [];
 
@@ -308,17 +380,42 @@ export async function POST(request: NextRequest) {
   try {
     await saveMessage('user', 'lena', text);
 
+    // Fetch general context + conversation history
     const [context, history] = await Promise.all([
       gatherContext(),
       getConversationHistory(8),
     ]);
+
+    // If user mentions specific agents, fetch their detailed logs
+    const mentionedAgents = detectMentionedAgents(text);
+    let agentDetail = '';
+    if (mentionedAgents.length > 0) {
+      const logPromises = mentionedAgents.slice(0, 3).map(id => fetchAgentLogs(id));
+      const logs = await Promise.all(logPromises);
+      agentDetail = '\n\nDETAILED AGENT DATA (requested):\n' + logs.join('\n\n');
+    }
+
+    // If user asks about "logs" or "status" generically, fetch last 3 agents that ran
+    const lower = text.toLowerCase();
+    if (!agentDetail && (lower.includes('log') || lower.includes('what happened') || lower.includes('what did'))) {
+      const { data: recentAgents } = await supabaseAdmin
+        .from('agent_runs')
+        .select('agent_id')
+        .order('started_at', { ascending: false })
+        .limit(3);
+      if (recentAgents && recentAgents.length > 0) {
+        const uniqueIds = Array.from(new Set(recentAgents.map(r => r.agent_id)));
+        const logs = await Promise.all(uniqueIds.map(id => fetchAgentLogs(id)));
+        agentDetail = '\n\nRECENT AGENT LOGS:\n' + logs.join('\n\n');
+      }
+    }
 
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
       ...history.slice(0, -1),
       { role: 'user', content: text },
     ];
 
-    const systemWithContext = `${LENA_SYSTEM}\n\n--- CURRENT SYSTEM STATE (live data, report exactly) ---\n${context}\n--- END STATE ---`;
+    const systemWithContext = `${LENA_SYSTEM}\n\n--- CURRENT SYSTEM STATE (live data, report exactly) ---\n${context}${agentDetail}\n--- END STATE ---`;
 
     const response = await generateLenaResponse(systemWithContext, messages);
 
