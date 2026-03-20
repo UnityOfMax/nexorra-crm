@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 55;
 
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
-const LENA_BRIDGE_URL = process.env.LENA_BRIDGE_URL || process.env.DAEMON_URL;
+// Bridge URL: daemon proxies /lena to the bridge on port 4201
+const LENA_BRIDGE_URL = process.env.DAEMON_URL;
 
 // ─── Gather full system context for Lena ────────────────────────────────────
 

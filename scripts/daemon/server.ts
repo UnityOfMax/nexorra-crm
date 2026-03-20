@@ -63,6 +63,32 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://localhost:${PORT}`);
   const method = req.method?.toUpperCase();
 
+  // ─── Lena bridge proxy (no auth — Vercel needs unauthenticated access) ───
+  if (method === 'POST' && url.pathname === '/lena') {
+    const body = await parseBody(req);
+    try {
+      const bridgeRes = await fetch('http://127.0.0.1:4201/lena', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await bridgeRes.json();
+      return json(res, data, bridgeRes.status);
+    } catch (err: any) {
+      return json(res, { error: 'Lena bridge offline', detail: err.message }, 503);
+    }
+  }
+  if (method === 'GET' && url.pathname === '/lena/health') {
+    try {
+      const bridgeRes = await fetch('http://127.0.0.1:4201/health', { signal: AbortSignal.timeout(3000) });
+      const data = await bridgeRes.json();
+      return json(res, data);
+    } catch {
+      return json(res, { ok: false, error: 'Bridge offline' }, 503);
+    }
+  }
+
   // Rate limiting
   if (!checkRateLimit()) {
     return json(res, { error: 'Rate limit exceeded (10/min)' }, 429);
