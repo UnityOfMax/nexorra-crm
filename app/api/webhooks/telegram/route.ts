@@ -188,7 +188,7 @@ CRITICAL: ONLY state facts from the CURRENT SYSTEM STATE below. The data is LIVE
 
 PERSONALITY: Sharp, casual, direct. Text like a real person. Short messages. Contractions.
 
-NEVER: Em dashes. Bullet points (unless asked). "Great question!". "I'd be happy to". "Absolutely!". Starting with "Hey!" every time. Markdown. Emoji spam. Making up data.
+NEVER: Em dashes. Bullet points (unless asked). "Great question!". "I'd be happy to". "Absolutely!". Starting with "Hey!" every time. Markdown. Emoji spam. Making up data. Code blocks around JSON.
 
 THREE MODES OF OPERATION:
 
@@ -196,19 +196,21 @@ THREE MODES OF OPERATION:
    Just respond naturally with the facts.
 
 2. QUERY AN AGENT — When you need info you don't have. Ask the right agent based on the AGENT REGISTRY.
-   Respond with ONLY: {"query":true,"agent":"agent_id","question":"specific question"}
-   The agent will fire up, use their tools, and report back. You'll then relay the answer.
-   Use this for: database lookups, file checks, campaign stats, anything needing tool access.
-   Pick the agent by their capabilities (MCPs/skills), not a fixed mapping.
-   If unsure who to ask, ask the HEAD of the most relevant department.
+   Respond with ONLY this raw JSON (NO code blocks, NO markdown):
+   {"query":true,"agent":"agent_id","question":"specific question"}
+   IMPORTANT: "agent" must be the agent's lowercase ID (e.g. "jeff", "liam", "barny"), NOT the display name.
+   The agent will fire up, use their tools (Supabase, filesystem, etc.), and report back. You relay the answer.
+   Pick the agent by their capabilities (MCPs/skills). If unsure, ask the HEAD of the relevant department.
 
 3. DELEGATE A TASK — When actual WORK needs doing (build, fix, deploy, create, change).
-   Respond with ONLY: {"route":true,"department":"dept","head":"agent_id","urgency":"normal","task":"description"}
-   This is async. The agent works on it and you'll update Max when done.
+   Respond with ONLY this raw JSON (NO code blocks):
+   {"route":true,"department":"engineering","head":"barny","urgency":"normal","task":"description"}
+   IMPORTANT: "department" must be the lowercase key (engineering, research, marketing, client, delivery, experiments), NOT the display label.
 
 4. ESCALATE — When no agent has the capability needed.
-   Respond with: {"escalate":true,"need":"what's needed","reason":"why nobody can do it"}
-   Hugo (Experiments) will propose adding it. You'll ask Max for approval.
+   Respond with raw JSON: {"escalate":true,"need":"what's needed","reason":"why nobody can do it"}
+
+CRITICAL: When outputting JSON, output it as PLAIN TEXT on a single line. NO \`\`\`json code blocks. NO markdown formatting. Just the raw JSON object.
 
 For everything else, just respond as text.`;
 
@@ -289,10 +291,12 @@ export async function POST(request: NextRequest) {
 
     const fullSystem = `${LENA_SYSTEM}\n\n${registry}\n\n--- CURRENT SYSTEM STATE (live, report exactly) ---\n${context}\n--- END ---`;
 
-    const response = await generate(fullSystem, messages);
+    const rawResponse = await generate(fullSystem, messages);
+    // Strip markdown code blocks — Sonnet sometimes wraps JSON in ```json ... ```
+    const response = rawResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
     // ── Mode 2: QUERY an agent ──
-    const queryMatch = response.match(/\{"query"\s*:\s*true[^}]+\}/);
+    const queryMatch = response.match(/\{"query"\s*:\s*true[\s\S]*?\}/);  // [\s\S] to match across newlines
     if (queryMatch) {
       try {
         const q = JSON.parse(queryMatch[0]);
@@ -331,7 +335,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Mode 3: DELEGATE a task ──
-    const routeMatch = response.match(/\{"route"\s*:\s*true[^}]+\}/);
+    const routeMatch = response.match(/\{"route"\s*:\s*true[\s\S]*?\}/);
     if (routeMatch) {
       try {
         const route = JSON.parse(routeMatch[0]);
@@ -353,7 +357,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Mode 4: ESCALATE ──
-    const escalateMatch = response.match(/\{"escalate"\s*:\s*true[^}]+\}/);
+    const escalateMatch = response.match(/\{"escalate"\s*:\s*true[\s\S]*?\}/);
     if (escalateMatch) {
       try {
         const esc = JSON.parse(escalateMatch[0]);
