@@ -10,7 +10,7 @@ export const maxDuration = 55;
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 const LENA_BRIDGE_URL = process.env.DAEMON_URL;
 const CRON_SECRET = process.env.CRON_SECRET || '';
-const SONNET_MODEL = 'claude-sonnet-4-5-20241022';
+const SONNET_MODEL = 'claude-sonnet-4-5';
 
 // ─── Gather full system context for Lena ────────────────────────────────────
 
