@@ -1,5 +1,6 @@
 import http from 'http';
 import crypto from 'crypto';
+import fs from 'fs';
 import { readFileSync, existsSync } from 'fs';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -386,72 +387,96 @@ async function pollAgentMessages() {
 
         console.log(`[poller] Spawned ${resolved.def.displayName} — run ${result.runId}`);
 
+        // Extract useful summary from agent's output log
+        const extractSummaryFromLog = (runId: string): string => {
+          try {
+            const logPath = path.join(CRM_ROOT, 'logs', 'runs', `${runId}.jsonl`);
+            if (!fs.existsSync(logPath)) return '';
+            const lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(Boolean);
+            // Walk backwards to find last meaningful output
+            for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
+              try {
+                const parsed = JSON.parse(lines[i]);
+                // Get the last assistant text output (the agent's final response)
+                if (parsed.type === 'assistant' && parsed.message?.content) {
+                  const textBlocks = parsed.message.content.filter((b: any) => b.type === 'text');
+                  if (textBlocks.length > 0) {
+                    return textBlocks[textBlocks.length - 1].text.slice(0, 500);
+                  }
+                }
+                // Or the result summary
+                if (parsed.type === 'result' && parsed.result) {
+                  return String(parsed.result).slice(0, 500);
+                }
+              } catch {}
+            }
+          } catch {}
+          return '';
+        };
+
         // Watch for completion (poll every 5s for up to 10 min)
         const watchCompletion = async () => {
           for (let i = 0; i < 120; i++) {
             await new Promise(r => setTimeout(r, 5000));
             const still = getRunningAgents().find(r => r.runId === result.runId);
             if (!still) {
-              // Agent finished — get the run result
               const { data: run } = await supabase
                 .from('agent_runs')
-                .select('status, summary, error_message, duration_seconds')
+                .select('status, summary, error_message, duration_seconds, log_file')
                 .eq('id', result.runId)
                 .maybeSingle();
+
+              // Extract real summary from logs if DB summary is empty
+              let summary = run?.summary || '';
+              if (!summary) {
+                summary = extractSummaryFromLog(result.runId);
+              }
 
               const resultPayload = {
                 run_id: result.runId,
                 status: run?.status || 'completed',
-                summary: run?.summary || null,
+                summary: summary || 'Completed (no output summary)',
                 error: run?.error_message || null,
                 duration: run?.duration_seconds || null,
               };
 
+              // Update agent_messages with the real result
               await supabase.from('agent_messages').update({
                 status: run?.status === 'failed' ? 'failed' : 'completed',
                 completed_at: new Date().toISOString(),
                 result: resultPayload,
               }).eq('id', msg.id);
 
-              // Notify via Telegram as Lena (she's the single point of contact)
+              // Also update the run summary if we extracted one
+              if (summary && !run?.summary) {
+                await supabase.from('agent_runs')
+                  .update({ summary: summary.slice(0, 500) })
+                  .eq('id', result.runId);
+              }
+
+              // Notify via Telegram
               if (msg.payload?.chat_id) {
                 const botToken = process.env.TELEGRAM_BOT_TOKEN;
                 if (botToken) {
                   const agentName = resolved.def.displayName;
                   const failed = run?.status === 'failed';
                   const duration = run?.duration_seconds;
-                  const summary = run?.summary
-                    ? run.summary.slice(0, 500)
-                    : (run?.error_message || null);
 
-                  // Lena speaks naturally — not like a system notification
-                  const successPhrases = [
-                    `${agentName} just finished up.`,
-                    `Done — ${agentName} handled it.`,
-                    `${agentName}'s wrapped up on this.`,
-                    `All done. ${agentName} took care of it.`,
-                  ];
-                  const failPhrases = [
-                    `${agentName} ran into an issue.`,
-                    `Heads up — ${agentName} hit a problem.`,
-                    `${agentName} couldn't finish this one.`,
-                  ];
-
-                  const phrases = failed ? failPhrases : successPhrases;
-                  const opener = phrases[Math.floor(Math.random() * phrases.length)];
-                  let text = opener;
-                  if (duration) text += ` (${duration}s)`;
-                  if (summary) text += `\n\n${summary}`;
-                  if (failed && run?.error_message) text += `\n\nError: ${run.error_message.slice(0, 300)}`;
+                  let text: string;
+                  if (failed) {
+                    text = `${agentName} hit a problem.`;
+                    if (run?.error_message) text += ` ${run.error_message.slice(0, 200)}`;
+                  } else {
+                    text = `${agentName} finished`;
+                    if (duration) text += ` (${duration}s)`;
+                    text += '.';
+                    if (summary) text += `\n\n${summary.slice(0, 400)}`;
+                  }
 
                   fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      chat_id: msg.payload.chat_id,
-                      text,
-                      parse_mode: 'Markdown',
-                    }),
+                    body: JSON.stringify({ chat_id: msg.payload.chat_id, text }),
                   }).catch(() => {});
                 }
               }
@@ -460,7 +485,6 @@ async function pollAgentMessages() {
               return;
             }
           }
-          // Timed out watching
           processingMessages.delete(msg.id);
         };
 
