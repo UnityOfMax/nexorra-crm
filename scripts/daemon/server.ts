@@ -142,6 +142,8 @@ const server = http.createServer(async (req, res) => {
         model: def.model,
         maxTurns: def.maxTurns,
         trigger,
+        mcps: def.mcps,
+        skills: def.skills,
       });
 
       const status = result.status === 'already_running' ? 409 : 200;
@@ -352,6 +354,8 @@ async function pollAgentMessages() {
           maxTurns: Math.min(resolved.def.maxTurns, 30), // Cap at 30 for message-triggered tasks
           trigger: 'message',
           extraContext: taskContext,
+          mcps: resolved.def.mcps,
+          skills: resolved.def.skills,
         });
 
         console.log(`[poller] Spawned ${resolved.def.displayName} — run ${result.runId}`);

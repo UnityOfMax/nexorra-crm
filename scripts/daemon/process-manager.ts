@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
-import { readFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,6 +10,74 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 const CRM_ROOT = path.resolve(__dirname, '../..');
 const CLAUDE_CLI = '/home/max/.npm-global/bin/claude';
 const LOG_DIR = path.join(CRM_ROOT, 'logs', 'runs');
+const MCP_CONFIG_DIR = path.join(CRM_ROOT, 'tmp', 'mcp-configs');
+
+// ─── MCP Server Definitions (built from project .mcp.json) ─────────────────
+
+const MCP_SERVERS: Record<string, object> = {
+  'supabase': {
+    type: 'http',
+    url: `https://mcp.supabase.com/mcp?project_ref=nhflmisklsanfiiywrfo&features=docs,database,debugging,development,functions,branching,storage`,
+  },
+  'filesystem': {
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/home/max/crm'],
+  },
+  'memory': {
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'],
+  },
+  'fetch': {
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-fetch'],
+  },
+  'sequential-thinking': {
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
+  },
+  'context7': {
+    command: 'npx', args: ['-y', '@upstash/context7-mcp'],
+  },
+  '21st-magic': {
+    command: 'npx', args: ['-y', '@21st-dev/magic@latest'],
+    env: { API_KEY: '85bc56f3e4ca90ffc742c37fa868a68aad3012ff2a185297de493d2bbb39fe55' },
+  },
+};
+
+/**
+ * Build a temporary MCP config file for an agent and return the path.
+ */
+function buildMcpConfig(agentId: string, mcps: string[]): string | null {
+  if (!mcps || mcps.length === 0) return null;
+
+  if (!existsSync(MCP_CONFIG_DIR)) mkdirSync(MCP_CONFIG_DIR, { recursive: true });
+
+  const config: Record<string, object> = {};
+  for (const mcp of mcps) {
+    if (MCP_SERVERS[mcp]) config[mcp] = MCP_SERVERS[mcp];
+  }
+
+  if (Object.keys(config).length === 0) return null;
+
+  const configPath = path.join(MCP_CONFIG_DIR, `${agentId}.json`);
+  writeFileSync(configPath, JSON.stringify({ mcpServers: config }, null, 2));
+  return configPath;
+}
+
+/**
+ * Load skill content to prepend to agent prompt.
+ */
+function loadSkills(skills: string[]): string {
+  if (!skills || skills.length === 0) return '';
+
+  const skillDir = path.join(process.env.HOME || '/home/max', '.claude', 'skills');
+  const parts: string[] = [];
+
+  for (const skill of skills) {
+    const skillPath = path.join(skillDir, skill, 'SKILL.md');
+    if (existsSync(skillPath)) {
+      parts.push(`\n--- SKILL: ${skill} ---\n${readFileSync(skillPath, 'utf-8')}\n--- END SKILL ---\n`);
+    }
+  }
+
+  return parts.join('\n');
+}
 
 // Ensure log directory exists
 if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true });
@@ -34,8 +102,10 @@ export async function spawnAgent(params: {
   maxTurns: number;
   trigger: string;
   extraContext?: string;
+  mcps?: string[];
+  skills?: string[];
 }): Promise<{ runId: string; status: string }> {
-  const { agentId, promptFile, model, maxTurns, trigger, extraContext } = params;
+  const { agentId, promptFile, model, maxTurns, trigger, extraContext, mcps, skills } = params;
 
   // Read prompt file
   const promptPath = path.join(CRM_ROOT, promptFile);
@@ -45,6 +115,14 @@ export async function spawnAgent(params: {
   let promptContent = readFileSync(promptPath, 'utf-8');
   if (!promptContent) {
     throw new Error('Agent prompt file is empty');
+  }
+
+  // Prepend skills to prompt (so agent has skill context in its first turn)
+  if (skills && skills.length > 0) {
+    const skillContent = loadSkills(skills);
+    if (skillContent) {
+      promptContent = skillContent + '\n' + promptContent;
+    }
   }
 
   // Append extra context (e.g. from agent_messages task)
@@ -96,16 +174,26 @@ export async function spawnAgent(params: {
   // Strip ANTHROPIC_API_KEY so CLI uses subscription auth instead of API credits
   const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
+
+  // Build CLI args
+  const cliArgs = [
+    '-p', promptContent,
+    '--model', model,
+    '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
+    '--max-turns', String(maxTurns),
+    '--verbose',
+    '--output-format', 'stream-json',
+  ];
+
+  // Add MCP config if agent has MCPs defined
+  const mcpConfigPath = buildMcpConfig(agentId, mcps || []);
+  if (mcpConfigPath) {
+    cliArgs.push('--mcp-config', mcpConfigPath);
+  }
+
   const child = spawn(
     CLAUDE_CLI,
-    [
-      '-p', promptContent,
-      '--model', model,
-      '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
-      '--max-turns', String(maxTurns),
-      '--verbose',
-      '--output-format', 'stream-json',
-    ],
+    cliArgs,
     {
       cwd: CRM_ROOT,
       env: {

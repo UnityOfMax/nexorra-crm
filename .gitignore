@@ -55,3 +55,13 @@ agents/memory/
 
 # MCP config (contains API keys)
 .mcp.json
+SETUP.md
+RESEND-SETUP.md
+context.txt
+# Security
+tmp/mcp-configs/
+.mcp.json
+*.credentials.json
+instagram-tokens.json
+instagram-accounts.json
+bridge-pointer.json
