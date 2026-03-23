@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Cross-check: any "running" records that the daemon doesn't know about are stale
+  // Enrich running agents with live daemon data (read-only, never modify DB here)
   const runningRuns = Object.values(latestRunMap).filter((r: any) => r.status === 'running');
   if (runningRuns.length > 0) {
     try {
@@ -57,36 +57,17 @@ export async function GET(request: NextRequest) {
       });
       if (statusRes.ok) {
         const daemonStatus = await statusRes.json();
-        const daemonRunIds = new Set((daemonStatus.agents || []).map((a: any) => a.runId));
-
+        const daemonAgents = new Map((daemonStatus.agents || []).map((a: any) => [a.runId, a]));
+        // Add uptime info to running agents
         for (const run of runningRuns) {
-          const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
-          // Only clean up truly stale runs: not in daemon AND older than 10 minutes
-          // Never touch runs younger than 10 min — the daemon handles those
-          if (!daemonRunIds.has(run.id) && elapsed > 600) {
-            // Re-check DB to make sure daemon hasn't already updated it
-            const { data: freshRun } = await supabaseAdmin
-              .from('agent_runs').select('status').eq('id', run.id).single();
-            if (freshRun?.status === 'running') {
-              void supabaseAdmin.from('agent_runs').update({
-                status: 'failed',
-                finished_at: new Date().toISOString(),
-                duration_seconds: Math.round(elapsed),
-                error_message: 'Stale — process not found in daemon after 10min',
-              }).eq('id', run.id);
-
-              latestRunMap[run.agent_id] = {
-                ...run,
-                status: 'failed',
-                finished_at: new Date().toISOString(),
-                duration_seconds: Math.round(elapsed),
-              };
-            }
+          const daemonInfo = daemonAgents.get(run.id) as any;
+          if (daemonInfo) {
+            (run as any).daemon_uptime = daemonInfo.uptime;
           }
         }
       }
     } catch {
-      // Daemon unreachable — can't verify, leave as-is
+      // Daemon unreachable — leave as-is
     }
   }
 
