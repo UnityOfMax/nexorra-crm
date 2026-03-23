@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: nexorra
-      POSTGRES_PASSWORD: nexorra_hindsight_2026
+      POSTGRES_PASSWORD: ${HINDSIGHT_DB_PASSWORD:-nexorra_local}
       POSTGRES_DB: hindsight
     volumes:
       - hindsight-data:/var/lib/postgresql/data

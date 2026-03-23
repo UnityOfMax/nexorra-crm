@@ -36,7 +36,7 @@ const MCP_SERVERS: Record<string, object> = {
   },
   '21st-magic': {
     command: 'npx', args: ['-y', '@21st-dev/magic@latest'],
-    env: { API_KEY: '85bc56f3e4ca90ffc742c37fa868a68aad3012ff2a185297de493d2bbb39fe55' },
+    env: { API_KEY: process.env.TWENTYFIRST_API_KEY || '' },
   },
 };
 
