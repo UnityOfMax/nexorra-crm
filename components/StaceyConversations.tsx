@@ -188,7 +188,7 @@ export default function StaceyConversations() {
         <select
           value={filterTimezone}
           onChange={e => setFilterTimezone(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200/60 dark:border-white/8 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300 ml-auto"
+          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200/60 dark:border-white/8 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300 ml-auto"
         >
           <option value="">All Timezones</option>
           {['EST', 'CST', 'MST', 'PST'].map(tz => (

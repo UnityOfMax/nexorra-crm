@@ -62,64 +62,68 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
     return (
       <div className="h-full flex flex-col">
         {/* Header with back button */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between md:mb-6">
+          {/* Left: back + name */}
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSelectedPipeline(null)}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-gray-900">{selectedPipeline.name}</h2>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  selectedPipeline.type === 'sales' ? 'bg-blue-100 text-blue-700' :
-                  selectedPipeline.type === 'hiring' ? 'bg-green-100 text-green-700' :
-                  selectedPipeline.type === 'support' ? 'bg-purple-100 text-purple-700' :
-                  'bg-gray-100 text-gray-700'
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">{selectedPipeline.name}</h2>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                  selectedPipeline.type === 'sales' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                  selectedPipeline.type === 'hiring' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                  selectedPipeline.type === 'support' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+                  'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300'
                 }`}>
                   {selectedPipeline.type}
                 </span>
                 {selectedPipeline.is_default && (
-                  <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded">
+                  <span className="px-2 py-0.5 bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 text-xs font-medium rounded-full flex-shrink-0">
                     Default
                   </span>
                 )}
               </div>
               {selectedPipeline.description && (
-                <p className="text-gray-600 mt-1">{selectedPipeline.description}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">{selectedPipeline.description}</p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right: actions */}
+          <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto">
             {/* Pipeline Selector */}
-            <select
-              value={selectedPipeline.id}
-              onChange={(e) => {
-                const pipeline = pipelines.find(p => p.id === e.target.value);
-                if (pipeline) setSelectedPipeline(pipeline);
-              }}
-              className="input"
-            >
-              {pipelines.map(pipeline => (
-                <option key={pipeline.id} value={pipeline.id}>
-                  {pipeline.name}
-                </option>
-              ))}
-            </select>
+            {pipelines.length > 1 && (
+              <select
+                value={selectedPipeline.id}
+                onChange={(e) => {
+                  const pipeline = pipelines.find(p => p.id === e.target.value);
+                  if (pipeline) setSelectedPipeline(pipeline);
+                }}
+                className="input text-sm pl-3 pr-8 py-1.5 max-w-[140px]"
+              >
+                {pipelines.map(pipeline => (
+                  <option key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+            <button className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors flex-shrink-0">
               <Settings className="w-5 h-5" />
             </button>
 
             <button
               onClick={() => setShowAddOpportunity(true)}
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary flex items-center gap-2 whitespace-nowrap flex-shrink-0"
             >
               <Plus className="w-4 h-4" />
-              Add Opportunity
+              <span className="hidden sm:inline">Add </span>Opportunity
             </button>
           </div>
         </div>

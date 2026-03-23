@@ -286,24 +286,24 @@ export default function LeadsList() {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-[#2c2c2e] rounded-xl w-fit">
+      <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-[#2c2c2e] rounded-xl w-full md:w-fit">
         {([
-          { key: 'email' as LeadCategory, label: 'Email Leads', icon: Target },
-          { key: 'instagram' as LeadCategory, label: 'Instagram Leads', icon: Instagram },
-          { key: 'calling' as LeadCategory, label: 'Calling Leads', icon: Phone },
+          { key: 'email' as LeadCategory, label: 'Email', icon: Target },
+          { key: 'instagram' as LeadCategory, label: 'Instagram', icon: Instagram },
+          { key: 'calling' as LeadCategory, label: 'Calling', icon: Phone },
         ]).map(tab => (
           <button
             key={tab.key}
             onClick={() => setCategory(tab.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-2 md:px-4 py-2 text-sm font-medium rounded-lg transition-all ${
               category === tab.key
                 ? 'bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-            <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+            <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{tab.label}</span>
+            <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
               category === tab.key
                 ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
                 : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
@@ -312,28 +312,30 @@ export default function LeadsList() {
             </span>
           </button>
         ))}
-        {category === 'calling' && (
-          <div className="flex items-center gap-1.5 ml-2">
-            <input
-              type="number"
-              value={csvCount}
-              onChange={e => setCsvCount(Math.max(1, Math.min(1000, Number(e.target.value) || 150)))}
-              className="w-16 px-2 py-2 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-              min={1}
-              max={1000}
-              title="Number of leads to export"
-            />
-            <button
-              onClick={handleCsvExport}
-              disabled={csvExporting || categoryCounts.calling === 0}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {csvExporting ? 'Exporting...' : 'Export CSV'}
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* CSV Export (calling only) */}
+      {category === 'calling' && (
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="number"
+            value={csvCount}
+            onChange={e => setCsvCount(Math.max(1, Math.min(1000, Number(e.target.value) || 150)))}
+            className="w-16 px-2 py-2 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+            min={1}
+            max={1000}
+            title="Number of leads to export"
+          />
+          <button
+            onClick={handleCsvExport}
+            disabled={csvExporting || categoryCounts.calling === 0}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {csvExporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
@@ -345,7 +347,7 @@ export default function LeadsList() {
         <select
           value={filterPushed}
           onChange={e => setFilterPushed(e.target.value as 'all' | 'true' | 'false')}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="all">All Status</option>
           <option value="false">Not Pushed</option>
@@ -355,7 +357,7 @@ export default function LeadsList() {
         <select
           value={filterTimezone}
           onChange={e => setFilterTimezone(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">All Timezones</option>
           {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
@@ -364,7 +366,7 @@ export default function LeadsList() {
         <select
           value={filterBrokerage}
           onChange={e => setFilterBrokerage(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">All Brokerages</option>
           {Object.entries(BROKERAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -373,7 +375,7 @@ export default function LeadsList() {
         <select
           value={filterCountry}
           onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
+          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
         >
           <option value="">US + CA</option>
           <option value="US">United States</option>
