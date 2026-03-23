@@ -294,6 +294,65 @@ export async function getByDomain(domain: string, limit = 50): Promise<MulchEntr
     .slice(-limit); // Most recent
 }
 
+// --- Sync wrappers for daemon process-manager (runs in non-async context) ---
+
+import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'fs';
+
+function getConfigSync(): MulchConfig {
+  if (_config) return _config;
+  const raw = readFileSync(CONFIG_PATH, 'utf-8');
+  _config = JSON.parse(raw) as MulchConfig;
+  return _config;
+}
+
+function readAllEntriesSync(config: MulchConfig): MulchEntry[] {
+  const dp = dataPath(config);
+  if (!existsSync(dp)) return [];
+  const raw = readFileSync(dp, 'utf-8');
+  return raw.split('\n').filter(l => l.trim()).map(line => {
+    try { return JSON.parse(line) as MulchEntry; } catch { return null; }
+  }).filter((e): e is MulchEntry => e !== null);
+}
+
+export function querySync(
+  text: string,
+  options?: { domain?: string; agent?: string; limit?: number }
+): MulchQueryResult {
+  try {
+    const config = getConfigSync();
+    const limit = options?.limit ?? 5;
+    if (!text?.trim()) return { entries: [], total: 0, query: text || '' };
+
+    let entries = readAllEntriesSync(config);
+    if (options?.domain) entries = entries.filter(e => e.domain === options.domain);
+    if (options?.agent) entries = entries.filter(e => e.agent === options.agent);
+
+    const queryTokens = tokenizeForBM25(text);
+    if (queryTokens.length === 0) return { entries: [], total: 0, query: text };
+
+    const documents = entries.map(entry => ({
+      tokens: tokenizeForBM25(`${entry.content} ${entry.tags.join(' ')} ${entry.domain} ${entry.agent}`),
+      entry,
+    }));
+    const ranked = computeBM25(queryTokens, documents);
+    return {
+      entries: ranked.slice(0, limit).map(r => ({ ...r.entry, score: Math.round(r.score * 1000) / 1000 })),
+      total: ranked.length,
+      query: text,
+    };
+  } catch { return { entries: [], total: 0, query: text || '' }; }
+}
+
+export function recordSync(entry: Omit<MulchEntry, 'id' | 'timestamp'>): void {
+  try {
+    const config = getConfigSync();
+    const dp = dataPath(config);
+    mkdirSync(path.dirname(dp), { recursive: true });
+    const fullEntry: MulchEntry = { ...entry, id: randomUUID(), timestamp: new Date().toISOString() };
+    appendFileSync(dp, JSON.stringify(fullEntry) + '\n', 'utf-8');
+  } catch { /* silent fail */ }
+}
+
 // Default export for convenient import
-const mulch = { record, query, getByAgent, getByDomain };
+const mulch = { record, query, getByAgent, getByDomain, querySync, recordSync };
 export default mulch;

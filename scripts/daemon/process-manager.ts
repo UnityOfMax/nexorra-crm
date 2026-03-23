@@ -195,6 +195,18 @@ export async function spawnAgent(params: {
   const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
 
+  // Inject Mulch learnings into prompt context
+  try {
+    const mulchClient = require(path.join(CRM_ROOT, 'lib/mulch/client'));
+    const learnings = mulchClient.querySync ? mulchClient.querySync(extraContext || agentId, { agent: agentId, limit: 5 }) : null;
+    if (learnings && learnings.entries && learnings.entries.length > 0) {
+      const mulchContext = learnings.entries.map((e: any) => `[${e.domain}] ${e.content}`).join('\n');
+      promptContent += `\n\n--- RELEVANT LEARNINGS (from past runs) ---\n${mulchContext}\n--- END LEARNINGS ---\n`;
+    }
+  } catch (mulchErr) {
+    // Mulch not available — continue without learnings
+  }
+
   // Write prompt to temp file to avoid CLI arg size limits and --- parsing issues
   const { writeFileSync, unlinkSync } = require('fs');
   const { join } = require('path');
@@ -302,6 +314,30 @@ export async function spawnAgent(params: {
       .eq('id', run.id);
 
     console.log(`[daemon] Agent ${agentId} (${run.id}) ${status} in ${duration}s`);
+
+    // Post-run: record learnings to Mulch
+    if (status === 'completed') {
+      try {
+        const mulchClient = require(path.join(CRM_ROOT, 'lib/mulch/client'));
+        const summary = resultError || `${agentId} completed in ${duration}s`;
+        if (mulchClient.recordSync) {
+          mulchClient.recordSync({
+            agent: agentId,
+            domain: agentId,
+            content: summary,
+            tags: [agentId, trigger || 'manual'],
+            classification: 'tactical' as const,
+          });
+        }
+      } catch { /* Mulch not available */ }
+
+      // Post-run: sync Obsidian for research agents
+      if (['jeff', 'derek', 'nina'].includes(agentId)) {
+        try {
+          require('child_process').execSync('npx tsx scripts/obsidian-sync.ts', { cwd: CRM_ROOT, timeout: 30000, stdio: 'ignore' });
+        } catch { /* Obsidian sync optional */ }
+      }
+    }
   });
 
   child.unref();
