@@ -162,15 +162,15 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
   return (
     <div className="h-full flex flex-col">
       {/* Pipeline Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{pipeline.name}</h3>
+      <div className="mb-4 md:mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{pipeline.name}</h3>
           {pipeline.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{pipeline.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{pipeline.description}</p>
           )}
         </div>
-        <div className="text-right ml-4">
-          <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-medium">Total Pipeline</div>
+        <div className="text-right flex-shrink-0">
+          <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-medium">Total</div>
           <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
             ${(totalPipelineValue / 1000).toFixed(0)}k
           </div>

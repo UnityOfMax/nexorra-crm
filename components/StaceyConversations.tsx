@@ -197,10 +197,10 @@ export default function StaceyConversations() {
         </select>
       </div>
 
-      <div className={`flex gap-4 h-[calc(100dvh-12rem)] ${selectedId ? 'items-stretch' : ''}`}>
+      <div className={`flex gap-4 h-[calc(100dvh-18rem)] md:h-[calc(100dvh-12rem)] overflow-hidden ${selectedId ? 'items-stretch' : ''}`}>
         {/* Conversation list */}
-        <div className={`card p-0 overflow-hidden flex flex-col ${selectedId ? 'hidden md:flex w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
-          <div className="flex-1 overflow-y-auto overflow-x-auto">
+        <div className={`card p-0 overflow-hidden flex flex-col min-w-0 ${selectedId ? 'hidden md:flex w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50/80 dark:bg-white/3">
@@ -243,13 +243,13 @@ export default function StaceyConversations() {
                       }`}
                     >
                       {/* Lead */}
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      <td className="px-3 py-2 md:px-4 md:py-3 max-w-[140px] md:max-w-none">
+                        <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {conv.lead?.full_name || conv.lead_email.split('@')[0]}
                         </p>
-                        <p className="text-xs text-gray-400 truncate max-w-[140px]">{conv.lead_email}</p>
+                        <p className="text-xs text-gray-400 truncate">{conv.lead_email}</p>
                         {conv.lead?.city && (
-                          <p className="text-xs text-gray-400">{conv.lead.city}, {conv.lead.state_province}</p>
+                          <p className="text-xs text-gray-400 truncate">{conv.lead.city}, {conv.lead.state_province}</p>
                         )}
                       </td>
 
@@ -276,19 +276,19 @@ export default function StaceyConversations() {
                       )}
 
                       {/* Status */}
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2 md:px-4 md:py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[conv.status] || ''}`}>
                           {STATUS_LABELS[conv.status] || conv.status}
                         </span>
                         {conv.calendly_booked && (
-                          <span className="ml-1.5 text-xs text-green-600 dark:text-green-400 font-medium">✓ cal</span>
+                          <span className="block md:inline ml-0 md:ml-1.5 text-xs text-green-600 dark:text-green-400 font-medium">✓ cal</span>
                         )}
                       </td>
 
                       {/* Last reply */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Clock className="w-3 h-3" />
+                      <td className="px-2 py-2 md:px-4 md:py-3">
+                        <div className="flex items-center gap-1 text-xs text-gray-400 whitespace-nowrap">
+                          <Clock className="w-3 h-3 flex-shrink-0" />
                           {timeAgo(conv.last_reply_at)}
                         </div>
                       </td>
@@ -328,37 +328,56 @@ export default function StaceyConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0 h-full">
+          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0 h-full min-w-0">
             {/* Thread header */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/5">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="flex-shrink-0 flex items-start justify-between px-3 py-3 md:px-4 border-b border-gray-100 dark:border-white/5 gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <button
                   onClick={() => { setSelectedId(null); setThread([]); }}
-                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                  {selectedConv.lead?.full_name || selectedConv.lead_email}
-                </p>
-                <p className="text-xs text-gray-400 truncate">{selectedConv.lead_email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    {selectedConv.lead?.full_name || selectedConv.lead_email}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">{selectedConv.lead_email}</p>
+                  {/* Badges below name on mobile */}
+                  <div className="flex flex-wrap items-center gap-1 mt-1 md:hidden">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedConv.status]}`}>
+                      {STATUS_LABELS[selectedConv.status]}
+                    </span>
+                    {selectedConv.timezone && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TZ_COLORS[selectedConv.timezone] || ''}`}>
+                        {selectedConv.timezone}
+                      </span>
+                    )}
+                    {selectedConv.calendly_booked && (
+                      <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                        <Check className="w-3 h-3" /> Booked
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedConv.status]}`}>
-                  {STATUS_LABELS[selectedConv.status]}
-                </span>
-                {selectedConv.timezone && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TZ_COLORS[selectedConv.timezone] || ''}`}>
-                    {selectedConv.timezone}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Badges on desktop only */}
+                <div className="hidden md:flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedConv.status]}`}>
+                    {STATUS_LABELS[selectedConv.status]}
                   </span>
-                )}
-                {selectedConv.calendly_booked && (
-                  <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                    <Check className="w-3 h-3" /> Booked
-                  </span>
-                )}
+                  {selectedConv.timezone && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TZ_COLORS[selectedConv.timezone] || ''}`}>
+                      {selectedConv.timezone}
+                    </span>
+                  )}
+                  {selectedConv.calendly_booked && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                      <Check className="w-3 h-3" /> Booked
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => { setSelectedId(null); setThread([]); }}
                   className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/8 text-gray-400 transition-colors"
@@ -386,19 +405,19 @@ export default function StaceyConversations() {
                     className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-xl px-4 py-3 ${
+                      className={`max-w-[90%] md:max-w-[85%] rounded-xl px-3 py-2 md:px-4 md:py-3 ${
                         msg.direction === 'outbound'
                           ? 'bg-primary-500/10 dark:bg-primary-500/20 text-gray-800 dark:text-gray-100'
                           : 'bg-gray-100 dark:bg-white/8 text-gray-800 dark:text-gray-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
                           {msg.direction === 'outbound'
                             ? (msg.sender_name || selectedConv.sender_name || 'Stacey')
                             : (selectedConv.lead?.full_name || msg.sender_email || selectedConv.lead_email)}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
                           {new Date(msg.sent_at).toLocaleString()}
                         </span>
                       </div>
@@ -410,14 +429,14 @@ export default function StaceyConversations() {
             </div>
 
             {/* Thread footer — context info */}
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-white/5 flex-shrink-0 bg-gray-50/50 dark:bg-white/2">
-              <div className="flex items-center gap-4 text-xs text-gray-400">
-                <span>Campaign: {selectedConv.campaign_name || selectedConv.campaign_id}</span>
+            <div className="px-3 py-2 md:px-4 md:py-3 border-t border-gray-100 dark:border-white/5 flex-shrink-0 bg-gray-50/50 dark:bg-white/2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
+                <span className="truncate max-w-[200px]">Campaign: {selectedConv.campaign_name || selectedConv.campaign_id}</span>
                 {selectedConv.instantly_email_acct && (
-                  <span>From: {selectedConv.instantly_email_acct}</span>
+                  <span className="truncate max-w-[180px]">From: {selectedConv.instantly_email_acct}</span>
                 )}
                 {selectedConv.booking_link_sent && (
-                  <span className="text-primary-500 dark:text-primary-400">Calendly link sent</span>
+                  <span className="text-primary-500 dark:text-primary-400 whitespace-nowrap">Calendly link sent</span>
                 )}
               </div>
             </div>

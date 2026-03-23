@@ -363,7 +363,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const isAiActive = aiConfig?.enabled && contactAiEnabled;
 
   return (
-    <div className="h-[calc(100dvh-8rem)] flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
+    <div className="h-[calc(100dvh-12rem)] md:h-[calc(100dvh-8rem)] flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
       {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
       <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200/60 dark:border-white/5 flex-col`}>
         {/* Search */}
@@ -429,23 +429,23 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           {/* Conversation Header */}
           <div className="flex-shrink-0 p-3 md:p-4 border-b border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 md:gap-3">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                 {/* Back button on mobile */}
                 <button
                   onClick={() => setSelectedContact(null)}
-                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
                   aria-label="Back"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                   {selectedContact.first_name?.[0]}{selectedContact.last_name?.[0]}
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                     {selectedContact.first_name} {selectedContact.last_name}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedContact.phone || selectedContact.email}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{selectedContact.phone || selectedContact.email}</p>
                 </div>
               </div>
 
@@ -636,14 +636,14 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                   placeholder="Write your email..."
                   className="w-full resize-none border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] dark:bg-white/5 dark:text-gray-100"
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => {
                       setShowEmailComposer(false);
                       setEmailSubject('');
                       setNewMessage('');
                     }}
-                    className="btn btn-secondary flex-1"
+                    className="btn btn-secondary flex-1 min-w-[80px]"
                   >
                     Cancel
                   </button>
@@ -651,20 +651,20 @@ export default function Conversations({ accountId, contacts, selectedContactId }
                     <button
                       onClick={handleGenerateAiResponse}
                       disabled={aiGenerating}
-                      className="btn bg-violet-100 text-violet-700 hover:bg-violet-200 flex items-center justify-center gap-2"
+                      className="btn bg-violet-100 text-violet-700 hover:bg-violet-200 flex items-center justify-center gap-2 flex-shrink-0"
                     >
                       {aiGenerating ? (
                         <Loader className="w-4 h-4 animate-spin" />
                       ) : (
                         <Sparkles className="w-4 h-4" />
                       )}
-                      AI Draft
+                      <span className="hidden sm:inline">AI Draft</span>
                     </button>
                   )}
                   <button
                     onClick={handleSendEmail}
                     disabled={sending || !newMessage.trim() || !emailSubject.trim()}
-                    className="btn btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
+                    className="btn btn-primary flex-1 min-w-[100px] flex items-center justify-center gap-2 disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
                   >
                     {sending ? (
                       <Loader className="w-4 h-4 animate-spin" />
