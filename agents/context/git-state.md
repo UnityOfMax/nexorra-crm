@@ -1,23 +1,17 @@
-# Git State (2026-03-20 17:11)
+# Git State (2026-03-23 20:58)
 Branch: main
 
 ## Last 5 Commits
-e7bb83d Fix Lena JSON detection: strip code blocks, match across newlines
-cfd8c03 Fix query: add --verbose flag (required for stream-json output)
-5449659 Full agent communication: sync queries, 5-layer memory, dynamic registry
-042d552 Lena fetches real agent logs and data on demand
-68f8fae Fix Sonnet model ID: claude-sonnet-4-5 (not dated version)
+38711e5 Fix mobile PWA layout: pipeline header, leads tabs, select arrows
+436970a Obsidian Brain: full knowledge layer with daily cycle
+36b8ab2 Fix mobile overflow in email, conversations, and pipeline sections
+d16b3c2 Full restructure: Ruflo skills wired, Mulch integrated, Telegram channel ready
+3369b31 Security: remove hardcoded API key + docker password
 
 ## Modified Files
  M agents/context/git-state.md
- M components/Conversations.tsx
- M components/InstagramConversations.tsx
- M components/InstagramDMs.tsx
- M components/InstagramUnibox.tsx
- M components/StaceyConversations.tsx
- M components/calendar/CalendarView.tsx
- M components/command-center/CommandCenterV2.tsx
- M components/landing-pages/LandingPageBuilder.tsx
+ M agents/primers/jeff.md
+ M lib/obsidian/sync.ts
 ?? "Recall Stack Setup Guide (March 2026).docx.pdf"
 ?? scripts/cold-email-upload-agent.ts
 ?? scripts/remax_instagram_scraper.js

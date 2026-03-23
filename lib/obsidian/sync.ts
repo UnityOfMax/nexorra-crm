@@ -60,15 +60,13 @@ export async function syncLeads(): Promise<{ created: number; updated: number }>
   let query = supabaseAdmin
     .from('leads')
     .select('*')
-    .order('updated_at', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (syncState.last_sync) {
-    // Fetch leads that are either completed OR modified since last sync
-    query = query.or(`research_status.eq.completed,updated_at.gt.${syncState.last_sync}`);
-  } else {
-    // First sync: only completed leads
-    query = query.eq('research_status', 'completed');
+    query = query.gt('created_at', syncState.last_sync);
   }
+  // Limit to 200 per sync to avoid overwhelming the vault
+  query = query.limit(200);
 
   const { data: leads, error } = await query;
 
