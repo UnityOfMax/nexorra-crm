@@ -32,7 +32,7 @@ TODAY_MIDNIGHT=$(date -u +%Y-%m-%dT00:00:00Z)
 ```
 
 ```
-GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage&limit=1000&order=scraped_at.asc
+GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage,personal_research,research_status&limit=1000&order=scraped_at.asc
 Headers: SB
 ```
 If zero rows: exit immediately, report "No unpushed leads from previous days."
@@ -60,6 +60,13 @@ Split leads into 5 equal chunks (round-robin by index):
 - Chunk 4 → Stan's loom URL
 
 For 1000 leads: 200 per sender. For other counts: distribute as evenly as possible.
+
+### Step 4b: Personalize each lead
+For each lead, generate personalized email copy using `lib/email/personalize.ts`:
+- Import `personalizeLead` from the module
+- Call `personalizeLead(lead)` for each lead — this uses personal_research data if available, falls back to city/brokerage-based copy
+- Store the returned `custom_variables` map for each lead (includes `first_line`, `email_body`, `ps_line`, `first_name`, `city`, `brokerage`)
+- These will be included in the Instantly upload as custom variables per lead
 
 ### Step 5: Bulk upload (1000 leads per request)
 The correct Instantly v2 bulk endpoint is `/api/v2/leads/add` (NOT `/api/v2/leads/bulk`, NOT `/api/v2/leads`):
