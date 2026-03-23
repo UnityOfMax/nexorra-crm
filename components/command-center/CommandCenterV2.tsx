@@ -26,7 +26,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Activity }> = [
 
 // ─── Usage Bar ───
 function UsageBar() {
-  const [usage, setUsage] = useState({ daily: 0, weekly: 0, dailyLimit: 100, weeklyLimit: 100 });
+  const [usage, setUsage] = useState<any>({ window: 0, windowLimit: 2000000, daily: 0, dailyLimit: 5000000, windowRunCount: 0, dailyRunCount: 0 });
 
   useEffect(() => {
     const load = async () => {
@@ -40,25 +40,26 @@ function UsageBar() {
     return () => clearInterval(t);
   }, []);
 
+  const windowPct = Math.min(100, Math.round((usage.window / Math.max(1, usage.windowLimit)) * 100));
   const dailyPct = Math.min(100, Math.round((usage.daily / Math.max(1, usage.dailyLimit)) * 100));
-  const weeklyPct = Math.min(100, Math.round((usage.weekly / Math.max(1, usage.weeklyLimit)) * 100));
   const barColor = (pct: number) => pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-amber-500' : 'bg-emerald-500';
+  const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n);
 
   return (
     <div className="hidden sm:flex items-center gap-4 text-xs">
       <div className="flex items-center gap-2">
-        <span className="text-gray-500 dark:text-gray-400">Daily</span>
-        <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${barColor(dailyPct)}`} style={{ width: `${dailyPct}%` }} />
+        <span className="text-gray-500 dark:text-gray-400">5h window</span>
+        <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${barColor(windowPct)}`} style={{ width: `${Math.max(windowPct, usage.windowRunCount > 0 ? 3 : 0)}%` }} />
         </div>
-        <span className="text-gray-600 dark:text-gray-300 font-mono">{dailyPct}%</span>
+        <span className="text-gray-600 dark:text-gray-300 font-mono">{fmt(usage.window)} ({usage.windowRunCount || 0} runs)</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-gray-500 dark:text-gray-400">Weekly</span>
+        <span className="text-gray-500 dark:text-gray-400">Today</span>
         <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${barColor(weeklyPct)}`} style={{ width: `${weeklyPct}%` }} />
+          <div className={`h-full rounded-full transition-all ${barColor(dailyPct)}`} style={{ width: `${Math.max(dailyPct, usage.dailyRunCount > 0 ? 3 : 0)}%` }} />
         </div>
-        <span className="text-gray-600 dark:text-gray-300 font-mono">{weeklyPct}%</span>
+        <span className="text-gray-600 dark:text-gray-300 font-mono">{fmt(usage.daily)} ({usage.dailyRunCount || 0} runs)</span>
       </div>
     </div>
   );

@@ -35,16 +35,48 @@ export async function GET(_request: NextRequest) {
   const dailyTokens = sumTokens(dailyRuns);
   const weeklyTokens = sumTokens(weeklyRuns);
 
-  // Configurable limits (env vars or sensible defaults for Max plan)
+  // Claude Max subscription: 5-hour rolling window
+  // No API to read actual remaining — we track our own usage
+  const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+  const { data: windowRuns } = await supabaseAdmin
+    .from('agent_runs')
+    .select('input_tokens, output_tokens, cost_usd, duration_seconds')
+    .gte('started_at', fiveHoursAgo)
+    .not('input_tokens', 'is', null);
+
+  const windowTokens = sumTokens(windowRuns);
+  const windowCost = (windowRuns || []).reduce((acc, r) => acc + (r.cost_usd || 0), 0);
+  const windowRuns5h = windowRuns?.length || 0;
+
+  // Also count runs even if tokens are null (they still consumed quota)
+  const { count: dailyRunCount } = await supabaseAdmin
+    .from('agent_runs')
+    .select('id', { count: 'exact', head: true })
+    .gte('started_at', todayStart);
+
+  const { count: windowRunCount } = await supabaseAdmin
+    .from('agent_runs')
+    .select('id', { count: 'exact', head: true })
+    .gte('started_at', fiveHoursAgo);
+
+  // Soft limits — estimate based on Max plan tier
+  const windowLimit = parseInt(process.env.WINDOW_TOKEN_LIMIT || '2000000', 10);
   const dailyLimit = parseInt(process.env.DAILY_TOKEN_LIMIT || '5000000', 10);
-  const weeklyLimit = parseInt(process.env.WEEKLY_TOKEN_LIMIT || '25000000', 10);
 
   return NextResponse.json({
+    // 5-hour rolling window (matches Claude's rate limit window)
+    window: windowTokens,
+    windowLimit,
+    windowRuns: windowRuns5h,
+    windowRunCount: windowRunCount || 0,
+    windowCost: Math.round(windowCost * 1000) / 1000,
+    // Daily
     daily: dailyTokens,
-    weekly: weeklyTokens,
     dailyLimit,
-    weeklyLimit,
     dailyRuns: dailyRuns?.length || 0,
+    dailyRunCount: dailyRunCount || 0,
+    // Weekly
+    weekly: weeklyTokens,
     weeklyRuns: weeklyRuns?.length || 0,
   });
 }

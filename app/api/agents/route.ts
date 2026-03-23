@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
         const daemonRunIds = new Set((daemonStatus.agents || []).map((a: any) => a.runId));
 
         for (const run of runningRuns) {
-          if (!daemonRunIds.has(run.id)) {
-            // Daemon doesn't know about this run — it's stale, mark as completed/failed
-            const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
+          const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
+          // Grace period: don't mark as stale if started less than 60s ago (daemon may not have registered yet)
+          if (!daemonRunIds.has(run.id) && elapsed > 60) {
             void supabaseAdmin.from('agent_runs').update({
               status: elapsed > 600 ? 'failed' : 'completed',
               finished_at: new Date().toISOString(),
@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
               error_message: elapsed > 600 ? 'Stale — process not found in daemon' : null,
             }).eq('id', run.id);
 
-            // Update in-memory map immediately so this response is correct
             latestRunMap[run.agent_id] = {
               ...run,
               status: elapsed > 600 ? 'failed' : 'completed',
