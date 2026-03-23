@@ -61,21 +61,27 @@ export async function GET(request: NextRequest) {
 
         for (const run of runningRuns) {
           const elapsed = (Date.now() - new Date(run.started_at).getTime()) / 1000;
-          // Grace period: don't mark as stale if started less than 60s ago (daemon may not have registered yet)
-          if (!daemonRunIds.has(run.id) && elapsed > 60) {
-            void supabaseAdmin.from('agent_runs').update({
-              status: elapsed > 600 ? 'failed' : 'completed',
-              finished_at: new Date().toISOString(),
-              duration_seconds: Math.round(elapsed),
-              error_message: elapsed > 600 ? 'Stale — process not found in daemon' : null,
-            }).eq('id', run.id);
+          // Only clean up truly stale runs: not in daemon AND older than 10 minutes
+          // Never touch runs younger than 10 min — the daemon handles those
+          if (!daemonRunIds.has(run.id) && elapsed > 600) {
+            // Re-check DB to make sure daemon hasn't already updated it
+            const { data: freshRun } = await supabaseAdmin
+              .from('agent_runs').select('status').eq('id', run.id).single();
+            if (freshRun?.status === 'running') {
+              void supabaseAdmin.from('agent_runs').update({
+                status: 'failed',
+                finished_at: new Date().toISOString(),
+                duration_seconds: Math.round(elapsed),
+                error_message: 'Stale — process not found in daemon after 10min',
+              }).eq('id', run.id);
 
-            latestRunMap[run.agent_id] = {
-              ...run,
-              status: elapsed > 600 ? 'failed' : 'completed',
-              finished_at: new Date().toISOString(),
-              duration_seconds: Math.round(elapsed),
-            };
+              latestRunMap[run.agent_id] = {
+                ...run,
+                status: 'failed',
+                finished_at: new Date().toISOString(),
+                duration_seconds: Math.round(elapsed),
+              };
+            }
           }
         }
       }
