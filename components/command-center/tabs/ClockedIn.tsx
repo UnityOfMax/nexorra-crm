@@ -242,8 +242,46 @@ export default function ClockedIn({
   agents: AgentConfig[];
   onStop: (runId: string) => void;
 }) {
-  // Filter to running agents only
-  const runningAgents = agents.filter(a => a.latest_run?.status === 'running');
+  // Also poll daemon directly for running agents (catches Telegram-spawned runs)
+  const [daemonAgents, setDaemonAgents] = useState<Array<{ agentId: string; runId: string; uptime: number }>>([]);
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/agents/daemon-status');
+        if (res.ok) {
+          const data = await res.json();
+          setDaemonAgents(data.agents || []);
+        }
+      } catch {}
+    };
+    poll();
+    const t = setInterval(poll, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Merge: DB running agents + daemon running agents
+  const dbRunning = agents.filter(a => a.latest_run?.status === 'running');
+  const daemonOnlyIds = new Set(daemonAgents.map(a => a.agentId));
+  // Remove IDs already in dbRunning
+  for (const a of dbRunning) daemonOnlyIds.delete(a.id);
+
+  // Create synthetic configs for daemon-only agents
+  const syntheticAgents: AgentConfig[] = Array.from(daemonOnlyIds).map(id => {
+    const daemon = daemonAgents.find(a => a.agentId === id);
+    const def = AGENT_DEFINITIONS[id];
+    return {
+      id,
+      name: def?.displayName || id,
+      latest_run: {
+        id: daemon?.runId || 'daemon',
+        agent_id: id,
+        status: 'running' as const,
+        started_at: new Date(Date.now() - (daemon?.uptime || 0) * 1000).toISOString(),
+      },
+    } as AgentConfig;
+  });
+
+  const runningAgents = [...dbRunning, ...syntheticAgents];
 
   if (runningAgents.length === 0) {
     return (
