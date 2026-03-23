@@ -60,23 +60,23 @@ export default function AccountSwitcherDropdown({
       {/* Dropdown Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-[#2c2c2e] hover:bg-gray-100/70 dark:hover:bg-white/4 rounded-lg transition-colors duration-150 border border-gray-200 dark:border-white/10"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex-shrink-0">
-            <Building2 className="w-5 h-5 text-primary-600" />
+            <Building2 className="w-5 h-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div className="text-left min-w-0 flex-1">
-            <div className="text-sm font-semibold text-gray-900 truncate">
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
               {currentAccount.name}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               {currentAccount.account_type === 'agency' ? 'Agency Account' : 'Sub-Account'}
             </div>
           </div>
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${
+          className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${
             isOpen ? 'transform rotate-180' : ''
           }`}
         />
@@ -114,7 +114,7 @@ export default function AccountSwitcherDropdown({
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-b-0"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Building2 className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                    <Building2 className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
                     <div className="text-left min-w-0 flex-1">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {account.name}
@@ -123,7 +123,7 @@ export default function AccountSwitcherDropdown({
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
-                    <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                    <Check className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
                   )}
                 </button>
               ))}
@@ -156,7 +156,7 @@ export default function AccountSwitcherDropdown({
                     </div>
                   </div>
                   {currentAccount.id === account.id && (
-                    <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                    <Check className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" />
                   )}
                 </button>
               ))}
@@ -171,10 +171,10 @@ export default function AccountSwitcherDropdown({
           </div>
 
           {/* Sign Out — always at the bottom */}
-          <div className="border-t border-gray-200">
+          <div className="border-t border-gray-200 dark:border-white/8">
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-150"
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm font-medium">Sign Out</span>

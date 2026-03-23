@@ -65,3 +65,7 @@ tmp/mcp-configs/
 instagram-tokens.json
 instagram-accounts.json
 bridge-pointer.json
+
+# Mulch knowledge store (data file, not config)
+.mulch/learnings.jsonl
+.mulch/.lock

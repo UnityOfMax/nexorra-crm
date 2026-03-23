@@ -51,38 +51,38 @@ export default function DealCard({ deal, isDragging }: DealCardProps) {
       )}
 
       {/* Deal Title */}
-      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 line-clamp-2 pl-1 break-words min-w-0">
+      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 pl-1 min-w-0 truncate">
         {deal.title}
       </h5>
 
       {/* Deal Value */}
       <div className={`flex items-center gap-1 font-semibold mb-2 pl-1 min-w-0 ${isWon ? 'text-emerald-600 dark:text-emerald-400' : isLost ? 'text-red-500 dark:text-red-400' : 'text-primary-600'}`}>
         <DollarSign className="w-4 h-4 flex-shrink-0" />
-        <span className="truncate">{formatCurrency(deal.value || 0)}</span>
+        <span className="truncate tabular-nums">{formatCurrency(deal.value || 0)}</span>
       </div>
 
       {/* Deal Metadata */}
-      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 pl-1">
+      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 pl-1 min-w-0">
         {/* Probability */}
         {deal.probability !== undefined && (
-          <div className="flex items-center justify-between">
-            <span>Probability</span>
-            <span className="font-medium">{deal.probability}%</span>
+          <div className="flex items-center justify-between min-w-0">
+            <span className="truncate">Probability</span>
+            <span className="font-medium tabular-nums flex-shrink-0">{deal.probability}%</span>
           </div>
         )}
 
         {/* Close Date */}
         {deal.expected_close_date && (
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>Close: {formatDate(deal.expected_close_date)}</span>
+          <div className="flex items-center gap-1 min-w-0">
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">Close: {formatDate(deal.expected_close_date)}</span>
           </div>
         )}
 
         {/* Assigned To */}
         {deal.assigned_to && (
-          <div className="flex items-center gap-1">
-            <User className="w-3 h-3" />
+          <div className="flex items-center gap-1 min-w-0">
+            <User className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">Assigned</span>
           </div>
         )}

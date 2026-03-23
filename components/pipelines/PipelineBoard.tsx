@@ -16,10 +16,16 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
   const [deals, setDeals] = useState<DealExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [stageDeals, setStageDeals] = useState<Record<string, DealExtended[]>>({});
+  const [mobileStageId, setMobileStageId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDeals();
-  }, [pipeline.id, refreshKey]);
+    // Default mobile stage to first stage
+    const sorted = [...pipeline.pipeline_stages].sort((a, b) => a.position - b.position);
+    if (sorted.length > 0 && !mobileStageId) {
+      setMobileStageId(sorted[0].id);
+    }
+  }, [pipeline.id, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDeals = async () => {
     setLoading(true);
@@ -135,6 +141,14 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
     [stageValues]
   );
 
+  const sortedStages = useMemo(
+    () => [...pipeline.pipeline_stages].sort((a, b) => a.position - b.position),
+    [pipeline.pipeline_stages]
+  );
+
+  const activeMobileStage = sortedStages.find(s => s.id === mobileStageId) || sortedStages[0];
+  const mobileDeals = activeMobileStage ? (stageDeals[activeMobileStage.id] || []) : [];
+
   const calculateStageValue = (stageId: string): number => stageValues[stageId] ?? 0;
 
   if (loading) {
@@ -164,35 +178,79 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {/* Mobile Stage Selector + Vertical List (< md) */}
+      <div className="md:hidden flex flex-col flex-1 min-h-0">
+        {/* Stage tabs */}
+        <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto pb-3 scrollbar-none">
+          {sortedStages.map(stage => (
+            <button
+              key={stage.id}
+              onClick={() => setMobileStageId(stage.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 transition-colors ${
+                activeMobileStage?.id === stage.id
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                  : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15'
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+              {stage.name}
+              <span className={`text-xs ml-0.5 ${
+                activeMobileStage?.id === stage.id ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'
+              }`}>
+                {stageDeals[stage.id]?.length || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Stage value summary */}
+        {activeMobileStage && (
+          <div className="flex-shrink-0 mb-3 text-sm text-gray-500 dark:text-gray-400">
+            ${(calculateStageValue(activeMobileStage.id) / 1000).toFixed(1)}k in {mobileDeals.length} deal{mobileDeals.length !== 1 ? 's' : ''}
+          </div>
+        )}
+
+        {/* Deal cards - vertical list */}
+        <div className="flex-1 overflow-y-auto space-y-2 pb-4">
+          {mobileDeals.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+              No deals in this stage
+            </div>
+          ) : mobileDeals.map(deal => (
+            <div key={deal.id} className="min-w-0">
+              <DealCard deal={deal} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Kanban Board (>= md) */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex-1 overflow-x-auto">
+        <div className="hidden md:block flex-1 overflow-x-auto">
           <div className="flex gap-4 min-h-full pb-4">
-            {[...pipeline.pipeline_stages]
-              .sort((a, b) => a.position - b.position)
-              .map(stage => (
+            {sortedStages.map(stage => (
                 <Droppable key={stage.id} droppableId={stage.id}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={`flex-shrink-0 w-80 flex flex-col ${
-                        snapshot.isDraggingOver ? 'bg-gray-50' : ''
+                        snapshot.isDraggingOver ? 'bg-gray-50 dark:bg-white/5' : ''
                       }`}
                     >
                       {/* Stage Header */}
-                      <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="mb-3 p-3 bg-white dark:bg-[#2c2c2e] rounded-lg border border-gray-200 dark:border-white/8">
                         <div className="flex items-center gap-2 mb-2">
                           <div
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: stage.color }}
                           />
-                          <h4 className="font-semibold text-gray-900">{stage.name}</h4>
-                          <span className="ml-auto text-sm text-gray-500">
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{stage.name}</h4>
+                          <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
                             {stageDeals[stage.id]?.length || 0}
                           </span>
                         </div>
-                        <div className="text-sm font-medium text-gray-700">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           ${(calculateStageValue(stage.id) / 1000).toFixed(1)}k
                         </div>
                       </div>

@@ -35,21 +35,15 @@ function formatTimeAgo(dateStr: string | null | undefined): string {
   return `${days}d ago`;
 }
 
-// ─── Tooltip ───
-function AgentTooltip({
-  agentId,
-  anchorEl,
-}: {
-  agentId: string;
-  anchorEl: HTMLElement | null;
-}) {
+// ─── Inline Detail Card (replaces broken tooltip) ───
+function AgentDetailCard({ agentId }: { agentId: string }) {
   const def = AGENT_DEFINITIONS[agentId];
-  if (!def || !anchorEl) return null;
+  if (!def) return null;
 
   const dept = DEPARTMENTS[def.department as DepartmentKey];
 
   return (
-    <div className="absolute z-50 mt-2 px-3 py-2.5 rounded-xl bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-gray-700 shadow-lg min-w-[180px]">
+    <div className="mt-2 p-3 rounded-lg bg-white dark:bg-[#2c2c2e] shadow-lg border border-gray-200 dark:border-gray-700 min-w-[180px] max-w-[220px] text-left">
       <p className="text-xs font-semibold text-gray-900 dark:text-white">{def.displayName}</p>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{dept?.label || def.department}</p>
       <div className="mt-2 space-y-1">
@@ -65,6 +59,18 @@ function AgentTooltip({
           <span className="text-gray-400">Schedule</span>
           <span className="text-gray-700 dark:text-gray-300 text-right max-w-[120px] truncate">{def.schedule || 'Manual'}</span>
         </div>
+        {def.mcps && def.mcps.length > 0 && (
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-400">MCPs</span>
+            <span className="text-gray-700 dark:text-gray-300 text-right max-w-[120px] truncate">{def.mcps.join(', ')}</span>
+          </div>
+        )}
+        {def.skills && def.skills.length > 0 && (
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-400">Skills</span>
+            <span className="text-gray-700 dark:text-gray-300 text-right max-w-[120px] truncate">{def.skills.join(', ')}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -126,8 +132,8 @@ function OrgNode({
         <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: color }} />
       </button>
 
-      {/* Tooltip */}
-      {isSelected && <AgentTooltip agentId={agentId} anchorEl={null} />}
+      {/* Inline detail card */}
+      {isSelected && <AgentDetailCard agentId={agentId} />}
     </div>
   );
 }

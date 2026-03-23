@@ -355,6 +355,17 @@ html, body {
   }
 }
 
+/* ─── Subtle Hover States ─────────────────────────────────────────────────── */
+/* Prevent cards from shifting background color on hover — shadow-only lift */
+.card:hover {
+  background-color: inherit;
+}
+
+/* Smooth micro-transition baseline for all interactive elements */
+button:hover {
+  transition: all 150ms ease;
+}
+
 /* ─── Command Center ──────────────────────────────────────────────────────── */
 .cc-dot-grid {
   background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);

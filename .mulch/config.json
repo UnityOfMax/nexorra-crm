@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "dataFile": ".mulch/learnings.jsonl",
+  "lockFile": ".mulch/.lock",
+  "maxEntries": 5000,
+  "domains": ["lead-gen", "cold-email", "client-reply", "campaign-metrics", "instagram-outreach", "code-review", "funnel-insights", "experiments"]
+}

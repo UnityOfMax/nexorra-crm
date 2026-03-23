@@ -121,8 +121,17 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
   }, [account]);
 
   useEffect(() => {
+    // Sync dark state from DOM (ThemeProvider already applied the class)
     setDark(document.documentElement.classList.contains('dark'));
-  }, []);
+    // Migrate legacy key to user-scoped key if needed
+    if (userId) {
+      const legacy = localStorage.getItem('theme');
+      const userKey = `nexorra_theme_${userId}`;
+      if (legacy && !localStorage.getItem(userKey)) {
+        localStorage.setItem(userKey, legacy);
+      }
+    }
+  }, [userId]);
 
   useEffect(() => {
     loadNotificationPrefs();
@@ -295,10 +304,20 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
   const toggleDarkMode = () => {
     const isDark = document.documentElement.classList.toggle('dark');
     setDark(isDark);
+    // Persist immediately — user-scoped key + generic fallback
+    const value = isDark ? 'dark' : 'light';
+    if (userId) {
+      localStorage.setItem(`nexorra_theme_${userId}`, value);
+    }
+    localStorage.setItem('theme', value);
   };
 
   const saveAppearance = async () => {
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    const value = dark ? 'dark' : 'light';
+    if (userId) {
+      localStorage.setItem(`nexorra_theme_${userId}`, value);
+    }
+    localStorage.setItem('theme', value);
     setAppearanceSaved(true);
     setTimeout(() => setAppearanceSaved(false), 2000);
   };
@@ -739,7 +758,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150 ${
                     isActive
                       ? 'bg-primary-500/10 text-primary-700 font-semibold dark:bg-primary-500/20 dark:text-primary-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-gray-100'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/4 hover:text-gray-900 dark:hover:text-gray-100'
                   }`}
                 >
                   <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : ''}`} />
@@ -776,9 +795,9 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
                 <button
                   key={section.id}
                   onClick={() => setMobileSectionId(section.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/6"
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-white/4"
                 >
-                  <div className="p-2 bg-gray-100 dark:bg-white/8 rounded-lg">
+                  <div className="p-2 bg-gray-100 dark:bg-white/6 rounded-lg">
                     <Icon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                   </div>
                   <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100">{section.label}</span>

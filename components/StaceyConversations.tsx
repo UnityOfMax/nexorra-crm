@@ -197,18 +197,18 @@ export default function StaceyConversations() {
         </select>
       </div>
 
-      <div className={`flex gap-4 ${selectedId ? 'items-start' : ''}`}>
+      <div className={`flex gap-4 h-[calc(100dvh-12rem)] ${selectedId ? 'items-stretch' : ''}`}>
         {/* Conversation list */}
-        <div className={`card p-0 overflow-hidden ${selectedId ? 'hidden md:block w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
-          <div className="overflow-x-auto">
+        <div className={`card p-0 overflow-hidden flex flex-col ${selectedId ? 'hidden md:flex w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
+          <div className="flex-1 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-white/5 bg-gray-50/80 dark:bg-white/3">
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Lead</th>
                   {!selectedId && (
                     <>
-                      <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Preview</th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">TZ</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Preview</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">TZ</th>
                     </>
                   )}
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
@@ -253,10 +253,10 @@ export default function StaceyConversations() {
                         )}
                       </td>
 
-                      {/* Preview + TZ — hide in split view */}
+                      {/* Preview + TZ — hide in split view and on mobile */}
                       {!selectedId && (
                         <>
-                          <td className="px-4 py-3 max-w-[280px]">
+                          <td className="px-4 py-3 max-w-[280px] hidden md:table-cell">
                             {conv.latest_message ? (
                               <p className="text-gray-600 dark:text-gray-400 text-xs truncate">
                                 {conv.latest_message.content.slice(0, 120)}
@@ -265,7 +265,7 @@ export default function StaceyConversations() {
                               <span className="text-gray-300 dark:text-gray-500 text-xs italic">No messages yet</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden md:table-cell">
                             {conv.timezone ? (
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TZ_COLORS[conv.timezone] || ''}`}>
                                 {conv.timezone}
@@ -301,7 +301,7 @@ export default function StaceyConversations() {
 
           {/* Pagination */}
           {total > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-white/5">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-white/5">
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}
               </span>
@@ -328,9 +328,9 @@ export default function StaceyConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0">
+          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0 h-full">
             {/* Thread header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/5">
               <div className="flex items-center gap-2 min-w-0">
                 <button
                   onClick={() => { setSelectedId(null); setThread([]); }}

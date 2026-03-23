@@ -424,12 +424,12 @@ export default function LeadsList() {
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Agent</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Contact</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Location</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">TZ</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Brokerage</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Instagram</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">TZ</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Brokerage</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Instagram</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Scraped</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 text-right hidden md:table-cell">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -513,7 +513,7 @@ export default function LeadsList() {
                     </td>
 
                     {/* Timezone */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       {lead.timezone ? (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${timezoneColor[lead.timezone] || 'bg-gray-100 text-gray-600'}`}>
                           {lead.timezone}
@@ -524,14 +524,14 @@ export default function LeadsList() {
                     </td>
 
                     {/* Brokerage */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-gray-700 dark:text-gray-300 text-xs">
                         {BROKERAGES[lead.source_brokerage] || lead.source_brokerage}
                       </span>
                     </td>
 
                     {/* Instagram */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       {lead.instagram_handle ? (
                         <div className="flex items-center gap-1.5">
                           <Instagram className="w-3.5 h-3.5 text-pink-500" />
@@ -599,7 +599,7 @@ export default function LeadsList() {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-1 justify-end">
                         {lead.profile_url && (
                           <a

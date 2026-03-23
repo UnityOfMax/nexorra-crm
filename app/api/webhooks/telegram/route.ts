@@ -237,11 +237,19 @@ async function generate(
         const data = await res.json();
         if (data.text) return data.text;
       }
-    } catch {}
+    } catch (bridgeErr: any) {
+      console.error('[telegram] Bridge error:', bridgeErr.message);
+    }
   }
 
-  const result = await fastGenerate({ system, messages, model: SONNET_MODEL, maxTokens, temperature: 0.5 });
-  return result.text;
+  // Fallback to direct API (fastGenerate uses Haiku)
+  try {
+    const result = await fastGenerate({ system, messages, model: 'claude-haiku-4-5-20251001', maxTokens, temperature: 0.5 });
+    return result.text;
+  } catch (fallbackErr: any) {
+    console.error('[telegram] Fallback generate error:', fallbackErr.message);
+    throw new Error('Both bridge and fallback failed');
+  }
 }
 
 // ─── Query an agent synchronously ───────────────────────────────────────────
@@ -278,6 +286,73 @@ export async function POST(request: NextRequest) {
   }
   if (chatId !== ADMIN_CHAT_ID) return NextResponse.json({ ok: true });
   if (text === '/start') { await sendMessage(chatId, "I'm here. What do you need?"); return NextResponse.json({ ok: true }); }
+
+  // ── Direct commands (bypass Lena LLM) ──────────────────────────────────────
+
+  // /status — quick daemon status
+  if (text === '/status') {
+    try {
+      const res = await fetch(`${DAEMON_URL}/status`, { headers: { 'x-cron-secret': CRON_SECRET }, signal: AbortSignal.timeout(5000) });
+      const daemon = await res.json();
+      const running = daemon.agents?.length ? daemon.agents.map((a: any) => `${AGENT_DEFINITIONS[a.agentId]?.displayName || a.agentId}: ${Math.round(a.uptime)}s`).join('\n') : 'None';
+      await sendMessage(chatId, `Running agents:\n${running}\n\nDaemon uptime: ${Math.round(daemon.uptime || 0)}s`);
+    } catch { await sendMessage(chatId, 'Daemon unreachable.'); }
+    return NextResponse.json({ ok: true });
+  }
+
+  // /run <agent> — start an agent
+  if (text.startsWith('/run ')) {
+    const agentId = text.slice(5).trim().toLowerCase();
+    const def = AGENT_DEFINITIONS[agentId];
+    if (!def) { await sendMessage(chatId, `Unknown agent: ${agentId}`); return NextResponse.json({ ok: true }); }
+    try {
+      const body = JSON.stringify({ agentId, trigger: 'telegram' });
+      const { createHmac } = await import('crypto');
+      const sig = createHmac('sha256', process.env.DAEMON_SIGNING_KEY || '').update(body).digest('hex');
+      const res = await fetch(`${DAEMON_URL}/run`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-cron-secret': CRON_SECRET, 'x-signature': sig }, body,
+        signal: AbortSignal.timeout(10000),
+      });
+      const data = await res.json();
+      await sendMessage(chatId, `Started ${def.displayName}. Run ID: ${data.runId || 'unknown'}`);
+    } catch (e: any) { await sendMessage(chatId, `Failed to start ${def.displayName}: ${e.message}`); }
+    return NextResponse.json({ ok: true });
+  }
+
+  // /logs <agent> — last run logs
+  if (text.startsWith('/logs ')) {
+    const agentId = text.slice(6).trim().toLowerCase();
+    const { data: runs } = await supabaseAdmin.from('agent_runs').select('id, status, started_at, duration_seconds, summary, error_message')
+      .eq('agent_id', agentId).order('started_at', { ascending: false }).limit(1);
+    if (!runs?.length) { await sendMessage(chatId, `No runs found for ${agentId}`); return NextResponse.json({ ok: true }); }
+    const r = runs[0];
+    const name = AGENT_DEFINITIONS[agentId]?.displayName || agentId;
+    const lines = [`${name} — last run:`, `Status: ${r.status}`, `Started: ${new Date(r.started_at).toLocaleString('en-GB', { timeZone: 'Europe/London' })}`];
+    if (r.duration_seconds) lines.push(`Duration: ${r.duration_seconds}s`);
+    if (r.summary) lines.push(`Summary: ${r.summary}`);
+    if (r.error_message) lines.push(`Error: ${r.error_message}`);
+    await sendMessage(chatId, lines.join('\n'));
+    return NextResponse.json({ ok: true });
+  }
+
+  // /cc <message> — direct Claude Code query (longer timeout)
+  if (text.startsWith('/cc ')) {
+    const query = text.slice(4).trim();
+    await sendMessage(chatId, 'Working on it...');
+    try {
+      const res = await fetch(`${DAEMON_URL}/query`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: 'barny', question: query, maxTurns: 10, timeout: 110000 }),
+        signal: AbortSignal.timeout(120000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const answer = data.text?.slice(0, 3000) || 'No response';
+        await sendMessage(chatId, answer);
+      } else { await sendMessage(chatId, 'Query failed. Daemon returned error.'); }
+    } catch { await sendMessage(chatId, 'Query timed out. Try /run barny with a specific task instead.'); }
+    return NextResponse.json({ ok: true });
+  }
 
   try {
     await saveMsg('user', 'lena', text);

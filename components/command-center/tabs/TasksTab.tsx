@@ -162,6 +162,120 @@ function CronTimeline() {
   );
 }
 
+// ─── Scheduled Jobs (todo-list format) ───
+function ScheduledJobs() {
+  const blocks = useMemo(() => parseCronBlocks(), []);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  if (blocks.length === 0) return null;
+
+  const now = new Date();
+  const nowFloat = now.getHours() + now.getMinutes() / 60;
+
+  return (
+    <div className="mb-6">
+      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+        Scheduled Jobs
+      </h4>
+      <div className="space-y-1.5">
+        {blocks.map(block => {
+          const def = AGENT_DEFINITIONS[block.agentId];
+          const dept = def ? DEPARTMENTS[def.department as DepartmentKey] : null;
+          const isPast = block.hourFloat < nowFloat;
+          const isExpanded = expandedId === block.agentId;
+
+          return (
+            <div key={block.agentId}>
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : block.agentId)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+                  isPast
+                    ? 'bg-gray-50 dark:bg-white/3'
+                    : 'bg-white dark:bg-[#1a1a1c] border border-gray-200 dark:border-gray-700'
+                } hover:bg-gray-100 dark:hover:bg-white/5`}
+              >
+                {/* Time */}
+                <span className={`text-xs font-bold font-mono w-16 flex-shrink-0 ${
+                  isPast ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'
+                }`}>
+                  {block.time}
+                </span>
+
+                {/* Agent avatar */}
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                  style={{ backgroundColor: block.color, fontSize: '8px', fontWeight: 700 }}
+                >
+                  {block.displayName[0]}
+                </div>
+
+                {/* Agent name + description */}
+                <div className="flex-1 min-w-0">
+                  <span className={`text-xs font-medium ${
+                    isPast ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+                  }`}>
+                    {block.displayName}
+                  </span>
+                  {def && (
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1.5">
+                      {def.schedule || 'Manual'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Department badge */}
+                {dept && (
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[9px] font-medium text-white flex-shrink-0"
+                    style={{ backgroundColor: block.color }}
+                  >
+                    {dept.label.split(' ')[0]}
+                  </span>
+                )}
+
+                {/* Status indicator */}
+                {isPast ? (
+                  <span className="text-[10px] text-green-500 dark:text-green-400 flex-shrink-0">Done</span>
+                ) : (
+                  <span className="text-[10px] text-gray-400 flex-shrink-0">Pending</span>
+                )}
+              </button>
+
+              {/* Expanded details */}
+              {isExpanded && def && (
+                <div className="ml-[76px] mt-1 mb-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-gray-700 text-[11px] space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Model</span>
+                    <span className="text-gray-700 dark:text-gray-300">{def.model}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Schedule</span>
+                    <span className="text-gray-700 dark:text-gray-300">{def.schedule || 'Manual'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Max Turns</span>
+                    <span className="text-gray-700 dark:text-gray-300">{def.maxTurns}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Department</span>
+                    <span className="text-gray-700 dark:text-gray-300">{dept?.label || def.department}</span>
+                  </div>
+                  {def.mcps && def.mcps.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">MCPs</span>
+                      <span className="text-gray-700 dark:text-gray-300">{def.mcps.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Task Card ───
 function TaskCard({
   task,
@@ -288,6 +402,9 @@ export default function TasksTab() {
     <div className="flex-1 overflow-auto p-4 sm:p-6">
       {/* Cron Timeline */}
       <CronTimeline />
+
+      {/* Scheduled Jobs (todo-list) */}
+      <ScheduledJobs />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

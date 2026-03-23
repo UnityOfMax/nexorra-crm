@@ -363,7 +363,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const isAiActive = aiConfig?.enabled && contactAiEnabled;
 
   return (
-    <div className="h-full flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
+    <div className="h-[calc(100dvh-8rem)] flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
       {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
       <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200/60 dark:border-white/5 flex-col`}>
         {/* Search */}
@@ -427,7 +427,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       ) : (
         <div className="flex-1 flex flex-col min-w-0">
           {/* Conversation Header */}
-          <div className="p-3 md:p-4 border-b border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
+          <div className="flex-shrink-0 p-3 md:p-4 border-b border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 md:gap-3">
                 {/* Back button on mobile */}
@@ -604,7 +604,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
+          <div className="flex-shrink-0 p-4 border-t border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
             {messageType === 'email' && showEmailComposer ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">

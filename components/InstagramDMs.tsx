@@ -201,7 +201,7 @@ function InboxTab() {
   );
 
   return (
-    <div className="flex h-full rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+    <div className="flex h-[calc(100dvh-8rem)] rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
       {/* Left panel */}
       <div className={`${selected ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 border-r border-gray-200/60 dark:border-gray-700/40 flex-shrink-0`}>
         <div className="p-3 border-b border-gray-200/60 dark:border-gray-700/40 space-y-2">
@@ -273,7 +273,7 @@ function InboxTab() {
       {/* Right panel — thread */}
       {selected ? (
         <div className="flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-[#141414]">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
             <button onClick={() => setSelected(null)} className="md:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/8">
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -307,8 +307,9 @@ function InboxTab() {
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
-          <div className="px-3 py-2.5 border-t border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+          <div className="flex-shrink-0 px-3 py-2.5 border-t border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
             <div className="flex items-end gap-2">
               <textarea
                 value={replyText}
@@ -324,7 +325,6 @@ function InboxTab() {
               </button>
             </div>
           </div>
-          <div ref={messagesEndRef} />
         </div>
       ) : (
         <div className="hidden md:flex flex-1 items-center justify-center flex-col gap-4 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#141414]">
@@ -421,11 +421,11 @@ function ColdOutreachTab() {
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
-    <div className={`flex gap-4 ${selectedId ? 'items-start' : ''}`}>
+    <div className={`flex gap-4 h-[calc(100dvh-8rem)] ${selectedId ? 'items-stretch' : ''}`}>
       {/* List */}
-      <div className={`card p-0 overflow-hidden ${selectedId ? 'hidden md:block w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
+      <div className={`card p-0 overflow-hidden flex flex-col ${selectedId ? 'hidden md:flex w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700/60">
+        <div className="flex-shrink-0 flex flex-wrap items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700/60">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or handle…"
@@ -443,6 +443,7 @@ function ColdOutreachTab() {
           </div>
         </div>
 
+        <div className="flex-1 overflow-y-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/80 dark:bg-white/3">
@@ -501,9 +502,10 @@ function ColdOutreachTab() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
             <span className="text-xs text-gray-500 dark:text-gray-400">{offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}</span>
             <div className="flex items-center gap-1">
               <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}
@@ -522,8 +524,8 @@ function ColdOutreachTab() {
 
       {/* Thread panel */}
       {selectedId && selectedConv && (
-        <div className="flex-1 card p-0 overflow-hidden flex flex-col" style={{ maxHeight: '75vh' }}>
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700/60">
+        <div className="flex-1 card p-0 overflow-hidden flex flex-col min-h-0">
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700/60">
             <button onClick={() => { setSelectedId(null); setThread([]); }} className="md:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/8">
               <ChevronLeft className="w-4 h-4" />
             </button>

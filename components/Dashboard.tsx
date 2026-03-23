@@ -27,6 +27,7 @@ import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
 import MobileNav from './MobileNav';
+import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 
 interface DashboardProps {
   user: User;
@@ -458,7 +459,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Sub-Accounts</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{clientAccounts.length}</p>
+                      <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{clientAccounts.length}</p>
                     </div>
                     <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
                       <Building2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -470,7 +471,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                      <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
                         {clientAccounts.reduce((sum: number, c: any) => sum + (c.members?.[0]?.count || 0), 0)}
                       </p>
                     </div>
@@ -480,14 +481,14 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   </div>
                 </div>
 
-                <div className="card cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveView('sub-accounts')}>
+                <div className="card cursor-pointer transition-shadow duration-150" onClick={() => setActiveView('sub-accounts')}>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Manage Accounts</p>
-                      <p className="text-sm font-medium text-primary-600 mt-2">View Sub-Accounts →</p>
+                      <p className="text-sm font-medium text-primary-600 dark:text-primary-400 mt-2">View Sub-Accounts →</p>
                     </div>
-                    <div className="p-3 bg-primary-100 rounded-xl">
-                      <Building2 className="w-6 h-6 text-primary-600" />
+                    <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
+                      <Building2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                     </div>
                   </div>
                 </div>
@@ -508,7 +509,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
-                          <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{s.value}</p>
+                          <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{s.value}</p>
                         </div>
                         <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
                           <s.icon className={`w-5 h-5 md:w-6 md:h-6 ${s.iconColor}`} />
@@ -528,7 +529,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
-                          <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{s.value}</p>
+                          <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{s.value}</p>
                         </div>
                         <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
                           <s.icon className={`w-4 h-4 md:w-5 md:h-5 ${s.iconColor}`} />
@@ -546,10 +547,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Total Contacts</p>
-                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalContacts}</p>
+                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalContacts}</p>
                   </div>
-                  <div className="p-2 md:p-3 bg-primary-100 rounded-xl flex-shrink-0">
-                    <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-600" />
+                  <div className="p-2 md:p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex-shrink-0">
+                    <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400" />
                   </div>
                 </div>
               </div>
@@ -558,7 +559,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Leads</p>
-                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalLeads}</p>
+                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalLeads}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
                     <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-400" />
@@ -570,7 +571,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Customers</p>
-                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.totalCustomers}</p>
+                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalCustomers}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
                     <Mail className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
@@ -582,7 +583,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Deals</p>
-                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.activeDeals}</p>
+                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.activeDeals}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex-shrink-0">
                     <Phone className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />
@@ -597,7 +598,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Emails Sent</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.emailsSent}</p>
+                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.emailsSent}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
                     <Mail className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
@@ -609,7 +610,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Texts Sent</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.textsSent}</p>
+                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.textsSent}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
                     <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-green-600 dark:text-green-400" />
@@ -621,7 +622,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Bookings</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.bookings}</p>
+                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.bookings}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex-shrink-0">
                     <CalendarCheck className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
@@ -633,7 +634,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Closings</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">{stats.closings}</p>
+                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.closings}</p>
                   </div>
                   <div className="p-2 md:p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex-shrink-0">
                     <Award className="w-4 h-4 md:w-5 md:h-5 text-amber-600 dark:text-amber-400" />
@@ -645,7 +646,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Revenue</p>
-                    <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 truncate">
+                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
                       ${stats.revenue.toLocaleString()}
                     </p>
                   </div>
@@ -714,6 +715,18 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30">
+          {/* Mobile account switcher */}
+          {isAgencyUser && clientAccounts.length > 0 && (
+            <div className="md:hidden mb-3">
+              <AccountSwitcherDropdown
+                currentAccount={currentAccount!}
+                accounts={accounts}
+                clientAccounts={clientAccounts}
+                onAccountSwitch={handleAccountSwitch}
+                onSignOut={handleSignOut}
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -735,7 +748,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                   <span className="flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{currentAccount.name}</span>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">Owner View</span>
+                    <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">Owner View</span>
                   </span>
                 ) : (
                   currentAccount.name
@@ -747,7 +760,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
               className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
                 activeView === 'settings'
                   ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/8 hover:text-gray-700 dark:hover:text-gray-200'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/4 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
               aria-label="Settings"
             >
