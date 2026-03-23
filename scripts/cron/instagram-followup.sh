@@ -10,7 +10,7 @@ mkdir -p /home/max/crm/logs
 
 echo "$(date): Triggering instagram-followup via daemon..." >> "$LOG"
 
-BODY='{"agentId": "instagram-followup", "trigger": "cron"}'
+BODY='{"agentId": "jess", "trigger": "cron"}'
 SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
   -H "Content-Type: application/json" \

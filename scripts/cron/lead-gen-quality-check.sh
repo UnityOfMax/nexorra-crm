@@ -10,7 +10,7 @@ mkdir -p /home/max/crm/logs
 
 echo "$(date): Triggering lead-gen-quality-check via daemon..." >> "$LOG"
 
-BODY='{"agentId": "lead-gen-quality-check", "trigger": "cron"}'
+BODY='{"agentId": "nina", "trigger": "cron"}'
 SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY" | awk '{print $2}')
 RESPONSE=$(curl -s -X POST "http://localhost:4200/run" \
   -H "Content-Type: application/json" \

@@ -174,14 +174,41 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    // GET /status
+    // GET /status — merge in-memory + DB running agents
     if (method === 'GET' && url.pathname === '/status') {
-      const agents = getRunningAgents();
+      const memAgents = getRunningAgents();
+      const memIds = new Set(memAgents.map(a => a.agentId));
+
+      // Also check DB for running agents the daemon doesn't know about
+      let dbOnlyAgents: Array<{ runId: string; agentId: string; pid: number; uptime: number }> = [];
+      try {
+        const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (sbUrl && sbKey) {
+          const dbRes = await fetch(`${sbUrl}/rest/v1/agent_runs?status=eq.running&select=id,agent_id,started_at`, {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+            signal: AbortSignal.timeout(3000),
+          });
+          if (dbRes.ok) {
+            const dbRunning = await dbRes.json() as Array<{ id: string; agent_id: string; started_at: string }>;
+            for (const run of dbRunning) {
+              if (!memIds.has(run.agent_id)) {
+                const uptime = Math.round((Date.now() - new Date(run.started_at).getTime()) / 1000);
+                if (uptime < 7200) {
+                  dbOnlyAgents.push({ runId: run.id, agentId: run.agent_id, pid: 0, uptime });
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+
+      const allAgents = [...memAgents, ...dbOnlyAgents];
       return json(res, {
         status: 'ok',
         uptime: process.uptime(),
-        running: agents.length,
-        agents,
+        running: allAgents.length,
+        agents: allAgents,
         availableAgents: Object.keys(AGENT_DEFINITIONS),
       });
     }
