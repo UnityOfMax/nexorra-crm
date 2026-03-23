@@ -20,7 +20,7 @@ const MCP_SERVERS: Record<string, object> = {
     url: `https://mcp.supabase.com/mcp?project_ref=nhflmisklsanfiiywrfo&features=docs,database,debugging,development,functions,branching,storage`,
   },
   'filesystem': {
-    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/home/max/crm'],
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/home/max/crm', '/home/max/Obsidian/Nexorra'],
   },
   'memory': {
     command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'],
@@ -195,6 +195,16 @@ export async function spawnAgent(params: {
   const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
 
+  // Inject latest vault briefing into prompt context
+  try {
+    const brain = require(path.join(CRM_ROOT, 'lib/obsidian/brain')).default;
+    const briefing = brain.latestBriefing();
+    if (briefing) {
+      const condensed = briefing.split('\n').slice(0, 15).join('\n');
+      promptContent += `\n\n--- TODAY'S BRIEFING (from Obsidian vault) ---\n${condensed}\n--- END BRIEFING ---\n`;
+    }
+  } catch { /* Vault not available */ }
+
   // Inject Mulch learnings into prompt context
   try {
     const mulchClient = require(path.join(CRM_ROOT, 'lib/mulch/client'));
@@ -337,6 +347,25 @@ export async function spawnAgent(params: {
           require('child_process').execSync('npx tsx scripts/obsidian-sync.ts', { cwd: CRM_ROOT, timeout: 30000, stdio: 'ignore' });
         } catch { /* Obsidian sync optional */ }
       }
+
+      // Post-run: write to Obsidian vault brain
+      try {
+        const brain = require(path.join(CRM_ROOT, 'lib/obsidian/brain')).default;
+        const deptMap: Record<string, string> = {
+          jeff: 'research', nina: 'research', derek: 'research',
+          stacey: 'marketing', priya: 'marketing', lionel: 'marketing',
+          tara: 'marketing', malik: 'marketing', jess: 'marketing', vera: 'marketing',
+          barny: 'engineering', archie: 'engineering', kai: 'engineering',
+          liam: 'engineering', sophie: 'engineering', zara: 'engineering',
+          hugo: 'experiments', mira: 'experiments', quinn: 'experiments',
+        };
+        const dept = deptMap[agentId];
+        const runSummary = `Completed in ${duration}s. Tokens: ${inputTokens || '?'}in/${outputTokens || '?'}out. Cost: $${costUsd?.toFixed(3) || '?'}.`;
+        if (dept === 'research') brain.writers.research(agentId, runSummary, agentId);
+        else if (dept === 'marketing') brain.writers.marketing(agentId, runSummary, agentId);
+        else if (dept === 'engineering') brain.writers.engineering(agentId, runSummary, agentId);
+        else if (dept === 'experiments') brain.writers.experiment(agentId, runSummary, agentId);
+      } catch { /* Vault brain optional */ }
     }
   });
 
