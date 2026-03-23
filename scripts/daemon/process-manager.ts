@@ -195,14 +195,21 @@ export async function spawnAgent(params: {
   const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
   const startTime = Date.now();
 
-  // Build CLI args
+  // Write prompt to temp file to avoid CLI arg size limits and --- parsing issues
+  const { writeFileSync, unlinkSync } = require('fs');
+  const { join } = require('path');
+  const tmpPromptPath = join(CRM_ROOT, 'tmp', `prompt-${run.id}.md`);
+  try { require('fs').mkdirSync(join(CRM_ROOT, 'tmp'), { recursive: true }); } catch {}
+  writeFileSync(tmpPromptPath, promptContent, 'utf-8');
+
+  // Build CLI args — read prompt from file via stdin redirect
   const cliArgs = [
-    '-p', promptContent,
     '--model', model,
     '--allowedTools', 'Bash,Read,Write,Edit,Grep,Glob',
     '--max-turns', String(maxTurns),
     '--verbose',
     '--output-format', 'stream-json',
+    '--print',
   ];
 
   // Add MCP config if agent has MCPs defined
@@ -211,9 +218,11 @@ export async function spawnAgent(params: {
     cliArgs.push('--mcp-config', mcpConfigPath);
   }
 
+  // Use shell to pipe prompt file into claude CLI stdin
+  const shellCmd = `cat "${tmpPromptPath}" | ${CLAUDE_CLI} ${cliArgs.map(a => `"${a}"`).join(' ')}`;
   const child = spawn(
-    CLAUDE_CLI,
-    cliArgs,
+    'bash',
+    ['-c', shellCmd],
     {
       cwd: CRM_ROOT,
       env: {
@@ -224,6 +233,9 @@ export async function spawnAgent(params: {
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
+
+  // Clean up prompt file after process starts
+  setTimeout(() => { try { unlinkSync(tmpPromptPath); } catch {} }, 30000);
 
   if (child.pid) {
     runningProcesses.set(run.id, { pid: child.pid, child, agentId, startTime });
