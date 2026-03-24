@@ -403,11 +403,9 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       if (!vid.duration) return;
       var pct = (vid.currentTime / vid.duration) * 100;
       progressFill.style.width = pct + '%';
-      var origTime = fmt(vid.currentTime * SPEED);
-      var origTotal = fmt(vid.duration * SPEED);
       var fastTime = fmt(vid.currentTime);
       var fastTotal = fmt(vid.duration);
-      timeLabel.innerHTML = '<s style="color:rgba(255,255,255,0.45);text-decoration:line-through">' + origTime + ' / ' + origTotal + '</s> ' + fastTime + ' / ' + fastTotal;
+      timeLabel.textContent = fastTime + ' / ' + fastTotal;
     });
 
     function track(type, meta) {
