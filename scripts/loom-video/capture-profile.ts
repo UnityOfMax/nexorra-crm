@@ -268,7 +268,7 @@ export async function captureProfile(
     // Helper: capture frame with browser chrome composited
     const captureWithChrome = async (idx: number) => {
       const raw = path.join(tmpDir, `raw_scroll_${idx}.png`);
-      await page.screenshot({ path: raw, type: "png" });
+      await page!.screenshot({ path: raw, type: "png" });
       execSync(`ffmpeg -y -i "${browserFramePath}" -i "${raw}" -filter_complex "[0:v]pad=1920:1080:0:0:black[bg];[bg][1:v]overlay=0:${BROWSER_CHROME_HEIGHT}" "${screenshotPath(idx)}"`, { stdio: "pipe" });
       try { fs.unlinkSync(raw); } catch {}
     };
