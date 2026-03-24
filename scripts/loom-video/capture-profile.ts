@@ -92,28 +92,38 @@ async function dismissCookies(page: Page): Promise<void> {
  */
 async function generateBrowserFrame(page: Page, url: string, outputPath: string): Promise<void> {
   // Create a canvas-rendered browser chrome at the top
+  // Windows Chrome style (no traffic lights, minimize/maximize/close on right)
+  const hostname = new URL(url).hostname;
   const frameHtml = `
     <html><body style="margin:0;padding:0;background:#202124">
-    <div style="width:1920px;height:${BROWSER_CHROME_HEIGHT}px;background:#202124;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#e8eaed;display:flex;flex-direction:column">
-      <div style="height:40px;display:flex;align-items:center;padding:0 8px;background:#35363a">
-        <div style="display:flex;gap:3px;padding:0 8px">
-          <div style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></div>
-          <div style="width:12px;height:12px;border-radius:50%;background:#febc2e"></div>
-          <div style="width:12px;height:12px;border-radius:50%;background:#28c840"></div>
+    <div style="width:1920px;height:${BROWSER_CHROME_HEIGHT}px;background:#202124;font-family:'Segoe UI',system-ui,sans-serif;color:#e8eaed;display:flex;flex-direction:column">
+      <div style="height:40px;display:flex;align-items:center;background:#202124">
+        <div style="flex:1;display:flex;align-items:flex-end;padding:0 8px 0 80px;height:100%">
+          <div style="background:#35363a;border-radius:8px 8px 0 0;padding:8px 16px;font-size:12px;display:flex;align-items:center;gap:8px;max-width:220px;height:32px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#9aa0a6"><circle cx="12" cy="12" r="10"/></svg>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hostname}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#9aa0a6" style="flex-shrink:0"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </div>
+          <div style="padding:10px 8px;font-size:18px;color:#9aa0a6;cursor:pointer">+</div>
         </div>
-        <div style="flex:1;display:flex;align-items:center;margin:0 50px">
-          <div style="background:#202124;border-radius:8px 8px 0 0;padding:8px 20px;font-size:13px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${new URL(url).hostname}</div>
+        <div style="display:flex;align-items:center;height:100%">
+          <div style="width:46px;height:100%;display:flex;align-items:center;justify-content:center"><svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="#9aa0a6"/></svg></div>
+          <div style="width:46px;height:100%;display:flex;align-items:center;justify-content:center"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#9aa0a6" stroke-width="1"><rect x="0.5" y="0.5" width="9" height="9"/></svg></div>
+          <div style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;background:transparent"><svg width="12" height="12" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></div>
         </div>
       </div>
       <div style="height:48px;display:flex;align-items:center;padding:0 12px;background:#35363a;border-bottom:1px solid #5f6368">
-        <div style="display:flex;gap:8px;padding-right:12px">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <div style="display:flex;gap:8px;padding-right:12px;align-items:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
         </div>
-        <div style="flex:1;background:#202124;border-radius:24px;padding:8px 16px;font-size:14px;display:flex;align-items:center;gap:8px">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-          <span style="color:#e8eaed">${url}</span>
+        <div style="flex:1;background:#202124;border-radius:24px;padding:7px 16px;font-size:14px;display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          <span style="color:#9aa0a6;font-size:13px">${url}</span>
+        </div>
+        <div style="display:flex;gap:12px;padding-left:12px;align-items:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
         </div>
       </div>
     </div>
@@ -183,15 +193,14 @@ export async function captureProfile(
 
     // Step 2: Navigate to actual profile page (cookies already accepted)
     console.log(`[capture] Navigating to profile: ${profileUrl}`);
-    const response = await page.goto(profileUrl, {
-      waitUntil: "networkidle2",
-      timeout: 15000,
-    });
-
-    if (!response || response.status() >= 400) {
-      throw new Error(
-        `Page returned status ${response?.status() ?? "unknown"} for ${profileUrl}`
-      );
+    try {
+      await page.goto(profileUrl, {
+        waitUntil: "networkidle2",
+        timeout: 25000,
+      });
+    } catch (navErr) {
+      // Don't fail on timeout or non-critical errors — page may still have loaded
+      console.log(`[capture] Navigation warning: ${(navErr as Error).message.slice(0, 80)} — continuing anyway`);
     }
 
     // Wait for content to settle
@@ -228,20 +237,23 @@ export async function captureProfile(
     const captureWithChrome = async (idx: number) => {
       const raw = path.join(tmpDir, `raw_scroll_${idx}.png`);
       await page.screenshot({ path: raw, type: "png" });
-      const { execSync: exec } = require("child_process");
-      exec(`ffmpeg -y -i "${browserFramePath}" -i "${raw}" -filter_complex "[0:v]pad=1920:1080:0:0:black[bg];[bg][1:v]overlay=0:${BROWSER_CHROME_HEIGHT}" "${screenshotPath(idx)}"`, { stdio: "pipe" });
+      execSync(`ffmpeg -y -i "${browserFramePath}" -i "${raw}" -filter_complex "[0:v]pad=1920:1080:0:0:black[bg];[bg][1:v]overlay=0:${BROWSER_CHROME_HEIGHT}" "${screenshotPath(idx)}"`, { stdio: "pipe" });
       try { fs.unlinkSync(raw); } catch {}
     };
 
-    // Scroll down FAST — capture every 3rd step
-    const downSteps = Math.ceil(SCROLL_DISTANCE / SCROLL_STEP);
-    for (let i = 0; i < downSteps; i++) {
-      await page.evaluate((d) => window.scrollBy(0, d), SCROLL_STEP);
-      await new Promise((r) => setTimeout(r, SCROLL_INTERVAL_MS));
-      if (i % 3 === 0) {
-        await captureWithChrome(frameIndex);
-        frameIndex++;
-      }
+    // Scroll down — capture EVERY step for smooth animation
+    // Use smaller steps but fast interval for natural flick feel
+    const FLICK_STEP = 40;  // px per step
+    const FLICK_INTERVAL = 16; // ~60fps feel
+    const flickDownSteps = Math.ceil(SCROLL_DISTANCE / FLICK_STEP);
+
+    console.log(`[capture] Flick scroll: ${flickDownSteps} steps down, ${flickDownSteps} steps up`);
+
+    for (let i = 0; i < flickDownSteps; i++) {
+      await page.evaluate((d) => window.scrollBy(0, d), FLICK_STEP);
+      await new Promise((r) => setTimeout(r, FLICK_INTERVAL));
+      await captureWithChrome(frameIndex);
+      frameIndex++;
     }
 
     // Brief pause at bottom
@@ -249,15 +261,12 @@ export async function captureProfile(
     await captureWithChrome(frameIndex);
     frameIndex++;
 
-    // Scroll back up FAST
-    const upSteps = Math.ceil(SCROLL_DISTANCE / SCROLL_STEP);
-    for (let i = 0; i < upSteps; i++) {
-      await page.evaluate((d) => window.scrollBy(0, d), -SCROLL_STEP);
-      await new Promise((r) => setTimeout(r, SCROLL_INTERVAL_MS));
-      if (i % 3 === 0) {
-        await captureWithChrome(frameIndex);
-        frameIndex++;
-      }
+    // Scroll back up — capture every step
+    for (let i = 0; i < flickDownSteps; i++) {
+      await page.evaluate((d) => window.scrollBy(0, d), -FLICK_STEP);
+      await new Promise((r) => setTimeout(r, FLICK_INTERVAL));
+      await captureWithChrome(frameIndex);
+      frameIndex++;
     }
 
     // Final frame at top

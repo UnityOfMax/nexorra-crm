@@ -91,11 +91,11 @@ export function composite(opts: CompositeOptions): string {
     const scrollVideo = path.join(tmpDir, "scroll.mp4");
 
     // ---------------------------------------------------------------
-    // Step 1: Convert static first frame to 13s video at 30fps
+    // Step 1: Convert static first frame to 12s video at 30fps
     // ---------------------------------------------------------------
-    console.log("[composite] Creating 13s static portion...");
+    console.log("[composite] Creating 12s static portion...");
     ffmpeg(
-      `-loop 1 -i "${staticFrame}" -c:v libx264 -t 13 ` +
+      `-loop 1 -i "${staticFrame}" -c:v libx264 -t 12 ` +
         `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${staticVideo}"`
     );
 
@@ -105,9 +105,11 @@ export function composite(opts: CompositeOptions): string {
     //   Total: 2.5s at 30fps = 75 frames
     // ---------------------------------------------------------------
     if (scrollFrames.length > 0) {
-      const scrollFps = Math.max(1, Math.round(scrollFrames.length / 2.5));
+      // Target 2s for scroll animation. More frames = higher fps for same duration.
+      const scrollDuration = 2.0;
+      const scrollFps = Math.max(5, Math.round(scrollFrames.length / scrollDuration));
       console.log(
-        `[composite] Creating 2.5s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
+        `[composite] Creating ${scrollDuration}s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
       );
       ffmpeg(
         `-framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
@@ -115,7 +117,7 @@ export function composite(opts: CompositeOptions): string {
           `-c:v libx264 -pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${scrollVideo}"`
       );
 
-      // Concatenate static (13s) + scroll (2.5s) = 15.5s profile video
+      // Concatenate static (12s) + scroll (~2s) = ~14s profile video
       const profileConcat = path.join(tmpDir, "profile_concat.txt");
       fs.writeFileSync(
         profileConcat,
@@ -125,10 +127,10 @@ export function composite(opts: CompositeOptions): string {
         `-f concat -safe 0 -i "${profileConcat}" -c copy "${profileVideo}"`
       );
     } else {
-      // No scroll frames — extend static to 15.5s
-      console.log("[composite] No scroll frames, extending static to 15.5s...");
+      // No scroll frames — extend static to 14s
+      console.log("[composite] No scroll frames, extending static to 14s...");
       ffmpeg(
-        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 15.5 ` +
+        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 14 ` +
           `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${profileVideo}"`
       );
     }
@@ -139,7 +141,7 @@ export function composite(opts: CompositeOptions): string {
     const talkingHeadDuration = parseFloat(
       execSync(`ffprobe -v quiet -show_format "${opts.talkingHeadPath}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
     );
-    const profileDuration = 15.5; // 13s static + 2.5s scroll
+    const profileDuration = 14; // ~12s static + ~2s scroll flick
     const crmDuration = Math.max(1, talkingHeadDuration - profileDuration);
     console.log(`[composite] Talking head: ${talkingHeadDuration.toFixed(1)}s, Profile: ${profileDuration}s, CRM fill: ${crmDuration.toFixed(1)}s`);
 
