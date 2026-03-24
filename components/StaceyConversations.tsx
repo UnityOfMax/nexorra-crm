@@ -1,7 +1,142 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, RefreshCw, Filter, ChevronLeft, ChevronRight, Check, Clock, X, BookOpen, Ghost, AlertCircle } from 'lucide-react';
+import { Mail, RefreshCw, Filter, ChevronLeft, ChevronRight, Check, Clock, X, BookOpen, Ghost, AlertCircle, BarChart3, ChevronDown, ChevronUp, Trophy } from 'lucide-react';
+
+// ─── Email Analytics Types ───────────────────────────────────────────────────
+
+interface EmailAnalytics {
+  totals: {
+    sent: number;
+    opened: number;
+    replied: number;
+    bounced: number;
+    open_rate: number;
+    reply_rate: number;
+  };
+  variants: Array<{
+    id: string;
+    name: string;
+    booking_rate: number;
+    reply_rate: number;
+    times_sent: number;
+  }>;
+  conversationOutcomes: Record<string, number>;
+}
+
+// ─── Inline Analytics Bar ────────────────────────────────────────────────────
+
+function EmailAnalyticsBar() {
+  const [data, setData] = useState<EmailAnalytics | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    fetch('/api/analytics/email-performance?days=7')
+      .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+      .then(json => { if (!cancelled) setData(json); })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const v = (n: number | undefined) => (n == null || loading) ? '-' : n.toLocaleString();
+  const pct = (n: number | undefined) => (n == null || loading) ? '-' : `${(n * 100).toFixed(1)}%`;
+
+  const outcomes = data?.conversationOutcomes || {};
+  const totalConvos = Object.values(outcomes).reduce((a, b) => a + b, 0);
+  const topVariants = (data?.variants || []).slice(0, 3);
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 rounded-lg transition-colors"
+      >
+        <BarChart3 className="w-3.5 h-3.5" />
+        {expanded ? 'Hide Analytics' : 'Show Analytics'}
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 rounded-xl bg-[#2c2c2e] p-3 md:p-4 space-y-3">
+          {error ? (
+            <p className="text-xs text-red-400 text-center py-2">Failed to load analytics</p>
+          ) : (
+            <>
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 md:flex md:flex-row gap-2 md:gap-3">
+                {/* Sent */}
+                <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                  <p className="text-lg md:text-xl font-bold text-gray-100 truncate">{v(data?.totals.sent)}</p>
+                  <p className="text-xs text-gray-400 truncate">Sent</p>
+                </div>
+                {/* Opened */}
+                <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                  <p className="text-lg md:text-xl font-bold text-gray-100 truncate">{v(data?.totals.opened)}</p>
+                  <p className="text-xs text-gray-400 truncate">Opened ({pct(data?.totals.open_rate)})</p>
+                </div>
+                {/* Replied */}
+                <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                  <p className="text-lg md:text-xl font-bold text-blue-400 truncate">{v(data?.totals.replied)}</p>
+                  <p className="text-xs text-gray-400 truncate">Replied ({pct(data?.totals.reply_rate)})</p>
+                </div>
+                {/* Bounced */}
+                <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                  <p className="text-lg md:text-xl font-bold text-red-400 truncate">{v(data?.totals.bounced)}</p>
+                  <p className="text-xs text-gray-400 truncate">Bounced</p>
+                </div>
+              </div>
+
+              {/* Conversation outcomes */}
+              <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3">
+                <p className="text-xs font-medium text-gray-300 mb-2 truncate">Conversations ({v(totalConvos || undefined)})</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { key: 'needs_reply', label: 'Needs Reply', color: 'bg-amber-900/40 text-amber-300' },
+                    { key: 'replied', label: 'Replied', color: 'bg-blue-900/40 text-blue-300' },
+                    { key: 'booked', label: 'Booked', color: 'bg-green-900/40 text-green-300' },
+                    { key: 'ghosted', label: 'Ghosted', color: 'bg-gray-700/60 text-gray-400' },
+                    { key: 'rejected', label: 'Rejected', color: 'bg-red-900/40 text-red-400' },
+                  ].map(s => (
+                    <span key={s.key} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
+                      {s.label}: {loading ? '-' : (outcomes[s.key] || 0)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top variants */}
+              {topVariants.length > 0 && (
+                <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Trophy className="w-3 h-3 text-amber-400" />
+                    <p className="text-xs font-medium text-gray-300 truncate">Top Variants (by booking rate)</p>
+                  </div>
+                  <div className="space-y-1">
+                    {topVariants.map((vr, i) => (
+                      <div key={vr.id} className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-gray-500 w-4 flex-shrink-0">{i + 1}.</span>
+                        <span className="text-xs text-gray-200 truncate flex-1 min-w-0">{vr.name}</span>
+                        <span className="text-xs font-medium text-green-400 flex-shrink-0">
+                          {(vr.booking_rate * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface ConversationMessage {
   id: string;
@@ -164,6 +299,9 @@ export default function StaceyConversations() {
           Refresh
         </button>
       </div>
+
+      {/* Inline Analytics */}
+      <EmailAnalyticsBar />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-5">

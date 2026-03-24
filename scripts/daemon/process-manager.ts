@@ -403,14 +403,18 @@ export async function stopAgent(runId: string): Promise<boolean> {
 }
 
 export async function cleanupOrphanedRuns(): Promise<number> {
+  // Only clean up runs that are ACTUALLY orphaned — older than 2 hours
+  // Short-lived runs might still be completing during a daemon restart
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from('agent_runs')
     .update({
       status: 'failed',
       finished_at: new Date().toISOString(),
-      error_message: 'Orphaned by daemon restart',
+      error_message: 'Orphaned — running for over 2 hours with no daemon tracking',
     })
     .eq('status', 'running')
+    .lt('started_at', twoHoursAgo)
     .select('id');
   return data?.length ?? 0;
 }

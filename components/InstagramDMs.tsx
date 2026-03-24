@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Instagram, Search, RefreshCw, MessageSquare, Send,
   ChevronLeft, ChevronRight, Clock, User, Filter,
+  BarChart3, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-browser';
 
@@ -111,6 +112,95 @@ function leadName(lead: Lead | null) {
   return parts.length > 0 ? parts.join(' ') : lead.instagram_handle || lead.email || 'Unknown';
 }
 
+// ─── Inbox Analytics Bar ──────────────────────────────────────────────────────
+
+function InboxAnalyticsBar() {
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [stats, setStats] = useState<{
+    activeAccounts: number;
+    messagesIn: number;
+    messagesOut: number;
+    uniqueConversations: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+
+    Promise.all([
+      // Active accounts
+      supabase.from('instagram_account_configs').select('ig_account_id', { count: 'exact', head: true }),
+      // Inbound messages last 7 days
+      supabase.from('instagram_unibox_messages').select('id', { count: 'exact', head: true })
+        .eq('direction', 'inbound').gte('created_at', since),
+      // Outbound messages last 7 days
+      supabase.from('instagram_unibox_messages').select('id', { count: 'exact', head: true })
+        .eq('direction', 'outbound').gte('created_at', since),
+      // Unique conversations (unique sender_id) last 7 days
+      supabase.from('instagram_unibox_messages').select('sender_id').gte('created_at', since),
+    ]).then(([acctRes, inRes, outRes, convRes]) => {
+      if (cancelled) return;
+      const uniqueSenders = new Set((convRes.data || []).map((r: { sender_id: string }) => r.sender_id));
+      setStats({
+        activeAccounts: acctRes.count || 0,
+        messagesIn: inRes.count || 0,
+        messagesOut: outRes.count || 0,
+        uniqueConversations: uniqueSenders.size,
+      });
+    }).catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const v = (n: number | undefined) => (n == null || loading) ? '-' : n.toLocaleString();
+
+  return (
+    <div className="mb-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 rounded-lg transition-colors"
+      >
+        <BarChart3 className="w-3.5 h-3.5" />
+        {expanded ? 'Hide Analytics' : 'Show Analytics'}
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 rounded-xl bg-[#2c2c2e] p-3 md:p-4">
+          {error ? (
+            <p className="text-xs text-red-400 text-center py-2">Failed to load analytics</p>
+          ) : (
+            <div className="grid grid-cols-2 md:flex md:flex-row gap-2 md:gap-3">
+              <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                <p className="text-lg md:text-xl font-bold text-gray-100 truncate">{v(stats?.activeAccounts)}</p>
+                <p className="text-xs text-gray-400 truncate">Active Accounts</p>
+              </div>
+              <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                <p className="text-lg md:text-xl font-bold text-green-400 truncate">{v(stats?.messagesIn)}</p>
+                <p className="text-xs text-gray-400 truncate">Messages In (7d)</p>
+              </div>
+              <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                <p className="text-lg md:text-xl font-bold text-blue-400 truncate">{v(stats?.messagesOut)}</p>
+                <p className="text-xs text-gray-400 truncate">Messages Out (7d)</p>
+              </div>
+              <div className="rounded-lg bg-[#3a3a3c] p-2 md:p-3 min-w-0 md:flex-1">
+                <p className="text-lg md:text-xl font-bold text-purple-400 truncate">{v(stats?.uniqueConversations)}</p>
+                <p className="text-xs text-gray-400 truncate">Conversations (7d)</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Inbox (Unibox) ───────────────────────────────────────────────────────────
 
 function InboxTab() {
@@ -201,7 +291,9 @@ function InboxTab() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-8rem)] rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
+    <>
+    <InboxAnalyticsBar />
+    <div className="flex h-[calc(100dvh-11rem)] rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/40 bg-white dark:bg-[#1c1c1e]">
       {/* Left panel */}
       <div className={`${selected ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-80 lg:w-96 border-r border-gray-200/60 dark:border-gray-700/40 flex-shrink-0`}>
         <div className="p-3 border-b border-gray-200/60 dark:border-gray-700/40 space-y-2">
@@ -335,6 +427,7 @@ function InboxTab() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
