@@ -167,6 +167,21 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 
 ---
 
+## UI Change Workflow (MANDATORY)
+
+For **any frontend/UI change**, always follow this sequence — even if Max didn't ask for a preview:
+
+1. **Make the changes** in code
+2. **Build a standalone preview** at `/tmp/mobile-preview.html` using Tailwind CDN (dark mode, 390px mobile layout, realistic mock data matching the app's dark palette: `#1c1c1e` bg, `#2c2c2e` cards)
+3. **Serve it**: `cd /tmp && nohup python3 -m http.server 8765 &>/tmp/pyserver.log &`
+4. **Tunnel it**: `cloudflared tunnel --config /dev/null --no-autoupdate --url http://localhost:8765 > /tmp/cf-preview.log 2>&1 &` → extract URL with `grep -o 'https://[a-zA-Z0-9.-]*trycloudflare\.com' /tmp/cf-preview.log | head -1`
+5. **Send preview URL via Telegram** with a short summary of what changed
+6. **Wait for approval** before pushing to GitHub
+
+The app requires Supabase auth — the standalone HTML preview is the only way Max can see changes on mobile without logging in.
+
+---
+
 ## Coding Standards
 
 - Always add `dark:` variants when modifying UI (check existing patterns)
@@ -244,6 +259,33 @@ GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/
 - `agents/reference/` — Static data (brokerages, city pools)
 - `agents/prompts/` — System prompts for reply generation
 - `agents/memory/` — Agent learnings (max 4KB each)
-- `agents/state/` — Runtime state files
-- `.claude/commands/` — Agent command definitions (nexorra/, client/, dev/, ops/)
+- `agents/primers/` — Per-agent state files (auto-updated after each run)
+- `agents/state/` — Runtime state files (JSON)
+- `.claude/commands/` — Agent command definitions (executive/, research/, marketing/, client/, delivery/, engineering/, experiments/)
 - `scripts/cron/` — Cron job shell scripts
+
+### Runnable Scripts (USE THESE — do not recreate)
+| Script | Purpose | Run Command |
+|--------|---------|-------------|
+| `scripts/lead-research.ts` | Deep research on leads (DuckDuckGo + page fetch) | `npx tsx scripts/lead-research.ts` |
+| `scripts/lead-research-chrome.js` | Lead research via Chrome (created by Telegram) | `node scripts/lead-research-chrome.js` |
+| `scripts/obsidian-sync.ts` | Sync researched leads to Obsidian vault | `npx tsx scripts/obsidian-sync.ts` |
+| `scripts/mulch-migrate.ts` | Migrate agent memory to Mulch JSONL | `npx tsx scripts/mulch-migrate.ts` |
+| `scripts/generate-gif.ts` | Generate GIF from video | `npx tsx scripts/generate-gif.ts <video>` |
+| `scripts/loom-video/batch-generate.ts` | Batch generate lead videos | `npx tsx scripts/loom-video/batch-generate.ts` |
+| `scripts/loom-video/generate.ts` | Generate single lead video | `npx tsx scripts/loom-video/generate.ts <lead_id>` |
+| `scripts/chrome-tool.js` | Chrome DevTools Protocol tool (navigate, scrape, click) | `node scripts/chrome-tool.js <command>` |
+| `scripts/chrome-launch.sh` | Launch Chrome with debug port 9222 | `bash scripts/chrome-launch.sh` |
+| `scripts/cold-email-upload-agent.ts` | Upload leads to Instantly campaign | `npx tsx scripts/cold-email-upload-agent.ts` |
+| `scripts/daemon/server.ts` | Agent daemon (spawns agents, tracks runs) | `npx tsx scripts/daemon/server.ts` |
+
+### Obsidian Vault
+- Location: `~/Obsidian/Nexorra/`
+- Subdirectories: Leads/, Clients/, Research/, Engineering/, Daily/
+- Sync: `npx tsx scripts/obsidian-sync.ts` (syncs researched leads from Supabase)
+- MCP: filesystem server has access to the vault
+
+### Mulch Knowledge System
+- Config: `.mulch/config.json`
+- Data: `.mulch/learnings.jsonl` (gitignored)
+- Client: `lib/mulch/client.ts` — record(), query(), getByAgent(), getByDomain()

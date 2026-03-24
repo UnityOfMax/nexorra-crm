@@ -1,47 +1,79 @@
 #!/usr/bin/env npx tsx
 /**
  * Morning briefing — runs at 9:55 AM (before agents wake at 10 AM).
- * Reads yesterday's digest, generates a briefing, injects into agent primers.
+ * Reads yesterday's data, generates a briefing for today.
  */
-import brain from '../lib/obsidian/brain';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
-import path from 'path';
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+import { writeMorningBriefing } from '../lib/obsidian/vault-writer';
 
-const CRM = '/home/max/crm';
-const PRIMERS_DIR = path.join(CRM, 'agents', 'primers');
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-console.log('[vault] Generating morning briefing...');
+const CRON_SCHEDULE: Record<string, string> = {
+  jeff: '10:00 AM', stacey: '10:00 AM', tara: '10:30 AM',
+  jess: '6:00 PM', lionel: '8:00 PM', glen: '9:00 PM',
+  marcus: '10:00 PM', hugo: '10:00 PM', nina: '11:00 PM',
+  omar: 'Every 5 min', priya: 'Webhook', malik: 'Webhook',
+};
 
-const briefing = brain.generateMorningBriefing();
-console.log(`[vault] Briefing written (${briefing.length} chars)`);
+async function main() {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  console.log(`[vault-briefing] Generating morning briefing for ${today}`);
 
-// Inject a condensed version into every agent's primer
-mkdirSync(PRIMERS_DIR, { recursive: true });
-const condensed = briefing.split('\n').slice(0, 20).join('\n') + '\n*(See full briefing in Obsidian vault)*\n';
+  const { data: runs } = await supabase
+    .from('agent_runs')
+    .select('agent_id, status, started_at, duration_seconds')
+    .gte('started_at', `${yesterday}T00:00:00Z`)
+    .lt('started_at', `${today}T00:00:00Z`)
+    .order('started_at', { ascending: false });
 
-const primerFiles = existsSync(PRIMERS_DIR) ? readdirSync(PRIMERS_DIR).filter(f => f.endsWith('.md')) : [];
+  const agentStatuses = Object.entries(CRON_SCHEDULE).map(([agent, sched]) => {
+    const lastRun = (runs || []).find(r => r.agent_id === agent);
+    return {
+      agent,
+      lastRun: lastRun ? lastRun.started_at.slice(11, 16) : 'none',
+      status: lastRun ? lastRun.status : 'idle',
+      nextScheduled: sched,
+    };
+  });
 
-for (const file of primerFiles) {
-  const filepath = path.join(PRIMERS_DIR, file);
-  let content = readFileSync(filepath, 'utf-8');
+  const { count: pendingLeads } = await supabase
+    .from('leads').select('id', { count: 'exact', head: true })
+    .eq('research_status', 'pending');
 
-  // Replace existing briefing section or append
-  const briefingMarker = '## Today\'s Briefing';
-  const endMarker = '## ';
-  if (content.includes(briefingMarker)) {
-    const start = content.indexOf(briefingMarker);
-    const afterStart = content.indexOf(endMarker, start + briefingMarker.length);
-    const end = afterStart > start ? afterStart : content.length;
-    content = content.slice(0, start) + `${briefingMarker}\n\n${condensed}\n` + content.slice(end);
-  } else {
-    content += `\n${briefingMarker}\n\n${condensed}\n`;
-  }
+  const { count: researchedLeads } = await supabase
+    .from('leads').select('id', { count: 'exact', head: true })
+    .eq('research_status', 'completed');
 
-  writeFileSync(filepath, content, 'utf-8');
+  const { count: pendingTasks } = await supabase
+    .from('task_board').select('id', { count: 'exact', head: true })
+    .eq('status', 'todo');
+
+  const { count: emailConvos } = await supabase
+    .from('lead_conversations').select('id', { count: 'exact', head: true });
+
+  const failedRuns = (runs || []).filter(r => r.status === 'failed');
+  const priorities: string[] = [];
+  if ((pendingLeads || 0) > 500) priorities.push(`${pendingLeads} leads need research`);
+  if (failedRuns.length > 0) priorities.push(`${failedRuns.length} agent runs failed yesterday`);
+  priorities.push('Jeff: lead scraping at 10 AM');
+  priorities.push('Stacey: email upload at 10 AM');
+
+  writeMorningBriefing({
+    date: today,
+    agentStatuses,
+    pendingTasks: pendingTasks || 0,
+    leadsPending: pendingLeads || 0,
+    leadsResearched: researchedLeads || 0,
+    emailCampaignStatus: `${emailConvos || 0} active conversations`,
+    priorities,
+  });
+
+  console.log(`[vault-briefing] Written to Daily/${today}-briefing.md`);
 }
 
-console.log(`[vault] Injected briefing into ${primerFiles.length} agent primers`);
-
-// Rebuild index
-brain.rebuildIndex();
-console.log('[vault] Index rebuilt. Ready for the day.');
+main().catch(e => { console.error(e); process.exit(1); });
