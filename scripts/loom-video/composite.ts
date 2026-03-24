@@ -112,9 +112,8 @@ export function composite(opts: CompositeOptions): string {
         `[composite] Creating ${scrollDuration}s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
       );
       ffmpeg(
-        `-framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
-          `-start_number 1 -frames:v ${scrollFrames.length} ` +
-          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${scrollVideo}"`
+        `-framerate ${scrollFps} -start_number 1 -i "${opts.screenshotsDir}/frame_%05d.png" ` +
+          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 "${scrollVideo}"`
       );
 
       // Concatenate static (12s) + scroll (~2s) = ~14s profile video
