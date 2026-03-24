@@ -205,17 +205,34 @@ async function learningCycle() {
     // Fetch full conversation thread
     const { data: thread, error: threadError } = await supabase
       .from('conversation_messages')
-      .select('role, body')
+      .select('direction, content, classification, sender_email')
       .eq('conversation_id', outcome.id)
-      .order('created_at', { ascending: true });
+      .order('sent_at', { ascending: true });
 
     if (threadError || !thread) {
       console.warn(`  ⚠ Could not fetch thread for ${outcome.lead_email}`);
       continue;
     }
 
-    // Create learning note (simplified)
-    const learning = generateLearning(outcome.status, thread);
+    // Get copy_variant_id if available
+    const { data: convData } = await supabase
+      .from('lead_conversations')
+      .select('copy_variant_id')
+      .eq('id', outcome.id)
+      .single();
+
+    // Create learning note from thread analysis
+    const firstReply = thread.find((m: any) => m.direction === 'inbound');
+    const classification = firstReply?.classification || 'unknown';
+    const replyContent = (firstReply?.content || '').slice(0, 100);
+    const threadLength = thread.length;
+
+    const learning = `Outcome: ${outcome.status}. Lead's first reply was "${classification}" — "${replyContent}". ` +
+      `Thread had ${threadLength} messages. ` +
+      (outcome.status === 'booked' ? 'The engagement pattern worked — replicate this approach.' :
+       outcome.status === 'ghosted' ? 'Lost momentum after initial contact. Try faster follow-up or different angle.' :
+       outcome.status === 'rejected' ? `Quick rejection. The "${classification}" response suggests the pitch didn't resonate.` :
+       `${outcome.status} after ${threadLength} exchanges.`);
 
     // Save to stacey_learnings
     const { error: saveError } = await supabase
@@ -231,6 +248,33 @@ async function learningCycle() {
       continue;
     }
 
+    // Update copy variant stats if available
+    if (convData?.copy_variant_id) {
+      const statField = outcome.status === 'booked' ? 'times_booked'
+        : outcome.status === 'ghosted' ? 'times_ghosted'
+        : outcome.status === 'rejected' ? 'times_ghosted' : null;
+      if (statField) {
+        await supabase.rpc('increment_variant_stat', {
+          p_id: convData.copy_variant_id,
+          p_stat: statField,
+        });
+        console.log(`  → Updated variant stats: ${statField}`);
+      }
+    }
+
+    // Record to Mulch
+    try {
+      const { appendFileSync } = require('fs');
+      const entry = JSON.stringify({
+        agent: 'lionel', domain: 'cold-email',
+        content: learning,
+        tags: [outcome.status, classification],
+        classification: 'tactical',
+        timestamp: new Date().toISOString(),
+      });
+      appendFileSync('.mulch/learnings.jsonl', entry + '\n');
+    } catch {}
+
     // Mark as learned
     await supabase
       .from('lead_conversations')
@@ -243,26 +287,6 @@ async function learningCycle() {
   }
 
   return { learned, ...stats };
-}
-
-function generateLearning(status: string, thread: any[]): string {
-  const messageCount = thread.length;
-  const lastMessage = thread[thread.length - 1]?.body || '';
-
-  switch (status) {
-    case 'booked':
-      return `Lead engaged positively and booked a call. Initial receptiveness was key. Follow-up timing was effective.`;
-    case 'ghosted':
-      return `No response after initial interest. May indicate low priority or distraction. Consider shorter follow-up windows.`;
-    case 'rejected':
-      return `Lead explicitly declined. Quick decision. Likely not fit for service.`;
-    case 'no_show':
-      return `Lead booked but didn't attend. Lack of confirmation or reminder may have helped prevent.`;
-    case 'closed_deal':
-      return `Lead converted to paying customer. Strong engagement throughout thread.`;
-    default:
-      return `Outcome: ${status}. Thread had ${messageCount} messages.`;
-  }
 }
 
 // Step 8: Report
