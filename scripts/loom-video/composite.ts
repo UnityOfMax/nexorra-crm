@@ -157,17 +157,36 @@ export function composite(opts: CompositeOptions): string {
     );
 
     // ---------------------------------------------------------------
-    // Step 5: Concatenate profile (15.5s) + CRM (130s) = ~145.5s base
+    // Step 5: Create Alt+Tab transition between profile and CRM
+    //   0.5s crossfade with blur effect (simulates Windows app switching)
     // ---------------------------------------------------------------
-    console.log(`[composite] Concatenating profile + CRM → ${talkingHeadDuration.toFixed(1)}s base...`);
-    fs.writeFileSync(
-      concatList,
-      `file '${profileVideo}'\nfile '${crmNormalized}'\n`
+    const transitionDuration = 0.5;
+    console.log(`[composite] Creating ${transitionDuration}s Alt+Tab transition...`);
+
+    // Use xfade filter for crossfade with blur
+    const transitionVideo = path.join(tmpDir, "transition.mp4");
+    const profileDur = parseFloat(
+      execSync(`ffprobe -v quiet -show_format "${profileVideo}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
     );
+    const crmDur = parseFloat(
+      execSync(`ffprobe -v quiet -show_format "${crmNormalized}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
+    );
+
+    // Re-encode both to ensure matching parameters for xfade
+    const profileReenc = path.join(tmpDir, "profile_reenc.mp4");
+    const crmReenc = path.join(tmpDir, "crm_reenc.mp4");
+    ffmpeg(`-i "${profileVideo}" -c:v libx264 -pix_fmt yuv420p -preset fast -crf 18 -r 30 "${profileReenc}"`, 120000);
+    ffmpeg(`-i "${crmNormalized}" -c:v libx264 -pix_fmt yuv420p -preset fast -crf 18 -r 30 "${crmReenc}"`, 300000);
+
+    // xfade with fadeblack transition (looks like Alt+Tab app switch)
+    const xfadeOffset = (profileDur - transitionDuration).toFixed(2);
     ffmpeg(
-      `-f concat -safe 0 -i "${concatList}" -c copy "${baseVideo}"`,
+      `-i "${profileReenc}" -i "${crmReenc}" ` +
+        `-filter_complex "[0:v][1:v]xfade=transition=fadeblack:duration=${transitionDuration}:offset=${xfadeOffset}[v]" ` +
+        `-map "[v]" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "${baseVideo}"`,
       300000
     );
+    console.log(`[composite] Base video: ${(profileDur + crmDur - transitionDuration).toFixed(1)}s`);
 
     // ---------------------------------------------------------------
     // Step 6: Overlay pre-processed circular talking head + keep audio

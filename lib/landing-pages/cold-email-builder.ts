@@ -292,8 +292,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
         <div class="progress-wrap" id="progressWrap" onclick="seek(event)">
           <div class="progress-fill" id="progressFill"></div>
         </div>
-        <span class="time-label" id="timeLabel"><s>0:00</s> 0:00 / 0:00</span>
-        <span class="speed-badge">1.3x</span>
+        <span class="time-label" id="timeLabel">0:00 / 0:00</span>
         <button class="ctrl-btn" id="volBtn" onclick="toggleMute()">
           <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.5 4.5 0 002.5-3.5zM14 3.23v2.06a6.51 6.51 0 010 13.42v2.06A8.52 8.52 0 0022.5 12 8.52 8.52 0 0014 3.23z"/></svg>
         </button>

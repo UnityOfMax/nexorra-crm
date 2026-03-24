@@ -153,9 +153,18 @@ async function connectToChrome(): Promise<Browser> {
   }
 }
 
+export interface CaptureOptions {
+  profileUrl: string;
+  fallbackUrls?: string[]; // website, instagram, facebook — tried in order if profileUrl fails
+}
+
 export async function captureProfile(
-  profileUrl: string
+  profileUrlOrOpts: string | CaptureOptions
 ): Promise<CaptureResult> {
+  const opts = typeof profileUrlOrOpts === 'string'
+    ? { profileUrl: profileUrlOrOpts, fallbackUrls: [] }
+    : profileUrlOrOpts;
+  let profileUrl = opts.profileUrl;
   const tmpDir = fs.mkdtempSync(
     path.join(os.tmpdir(), "loom-profile-")
   );
@@ -192,16 +201,39 @@ export async function captureProfile(
     await new Promise((r) => setTimeout(r, 500));
 
     // Step 2: Navigate to actual profile page (cookies already accepted)
-    console.log(`[capture] Navigating to profile: ${profileUrl}`);
-    try {
-      await page.goto(profileUrl, {
-        waitUntil: "networkidle2",
-        timeout: 25000,
+    // Try profile URL first, then fallback to website/social if it redirects or fails
+    const urlsToTry = [profileUrl, ...(opts.fallbackUrls || [])].filter(Boolean);
+    let loadedUrl = '';
+
+    for (const url of urlsToTry) {
+      console.log(`[capture] Navigating to: ${url}`);
+      try {
+        await page.goto(url, { waitUntil: "networkidle2", timeout: 20000 });
+      } catch (navErr) {
+        console.log(`[capture] Navigation warning: ${(navErr as Error).message.slice(0, 60)}`);
+      }
+
+      // Check if page has real content (not redirect to search/404)
+      const currentUrl = page.url();
+      const pageTitle = await page.title();
+      const hasContent = await page.evaluate(() => {
+        const body = document.body.innerText || '';
+        return body.length > 200; // meaningful content
       });
-    } catch (navErr) {
-      // Don't fail on timeout or non-critical errors — page may still have loaded
-      console.log(`[capture] Navigation warning: ${(navErr as Error).message.slice(0, 80)} — continuing anyway`);
+
+      if (hasContent && !pageTitle.includes('404') && !pageTitle.includes('Not Found')) {
+        loadedUrl = currentUrl;
+        console.log(`[capture] Loaded: ${currentUrl.slice(0, 80)}`);
+        break;
+      }
+      console.log(`[capture] Page empty or redirected, trying next URL...`);
     }
+
+    if (!loadedUrl) {
+      console.log(`[capture] All URLs failed, using whatever loaded`);
+    }
+    // Use the loaded URL for the browser frame
+    profileUrl = loadedUrl || profileUrl;
 
     // Wait for content to settle
     await new Promise((r) => setTimeout(r, PAGE_LOAD_WAIT_MS));
@@ -241,35 +273,88 @@ export async function captureProfile(
       try { fs.unlinkSync(raw); } catch {}
     };
 
-    // Scroll down — capture EVERY step for smooth animation
-    // Use smaller steps but fast interval for natural flick feel
-    const FLICK_STEP = 40;  // px per step
-    const FLICK_INTERVAL = 16; // ~60fps feel
-    const flickDownSteps = Math.ceil(SCROLL_DISTANCE / FLICK_STEP);
+    // Natural trackpad flick with elastic bounce
+    // Physics: fast initial velocity, decelerate, overshoot slightly, bounce back
+    const TOTAL_SCROLL = 500;
+    const FRAME_INTERVAL = 25; // ms between captures (~40fps)
 
-    console.log(`[capture] Flick scroll: ${flickDownSteps} steps down, ${flickDownSteps} steps up`);
+    // Easing curve: fast start, overshoot, bounce back
+    // Generates scroll positions over ~1.5s
+    const scrollPositions: number[] = [];
+    const duration = 1.5; // seconds
+    const fps = 40;
+    const totalFrames = Math.round(duration * fps);
 
-    for (let i = 0; i < flickDownSteps; i++) {
-      await page.evaluate((d) => window.scrollBy(0, d), FLICK_STEP);
-      await new Promise((r) => setTimeout(r, FLICK_INTERVAL));
-      await captureWithChrome(frameIndex);
-      frameIndex++;
+    for (let f = 0; f <= totalFrames; f++) {
+      const t = f / totalFrames; // 0 to 1
+      // Elastic ease-out: overshoots then settles
+      let pos: number;
+      if (t < 0.6) {
+        // Fast deceleration phase (0 to 1.15x overshoot)
+        const p = t / 0.6;
+        pos = TOTAL_SCROLL * 1.15 * (1 - Math.pow(1 - p, 3));
+      } else if (t < 0.8) {
+        // Bounce back from overshoot
+        const p = (t - 0.6) / 0.2;
+        pos = TOTAL_SCROLL * (1.15 - 0.15 * p);
+      } else {
+        // Settle at final position
+        pos = TOTAL_SCROLL;
+      }
+      scrollPositions.push(Math.round(pos));
     }
 
-    // Brief pause at bottom
-    await new Promise((r) => setTimeout(r, SCROLL_PAUSE_MS));
+    console.log(`[capture] Flick scroll: ${scrollPositions.length} positions over ${duration}s (elastic bounce)`);
+
+    // Capture frames during the flick down
+    let lastScrollY = 0;
+    for (let i = 0; i < scrollPositions.length; i++) {
+      const targetY = scrollPositions[i];
+      const delta = targetY - lastScrollY;
+      if (Math.abs(delta) > 0) {
+        await page.evaluate((d) => window.scrollBy(0, d), delta);
+        lastScrollY = targetY;
+      }
+      // Capture every 3rd frame to keep file count manageable
+      if (i % 3 === 0) {
+        await captureWithChrome(frameIndex);
+        frameIndex++;
+      }
+      await new Promise((r) => setTimeout(r, FRAME_INTERVAL));
+    }
+
+    // Brief hold at scroll position
+    await new Promise((r) => setTimeout(r, 300));
     await captureWithChrome(frameIndex);
     frameIndex++;
 
-    // Scroll back up — capture every step
-    for (let i = 0; i < flickDownSteps; i++) {
-      await page.evaluate((d) => window.scrollBy(0, d), -FLICK_STEP);
-      await new Promise((r) => setTimeout(r, FLICK_INTERVAL));
-      await captureWithChrome(frameIndex);
-      frameIndex++;
+    // Quick flick back up (faster than down)
+    const upPositions: number[] = [];
+    const upDuration = 0.8;
+    const upFrames = Math.round(upDuration * fps);
+    for (let f = 0; f <= upFrames; f++) {
+      const t = f / upFrames;
+      const pos = TOTAL_SCROLL * (1 - Math.pow(t, 2)); // quadratic ease-in
+      upPositions.push(Math.round(pos));
+    }
+
+    for (let i = 0; i < upPositions.length; i++) {
+      const targetY = upPositions[i];
+      const delta = targetY - lastScrollY;
+      if (Math.abs(delta) > 0) {
+        await page.evaluate((d) => window.scrollBy(0, d), delta);
+        lastScrollY = targetY;
+      }
+      if (i % 3 === 0) {
+        await captureWithChrome(frameIndex);
+        frameIndex++;
+      }
+      await new Promise((r) => setTimeout(r, FRAME_INTERVAL));
     }
 
     // Final frame at top
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await new Promise((r) => setTimeout(r, 100));
     await captureWithChrome(frameIndex);
     frameIndex++;
 
