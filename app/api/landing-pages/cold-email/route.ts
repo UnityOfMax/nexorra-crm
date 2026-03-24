@@ -59,8 +59,9 @@ export async function POST(request: NextRequest) {
   const firstName = nameParts[0] || 'there';
   const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
-  // Build the slug
-  const slug = `${slugify(firstName)}${lastName ? `-${slugify(lastName)}` : ''}-${randomChars(4)}`;
+  // Use UUID as the identifier (landing_pages.id is auto-generated UUID)
+  // We'll insert first, then use the returned ID as the URL path
+  const slug = `${slugify(firstName)}${lastName ? `-${slugify(lastName)}` : ''}-${randomChars(4)}`; // kept for backward compat
 
   // Get Calendly URL from env
   const calendlyUrl = process.env.CALENDLY_EVENT_TYPE_URI || 'https://calendly.com/nexorra/discovery';
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     personalNote: lead.personal_research || undefined,
     city: lead.city || undefined,
     brokerage: lead.source_brokerage || undefined,
+    slug,
   });
 
   // Insert into landing_pages
@@ -96,9 +98,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create landing page' }, { status: 500 });
   }
 
-  // Build the public URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://crm.nexorra.com';
-  const url = `${baseUrl}/p/${slug}`;
+  // Now rebuild HTML with the actual page ID for tracking
+  const pageHtml = buildColdEmailPage({
+    leadName: lead.full_name || firstName,
+    firstName,
+    videoUrl: lead.video_url || '',
+    calendlyUrl,
+    personalNote: lead.personal_research || undefined,
+    city: lead.city || undefined,
+    brokerage: lead.source_brokerage || undefined,
+    slug: page.id, // use page UUID for tracking
+    pageId: page.id,
+  });
+
+  // Update with correct HTML (now has page ID for tracking)
+  await supabaseAdmin
+    .from('landing_pages')
+    .update({ content: pageHtml })
+    .eq('id', page.id);
+
+  // Build the public URL — /video/{uuid}
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+  const url = `${baseUrl}/video/${page.id}`;
 
   return NextResponse.json({ slug: page.slug, url, page_id: page.id });
 }

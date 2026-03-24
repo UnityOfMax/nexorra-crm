@@ -6,265 +6,273 @@ export interface ColdEmailPageData {
   personalNote?: string;
   city?: string;
   brokerage?: string;
+  slug?: string;
+  pageId?: string;
 }
 
 /**
  * Build a standalone HTML landing page for a cold email lead.
  * Returns a complete HTML string with inline CSS — no external dependencies.
+ * Design matches nexorra.io: dark slate (#020617), Manrope/Inter fonts, blue accents.
  */
 export function buildColdEmailPage(data: ColdEmailPageData): string {
   const {
-    firstName,
-    leadName,
+    firstName = 'there',
     videoUrl,
-    calendlyUrl,
+    calendlyUrl = 'https://calendly.com/nexorra/demo-call',
     personalNote,
     city,
     brokerage,
+    slug,
+    pageId,
   } = data;
 
-  const locationLine = [city, brokerage].filter(Boolean).join(' · ');
+  const trackId = pageId || slug || '';
+  const trackBase = '/api/landing-pages/track';
 
-  // Escape HTML entities in user-provided strings
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const locationLine = city && brokerage
+    ? `Based on what I've seen from your work with ${brokerage} in ${city}, I think you'd find this worth a look.`
+    : city
+    ? `Working in ${city}, you know how competitive it gets. This could give you an edge.`
+    : brokerage
+    ? `I've looked at what ${brokerage} agents are doing and think this could help you stand out.`
+    : '';
+
+  const personalBlock = personalNote
+    ? `<p class="personal-note">${personalNote}</p>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hey ${esc(firstName)} — Nexorra</title>
+  <title>Video for ${firstName} | Nexorra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0a0b;
-      color: #e4e4e7;
-      line-height: 1.6;
+      font-family: 'Inter', sans-serif;
+      background: #020617;
+      color: #e2e8f0;
+      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
 
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* Hero */
     .hero {
-      min-height: 50vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       text-align: center;
-      padding: 4rem 1.5rem 3rem;
-      background: linear-gradient(135deg, #0a0a0b 0%, #1a1a2e 50%, #16213e 100%);
-      position: relative;
-      overflow: hidden;
+      margin-bottom: 48px;
+      padding-top: 20px;
     }
-
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle at 30% 40%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-                  radial-gradient(circle at 70% 60%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
-      pointer-events: none;
-    }
-
-    .hero-tag {
-      display: inline-block;
-      padding: 0.35rem 1rem;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      border-radius: 100px;
-      font-size: 0.8rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: #a5b4fc;
-      margin-bottom: 1.5rem;
-      position: relative;
-    }
-
     .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.2rem);
-      font-weight: 700;
-      color: #fafafa;
-      max-width: 640px;
-      position: relative;
-    }
-
-    .hero h1 span {
-      background: linear-gradient(135deg, #818cf8, #a78bfa);
+      font-family: 'Manrope', sans-serif;
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #818cf8 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .hero .subtitle {
+      font-family: 'Manrope', sans-serif;
+      font-size: clamp(15px, 2.5vw, 18px);
+      font-weight: 600;
+      color: #94a3b8;
+      line-height: 1.5;
     }
 
-    .hero-sub {
-      margin-top: 1rem;
-      font-size: 1.1rem;
-      color: #a1a1aa;
-      max-width: 480px;
+    /* Video */
+    .video-container {
       position: relative;
-    }
-
-    ${locationLine ? `.hero-location {
-      margin-top: 0.75rem;
-      font-size: 0.9rem;
-      color: #71717a;
-      position: relative;
-    }` : ''}
-
-    ${personalNote ? `.personal-note {
-      margin-top: 1.5rem;
-      padding: 1rem 1.5rem;
-      background: rgba(255, 255, 255, 0.04);
-      border-left: 3px solid #818cf8;
-      border-radius: 0 8px 8px 0;
-      max-width: 480px;
-      text-align: left;
-      font-size: 0.95rem;
-      color: #d4d4d8;
-      position: relative;
-    }` : ''}
-
-    section {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem;
-    }
-
-    .video-section {
-      padding-top: 2rem;
-      padding-bottom: 2rem;
-    }
-
-    .video-wrapper {
-      border-radius: 12px;
+      width: 100%;
+      border-radius: 16px;
       overflow: hidden;
-      background: #18181b;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      background: #0f172a;
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      box-shadow: 0 0 80px rgba(59, 130, 246, 0.08), 0 20px 60px rgba(0,0,0,0.4);
+      margin-bottom: 48px;
     }
-
-    .video-wrapper video {
+    .video-container video {
       width: 100%;
       display: block;
+      cursor: pointer;
+    }
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 6, 23, 0.5);
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    .play-overlay.hidden { opacity: 0; pointer-events: none; }
+    .play-btn {
+      width: 80px;
+      height: 80px;
+      background: rgba(59, 130, 246, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, background 0.2s;
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+    }
+    .play-btn:hover { transform: scale(1.08); background: #3b82f6; }
+    .play-btn svg { width: 32px; height: 32px; fill: white; margin-left: 4px; }
+
+    /* Copy section */
+    .copy-section {
+      margin-bottom: 48px;
+    }
+    .copy-section p {
+      font-size: 16px;
+      line-height: 1.75;
+      color: #cbd5e1;
+      margin-bottom: 16px;
+    }
+    .personal-note {
+      padding: 16px 20px;
+      background: rgba(59, 130, 246, 0.06);
+      border-left: 3px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      color: #94a3b8;
+      font-style: italic;
+      font-size: 15px;
     }
 
-    .about-section {
+    /* Calendly */
+    .calendly-section {
+      margin-bottom: 48px;
+    }
+    .calendly-section h2 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #f1f5f9;
       text-align: center;
+      margin-bottom: 24px;
     }
-
-    .about-section h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #fafafa;
-      margin-bottom: 1rem;
-    }
-
-    .about-section p {
-      font-size: 1rem;
-      color: #a1a1aa;
-      max-width: 560px;
-      margin: 0 auto;
-    }
-
-    .cta-section {
-      text-align: center;
-      padding-bottom: 4rem;
-    }
-
-    .cta-section h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #fafafa;
-      margin-bottom: 0.5rem;
-    }
-
-    .cta-section p {
-      font-size: 1rem;
-      color: #a1a1aa;
-      margin-bottom: 2rem;
-    }
-
-    .calendly-embed {
-      border-radius: 12px;
-      overflow: hidden;
-      background: #18181b;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .calendly-embed iframe {
+    .calendly-section iframe {
       width: 100%;
       height: 660px;
       border: none;
+      border-radius: 12px;
+      background: #0f172a;
+    }
+    @media (max-width: 640px) {
+      .calendly-section iframe { height: 560px; }
     }
 
-    footer {
+    /* Footer */
+    .footer {
       text-align: center;
-      padding: 2rem 1.5rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      color: #52525b;
-      font-size: 0.8rem;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.05);
     }
-
-    footer a {
-      color: #818cf8;
-      text-decoration: none;
+    .footer p {
+      font-size: 13px;
+      color: #475569;
     }
-
-    @media (max-width: 480px) {
-      .hero { padding: 3rem 1rem 2rem; }
-      section { padding: 2rem 1rem; }
-      .calendly-embed iframe { height: 560px; }
-    }
+    .footer a { color: #3b82f6; text-decoration: none; }
   </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="hero">
-    <div class="hero-tag">Made for you</div>
-    <h1>Hi <span>${esc(firstName)}</span>, I made this for you</h1>
-    <p class="hero-sub">A quick personal video about how we can help you book more appointments — without lifting a finger.</p>
-    ${locationLine ? `<p class="hero-location">${esc(locationLine)}</p>` : ''}
-    ${personalNote ? `<div class="personal-note">${esc(personalNote)}</div>` : ''}
+  <div class="page">
+    <div class="hero">
+      <h1>Video for ${firstName}</h1>
+      <p class="subtitle">How we're making our clients an extra $30,000 every month on average.</p>
+    </div>
+
+    <div class="video-container">
+      <video id="vid" preload="metadata" playsinline>
+        <source src="${videoUrl}" type="video/mp4">
+      </video>
+      <div class="play-overlay" id="playOverlay" onclick="startVideo()">
+        <div class="play-btn">
+          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="copy-section">
+      <p>As I mentioned in the video, I'd love to show you the whole system and how we do what we do.</p>
+      <p>I just don't have the time to record a 15 minute long video every time. And no doubt your business is built on your personality — in order for us to help you, we need to understand that more.</p>
+      <p>So if you're interested in how we get our clients results, and you have the capacity for more work right now, feel free to book a call with me below or let me know if you have any questions by replying to my initial message.</p>
+      ${locationLine ? `<p>${locationLine}</p>` : ''}
+      ${personalBlock}
+    </div>
+
+    <div class="calendly-section">
+      <h2>Book a Quick Call</h2>
+      <iframe src="${calendlyUrl}?hide_gdpr_banner=1&background_color=020617&text_color=e2e8f0&primary_color=3b82f6" loading="lazy" title="Book a call with Nexorra"></iframe>
+    </div>
+
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} <a href="https://nexorra.io">Nexorra</a>. AI-powered appointment setting for real estate agents.</p>
+    </div>
   </div>
 
-  <section class="video-section">
-    <div class="video-wrapper">
-      <video controls preload="metadata" playsinline poster="">
-        <source src="${esc(videoUrl)}" type="video/mp4">
-        Your browser does not support the video tag.
-      </video>
-    </div>
-  </section>
+  ${trackId ? `<img src="${trackBase}?s=${trackId}&t=view" width="1" height="1" style="position:absolute;opacity:0" alt="">` : ''}
 
-  <section class="about-section">
-    <h2>What is Nexorra?</h2>
-    <p>
-      Nexorra is an AI-powered appointment-setting agency built specifically for real estate agents.
-      We handle your lead follow-up with intelligent, personalized conversations — so you spend
-      less time chasing and more time closing.
-    </p>
-  </section>
+  <script>
+  (function() {
+    var vid = document.getElementById('vid');
+    var overlay = document.getElementById('playOverlay');
+    var slug = '${trackId}';
+    var tracked = {};
 
-  <section class="cta-section">
-    <h2>Let's talk</h2>
-    <p>Pick a time that works for you — no pressure, just a quick chat.</p>
-    <div class="calendly-embed">
-      <iframe
-        src="${esc(calendlyUrl)}?hide_gdpr_banner=1&background_color=18181b&text_color=e4e4e7&primary_color=818cf8"
-        loading="lazy"
-        title="Book a call with Nexorra"
-      ></iframe>
-    </div>
-  </section>
+    window.startVideo = function() {
+      vid.play();
+      overlay.classList.add('hidden');
+    };
 
-  <footer>
-    <p>&copy; ${new Date().getFullYear()} <a href="https://nexorra.com">Nexorra</a> &middot; AI Appointment Setting for Real Estate Agents</p>
-  </footer>
+    vid.addEventListener('click', function() {
+      if (vid.paused) { vid.play(); overlay.classList.add('hidden'); }
+      else vid.pause();
+    });
+
+    function track(type, meta) {
+      if (tracked[type]) return;
+      tracked[type] = true;
+      if (!slug) return;
+      fetch('${trackBase}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({slug: slug, event_type: type, metadata: meta || {}})
+      }).catch(function(){});
+    }
+
+    vid.addEventListener('play', function() { track('video_play'); });
+    vid.addEventListener('timeupdate', function() {
+      if (!vid.duration) return;
+      var pct = Math.floor((vid.currentTime / vid.duration) * 100);
+      if (pct >= 25) track('video_25', {seconds: Math.floor(vid.currentTime)});
+      if (pct >= 50) track('video_50', {seconds: Math.floor(vid.currentTime)});
+      if (pct >= 75) track('video_75', {seconds: Math.floor(vid.currentTime)});
+      if (pct >= 100) track('video_100', {seconds: Math.floor(vid.currentTime)});
+    });
+
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.event) {
+        if (e.data.event === 'calendly.event_scheduled') track('booking_confirmed', e.data.payload || {});
+        if (e.data.event === 'calendly.date_and_time_selected') track('calendly_click');
+      }
+    });
+  })();
+  </script>
 </body>
 </html>`;
 }

@@ -2,16 +2,27 @@
 
 /**
  * Video Compositor
- * Combines profile screenshots, CRM recording, and talking head overlay
- * into a final 17-second personalized video using ffmpeg.
+ * Combines profile screenshots, CRM demo, and talking head overlay
+ * into a final ~14.2s personalized video using ffmpeg.
  *
- * Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> <talking_head> <crm_recording> <output_path>
+ * Timing:
+ *   Profile screenshots: 15.5s (13s static + 2.5s scroll flick at 13s mark)
+ *   CRM clip: 3s (first 3s of crm-demo.mp4)
+ *   Base total: ~18.5s
+ *   Talking head: circular 160px overlay in bottom-left, full 18.5s
+ *   Final: speed up 1.3x → ~14.2s
+ *
+ * Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> [talking_head] [crm_demo] [output_path]
  */
 
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+
+const PROJECT_ROOT = path.resolve(__dirname, "../..");
+const DEFAULT_TALKING_HEAD = path.join(PROJECT_ROOT, "assets/video/talking-head.mp4");
+const DEFAULT_CRM_DEMO = path.join(PROJECT_ROOT, "assets/video/crm-demo.mp4");
 
 export interface CompositeOptions {
   screenshotsDir: string;
@@ -45,10 +56,12 @@ function validateInputs(opts: CompositeOptions): void {
     .readdirSync(opts.screenshotsDir)
     .filter((f) => f.endsWith(".png"));
   if (frames.length === 0) {
-    throw new Error(
-      `No PNG frames found in ${opts.screenshotsDir}`
-    );
+    throw new Error(`No PNG frames found in ${opts.screenshotsDir}`);
   }
+}
+
+function ffmpeg(args: string, timeoutMs = 60000): void {
+  execSync(`ffmpeg -y ${args}`, { stdio: "pipe", timeout: timeoutMs });
 }
 
 export function composite(opts: CompositeOptions): string {
@@ -59,6 +72,7 @@ export function composite(opts: CompositeOptions): string {
   const profileVideo = path.join(tmpDir, "profile.mp4");
   const concatList = path.join(tmpDir, "concat.txt");
   const baseVideo = path.join(tmpDir, "base.mp4");
+  const overlayVideo = path.join(tmpDir, "overlay.mp4");
 
   // Ensure output directory exists
   const outputDir = path.dirname(opts.outputPath);
@@ -67,9 +81,6 @@ export function composite(opts: CompositeOptions): string {
   }
 
   try {
-    // --- Step 1: Convert profile screenshots to a 15s video ---
-    // Frame 0 is the static screenshot (held for 12s)
-    // Remaining frames are the scroll sequence (~3s)
     const frames = fs
       .readdirSync(opts.screenshotsDir)
       .filter((f) => f.endsWith(".png"))
@@ -80,86 +91,99 @@ export function composite(opts: CompositeOptions): string {
     const staticVideo = path.join(tmpDir, "static.mp4");
     const scrollVideo = path.join(tmpDir, "scroll.mp4");
 
-    // Create 12s static portion from the first frame
-    console.log("[composite] Creating 12s static portion...");
-    execSync(
-      `ffmpeg -y -loop 1 -i "${staticFrame}" -c:v libx264 -t 12 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${staticVideo}"`,
-      { stdio: "pipe", timeout: 30000 }
+    // ---------------------------------------------------------------
+    // Step 1: Convert static first frame to 13s video at 30fps
+    // ---------------------------------------------------------------
+    console.log("[composite] Creating 13s static portion...");
+    ffmpeg(
+      `-loop 1 -i "${staticFrame}" -c:v libx264 -t 13 ` +
+        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${staticVideo}"`
     );
 
+    // ---------------------------------------------------------------
+    // Step 2: Convert scroll frames to 2.5s video
+    //   Scroll animation: 1.2s scroll down ~400px, 0.3s pause, 1.0s scroll back up
+    //   Total: 2.5s at 30fps = 75 frames
+    // ---------------------------------------------------------------
     if (scrollFrames.length > 0) {
-      // Create scroll portion from remaining frames (~3s)
-      // Calculate framerate to make scroll frames fill exactly 3 seconds
-      const scrollFps = Math.max(1, Math.round(scrollFrames.length / 3));
+      const scrollFps = Math.max(1, Math.round(scrollFrames.length / 2.5));
       console.log(
-        `[composite] Creating 3s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
+        `[composite] Creating 2.5s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
       );
-      execSync(
-        `ffmpeg -y -framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
+      ffmpeg(
+        `-framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
           `-start_number 1 -frames:v ${scrollFrames.length} ` +
-          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${scrollVideo}"`,
-        { stdio: "pipe", timeout: 30000 }
+          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${scrollVideo}"`
       );
 
-      // Concatenate static + scroll into 15s profile video
+      // Concatenate static (13s) + scroll (2.5s) = 15.5s profile video
       const profileConcat = path.join(tmpDir, "profile_concat.txt");
       fs.writeFileSync(
         profileConcat,
         `file '${staticVideo}'\nfile '${scrollVideo}'\n`
       );
-      execSync(
-        `ffmpeg -y -f concat -safe 0 -i "${profileConcat}" -c copy "${profileVideo}"`,
-        { stdio: "pipe", timeout: 30000 }
+      ffmpeg(
+        `-f concat -safe 0 -i "${profileConcat}" -c copy "${profileVideo}"`
       );
     } else {
-      // No scroll frames — extend static to 15s
-      execSync(
-        `ffmpeg -y -loop 1 -i "${staticFrame}" -c:v libx264 -t 15 ` +
-          `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${profileVideo}"`,
-        { stdio: "pipe", timeout: 30000 }
+      // No scroll frames — extend static to 15.5s
+      console.log("[composite] No scroll frames, extending static to 15.5s...");
+      ffmpeg(
+        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 15.5 ` +
+          `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${profileVideo}"`
       );
     }
 
-    // --- Step 2: Prepare CRM recording (ensure 2s, 720p, correct codec) ---
+    // ---------------------------------------------------------------
+    // Step 3: Take first 3s of crm-demo.mp4, scale to 1280x720
+    // ---------------------------------------------------------------
     const crmNormalized = path.join(tmpDir, "crm_normalized.mp4");
-    console.log("[composite] Normalizing CRM recording to 2s...");
-    execSync(
-      `ffmpeg -y -i "${opts.crmRecordingPath}" -t 2 -c:v libx264 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${crmNormalized}"`,
-      { stdio: "pipe", timeout: 30000 }
+    console.log("[composite] Extracting first 3s of CRM demo...");
+    ffmpeg(
+      `-i "${opts.crmRecordingPath}" -t 3 -c:v libx264 ` +
+        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${crmNormalized}"`
     );
 
-    // --- Step 3: Concatenate profile (15s) + CRM (2s) = 17s base ---
-    console.log("[composite] Concatenating profile + CRM...");
+    // ---------------------------------------------------------------
+    // Step 4: Concatenate profile (15.5s) + CRM (3s) = 18.5s base
+    // ---------------------------------------------------------------
+    console.log("[composite] Concatenating profile + CRM → 18.5s base...");
     fs.writeFileSync(
       concatList,
       `file '${profileVideo}'\nfile '${crmNormalized}'\n`
     );
-    execSync(
-      `ffmpeg -y -f concat -safe 0 -i "${concatList}" -c copy "${baseVideo}"`,
-      { stdio: "pipe", timeout: 30000 }
+    ffmpeg(
+      `-f concat -safe 0 -i "${concatList}" -c copy "${baseVideo}"`
     );
 
-    // --- Step 4: Overlay circular talking head (bottom-left, full 17s) ---
-    console.log("[composite] Overlaying talking head...");
+    // ---------------------------------------------------------------
+    // Step 5: Overlay circular talking head (160px, bottom-left, 20px padding)
+    //   Runs the full 18.5s duration
+    // ---------------------------------------------------------------
+    console.log("[composite] Overlaying circular talking head...");
     const filterComplex = [
-      // Scale talking head to 160x160
-      "[2:v]scale=160:160,format=yuva420p,",
-      // Circular crop using geq
+      "[1:v]scale=160:160,format=yuva420p,",
       "geq=lum='p(X,Y)':a='if(gt(pow(X-80,2)+pow(Y-80,2),pow(80,2)),0,255)'",
       "[head];",
-      // Overlay on base video at bottom-left (20px padding from edges)
       "[0:v][head]overlay=20:H-h-20:shortest=1",
     ].join("");
 
-    execSync(
-      `ffmpeg -y -i "${baseVideo}" -stream_loop -1 -i "${opts.talkingHeadPath}" ` +
-        `-i "${opts.talkingHeadPath}" ` +
+    ffmpeg(
+      `-i "${baseVideo}" -stream_loop -1 -i "${opts.talkingHeadPath}" ` +
         `-filter_complex "${filterComplex}" ` +
-        `-t 17 -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p ` +
-        `-movflags +faststart "${opts.outputPath}"`,
-      { stdio: "pipe", timeout: 120000 }
+        `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p "${overlayVideo}"`,
+      120000
+    );
+
+    // ---------------------------------------------------------------
+    // Step 6: Speed up entire video to 1.3x → ~14.2s final duration
+    // ---------------------------------------------------------------
+    console.log("[composite] Speeding up 1.3x → ~14.2s final...");
+    ffmpeg(
+      `-i "${overlayVideo}" ` +
+        `-filter_complex "[0:v]setpts=PTS/1.3[v]" -map "[v]" ` +
+        `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p ` +
+        `-movflags +faststart "${opts.outputPath}"`
     );
 
     const stats = fs.statSync(opts.outputPath);
@@ -177,12 +201,15 @@ export function composite(opts: CompositeOptions): string {
 
 // CLI entry point
 if (require.main === module) {
-  const [screenshotsDir, talkingHeadPath, crmRecordingPath, outputPath] =
-    process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const screenshotsDir = args[0];
+  const talkingHeadPath = args[1] || DEFAULT_TALKING_HEAD;
+  const crmRecordingPath = args[2] || DEFAULT_CRM_DEMO;
+  const outputPath = args[3] || path.join(screenshotsDir || ".", "output.mp4");
 
-  if (!screenshotsDir || !talkingHeadPath || !crmRecordingPath || !outputPath) {
+  if (!screenshotsDir) {
     console.error(
-      "Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> <talking_head> <crm_recording> <output_path>"
+      "Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> [talking_head] [crm_demo] [output_path]"
     );
     process.exit(1);
   }
