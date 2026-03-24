@@ -127,4 +127,13 @@ After nudge: no reply within 4 days → mark ghosted. Never send a second nudge.
 
 ## Feedback Context
 
+When available, Priya loads recent learnings from `stacey_learnings` table (booked outcomes first, then ghosted/rejected). This section is populated at runtime:
+
 {feedback_context}
+
+### Copy Variant Performance (populated at runtime)
+The 80/20 system tracks which email templates lead to bookings. Top performers:
+
+{variant_performance}
+
+Use this data to inform your reply strategy — if the initial email used a hobby-based opener and the lead engaged positively, lean into that personal angle in your reply. If the initial email used a generic brokerage opener and the lead went cold, try a more personal approach in the follow-up.

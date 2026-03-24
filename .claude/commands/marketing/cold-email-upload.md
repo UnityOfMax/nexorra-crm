@@ -61,12 +61,50 @@ Split leads into 5 equal chunks (round-robin by index):
 
 For 1000 leads: 200 per sender. For other counts: distribute as evenly as possible.
 
-### Step 4b: Personalize each lead
-For each lead, generate personalized email copy using `lib/email/personalize.ts`:
-- Import `personalizeLead` from the module
-- Call `personalizeLead(lead)` for each lead — this uses personal_research data if available, falls back to city/brokerage-based copy
-- Store the returned `custom_variables` map for each lead (includes `first_line`, `email_body`, `ps_line`, `first_name`, `city`, `brokerage`)
-- These will be included in the Instantly upload as custom variables per lead
+### Step 4b: Personalize each lead (80/20 copy optimization)
+
+For each lead, use the **copy variant system** to generate personalized email copy:
+
+1. Pick the best personal detail from `personal_research` (hobbies > pets > family > schools > bio > brokerage fallback). Use logic from `lib/email/personalize.ts` → `pickBestDetail(lead)`.
+
+2. Select a copy variant using the 80/20 optimizer (`lib/email/copy-optimizer.ts`):
+   - 80% chance: proven variant weighted by booking_rate
+   - 20% chance: random experimental variant
+   - Query `email_copy_variants` table for active variants
+
+3. Interpolate the variant's templates with lead data (first_name, city, brokerage, detail):
+   ```
+   first_line = variant.first_line_template with {detail}, {city}, {brokerage} replaced
+   email_body = variant.body_template with {city}, {first_name} replaced
+   ps_line = variant.ps_template with {detail}, {city} replaced
+   ```
+
+4. Store `copy_variant_id` on the lead record for later learning:
+   ```
+   PATCH $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?id=eq.{lead_id}
+   Headers: SB+W
+   Body: { "copy_variant_id": "{variant.id}" }
+   ```
+
+5. Record the send: increment `times_sent` on the variant:
+   ```
+   POST $NEXT_PUBLIC_SUPABASE_URL/rest/v1/rpc/increment_variant_stat
+   Headers: SB+W
+   Body: { "p_id": "{variant.id}", "p_stat": "times_sent" }
+   ```
+
+6. Store the custom_variables for Instantly upload: `first_line`, `email_body`, `ps_line`, `first_name`, `city`, `brokerage`, `state`
+
+### Step 4c: Create per-lead landing page
+For each lead, create a personalized landing page:
+```
+POST http://localhost:3000/api/landing-pages/cold-email
+Headers: Content-Type: application/json, Authorization: Bearer $CRON_SECRET
+Body: { "lead_id": "{lead.id}" }
+```
+Returns `{ slug, url, page_id }`. Store `landing_page_id` on the lead and include the URL in custom_variables as `landing_page_url`.
+
+If the API is unreachable (dev server not running), skip landing page creation and proceed with upload.
 
 ### Step 5: Bulk upload (1000 leads per request)
 The correct Instantly v2 bulk endpoint is `/api/v2/leads/add` (NOT `/api/v2/leads/bulk`, NOT `/api/v2/leads`):

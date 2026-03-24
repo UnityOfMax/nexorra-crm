@@ -65,12 +65,49 @@ Body: { "classification": "{type}", "reply_latency_seconds": {seconds|null} }
 ```
 
 **4c. Auto-skip rules:**
-- `ooo` / `irrelevant` — skip, no reply, no status change
+- `irrelevant` — skip, no reply, no status change
 - `unsubscribe` — mark status='rejected', no reply
 - `hostile` — send ONE short apology (scenario 13), then mark rejected
 - `decline` — send ONE graceful exit (scenario 12), then mark rejected
+- `ooo` — **DO NOT SKIP. Handle with scheduled follow-up (see 4c-ooo below)**
 
 All others proceed to 4d.
+
+**4c-ooo. Out-of-Office handling:**
+Parse the reply text for a return date. Look for patterns like "back Monday", "out until Jan 5", "returning next week", "OOO until 3/15". Use `lib/email/date-parser.ts` logic (or replicate manually):
+- If date found: set follow-up to return_date + 1 day at 10 AM in lead's timezone
+- If OOO detected but no specific date: default to 7 days from now
+
+Create a scheduled follow-up message:
+```
+POST $NEXT_PUBLIC_SUPABASE_URL/rest/v1/conversation_messages
+Headers: SB+W
+Body: {
+  "conversation_id": "{id}",
+  "direction": "outbound",
+  "content": "Hey {first_name}, hope you had a good break. Just circling back on the appointment-setting system — figured the timing might work better now. Here's the link when you're ready: https://calendly.com/nexorra/demo-call\n\n{sender_name}",
+  "subject": "Re: {subject}",
+  "sender_name": "{name}",
+  "sender_email": "{acct}",
+  "scheduled_send_at": "{return_date + 1 day at 10:00 UTC}",
+  "sent": false
+}
+```
+
+Update conversation:
+```
+PATCH $NEXT_PUBLIC_SUPABASE_URL/rest/v1/lead_conversations?id=eq.{id}
+Headers: SB+W
+Body: {
+  "status": "ooo_scheduled",
+  "ooo_return_date": "{parsed_date}",
+  "scheduled_followup_at": "{return_date + 1 day}",
+  "booking_link_sent": true,
+  "updated_at": "{now}"
+}
+```
+
+The scheduled message will be picked up automatically by Step 5 when the date arrives.
 
 **4d. Build feedback context** (only if 20+ learnings exist):
 ```
