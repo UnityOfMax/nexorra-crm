@@ -143,6 +143,20 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     }
     .play-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(59, 130, 246, 0.5); }
     .play-btn svg { width: 28px; height: 28px; fill: white; margin-left: 3px; }
+    .overlay-time {
+      position: absolute;
+      bottom: calc(50% - 60px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      margin-top: 8px;
+    }
 
     /* Custom controls bar */
     .controls-bar {
@@ -266,6 +280,10 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
         <div class="play-btn">
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </div>
+        <div class="overlay-time" id="overlayTime">
+          <span class="speed-badge" style="margin-right:6px">1.3x</span>
+          <span id="overlayDuration">0:00</span>
+        </div>
       </div>
       <div class="controls-bar" id="controlsBar">
         <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlay()">
@@ -354,9 +372,19 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     };
 
     window.goFS = function() {
-      if (vid.requestFullscreen) vid.requestFullscreen();
+      var container = document.querySelector('.video-container');
+      if (container.requestFullscreen) container.requestFullscreen();
+      else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+      else if (vid.requestFullscreen) vid.requestFullscreen();
       else if (vid.webkitRequestFullscreen) vid.webkitRequestFullscreen();
+      else if (vid.webkitEnterFullscreen) vid.webkitEnterFullscreen(); // iOS Safari
     };
+
+    vid.addEventListener('loadedmetadata', function() {
+      var origTotal = fmt(vid.duration * SPEED);
+      var fastTotal = fmt(vid.duration);
+      document.getElementById('overlayDuration').innerHTML = '<s style="color:rgba(255,255,255,0.5);text-decoration:line-through">' + origTotal + '</s> ' + fastTotal;
+    });
 
     vid.addEventListener('click', function() {
       if (vid.paused) { vid.play(); overlay.classList.add('hidden'); }

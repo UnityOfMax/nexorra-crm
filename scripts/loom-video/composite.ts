@@ -96,7 +96,7 @@ export function composite(opts: CompositeOptions): string {
     console.log("[composite] Creating 13s static portion...");
     ffmpeg(
       `-loop 1 -i "${staticFrame}" -c:v libx264 -t 13 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${staticVideo}"`
+        `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${staticVideo}"`
     );
 
     // ---------------------------------------------------------------
@@ -112,7 +112,7 @@ export function composite(opts: CompositeOptions): string {
       ffmpeg(
         `-framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
           `-start_number 1 -frames:v ${scrollFrames.length} ` +
-          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${scrollVideo}"`
+          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${scrollVideo}"`
       );
 
       // Concatenate static (13s) + scroll (2.5s) = 15.5s profile video
@@ -129,7 +129,7 @@ export function composite(opts: CompositeOptions): string {
       console.log("[composite] No scroll frames, extending static to 15.5s...");
       ffmpeg(
         `-loop 1 -i "${staticFrame}" -c:v libx264 -t 15.5 ` +
-          `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${profileVideo}"`
+          `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${profileVideo}"`
       );
     }
 
@@ -151,7 +151,7 @@ export function composite(opts: CompositeOptions): string {
     console.log(`[composite] Extracting ${crmDuration.toFixed(1)}s of CRM demo...`);
     ffmpeg(
       `-stream_loop -1 -i "${opts.crmRecordingPath}" -t ${crmDuration} -c:v libx264 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${crmNormalized}"`,
+        `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${crmNormalized}"`,
       300000
     );
 

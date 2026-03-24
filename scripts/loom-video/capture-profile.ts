@@ -14,8 +14,8 @@ import * as path from "path";
 import puppeteer, { Browser, Page } from "puppeteer";
 
 const CHROME_DEBUG_URL = "http://localhost:9222";
-const VIEWPORT_WIDTH = 1280;
-const VIEWPORT_HEIGHT = 720;
+const VIEWPORT_WIDTH = 1920;
+const VIEWPORT_HEIGHT = 1080;
 const PAGE_LOAD_WAIT_MS = 3000;
 const SCROLL_DISTANCE = 400;
 const SCROLL_STEP = 20;
@@ -95,6 +95,39 @@ export async function captureProfile(
 
     // Wait for content to settle
     await new Promise((r) => setTimeout(r, PAGE_LOAD_WAIT_MS));
+
+    // Dismiss cookie banners / consent overlays
+    console.log("[capture] Dismissing cookie banners...");
+    await page.evaluate(() => {
+      // Common cookie banner selectors
+      const selectors = [
+        '.osano-cm-accept-all', '.osano-cm-button--type_accept',
+        '#onetrust-accept-btn-handler', '.onetrust-close-btn-handler',
+        '[data-testid="cookie-accept"]', '[aria-label="Accept cookies"]',
+        '.cookie-consent-accept', '.cc-accept', '.cc-btn.cc-dismiss',
+        'button[id*="accept"]', 'button[class*="accept"]',
+        '.gdpr-accept', '.consent-accept', '.js-accept-cookies',
+        '[data-action="accept"]', '.cookie-banner__accept',
+        // Generic patterns
+        ...Array.from(document.querySelectorAll('button')).filter(b => {
+          const t = (b.textContent || '').toLowerCase();
+          return t.includes('accept') || t.includes('agree') || t.includes('got it') || t.includes('ok') || t.includes('allow');
+        }).map(() => ''), // trigger the click below
+      ];
+      for (const sel of selectors) {
+        if (!sel) continue;
+        const el = document.querySelector(sel) as HTMLElement;
+        if (el) { el.click(); return; }
+      }
+      // Also try clicking any visible "Accept" button
+      document.querySelectorAll('button, a, div[role="button"]').forEach((el) => {
+        const text = (el.textContent || '').toLowerCase().trim();
+        if ((text === 'accept' || text === 'accept all' || text === 'i agree' || text === 'got it' || text === 'allow all') && (el as HTMLElement).offsetParent !== null) {
+          (el as HTMLElement).click();
+        }
+      });
+    });
+    await new Promise((r) => setTimeout(r, 1000)); // wait for banner to dismiss
 
     // --- Static portion: capture a single frame, will be held for 12s ---
     console.log("[capture] Taking static screenshot (12s hold)");
