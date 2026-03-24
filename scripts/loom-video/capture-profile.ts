@@ -48,7 +48,7 @@ async function smoothScroll(
 async function dismissCookies(page: Page): Promise<void> {
   await page.evaluate(() => {
     // Click any visible accept/agree button
-    const candidates = document.querySelectorAll('button, a, div[role="button"], span[role="button"]');
+    const candidates = Array.from(document.querySelectorAll('button, a, div[role="button"], span[role="button"]'));
     for (const el of candidates) {
       const text = (el.textContent || '').toLowerCase().trim();
       const isVisible = (el as HTMLElement).offsetParent !== null;
