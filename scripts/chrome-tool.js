@@ -23,7 +23,13 @@
 
 const puppeteer = require('puppeteer');
 
-const CDP_URL = 'http://localhost:9222';
+// Support custom port for multi-instance (Derek uses 9223)
+const portArgIdx = process.argv.indexOf('--port');
+const CDP_PORT = portArgIdx !== -1 ? parseInt(process.argv[portArgIdx + 1]) : 9222;
+// Remove --port from args so it doesn't interfere with command parsing
+if (portArgIdx !== -1) process.argv.splice(portArgIdx, 2);
+
+const CDP_URL = `http://localhost:${CDP_PORT}`;
 
 async function connectToChrome() {
   const browser = await puppeteer.connect({ browserURL: CDP_URL });
@@ -488,9 +494,40 @@ async function extractColdwellBanker(page) {
   });
 }
 
-// Compass — email on listing page via mailto:
+// Compass — emails in JSON-LD structured data (application/ld+json)
 async function extractCompass(page) {
-  return page.evaluate(mailtoScanExtractor('https://www.compass.com', '/agents/'));
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+    try {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const script of scripts) {
+        let data;
+        try { data = JSON.parse(script.textContent); } catch { continue; }
+        const graph = data['@graph'] || (Array.isArray(data) ? data : [data]);
+        for (const item of graph) {
+          if (item['@type'] !== 'RealEstateAgent') continue;
+          const email = item.email ? item.email.toLowerCase().trim() : null;
+          if (!email || !email.includes('@') || seen.has(email)) continue;
+          seen.add(email);
+          const full_name = item.name ? item.name.trim() : null;
+          if (!full_name || full_name.length < 3) continue;
+          const nameParts = full_name.split(/\s+/);
+          agents.push({
+            full_name,
+            first_name: nameParts[0] || null,
+            last_name: nameParts.slice(1).join(' ') || null,
+            email,
+            phone: item.telephone ? String(item.telephone) : null,
+            profile_url: item.url || null,
+            profile_picture_url: item.image ? (typeof item.image === 'string' ? item.image : (item.image.url || null)) : null,
+            instagram_handle: null,
+          });
+        }
+      }
+    } catch (e) {}
+    return agents;
+  });
 }
 
 // eXp Realty — listing page (profile URLs only, no email)
@@ -513,11 +550,31 @@ async function extractBHHS(page) {
 
 // Sotheby's — listing page (profile URLs only, no email)
 async function extractSothebys(page) {
-  return page.evaluate(profileLinkExtractor(
-    'https://www.sothebysrealty.com',
-    'a[href*="/associate/"]',
-    null
-  ));
+  return page.evaluate((baseUrl, linkSelector) => {
+    const agents = [];
+    const seen = new Set();
+    const links = document.querySelectorAll(linkSelector);
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href || seen.has(href) || href.includes('#')) return;
+      const container = link.closest('[class*="card"], [class*="Card"], [class*="agent"], [class*="Agent"], [class*="result"], [class*="Result"], [class*="item"], [class*="Item"], [class*="member"], [class*="associate"], li, article') || link.parentElement?.parentElement;
+      if (!container) return;
+      const nameEl = container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
+      let name = nameEl?.textContent?.trim();
+      if (!name) name = link.textContent?.trim()?.split('\n')[0]?.trim();
+      if (!name || name.length < 3 || name.length > 80) return;
+      if (/view|more|search|page|next|prev|load/i.test(name)) return;
+      const fullUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+      if (seen.has(fullUrl)) return;
+      seen.add(fullUrl);
+      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+      let picture = img?.src || null;
+      if (picture && !picture.startsWith('http')) { try { picture = new URL(picture, baseUrl).href; } catch { picture = null; } }
+      const nameParts = name.trim().split(/\s+/);
+      agents.push({ full_name: name, first_name: nameParts[0] || null, last_name: nameParts.slice(1).join(' ') || null, profile_url: fullUrl, profile_picture_url: picture, email: null, phone: null, instagram_handle: null });
+    });
+    return agents;
+  }, 'https://www.sothebysrealty.com', 'a[href*="/associate/"]');
 }
 
 // Profile page extractors (for brokerages that need profile visits)
@@ -735,6 +792,9 @@ Commands:
   url                      Get current page URL
   status                   Check Chrome connection
 
+Options:
+  --port <port>            CDP port (default: 9222, Derek uses 9223)
+
 Prerequisites:
   Launch Chrome first: google-chrome --remote-debugging-port=9222`);
     return;
@@ -760,8 +820,8 @@ Prerequisites:
   try {
     ({ browser, page } = await connectToChrome());
   } catch (err) {
-    console.error('ERROR: Cannot connect to Chrome. Make sure Chrome is running with:');
-    console.error('  google-chrome --remote-debugging-port=9222');
+    console.error(`ERROR: Cannot connect to Chrome on port ${CDP_PORT}. Make sure Chrome is running with:`);
+    console.error(`  google-chrome --remote-debugging-port=${CDP_PORT}`);
     console.error('');
     console.error('Technical details:', err.message);
     process.exit(1);

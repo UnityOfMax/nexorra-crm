@@ -51,20 +51,25 @@ USE ONLY THESE 6 BROKERAGES. Do not guess or construct URLs for any other broker
 
 ## compass (Compass)
 
-**Step 1 — Discover location ID:**
-Navigate to `https://www.compass.com/agents/{city-slug}-{st}/`
-**Example:** `https://www.compass.com/agents/new-york-ny/`
-Then check the URL after redirect: `node scripts/chrome-tool.js url`
-The URL will contain a location ID like `.../locations/new-york-ny/21429/page-1/`
-Extract the number (`21429`) — this is the location ID.
-Cache it in state file under the city so you don't rediscover it.
+**Direct URL (IDs pre-discovered 2026-03-23):**
+`https://www.compass.com/agents/locations/{city-slug}/{numeric-id}/page-{page}/`
+**Example:** `https://www.compass.com/agents/locations/austin-tx/42626/page-1/`
+- 40 agents per page
+- **Email in JSON-LD** — use `agents compass` (reads `script[type="application/ld+json"]` @graph, no profile visits needed)
+- Old redirect-based ID discovery no longer works (city URLs now redirect to generic /agents/)
 
-**Step 2 — Paginate:**
-`https://www.compass.com/agents/locations/{city-slug}-{st}/{id}/page-{page}/`
-**Example:** `https://www.compass.com/agents/locations/new-york-ny/21429/page-1/`
-- `page` starts at 1, increment until 0 results
-- **Email on listing page** via `mailto:` in profile box — use `agents compass`
-- Works: US (check Canada availability)
+**Known Location IDs:**
+```
+austin-tx: 42626       houston-tx: 4418        dallas-tx: 40435
+new-york-ny: 21429     los-angeles-ca: 6580    san-francisco-ca: 12416
+chicago-il: 40768      boston-ma: 12422        washington-dc: 24793
+miami-fl: 12421        denver-co: 12424        seattle-wa: 14158
+philadelphia-pa: 31493 raleigh-nc: 39870       nashville-tn: 27781
+portland-or: 23044     sacramento-ca: 27040    orange-county-ca: 12420
+jacksonville-fl: 44337 san-diego-ca: 12623     atlanta-ga: 42508
+```
+- Paginate with `page-2/`, `page-3/`, etc. Stop when 0 agents returned.
+- Works: US only
 
 ## sothebys (Sotheby's International Realty)
 
