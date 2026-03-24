@@ -169,7 +169,7 @@ export default function ClientDataTable() {
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className={`px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none whitespace-nowrap ${col.key === 'name' ? 'sticky left-0 z-10 bg-gray-50/80 dark:bg-[#111113]' : ''}`}
+                  className={`px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none whitespace-nowrap ${''}`}
                 >
                   <div className="flex items-center gap-1">
                     {col.key === 'dealsPerMonth' || col.key === 'apptsPerMonth' || col.key === 'textsTotal' || col.key === 'emailsTotal' || col.key === 'adSpendPerMonth'
@@ -186,7 +186,7 @@ export default function ClientDataTable() {
               {COLUMNS.map(col => (
                 <td
                   key={col.key}
-                  className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap ${col.key === 'name' ? 'sticky left-0 z-10 bg-indigo-50/80 dark:bg-[#111113] text-indigo-700 dark:text-indigo-400' : 'text-indigo-700 dark:text-indigo-400'}`}
+                  className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap ${col.key === 'name' ? 'text-indigo-700 dark:text-indigo-400' : 'text-indigo-700 dark:text-indigo-400'}`}
                 >
                   {col.key === 'name'
                     ? 'AVG'
@@ -212,7 +212,7 @@ export default function ClientDataTable() {
                       key={col.key}
                       className={`px-3 py-2.5 whitespace-nowrap text-[13px] ${
                         col.key === 'name'
-                          ? 'sticky left-0 z-10 bg-white dark:bg-[#111113] font-medium text-gray-900 dark:text-gray-100'
+                          ? 'font-medium text-gray-900 dark:text-gray-100'
                           : isNew && col.key !== 'startDate' && col.key !== 'users'
                           ? 'text-gray-300 dark:text-gray-600'
                           : 'text-gray-700 dark:text-gray-300'
