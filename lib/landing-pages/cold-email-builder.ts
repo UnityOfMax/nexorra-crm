@@ -127,6 +127,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       background: rgba(15, 23, 42, 0.35);
       cursor: pointer;
       transition: opacity 0.3s;
+      z-index: 2;
     }
     .play-overlay.hidden { opacity: 0; pointer-events: none; }
     .play-btn {
@@ -142,6 +143,53 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     }
     .play-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(59, 130, 246, 0.5); }
     .play-btn svg { width: 28px; height: 28px; fill: white; margin-left: 3px; }
+
+    /* Custom controls bar */
+    .controls-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      padding: 12px 14px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 3;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .video-container:hover .controls-bar { opacity: 1; }
+    .controls-bar.show { opacity: 1; }
+    .ctrl-btn {
+      background: none; border: none; cursor: pointer; padding: 2px;
+      display: flex; align-items: center;
+    }
+    .ctrl-btn svg { width: 20px; height: 20px; fill: white; }
+    .progress-wrap {
+      flex: 1; height: 4px; background: rgba(255,255,255,0.25); border-radius: 2px;
+      cursor: pointer; position: relative;
+    }
+    .progress-fill {
+      height: 100%; background: #3b82f6; border-radius: 2px; width: 0%;
+      transition: width 0.1s linear;
+    }
+    .time-label {
+      font-size: 12px; color: rgba(255,255,255,0.85); font-variant-numeric: tabular-nums;
+      white-space: nowrap; font-family: 'Inter', sans-serif;
+    }
+    .speed-badge {
+      font-size: 10px; background: rgba(59,130,246,0.8); color: white;
+      padding: 1px 5px; border-radius: 3px; font-weight: 600;
+    }
+    .vol-slider {
+      width: 60px; height: 4px; -webkit-appearance: none; appearance: none;
+      background: rgba(255,255,255,0.25); border-radius: 2px; cursor: pointer;
+    }
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px;
+      background: white; border-radius: 50%; cursor: pointer;
+    }
 
     ${gifUrl ? `.gif-preview { width: 100%; border-radius: 16px; margin-bottom: 40px; border: 1px solid #e2e8f0; box-shadow: 0 4px 30px rgba(0,0,0,0.08); cursor: pointer; }` : ''}
 
@@ -219,6 +267,23 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </div>
       </div>
+      <div class="controls-bar" id="controlsBar">
+        <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlay()">
+          <svg id="ppIcon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+        </button>
+        <div class="progress-wrap" id="progressWrap" onclick="seek(event)">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="time-label" id="timeLabel"><s>0:00</s> 0:00 / 0:00</span>
+        <span class="speed-badge">1.3x</span>
+        <button class="ctrl-btn" id="volBtn" onclick="toggleMute()">
+          <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.5 4.5 0 002.5-3.5zM14 3.23v2.06a6.51 6.51 0 010 13.42v2.06A8.52 8.52 0 0022.5 12 8.52 8.52 0 0014 3.23z"/></svg>
+        </button>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="setVol(this.value)">
+        <button class="ctrl-btn" onclick="goFS()">
+          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </button>
+      </div>
     </div>
 
     ${gifUrl ? `<p style="text-align:center;color:#94a3b8;font-size:13px;margin-bottom:8px;">Preview GIF (what appears in email):</p><img src="${gifUrl}" alt="Video preview" class="gif-preview" onclick="document.getElementById('vid').scrollIntoView({behavior:'smooth'});startVideo();">` : ''}
@@ -247,17 +312,74 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
   (function() {
     var vid = document.getElementById('vid');
     var overlay = document.getElementById('playOverlay');
+    var controlsBar = document.getElementById('controlsBar');
+    var ppIcon = document.getElementById('ppIcon');
+    var progressFill = document.getElementById('progressFill');
+    var timeLabel = document.getElementById('timeLabel');
+    var volSlider = document.getElementById('volSlider');
     var slug = '${trackId}';
     var tracked = {};
+    var SPEED = 1.3;
+
+    function fmt(s) {
+      var m = Math.floor(s/60); var sec = Math.floor(s%60);
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
 
     window.startVideo = function() {
       vid.play();
       overlay.classList.add('hidden');
+      controlsBar.classList.add('show');
+    };
+
+    window.togglePlay = function() {
+      if (vid.paused) { vid.play(); overlay.classList.add('hidden'); }
+      else vid.pause();
+    };
+
+    window.seek = function(e) {
+      var rect = e.currentTarget.getBoundingClientRect();
+      var pct = (e.clientX - rect.left) / rect.width;
+      vid.currentTime = pct * vid.duration;
+    };
+
+    window.toggleMute = function() {
+      vid.muted = !vid.muted;
+      volSlider.value = vid.muted ? 0 : vid.volume;
+    };
+
+    window.setVol = function(v) {
+      vid.volume = parseFloat(v);
+      vid.muted = (v == 0);
+    };
+
+    window.goFS = function() {
+      if (vid.requestFullscreen) vid.requestFullscreen();
+      else if (vid.webkitRequestFullscreen) vid.webkitRequestFullscreen();
     };
 
     vid.addEventListener('click', function() {
       if (vid.paused) { vid.play(); overlay.classList.add('hidden'); }
       else vid.pause();
+    });
+
+    vid.addEventListener('play', function() {
+      ppIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+      controlsBar.classList.add('show');
+    });
+    vid.addEventListener('pause', function() {
+      ppIcon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+    });
+
+    vid.addEventListener('timeupdate', function() {
+      if (!vid.duration) return;
+      var pct = (vid.currentTime / vid.duration) * 100;
+      progressFill.style.width = pct + '%';
+      var origTime = fmt(vid.currentTime * SPEED);
+      var origTotal = fmt(vid.duration * SPEED);
+      var fastTime = fmt(vid.currentTime);
+      var fastTotal = fmt(vid.duration);
+      timeLabel.innerHTML = '<s style="color:rgba(255,255,255,0.45);text-decoration:line-through">' + origTime + ' / ' + origTotal + '</s> ' + fastTime + ' / ' + fastTotal;
     });
 
     function track(type, meta) {

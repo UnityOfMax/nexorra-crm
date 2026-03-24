@@ -96,7 +96,7 @@ export function composite(opts: CompositeOptions): string {
     console.log("[composite] Creating 13s static portion...");
     ffmpeg(
       `-loop 1 -i "${staticFrame}" -c:v libx264 -t 13 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${staticVideo}"`
+        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${staticVideo}"`
     );
 
     // ---------------------------------------------------------------
@@ -112,7 +112,7 @@ export function composite(opts: CompositeOptions): string {
       ffmpeg(
         `-framerate ${scrollFps} -i "${opts.screenshotsDir}/frame_%05d.png" ` +
           `-start_number 1 -frames:v ${scrollFrames.length} ` +
-          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${scrollVideo}"`
+          `-c:v libx264 -pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${scrollVideo}"`
       );
 
       // Concatenate static (13s) + scroll (2.5s) = 15.5s profile video
@@ -129,7 +129,7 @@ export function composite(opts: CompositeOptions): string {
       console.log("[composite] No scroll frames, extending static to 15.5s...");
       ffmpeg(
         `-loop 1 -i "${staticFrame}" -c:v libx264 -t 15.5 ` +
-          `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${profileVideo}"`
+          `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${profileVideo}"`
       );
     }
 
@@ -151,7 +151,7 @@ export function composite(opts: CompositeOptions): string {
     console.log(`[composite] Extracting ${crmDuration.toFixed(1)}s of CRM demo...`);
     ffmpeg(
       `-stream_loop -1 -i "${opts.crmRecordingPath}" -t ${crmDuration} -c:v libx264 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${crmNormalized}"`,
+        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 18 -r 30 "${crmNormalized}"`,
       300000
     );
 
@@ -169,33 +169,53 @@ export function composite(opts: CompositeOptions): string {
     );
 
     // ---------------------------------------------------------------
-    // Step 6: Overlay circular talking head (160px, bottom-left, 20px padding)
-    //   Runs the FULL talking head duration
+    // Step 6: Overlay pre-processed circular talking head + keep audio
+    //   Uses talking-head-circle.webm (pre-processed: cropped, flipped, circular)
+    //   Falls back to raw talking head with inline crop if pre-processed doesn't exist
     // ---------------------------------------------------------------
-    console.log("[composite] Overlaying circular talking head (full duration)...");
-    const filterComplex = [
-      "[1:v]scale=160:160,format=yuva420p,",
-      "geq=lum='p(X,Y)':a='if(gt(pow(X-80,2)+pow(Y-80,2),pow(80,2)),0,255)'",
-      "[head];",
-      "[0:v][head]overlay=20:H-h-20:shortest=1",
-    ].join("");
+    const preProcessedHead = path.join(PROJECT_ROOT, "assets/video/talking-head-circle.webm");
+    const usePreProcessed = fs.existsSync(preProcessedHead);
 
-    ffmpeg(
-      `-i "${baseVideo}" -i "${opts.talkingHeadPath}" ` +
-        `-filter_complex "${filterComplex}" ` +
-        `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p "${overlayVideo}"`,
-      600000
-    );
+    console.log(`[composite] Overlaying circular talking head (${usePreProcessed ? 'pre-processed' : 'inline crop'})...`);
+
+    if (usePreProcessed) {
+      // Fast path: pre-processed WebM with alpha — just overlay + mix audio
+      ffmpeg(
+        `-i "${baseVideo}" -i "${preProcessedHead}" -i "${opts.talkingHeadPath}" ` +
+          `-filter_complex "[0:v][1:v]overlay=20:H-h-20:shortest=1[v]" ` +
+          `-map "[v]" -map 2:a -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
+          `-c:a aac -b:a 128k "${overlayVideo}"`,
+        600000
+      );
+    } else {
+      // Slow path: inline crop + circle mask
+      const filterComplex = [
+        "[1:v]crop=720:720:280:0,hflip,scale=200:200,format=yuva420p,",
+        "geq=lum='p(X,Y)':a='if(gt(pow(X-100,2)+pow(Y-100,2),pow(100,2)),0,255)'",
+        "[head];",
+        "[0:v][head]overlay=20:H-h-20:shortest=1[v]",
+      ].join("");
+
+      ffmpeg(
+        `-i "${baseVideo}" -i "${opts.talkingHeadPath}" ` +
+          `-filter_complex "${filterComplex}" ` +
+          `-map "[v]" -map 1:a -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
+          `-c:a aac -b:a 128k "${overlayVideo}"`,
+        600000
+      );
+    }
 
     // ---------------------------------------------------------------
-    // Step 7: Speed up entire video to 1.3x → ~112s final duration
+    // Step 7: Speed up video + audio to 1.3x, HD quality
     // ---------------------------------------------------------------
     const finalDuration = (talkingHeadDuration / 1.3).toFixed(1);
-    console.log(`[composite] Speeding up 1.3x → ~${finalDuration}s final...`);
+    console.log(`[composite] Speeding up 1.3x → ~${finalDuration}s final (HD)...`);
     ffmpeg(
       `-i "${overlayVideo}" ` +
-        `-filter_complex "[0:v]setpts=PTS/1.3[v]" -map "[v]" ` +
-        `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p ` +
+        `-filter_complex "[0:v]setpts=PTS/1.3[v];[0:a]atempo=1.3[a]" ` +
+        `-map "[v]" -map "[a]" ` +
+        `-c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
+        `-c:a aac -b:a 128k ` +
         `-movflags +faststart "${opts.outputPath}"`,
       600000
     );
