@@ -7,10 +7,9 @@
  *
  * Timing:
  *   Profile screenshots: 15.5s (13s static + 2.5s scroll flick at 13s mark)
- *   CRM clip: 3s (first 3s of crm-demo.mp4)
- *   Base total: ~18.5s
- *   Talking head: circular 160px overlay in bottom-left, full 18.5s
- *   Final: speed up 1.3x → ~14.2s
+ *   CRM recording: fills the REST of the talking head duration (~130s)
+ *   Talking head: circular 160px overlay in bottom-left, FULL LENGTH (~145.5s)
+ *   Final: speed up 1.3x → ~112s
  *
  * Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> [talking_head] [crm_demo] [output_path]
  */
@@ -135,32 +134,45 @@ export function composite(opts: CompositeOptions): string {
     }
 
     // ---------------------------------------------------------------
-    // Step 3: Take first 3s of crm-demo.mp4, scale to 1280x720
+    // Step 3: Get talking head duration to determine CRM clip length
+    // ---------------------------------------------------------------
+    const talkingHeadDuration = parseFloat(
+      execSync(`ffprobe -v quiet -show_format "${opts.talkingHeadPath}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
+    );
+    const profileDuration = 15.5; // 13s static + 2.5s scroll
+    const crmDuration = Math.max(1, talkingHeadDuration - profileDuration);
+    console.log(`[composite] Talking head: ${talkingHeadDuration.toFixed(1)}s, Profile: ${profileDuration}s, CRM fill: ${crmDuration.toFixed(1)}s`);
+
+    // ---------------------------------------------------------------
+    // Step 4: Normalize CRM recording to fill remaining time, scale to 1280x720
+    //   Loop the CRM recording if it's shorter than needed
     // ---------------------------------------------------------------
     const crmNormalized = path.join(tmpDir, "crm_normalized.mp4");
-    console.log("[composite] Extracting first 3s of CRM demo...");
+    console.log(`[composite] Extracting ${crmDuration.toFixed(1)}s of CRM demo...`);
     ffmpeg(
-      `-i "${opts.crmRecordingPath}" -t 3 -c:v libx264 ` +
-        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${crmNormalized}"`
+      `-stream_loop -1 -i "${opts.crmRecordingPath}" -t ${crmDuration} -c:v libx264 ` +
+        `-pix_fmt yuv420p -vf "scale=1280:720" -preset fast -crf 23 -r 30 "${crmNormalized}"`,
+      300000
     );
 
     // ---------------------------------------------------------------
-    // Step 4: Concatenate profile (15.5s) + CRM (3s) = 18.5s base
+    // Step 5: Concatenate profile (15.5s) + CRM (130s) = ~145.5s base
     // ---------------------------------------------------------------
-    console.log("[composite] Concatenating profile + CRM → 18.5s base...");
+    console.log(`[composite] Concatenating profile + CRM → ${talkingHeadDuration.toFixed(1)}s base...`);
     fs.writeFileSync(
       concatList,
       `file '${profileVideo}'\nfile '${crmNormalized}'\n`
     );
     ffmpeg(
-      `-f concat -safe 0 -i "${concatList}" -c copy "${baseVideo}"`
+      `-f concat -safe 0 -i "${concatList}" -c copy "${baseVideo}"`,
+      300000
     );
 
     // ---------------------------------------------------------------
-    // Step 5: Overlay circular talking head (160px, bottom-left, 20px padding)
-    //   Runs the full 18.5s duration
+    // Step 6: Overlay circular talking head (160px, bottom-left, 20px padding)
+    //   Runs the FULL talking head duration
     // ---------------------------------------------------------------
-    console.log("[composite] Overlaying circular talking head...");
+    console.log("[composite] Overlaying circular talking head (full duration)...");
     const filterComplex = [
       "[1:v]scale=160:160,format=yuva420p,",
       "geq=lum='p(X,Y)':a='if(gt(pow(X-80,2)+pow(Y-80,2),pow(80,2)),0,255)'",
@@ -169,21 +181,23 @@ export function composite(opts: CompositeOptions): string {
     ].join("");
 
     ffmpeg(
-      `-i "${baseVideo}" -stream_loop -1 -i "${opts.talkingHeadPath}" ` +
+      `-i "${baseVideo}" -i "${opts.talkingHeadPath}" ` +
         `-filter_complex "${filterComplex}" ` +
         `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p "${overlayVideo}"`,
-      120000
+      600000
     );
 
     // ---------------------------------------------------------------
-    // Step 6: Speed up entire video to 1.3x → ~14.2s final duration
+    // Step 7: Speed up entire video to 1.3x → ~112s final duration
     // ---------------------------------------------------------------
-    console.log("[composite] Speeding up 1.3x → ~14.2s final...");
+    const finalDuration = (talkingHeadDuration / 1.3).toFixed(1);
+    console.log(`[composite] Speeding up 1.3x → ~${finalDuration}s final...`);
     ffmpeg(
       `-i "${overlayVideo}" ` +
         `-filter_complex "[0:v]setpts=PTS/1.3[v]" -map "[v]" ` +
         `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p ` +
-        `-movflags +faststart "${opts.outputPath}"`
+        `-movflags +faststart "${opts.outputPath}"`,
+      600000
     );
 
     const stats = fs.statSync(opts.outputPath);

@@ -8,6 +8,8 @@ export interface ColdEmailPageData {
   brokerage?: string;
   slug?: string;
   pageId?: string;
+  profileImageUrl?: string;
+  gifUrl?: string;
 }
 
 /**
@@ -25,6 +27,8 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     brokerage,
     slug,
     pageId,
+    profileImageUrl,
+    gifUrl,
   } = data;
 
   const trackId = pageId || slug || '';
@@ -55,8 +59,8 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
 
     body {
       font-family: 'Inter', sans-serif;
-      background: #020617;
-      color: #e2e8f0;
+      background: #ffffff;
+      color: #1e293b;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
@@ -70,25 +74,31 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     /* Hero */
     .hero {
       text-align: center;
-      margin-bottom: 48px;
+      margin-bottom: 40px;
       padding-top: 20px;
+    }
+    .profile-img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #dbeafe;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
     }
     .hero h1 {
       font-family: 'Manrope', sans-serif;
-      font-size: clamp(28px, 5vw, 42px);
+      font-size: clamp(26px, 5vw, 38px);
       font-weight: 800;
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #818cf8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #0f172a;
       line-height: 1.15;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .hero .subtitle {
       font-family: 'Manrope', sans-serif;
-      font-size: clamp(15px, 2.5vw, 18px);
+      font-size: clamp(14px, 2.5vw, 17px);
       font-weight: 600;
-      color: #94a3b8;
+      color: #64748b;
       line-height: 1.5;
     }
 
@@ -98,10 +108,10 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       width: 100%;
       border-radius: 16px;
       overflow: hidden;
-      background: #0f172a;
-      border: 1px solid rgba(59, 130, 246, 0.15);
-      box-shadow: 0 0 80px rgba(59, 130, 246, 0.08), 0 20px 60px rgba(0,0,0,0.4);
-      margin-bottom: 48px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.08);
+      margin-bottom: 40px;
     }
     .video-container video {
       width: 100%;
@@ -114,77 +124,80 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(2, 6, 23, 0.5);
+      background: rgba(15, 23, 42, 0.35);
       cursor: pointer;
       transition: opacity 0.3s;
     }
     .play-overlay.hidden { opacity: 0; pointer-events: none; }
     .play-btn {
-      width: 80px;
-      height: 80px;
-      background: rgba(59, 130, 246, 0.9);
+      width: 72px;
+      height: 72px;
+      background: #3b82f6;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s, background 0.2s;
-      box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(59, 130, 246, 0.35);
     }
-    .play-btn:hover { transform: scale(1.08); background: #3b82f6; }
-    .play-btn svg { width: 32px; height: 32px; fill: white; margin-left: 4px; }
+    .play-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(59, 130, 246, 0.5); }
+    .play-btn svg { width: 28px; height: 28px; fill: white; margin-left: 3px; }
+
+    ${gifUrl ? `.gif-preview { width: 100%; border-radius: 16px; margin-bottom: 40px; border: 1px solid #e2e8f0; box-shadow: 0 4px 30px rgba(0,0,0,0.08); cursor: pointer; }` : ''}
 
     /* Copy section */
     .copy-section {
-      margin-bottom: 48px;
+      margin-bottom: 40px;
     }
     .copy-section p {
       font-size: 16px;
       line-height: 1.75;
-      color: #cbd5e1;
-      margin-bottom: 16px;
+      color: #475569;
+      margin-bottom: 14px;
     }
     .personal-note {
-      padding: 16px 20px;
-      background: rgba(59, 130, 246, 0.06);
-      border-left: 3px solid #3b82f6;
+      padding: 14px 18px;
+      background: #eff6ff;
+      border-left: 3px solid #93c5fd;
       border-radius: 0 8px 8px 0;
-      color: #94a3b8;
+      color: #64748b;
       font-style: italic;
       font-size: 15px;
     }
 
-    /* Calendly */
+    /* Calendly — inline, scrolls with page */
     .calendly-section {
-      margin-bottom: 48px;
+      margin-bottom: 40px;
     }
     .calendly-section h2 {
       font-family: 'Manrope', sans-serif;
       font-size: 22px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: #0f172a;
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .calendly-section iframe {
       width: 100%;
-      height: 660px;
+      height: 700px;
       border: none;
       border-radius: 12px;
-      background: #0f172a;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
     }
     @media (max-width: 640px) {
-      .calendly-section iframe { height: 560px; }
+      .calendly-section iframe { height: 580px; }
     }
 
     /* Footer */
     .footer {
       text-align: center;
-      padding-top: 32px;
-      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 28px;
+      border-top: 1px solid #e2e8f0;
     }
     .footer p {
       font-size: 13px;
-      color: #475569;
+      color: #94a3b8;
     }
     .footer a { color: #3b82f6; text-decoration: none; }
   </style>
@@ -192,6 +205,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
 <body>
   <div class="page">
     <div class="hero">
+      ${profileImageUrl ? `<img src="${profileImageUrl}" alt="${firstName}" class="profile-img">` : ''}
       <h1>Video for ${firstName}</h1>
       <p class="subtitle">How we're making our clients an extra $30,000 every month on average.</p>
     </div>
@@ -207,6 +221,8 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       </div>
     </div>
 
+    ${gifUrl ? `<p style="text-align:center;color:#94a3b8;font-size:13px;margin-bottom:8px;">Preview GIF (what appears in email):</p><img src="${gifUrl}" alt="Video preview" class="gif-preview" onclick="document.getElementById('vid').scrollIntoView({behavior:'smooth'});startVideo();">` : ''}
+
     <div class="copy-section">
       <p>As I mentioned in the video, I'd love to show you the whole system and how we do what we do.</p>
       <p>I just don't have the time to record a 15 minute long video every time. And no doubt your business is built on your personality — in order for us to help you, we need to understand that more.</p>
@@ -217,7 +233,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
 
     <div class="calendly-section">
       <h2>Book a Quick Call</h2>
-      <iframe src="${calendlyUrl}?hide_gdpr_banner=1&background_color=020617&text_color=e2e8f0&primary_color=3b82f6" loading="lazy" title="Book a call with Nexorra"></iframe>
+      <iframe src="${calendlyUrl}?hide_gdpr_banner=1&background_color=ffffff&text_color=1e293b&primary_color=3b82f6" loading="lazy" title="Book a call with Nexorra"></iframe>
     </div>
 
     <div class="footer">
