@@ -367,6 +367,14 @@ export async function spawnAgent(params: {
         else if (dept === 'engineering') brain.writers.engineering(agentId, runSummary, agentId);
         else if (dept === 'experiments') brain.writers.experiment(agentId, runSummary, agentId);
       } catch { /* Vault brain optional */ }
+
+      // Post-run: regenerate BRIEFING.md for new Claude Code instances
+      try {
+        require('child_process').execSync(
+          'npx tsx scripts/generate-briefing.ts',
+          { cwd: CRM_ROOT, timeout: 20000, stdio: 'ignore' }
+        );
+      } catch { /* Briefing generation optional */ }
     }
   });
 
