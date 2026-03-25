@@ -925,6 +925,40 @@ Prerequisites:
         break;
       }
 
+      case 'reset-tab': {
+        // Close current tab and open fresh one — fixes stuck pages (reCAPTCHA, SPA routing)
+        const http = require('http');
+        const port = CDP_PORT || 9222;
+        // Get current tabs
+        const tabsJson = await new Promise((resolve, reject) => {
+          http.get(`http://localhost:${port}/json`, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve(data));
+          }).on('error', reject);
+        });
+        const tabs = JSON.parse(tabsJson);
+        const pageTabs = tabs.filter(t => t.type === 'page');
+        // Open new tab first
+        await new Promise((resolve, reject) => {
+          http.get(`http://localhost:${port}/json/new?about:blank`, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve(data));
+          }).on('error', reject);
+        });
+        await new Promise(r => setTimeout(r, 500));
+        // Close old page tabs
+        for (const tab of pageTabs) {
+          await new Promise((resolve) => {
+            http.get(`http://localhost:${port}/json/close/${tab.id}`, () => resolve()).on('error', () => resolve());
+          });
+        }
+        await new Promise(r => setTimeout(r, 500));
+        console.log(JSON.stringify({ reset: true, closedTabs: pageTabs.length }));
+        break;
+      }
+
       case 'agents': {
         const brokerage = args[1];
         if (!brokerage) { console.error('Usage: agents <brokerage>'); break; }

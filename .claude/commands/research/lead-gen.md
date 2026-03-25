@@ -333,6 +333,14 @@ Append email phase results to `agents/memory/lead-gen.md`. If > 4KB, condense.
 
 **Run this phase AFTER the email phase is complete and 1,000 email leads have been collected.**
 
+**CRITICAL: Before starting Phase 2, reset Chrome to clear any stuck pages from Phase 1:**
+```bash
+node scripts/chrome-tool.js reset-tab
+```
+Wait 2 seconds after reset before navigating. This fixes: stuck reCAPTCHA, SPA routing issues, cookie consent overlays from Phase 1 sites.
+
+**If a page gets stuck (reCAPTCHA, infinite load, Cloudflare):** run `reset-tab` again and retry.
+
 Target: **350 Instagram handles/day** + phone numbers as they come.
 Sources: RE/MAX (Instagram via profile), Century 21 (phones), Instagram/Google search (bonus handles).
 These leads are stored with `"lead_category": "instagram"` or `"lead_category": "calling"`.
