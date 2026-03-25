@@ -135,6 +135,24 @@ export function composite(opts: CompositeOptions): string {
     }
 
     // ---------------------------------------------------------------
+    // Step 2b: Add browser chrome frame overlay on profile video
+    // ---------------------------------------------------------------
+    const browserFramePath = path.join(PROJECT_ROOT, "assets/video/browser-frame.png");
+    if (fs.existsSync(browserFramePath)) {
+      console.log("[composite] Adding browser chrome frame to profile...");
+      const profileWithChrome = path.join(tmpDir, "profile_chrome.mp4");
+      ffmpeg(
+        `-i "${profileVideo}" -i "${browserFramePath}" ` +
+          `-filter_complex "[1:v]scale=1920:88[bar];[0:v][bar]overlay=0:0[v]" ` +
+          `-map "[v]" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "${profileWithChrome}"`,
+        120000
+      );
+      // Replace profile video with chrome version
+      fs.unlinkSync(profileVideo);
+      fs.renameSync(profileWithChrome, profileVideo);
+    }
+
+    // ---------------------------------------------------------------
     // Step 3: Get talking head duration to determine CRM clip length
     // ---------------------------------------------------------------
     const talkingHeadDuration = parseFloat(
@@ -179,32 +197,27 @@ export function composite(opts: CompositeOptions): string {
 
     console.log(`[composite] Overlaying circular talking head (${usePreProcessed ? 'pre-processed' : 'inline crop'})...`);
 
-    if (usePreProcessed) {
-      // Fast path: pre-processed WebM with alpha — just overlay + mix audio
-      ffmpeg(
-        `-i "${baseVideo}" -i "${preProcessedHead}" -i "${opts.talkingHeadPath}" ` +
-          `-filter_complex "[0:v][1:v]overlay=20:H-h-20:shortest=1[v]" ` +
-          `-map "[v]" -map 2:a -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
-          `-c:a aac -b:a 128k "${overlayVideo}"`,
-        600000
-      );
-    } else {
-      // Slow path: inline crop + circle mask
-      const filterComplex = [
-        "[1:v]crop=720:720:280:0,hflip,scale=200:200,format=yuva420p,",
-        "geq=lum='p(X,Y)':a='if(gt(pow(X-100,2)+pow(Y-100,2),pow(100,2)),0,255)'",
-        "[head];",
-        "[0:v][head]overlay=20:H-h-20:shortest=1[v]",
-      ].join("");
+    // Get base video duration for explicit time limit (avoid shortest=1 issues)
+    const baseDuration = parseFloat(
+      execSync(`ffprobe -v quiet -show_format "${baseVideo}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
+    );
 
-      ffmpeg(
-        `-i "${baseVideo}" -i "${opts.talkingHeadPath}" ` +
-          `-filter_complex "${filterComplex}" ` +
-          `-map "[v]" -map 1:a -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
-          `-c:a aac -b:a 128k "${overlayVideo}"`,
-        600000
-      );
-    }
+    // Always use inline crop (the pre-processed WebM alpha doesn't work reliably)
+    const filterComplex = [
+      "[1:v]crop=720:720:280:0,hflip,scale=200:200,format=yuva420p,",
+      "geq=lum='p(X,Y)':a='if(gt(pow(X-100,2)+pow(Y-100,2),pow(100,2)),0,255)'",
+      "[head];",
+      "[0:v][head]overlay=20:H-h-20[v]",  // NO shortest=1
+    ].join("");
+
+    ffmpeg(
+      `-i "${baseVideo}" -i "${opts.talkingHeadPath}" ` +
+        `-filter_complex "${filterComplex}" ` +
+        `-map "[v]" -map 1:a -t ${baseDuration} ` +  // explicit duration limit
+        `-c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p ` +
+        `-c:a aac -b:a 128k "${overlayVideo}"`,
+      600000
+    );
 
     // ---------------------------------------------------------------
     // Step 7: Speed up video + audio to 1.3x, HD quality

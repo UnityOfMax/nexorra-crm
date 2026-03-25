@@ -309,19 +309,20 @@ export async function spawnAgent(params: {
 
     const status = (code === 0 && !resultError) ? 'completed' : 'failed';
 
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('agent_runs')
       .update({
         status,
         finished_at: new Date().toISOString(),
         duration_seconds: duration,
-        cost_usd: costUsd,
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        num_turns: numTurns,
+        summary: `${agentId} ${status} in ${duration}s`,
         error_message: resultError || (status === 'failed' && code !== null ? `Exit code: ${code}` : null),
       })
       .eq('id', run.id);
+
+    if (updateError) {
+      console.error(`[daemon] DB update FAILED for ${agentId} (${run.id}):`, updateError.message);
+    }
 
     console.log(`[daemon] Agent ${agentId} (${run.id}) ${status} in ${duration}s`);
 
