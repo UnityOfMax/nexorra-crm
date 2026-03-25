@@ -1,9 +1,22 @@
 # Tara — Primer
-Last run: Not yet
-Status: idle
+Last run: 2026-03-25
+Status: blocked — no accounts configured
 
 ## Current State
-Awaiting first task.
+Attempted Instagram DM outreach run. Exited immediately at Step 1 — all 7 accounts in `agents/state/instagram-accounts.json` have empty usernames/passwords.
+
+## Blocker
+`agents/state/instagram-accounts.json` needs to be populated with real Instagram account credentials before any DMs can be sent.
+
+## Next Steps
+1. Max fills in credentials for up to 7 Instagram accounts in `agents/state/instagram-accounts.json`
+2. Verify Chrome is running and connected (`node scripts/chrome-tool.js status`)
+3. Re-run `/instagram-outreach` — will send up to 50 DMs per account (350 total)
+
+## Notes
+- DM template loaded: 3-message sequence (intro → loom link → CTA)
+- Loom link source: `agents/state/sender-loom-config.json` (Stacey key)
+- 0 DMs sent lifetime
 
 ## Today's Briefing
 

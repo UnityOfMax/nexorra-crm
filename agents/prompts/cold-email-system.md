@@ -119,7 +119,7 @@ Avoid AI writing tells:
 
 ## Silent Nudge Template
 
-"Hey {lead_name}, just checking if you had a chance to look at that link. No rush — just wanted to make sure it did not get buried. {sender_name}"
+"Hey {lead_name}, sent this over last week — the Loom shows exactly what we've been doing for agents in your market. Worth 2 min if you haven't seen it. {sender_name}"
 
 After nudge: no reply within 4 days → mark ghosted. Never send a second nudge.
 

@@ -6,10 +6,10 @@
  * into a final ~14.2s personalized video using ffmpeg.
  *
  * Timing:
- *   Profile screenshots: 15.5s (13s static + 2.5s scroll flick at 13s mark)
+ *   Profile screenshots: 18s (13s static + 3s scroll flick at 13s mark + 2s hold at top)
  *   CRM recording: fills the REST of the talking head duration (~130s)
  *   Talking head: circular 160px overlay in bottom-left, FULL LENGTH (~145.5s)
- *   Final: speed up 1.3x → ~112s
+ *   Final: speed up 1.3x → ~98s
  *
  * Usage: npx tsx scripts/loom-video/composite.ts <screenshots_dir> [talking_head] [crm_demo] [output_path]
  */
@@ -91,22 +91,24 @@ export function composite(opts: CompositeOptions): string {
     const scrollVideo = path.join(tmpDir, "scroll.mp4");
 
     // ---------------------------------------------------------------
-    // Step 1: Convert static first frame to 12s video at 30fps
+    // Step 1: Convert static first frame to 13s video at 30fps
     // ---------------------------------------------------------------
-    console.log("[composite] Creating 12s static portion...");
+    console.log("[composite] Creating 13s static portion...");
     ffmpeg(
-      `-loop 1 -i "${staticFrame}" -c:v libx264 -t 12 ` +
+      `-loop 1 -i "${staticFrame}" -c:v libx264 -t 13 ` +
         `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${staticVideo}"`
     );
 
     // ---------------------------------------------------------------
-    // Step 2: Convert scroll frames to 2.5s video
-    //   Scroll animation: 1.2s scroll down ~400px, 0.3s pause, 1.0s scroll back up
-    //   Total: 2.5s at 30fps = 75 frames
+    // Step 2: Convert scroll frames to 3s video
+    //   Scroll animation: ~1.5s scroll down ~550px, 0.5s hold, ~1s scroll back up
+    //   Total: 3s — fps calculated from frame count
     // ---------------------------------------------------------------
+    const holdVideo = path.join(tmpDir, "hold.mp4");
+
     if (scrollFrames.length > 0) {
-      // Target 2s for scroll animation. More frames = higher fps for same duration.
-      const scrollDuration = 2.0;
+      // Target 3s for scroll animation. More frames = higher fps for same duration.
+      const scrollDuration = 3.0;
       const scrollFps = Math.max(5, Math.round(scrollFrames.length / scrollDuration));
       console.log(
         `[composite] Creating ${scrollDuration}s scroll portion (${scrollFrames.length} frames @ ${scrollFps}fps)...`
@@ -116,20 +118,27 @@ export function composite(opts: CompositeOptions): string {
           `-c:v libx264 -pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 "${scrollVideo}"`
       );
 
-      // Concatenate static (12s) + scroll (~2s) = ~14s profile video
+      // Step 2c: Generate 2s hold at top (loop first frame)
+      console.log("[composite] Creating 2s hold at top...");
+      ffmpeg(
+        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 2 ` +
+          `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${holdVideo}"`
+      );
+
+      // Concatenate static (13s) + scroll (3s) + hold (2s) = 18s profile video
       const profileConcat = path.join(tmpDir, "profile_concat.txt");
       fs.writeFileSync(
         profileConcat,
-        `file '${staticVideo}'\nfile '${scrollVideo}'\n`
+        `file '${staticVideo}'\nfile '${scrollVideo}'\nfile '${holdVideo}'\n`
       );
       ffmpeg(
         `-f concat -safe 0 -i "${profileConcat}" -c copy "${profileVideo}"`
       );
     } else {
-      // No scroll frames — extend static to 14s
-      console.log("[composite] No scroll frames, extending static to 14s...");
+      // No scroll frames — extend static to 18s
+      console.log("[composite] No scroll frames, extending static to 18s...");
       ffmpeg(
-        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 14 ` +
+        `-loop 1 -i "${staticFrame}" -c:v libx264 -t 18 ` +
           `-pix_fmt yuv420p -vf "scale=1920:1080" -preset fast -crf 18 -r 30 "${profileVideo}"`
       );
     }
@@ -158,7 +167,7 @@ export function composite(opts: CompositeOptions): string {
     const talkingHeadDuration = parseFloat(
       execSync(`ffprobe -v quiet -show_format "${opts.talkingHeadPath}" | grep duration | cut -d= -f2`, { encoding: 'utf-8' }).trim()
     );
-    const profileDuration = 14; // ~12s static + ~2s scroll flick
+    const profileDuration = 18; // 13s static + 3s scroll flick + 2s hold
     const crmDuration = Math.max(1, talkingHeadDuration - profileDuration);
     console.log(`[composite] Talking head: ${talkingHeadDuration.toFixed(1)}s, Profile: ${profileDuration}s, CRM fill: ${crmDuration.toFixed(1)}s`);
 

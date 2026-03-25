@@ -9,6 +9,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { execSync } from "child_process";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as os from "os";
@@ -101,10 +102,10 @@ export async function generateVideo(leadId: string): Promise<GenerateResult> {
     );
   }
 
-  // Fetch lead from Supabase
+  // Fetch lead from Supabase (including personal_research for website URL)
   const { data: lead, error: leadError } = await supabaseAdmin
     .from("leads")
-    .select("id, name, profile_url, video_url")
+    .select("id, full_name, profile_url, video_url, personal_research")
     .eq("id", leadId)
     .single();
 
@@ -131,9 +132,25 @@ export async function generateVideo(leadId: string): Promise<GenerateResult> {
   let outputPath: string | null = null;
 
   try {
-    // Step 1: Capture profile screenshots
-    console.log(`[generate] Capturing profile: ${lead.profile_url}`);
-    const captureResult = await captureProfile(lead.profile_url);
+    // Step 0: Ensure video Chrome is running on port 9224
+    try {
+      execSync('curl -s --connect-timeout 2 http://localhost:9224/json/version', { stdio: 'pipe' });
+    } catch {
+      console.log("[generate] Launching video Chrome on port 9224...");
+      execSync(`bash "${resolve(__dirname, "../chrome-launch-video.sh")}"`, {
+        cwd: resolve(__dirname, "../.."),
+        stdio: 'inherit',
+        timeout: 40000,
+      });
+    }
+
+    // Step 1: Capture website screenshots (prefer personal website over brokerage profile)
+    const personalWebsite = lead.personal_research?.website || null;
+    console.log(`[generate] Capturing website: ${personalWebsite || lead.profile_url}`);
+    const captureResult = await captureProfile({
+      websiteUrl: personalWebsite || undefined,
+      profileUrl: lead.profile_url,
+    });
     screenshotDir = captureResult.screenshotDir;
     console.log(
       `[generate] Captured ${captureResult.frameCount} frames`
@@ -171,7 +188,7 @@ export async function generateVideo(leadId: string): Promise<GenerateResult> {
       );
     }
 
-    console.log(`[generate] Complete for lead ${leadId} (${lead.name})`);
+    console.log(`[generate] Complete for lead ${leadId} (${lead.full_name})`);
     return { leadId, videoUrl, outputPath: tmpOutput };
   } finally {
     // Clean up temp files

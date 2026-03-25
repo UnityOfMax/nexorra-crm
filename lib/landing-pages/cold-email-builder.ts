@@ -1,3 +1,7 @@
+const SUPABASE_STORAGE = 'https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets';
+const LOGO_URL = `${SUPABASE_STORAGE}/logo.png`;
+const REVIEW_IMAGES = Array.from({ length: 9 }, (_, i) => `${SUPABASE_STORAGE}/reviews/${i + 1}.jpg`);
+
 export interface ColdEmailPageData {
   leadName: string;
   firstName: string;
@@ -8,14 +12,14 @@ export interface ColdEmailPageData {
   brokerage?: string;
   slug?: string;
   pageId?: string;
-  profileImageUrl?: string;
+  profileImageUrl?: string; // deprecated — logo is used instead
   gifUrl?: string;
 }
 
 /**
  * Build a standalone HTML landing page for a cold email lead.
  * Returns a complete HTML string with inline CSS — no external dependencies.
- * Design matches nexorra.io: dark slate (#020617), Manrope/Inter fonts, blue accents.
+ * Nexorra logo front and center, testimonials marquee, eager Calendly embed.
  */
 export function buildColdEmailPage(data: ColdEmailPageData): string {
   const {
@@ -27,7 +31,6 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     brokerage,
     slug,
     pageId,
-    profileImageUrl,
     gifUrl,
   } = data;
 
@@ -46,6 +49,10 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     ? `<p class="personal-note">${personalNote}</p>`
     : '';
 
+  const reviewImagesHtml = REVIEW_IMAGES.map(
+    (url, i) => `<div class="mq-item${i % 2 === 0 ? ' odd' : ' even'}"><img src="${url}" alt="Client result ${i + 1}" loading="lazy"></div>`
+  ).join('');
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,13 +60,13 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Video for ${firstName} | Nexorra</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Inter', sans-serif;
-      background: #ffffff;
+      font-family: 'DM Sans', sans-serif;
+      background: #fafbfc;
       color: #1e293b;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
@@ -68,23 +75,36 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     .page {
       max-width: 720px;
       margin: 0 auto;
-      padding: 40px 20px 60px;
+      padding: 0 20px 60px;
     }
 
-    /* Hero */
+    /* ── Hero with logo ── */
     .hero {
       text-align: center;
-      margin-bottom: 40px;
-      padding-top: 20px;
+      padding: 48px 20px 40px;
+      background: linear-gradient(180deg, #f0f4ff 0%, #fafbfc 100%);
+      margin: 0 -20px 40px;
+      position: relative;
+      overflow: hidden;
     }
-    .profile-img {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid #dbeafe;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -60%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-logo {
+      width: 180px;
+      height: auto;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 4px 16px rgba(59, 130, 246, 0.12));
+      position: relative;
+      z-index: 1;
     }
     .hero h1 {
       font-family: 'Manrope', sans-serif;
@@ -93,24 +113,30 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       color: #0f172a;
       line-height: 1.15;
       margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
     }
     .hero .subtitle {
-      font-family: 'Manrope', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       font-size: clamp(14px, 2.5vw, 17px);
-      font-weight: 600;
+      font-weight: 500;
       color: #64748b;
-      line-height: 1.5;
+      line-height: 1.6;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
-    /* Video */
+    /* ── Video ── */
     .video-container {
       position: relative;
       width: 100%;
       border-radius: 16px;
       overflow: hidden;
-      background: #f1f5f9;
+      background: #0f172a;
       border: 1px solid #e2e8f0;
-      box-shadow: 0 4px 30px rgba(0,0,0,0.08);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.03);
       margin-bottom: 40px;
     }
     .video-container video {
@@ -122,9 +148,10 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(15, 23, 42, 0.35);
+      background: rgba(15, 23, 42, 0.40);
       cursor: pointer;
       transition: opacity 0.3s;
       z-index: 2;
@@ -139,23 +166,18 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       align-items: center;
       justify-content: center;
       transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 24px rgba(59, 130, 246, 0.35);
+      box-shadow: 0 4px 24px rgba(59, 130, 246, 0.4);
     }
-    .play-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(59, 130, 246, 0.5); }
+    .play-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(59, 130, 246, 0.55); }
     .play-btn svg { width: 28px; height: 28px; fill: white; margin-left: 3px; }
     .overlay-time {
-      position: absolute;
-      bottom: calc(50% - 60px);
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
       align-items: center;
       color: white;
       font-size: 14px;
       font-weight: 500;
-      font-family: 'Inter', sans-serif;
       text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-      margin-top: 8px;
+      margin-top: 12px;
     }
 
     /* Custom controls bar */
@@ -190,7 +212,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     }
     .time-label {
       font-size: 12px; color: rgba(255,255,255,0.85); font-variant-numeric: tabular-nums;
-      white-space: nowrap; font-family: 'Inter', sans-serif;
+      white-space: nowrap;
     }
     .speed-badge {
       font-size: 10px; background: rgba(59,130,246,0.8); color: white;
@@ -207,9 +229,9 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
 
     ${gifUrl ? `.gif-preview { width: 100%; border-radius: 16px; margin-bottom: 40px; border: 1px solid #e2e8f0; box-shadow: 0 4px 30px rgba(0,0,0,0.08); cursor: pointer; }` : ''}
 
-    /* Copy section */
+    /* ── Copy section ── */
     .copy-section {
-      margin-bottom: 40px;
+      margin-bottom: 48px;
     }
     .copy-section p {
       font-size: 16px;
@@ -227,7 +249,61 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       font-size: 15px;
     }
 
-    /* Calendly — inline, scrolls with page */
+    /* ── Testimonials marquee ── */
+    .testimonials {
+      margin: 0 -20px 48px;
+      padding: 40px 0;
+      background: linear-gradient(180deg, #f8fafc 0%, #f0f4ff 50%, #f8fafc 100%);
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    .testimonials h2 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .testimonials .subtitle-sm {
+      text-align: center;
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 28px;
+    }
+    .mq-wrap {
+      display: flex;
+      overflow-x: hidden;
+      gap: 20px;
+    }
+    .mq-wrap::-webkit-scrollbar { display: none; }
+    .mq-wrap { -ms-overflow-style: none; scrollbar-width: none; }
+    .mq-track {
+      display: flex;
+      gap: 20px;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .mq-item {
+      position: relative;
+      width: 280px;
+      flex-shrink: 0;
+      margin: 16px 0;
+      transition: transform 0.3s ease;
+    }
+    .mq-item img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px -4px rgba(0,0,0,0.12);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .mq-item.odd { transform: rotate(-1.5deg); }
+    .mq-item.even { transform: rotate(1.5deg); }
+    .mq-item:hover { transform: scale(1.05) rotate(0deg) !important; z-index: 10; }
+
+    /* ── Calendly ── */
     .calendly-section {
       margin-bottom: 40px;
     }
@@ -237,6 +313,12 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       font-weight: 700;
       color: #0f172a;
       text-align: center;
+      margin-bottom: 6px;
+    }
+    .calendly-section .cal-sub {
+      text-align: center;
+      font-size: 14px;
+      color: #94a3b8;
       margin-bottom: 20px;
     }
     .calendly-section iframe {
@@ -249,9 +331,10 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
     }
     @media (max-width: 640px) {
       .calendly-section iframe { height: 580px; }
+      .mq-item { width: 220px; }
     }
 
-    /* Footer */
+    /* ── Footer ── */
     .footer {
       text-align: center;
       padding-top: 28px;
@@ -262,14 +345,22 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       color: #94a3b8;
     }
     .footer a { color: #3b82f6; text-decoration: none; }
+
+    /* ── Animations ── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hero h1, .hero .subtitle { animation: fadeInUp 0.6s ease-out both; }
+    .hero .subtitle { animation-delay: 0.15s; }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="hero">
-      ${profileImageUrl ? `<img src="${profileImageUrl}" alt="${firstName}" class="profile-img">` : ''}
+      <img src="${LOGO_URL}" alt="Nexorra" class="hero-logo">
       <h1>Video for ${firstName}</h1>
-      <p class="subtitle">How we're making our clients an extra $30,000 every month on average.</p>
+      <p class="subtitle">How we're helping our clients generate an extra $30,000+ every month on average.</p>
     </div>
 
     <div class="video-container">
@@ -313,9 +404,20 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       ${personalBlock}
     </div>
 
+    <div class="testimonials">
+      <h2>Real Results From Real Agents</h2>
+      <p class="subtitle-sm">See what our clients have to say</p>
+      <div class="mq-wrap" id="reviewsLoop">
+        <div class="mq-track">${reviewImagesHtml}</div>
+        <div class="mq-track">${reviewImagesHtml}</div>
+        <div class="mq-track">${reviewImagesHtml}</div>
+      </div>
+    </div>
+
     <div class="calendly-section">
       <h2>Book a Quick Call</h2>
-      <iframe src="${calendlyUrl}?hide_gdpr_banner=1&background_color=ffffff&text_color=1e293b&primary_color=3b82f6" loading="lazy" title="Book a call with Nexorra"></iframe>
+      <p class="cal-sub">Pick a time that works for you — no strings attached</p>
+      <iframe src="${calendlyUrl}?hide_gdpr_banner=1&background_color=ffffff&text_color=1e293b&primary_color=3b82f6" title="Book a call with Nexorra"></iframe>
     </div>
 
     <div class="footer">
@@ -376,7 +478,7 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
       else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
       else if (vid.requestFullscreen) vid.requestFullscreen();
       else if (vid.webkitRequestFullscreen) vid.webkitRequestFullscreen();
-      else if (vid.webkitEnterFullscreen) vid.webkitEnterFullscreen(); // iOS Safari
+      else if (vid.webkitEnterFullscreen) vid.webkitEnterFullscreen();
     };
 
     vid.addEventListener('loadedmetadata', function() {
@@ -434,6 +536,32 @@ export function buildColdEmailPage(data: ColdEmailPageData): string {
         if (e.data.event === 'calendly.date_and_time_selected') track('calendly_click');
       }
     });
+
+    // Testimonials marquee auto-scroll
+    var mqWrap = document.getElementById('reviewsLoop');
+    if (mqWrap) {
+      var paused = false;
+      var lastT = 0;
+      mqWrap.addEventListener('mouseenter', function() { paused = true; });
+      mqWrap.addEventListener('mouseleave', function() { paused = false; });
+      mqWrap.addEventListener('touchstart', function() { paused = true; }, {passive: true});
+      mqWrap.addEventListener('touchend', function() { setTimeout(function() { paused = false; }, 1200); });
+
+      function mqAnimate(ts) {
+        if (!lastT) lastT = ts;
+        var dt = ts - lastT;
+        lastT = ts;
+        var maxScroll = mqWrap.scrollWidth / 3;
+        if (mqWrap.scrollLeft >= maxScroll * 2) {
+          mqWrap.scrollLeft -= maxScroll;
+        }
+        if (!paused) {
+          mqWrap.scrollLeft += 0.4 * (dt / 16);
+        }
+        requestAnimationFrame(mqAnimate);
+      }
+      requestAnimationFrame(mqAnimate);
+    }
   })();
   </script>
 </body>

@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   // Query leads that are research-complete but have no video
   const { data: leads, error } = await supabaseAdmin
     .from("leads")
-    .select("id, name, profile_url")
+    .select("id, full_name, profile_url, personal_research")
     .eq("research_status", "completed")
     .is("video_url", null)
     .not("profile_url", "is", null)
@@ -70,14 +70,14 @@ async function main(): Promise<void> {
 
     try {
       console.log(
-        `\n${progress} Generating video for: ${lead.name} (${lead.id})`
+        `\n${progress} Generating video for: ${lead.full_name} (${lead.id})`
       );
       const result = await generateVideo(lead.id);
       console.log(`${progress} Success: ${result.videoUrl}`);
       successCount++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`${progress} FAILED for ${lead.name}: ${msg}`);
+      console.error(`${progress} FAILED for ${lead.full_name}: ${msg}`);
       failCount++;
 
       // Mark lead so we don't retry endlessly
