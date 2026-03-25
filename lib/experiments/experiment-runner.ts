@@ -371,10 +371,15 @@ async function runMiroFishSimulation(
     // 5. Create simulation + prepare + run
     console.log('[mirofish] Step 3/4: Creating + preparing simulation...');
 
+    // Get the actual graph_id from the project (build task stores it on the project)
+    const projectData = await miroFishAPI(`/api/graph/project/${projectId}`);
+    const realGraphId = projectData?.data?.graph_id || graphId;
+    console.log(`[mirofish] Project graph_id: ${realGraphId}`);
+
     // Create simulation
     const createResult = await miroFishAPI('/api/simulation/create', {
       project_id: projectId,
-      graph_id: graphId,
+      graph_id: realGraphId,
       simulation_name: `nexorra-${new Date().toISOString().slice(0, 10)}`,
     });
     const simulationId = createResult?.data?.simulation_id || createResult?.simulation_id;
@@ -387,6 +392,7 @@ async function runMiroFishSimulation(
     // Prepare simulation (generates agent profiles + config)
     const prepResult = await miroFishAPI('/api/simulation/prepare', {
       simulation_id: simulationId,
+      graph_id: realGraphId,
       num_rounds: 10,
     });
     console.log(`[mirofish] Prepare: ${prepResult?.data?.status || JSON.stringify(prepResult).slice(0, 100)}`);
