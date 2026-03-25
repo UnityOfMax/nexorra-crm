@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
-import { readFileSync, writeFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync, createWriteStream, mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 
@@ -349,24 +349,74 @@ export async function spawnAgent(params: {
         } catch { /* Obsidian sync optional */ }
       }
 
-      // Post-run: write to Obsidian vault brain
+      // Post-run: write MEANINGFUL summary to Obsidian vault
+      // Extract the agent's actual output from the run log
       try {
-        const brain = require(path.join(CRM_ROOT, 'lib/obsidian/brain')).default;
+        const logPath = path.join(CRM_ROOT, 'logs', 'runs', `${run.id}.jsonl`);
+        let agentOutput = '';
+        if (existsSync(logPath)) {
+          const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
+          // Get last few assistant messages — that's the agent's summary/report
+          for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
+            try {
+              const d = JSON.parse(lines[i]);
+              if (d.type === 'assistant') {
+                const msg = d.message?.content;
+                if (Array.isArray(msg)) {
+                  for (const block of msg) {
+                    if (block.type === 'text' && block.text.length > 50) {
+                      agentOutput = block.text;
+                      break;
+                    }
+                  }
+                } else if (typeof msg === 'string' && msg.length > 50) {
+                  agentOutput = msg;
+                }
+                if (agentOutput) break;
+              }
+            } catch {}
+          }
+        }
+
+        // Truncate to 2KB max for vault note
+        if (agentOutput.length > 2000) agentOutput = agentOutput.slice(0, 2000) + '\n\n*[Truncated]*';
+
         const deptMap: Record<string, string> = {
-          jeff: 'research', nina: 'research', derek: 'research',
-          stacey: 'marketing', priya: 'marketing', lionel: 'marketing',
-          tara: 'marketing', malik: 'marketing', jess: 'marketing', vera: 'marketing',
-          barny: 'engineering', archie: 'engineering', kai: 'engineering',
-          liam: 'engineering', sophie: 'engineering', zara: 'engineering',
-          hugo: 'experiments', mira: 'experiments', quinn: 'experiments',
+          jeff: 'Research', nina: 'Research', derek: 'Research',
+          stacey: 'Marketing', priya: 'Marketing', lionel: 'Marketing',
+          tara: 'Marketing', malik: 'Marketing', jess: 'Marketing', vera: 'Marketing',
+          barny: 'Engineering', archie: 'Engineering', kai: 'Engineering',
+          liam: 'Engineering', sophie: 'Engineering', zara: 'Engineering',
+          hugo: 'Experiments', mira: 'Experiments', quinn: 'Experiments',
+          ava: 'Clients', omar: 'Clients', riya: 'Clients', nadia: 'Clients', iris: 'Clients',
+          marcus: 'Marketing', fiona: 'Marketing', glen: 'Marketing',
         };
-        const dept = deptMap[agentId];
-        const runSummary = `Completed in ${duration}s. Tokens: ${inputTokens || '?'}in/${outputTokens || '?'}out. Cost: $${costUsd?.toFixed(3) || '?'}.`;
-        if (dept === 'research') brain.writers.research(agentId, runSummary, agentId);
-        else if (dept === 'marketing') brain.writers.marketing(agentId, runSummary, agentId);
-        else if (dept === 'engineering') brain.writers.engineering(agentId, runSummary, agentId);
-        else if (dept === 'experiments') brain.writers.experiment(agentId, runSummary, agentId);
-      } catch { /* Vault brain optional */ }
+        const dept = deptMap[agentId] || 'General';
+        const today = new Date().toISOString().slice(0, 10);
+        const time = new Date().toISOString().slice(11, 16);
+        const vaultDir = path.join(require('os').homedir(), 'Obsidian', 'Nexorra', dept);
+
+        // Ensure directory exists
+        if (!existsSync(vaultDir)) {
+          require('fs').mkdirSync(vaultDir, { recursive: true });
+        }
+
+        // Write/append to the agent's vault note
+        const notePath = path.join(vaultDir, `${agentId}.md`);
+        const header = existsSync(notePath) ? '' : `# ${agentId} — ${dept} Department\n\n`;
+        const entry = `${header}## ${today} ${time} UTC — ${status} (${duration}s)\n\n${agentOutput || '*No output captured*'}\n\n---\n\n`;
+
+        appendFileSync(notePath, entry);
+
+        // Also write a daily department summary
+        const dailyPath = path.join(vaultDir, `${today}-summary.md`);
+        const dailyHeader = existsSync(dailyPath) ? '' : `# ${dept} — ${today}\n\n`;
+        const dailyEntry = `${dailyHeader}### ${agentId} (${time} UTC)\n${agentOutput ? agentOutput.slice(0, 500) : 'Completed'}\n\n`;
+        appendFileSync(dailyPath, dailyEntry);
+
+      } catch (vaultErr) {
+        console.log(`[daemon] Vault write failed for ${agentId}:`, (vaultErr as Error).message?.slice(0, 60));
+      }
 
       // Post-run: regenerate BRIEFING.md for new Claude Code instances
       try {
