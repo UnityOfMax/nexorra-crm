@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "21st-magic": {
+      "command": "npx",
+      "args": ["-y", "@21st-dev/magic@latest"],
+      "env": {
+        "API_KEY": "${TWENTYFIRST_API_KEY}"
+      }
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=nhflmisklsanfiiywrfo&features=docs,database,debugging,development,functions,branching,storage"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/max/crm", "/home/max/Obsidian/Nexorra"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "youtube-transcript": {
+      "command": "npx",
+      "args": ["-y", "youtube-transcript-mcp"]
+    },
+    "smart-connections": {
+      "command": "npx",
+      "args": ["-y", "@yejianye/smart-connections-mcp"],
+      "env": {
+        "OBSIDIAN_VAULT_PATH": "/home/max/Obsidian/Nexorra"
+      }
+    }
+  }
+}

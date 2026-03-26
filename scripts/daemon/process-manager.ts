@@ -349,14 +349,12 @@ export async function spawnAgent(params: {
         } catch { /* Obsidian sync optional */ }
       }
 
-      // Post-run: write MEANINGFUL summary to Obsidian vault
-      // Extract the agent's actual output from the run log
+      // Post-run: write to Obsidian vault as KNOWLEDGE, not logs
       try {
         const logPath = path.join(CRM_ROOT, 'logs', 'runs', `${run.id}.jsonl`);
         let agentOutput = '';
         if (existsSync(logPath)) {
           const lines = readFileSync(logPath, 'utf-8').trim().split('\n');
-          // Get last few assistant messages — that's the agent's summary/report
           for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
             try {
               const d = JSON.parse(lines[i]);
@@ -378,41 +376,87 @@ export async function spawnAgent(params: {
           }
         }
 
-        // Truncate to 2KB max for vault note
-        if (agentOutput.length > 2000) agentOutput = agentOutput.slice(0, 2000) + '\n\n*[Truncated]*';
+        if (agentOutput.length > 3000) agentOutput = agentOutput.slice(0, 3000) + '\n\n*[Truncated]*';
 
-        const deptMap: Record<string, string> = {
-          jeff: 'Research', nina: 'Research', derek: 'Research',
-          stacey: 'Marketing', priya: 'Marketing', lionel: 'Marketing',
-          tara: 'Marketing', malik: 'Marketing', jess: 'Marketing', vera: 'Marketing',
-          barny: 'Engineering', archie: 'Engineering', kai: 'Engineering',
-          liam: 'Engineering', sophie: 'Engineering', zara: 'Engineering',
-          hugo: 'Experiments', mira: 'Experiments', quinn: 'Experiments',
-          ava: 'Clients', omar: 'Clients', riya: 'Clients', nadia: 'Clients', iris: 'Clients',
-          marcus: 'Marketing', fiona: 'Marketing', glen: 'Marketing',
-        };
-        const dept = deptMap[agentId] || 'General';
+        const vaultRoot = path.join(require('os').homedir(), 'Obsidian', 'Nexorra');
         const today = new Date().toISOString().slice(0, 10);
-        const time = new Date().toISOString().slice(11, 16);
-        const vaultDir = path.join(require('os').homedir(), 'Obsidian', 'Nexorra', dept);
 
-        // Ensure directory exists
-        if (!existsSync(vaultDir)) {
-          require('fs').mkdirSync(vaultDir, { recursive: true });
+        // 1. Write SESSION note — what happened this run
+        const deptMap: Record<string, string> = {
+          jeff: 'lead-gen', nina: 'lead-gen', derek: 'lead-gen',
+          stacey: 'cold-email', priya: 'cold-email', lionel: 'cold-email',
+          tara: 'instagram', malik: 'instagram', jess: 'instagram', vera: 'cold-email',
+          barny: 'engineering', archie: 'engineering', kai: 'engineering',
+          liam: 'engineering', sophie: 'engineering', zara: 'engineering',
+          hugo: 'experiments', mira: 'experiments', quinn: 'experiments',
+          ava: 'cold-email', omar: 'cold-email', riya: 'cold-email', nadia: 'cold-email', iris: 'cold-email',
+          marcus: 'cold-email', fiona: 'cold-email', glen: 'cold-email',
+        };
+        const domain = deptMap[agentId] || 'general';
+
+        // Generate a short title from the output (first meaningful line)
+        const firstLine = (agentOutput || `${agentId} completed`).split('\n')
+          .find(l => l.trim().length > 10 && !l.startsWith('#') && !l.startsWith('---') && !l.startsWith('|'))
+          || `${agentId} completed run`;
+        const titleSlug = firstLine.slice(0, 60).replace(/[^a-zA-Z0-9 -]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
+
+        const sessionsDir = path.join(vaultRoot, 'sessions');
+        if (!existsSync(sessionsDir)) require('fs').mkdirSync(sessionsDir, { recursive: true });
+
+        const sessionPath = path.join(sessionsDir, `${today}-${agentId}-${titleSlug}.md`);
+        const sessionNote = `---
+agent: ${agentId}
+domain: ${domain}
+status: ${status}
+duration: ${duration}s
+date: ${today}
+---
+# ${agentId} — ${today}
+
+${agentOutput || '*No output captured*'}
+`;
+        writeFileSync(sessionPath, sessionNote);
+
+        // 2. Extract KNOWLEDGE — learnings that are reusable beyond this session
+        const knowledgePatterns = [
+          /(?:discovered|learned|found) that (.+)/gi,
+          /(?:this works|this failed) because (.+)/gi,
+          /(?:next time|should|need to) (.+)/gi,
+          /(?:workaround|fix|solution): (.+)/gi,
+        ];
+        const knowledgeDir = path.join(vaultRoot, 'knowledge', domain);
+        if (!existsSync(knowledgeDir)) require('fs').mkdirSync(knowledgeDir, { recursive: true });
+
+        for (const pattern of knowledgePatterns) {
+          let match;
+          while ((match = pattern.exec(agentOutput)) !== null) {
+            const claim = match[1].trim().slice(0, 80);
+            if (claim.length < 15) continue;
+            const claimSlug = claim.replace(/[^a-zA-Z0-9 -]/g, '').trim();
+            const knowledgePath = path.join(knowledgeDir, `${claimSlug}.md`);
+            if (!existsSync(knowledgePath)) {
+              writeFileSync(knowledgePath, `---
+discovered: ${today}
+source: ${agentId} session
+confidence: medium
+---
+# ${claimSlug}
+
+${match[0]}
+
+*Extracted from ${agentId} run on ${today}*
+`);
+            }
+          }
         }
 
-        // Write/append to the agent's vault note
-        const notePath = path.join(vaultDir, `${agentId}.md`);
-        const header = existsSync(notePath) ? '' : `# ${agentId} — ${dept} Department\n\n`;
-        const entry = `${header}## ${today} ${time} UTC — ${status} (${duration}s)\n\n${agentOutput || '*No output captured*'}\n\n---\n\n`;
-
-        appendFileSync(notePath, entry);
-
-        // Also write a daily department summary
-        const dailyPath = path.join(vaultDir, `${today}-summary.md`);
-        const dailyHeader = existsSync(dailyPath) ? '' : `# ${dept} — ${today}\n\n`;
-        const dailyEntry = `${dailyHeader}### ${agentId} (${time} UTC)\n${agentOutput ? agentOutput.slice(0, 500) : 'Completed'}\n\n`;
-        appendFileSync(dailyPath, dailyEntry);
+        // 3. Append to daily digest
+        const dailyDir = path.join(vaultRoot, 'daily');
+        if (!existsSync(dailyDir)) require('fs').mkdirSync(dailyDir, { recursive: true });
+        const dailyPath = path.join(dailyDir, `${today}.md`);
+        const dailyHeader = existsSync(dailyPath) ? '' : `---\ndate: ${today}\n---\n# Daily Digest — ${today}\n\n`;
+        const snippet = (agentOutput || 'Completed').split('\n').filter(l => l.trim() && !l.startsWith('#')).slice(0, 3).join('\n');
+        appendFileSync(dailyPath, `${dailyHeader}## ${agentId} (${status}, ${duration}s)\n${snippet}\n\n`);
 
       } catch (vaultErr) {
         console.log(`[daemon] Vault write failed for ${agentId}:`, (vaultErr as Error).message?.slice(0, 60));

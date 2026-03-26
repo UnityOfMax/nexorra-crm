@@ -1,14 +1,13 @@
 #!/usr/bin/env npx tsx
 /**
- * Generate BRIEFING.md — the project brain.
- * Queries DB + primers + git for current state. Max 3KB output.
- * Run: npx tsx scripts/generate-briefing.ts
+ * Generate BRIEFING.md — strategic context for new Claude Code instances.
+ * Reads: top-of-mind, latest daily digest, knowledge notes, DB stats.
+ * Target: <2000 tokens, actionable, not just stats.
  */
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
 import { homedir } from 'os';
 
 const supabase = createClient(
@@ -16,157 +15,88 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 const VAULT = join(homedir(), 'Obsidian', 'Nexorra');
-const CRM = join(__dirname, '..');
-const PRIMERS = join(CRM, 'agents', 'primers');
-const now = new Date();
-const today = now.toISOString().slice(0, 10);
-const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+const today = new Date().toISOString().slice(0, 10);
 
 async function main() {
-  // 1. Currently running agents
-  const { data: running } = await supabase
-    .from('agent_runs')
-    .select('agent_id, started_at')
-    .eq('status', 'running');
+  // 1. Read top-of-mind (priorities + blockers)
+  let topOfMind = '';
+  try {
+    const raw = readFileSync(join(VAULT, '00-home', 'top-of-mind.md'), 'utf-8');
+    // Extract just the bullet points, skip frontmatter and headers
+    topOfMind = raw.split('\n')
+      .filter(l => l.startsWith('- ') || l.startsWith('## '))
+      .slice(0, 15)
+      .join('\n');
+  } catch { topOfMind = '- No priorities set'; }
 
-  const runningStr = (running || []).length > 0
-    ? (running || []).map(r => `- **${r.agent_id}** (started ${r.started_at.slice(11, 16)} UTC)`).join('\n')
-    : '- None';
+  // 2. Read latest daily digest
+  let latestDaily = '';
+  try {
+    const dailyDir = join(VAULT, 'daily');
+    if (existsSync(dailyDir)) {
+      const files = readdirSync(dailyDir).filter(f => f.endsWith('.md')).sort().reverse();
+      if (files.length > 0) {
+        const content = readFileSync(join(dailyDir, files[0]), 'utf-8');
+        // Get first 500 chars of actual content (skip frontmatter)
+        const body = content.replace(/---[\s\S]*?---/, '').trim();
+        latestDaily = body.slice(0, 600);
+      }
+    }
+  } catch {}
 
-  // 2. Last 24h completed runs
-  const { data: recentRuns } = await supabase
-    .from('agent_runs')
-    .select('agent_id, status, started_at, duration_seconds, summary')
-    .gte('started_at', `${yesterday}T00:00:00Z`)
-    .neq('status', 'running')
-    .order('started_at', { ascending: false })
-    .limit(15);
+  // 3. Read recent knowledge notes (last 5 by modification time)
+  let recentKnowledge: string[] = [];
+  try {
+    const knowledgeDirs = ['cold-email', 'lead-gen', 'instagram', 'experiments', 'engineering'];
+    const allNotes: { name: string; mtime: number }[] = [];
+    for (const dir of knowledgeDirs) {
+      const dirPath = join(VAULT, 'knowledge', dir);
+      if (!existsSync(dirPath)) continue;
+      for (const f of readdirSync(dirPath).filter(f => f.endsWith('.md'))) {
+        const stat = require('fs').statSync(join(dirPath, f));
+        allNotes.push({ name: f.replace('.md', ''), mtime: stat.mtimeMs });
+      }
+    }
+    allNotes.sort((a, b) => b.mtime - a.mtime);
+    recentKnowledge = allNotes.slice(0, 5).map(n => `- [[${n.name}]]`);
+  } catch {}
 
-  const completedStr = (recentRuns || []).length > 0
-    ? (recentRuns || []).map(r => {
-        const dur = r.duration_seconds ? `${r.duration_seconds}s` : '?';
-        return `- ${r.agent_id}: ${r.status} (${r.started_at.slice(11, 16)} UTC, ${dur})`;
-      }).join('\n')
-    : '- No runs in last 24h';
-
-  // 3. Lead counts
+  // 4. DB stats (lightweight — 3 queries max)
   const { count: totalLeads } = await supabase.from('leads').select('id', { count: 'exact', head: true });
-  const { count: pendingResearch } = await supabase.from('leads').select('id', { count: 'exact', head: true }).eq('research_status', 'pending');
-  const { count: completedResearch } = await supabase.from('leads').select('id', { count: 'exact', head: true }).eq('research_status', 'completed');
-
-  // 4. Conversation status
+  const { count: researched } = await supabase.from('leads').select('id', { count: 'exact', head: true }).eq('research_status', 'completed');
   const { data: convos } = await supabase.from('lead_conversations').select('status');
   const convoMap: Record<string, number> = {};
   for (const c of (convos || [])) convoMap[c.status] = (convoMap[c.status] || 0) + 1;
-  const convoStr = Object.entries(convoMap).map(([k, v]) => `${k}: ${v}`).join(', ') || 'none';
 
-  // 5. Recent git commits
-  let gitLog = '';
-  try {
-    gitLog = execSync('git log --oneline -5', { cwd: CRM, encoding: 'utf-8' }).trim();
-  } catch { gitLog = '(git unavailable)'; }
+  // 5. Build briefing
+  const briefing = `# Nexorra Briefing — ${today}
 
-  // 6. Agent primer summaries (just status line from each)
-  const agentStatuses: string[] = [];
-  if (existsSync(PRIMERS)) {
-    for (const file of readdirSync(PRIMERS).filter(f => f.endsWith('.md')).sort()) {
-      try {
-        const content = readFileSync(join(PRIMERS, file), 'utf-8');
-        const name = file.replace('.md', '');
-        const lastRun = content.match(/Last run: (.+)/)?.[1] || 'never';
-        const status = content.match(/Status: (.+)/)?.[1] || 'idle';
-        if (lastRun !== 'never' && lastRun !== 'Not yet') {
-          agentStatuses.push(`- ${name}: ${status} (${lastRun.slice(0, 16)})`);
-        }
-      } catch {}
-    }
-  }
-  const agentStr = agentStatuses.length > 0 ? agentStatuses.join('\n') : '- No agents have run yet';
+## What Nexorra Does
+AI appointment-setting agency for real estate agents (US + Canada). CRM + 30 AI agents. Guarantee 3-5 closed deals in 90 days.
 
-  // 7. Known issues (from recent daily notes)
-  let issues = '';
-  try {
-    const dailyDir = join(VAULT, 'Daily');
-    if (existsSync(dailyDir)) {
-      const files = readdirSync(dailyDir).filter(f => f.endsWith('.md')).sort().reverse().slice(0, 2);
-      for (const f of files) {
-        const content = readFileSync(join(dailyDir, f), 'utf-8');
-        const issueMatch = content.match(/## Issues\n([\s\S]*?)(?=\n##|\n---|\Z)/);
-        if (issueMatch && issueMatch[1].trim()) {
-          issues += issueMatch[1].trim() + '\n';
-        }
-      }
-    }
-  } catch {}
+${topOfMind}
 
-  // Build BRIEFING.md
-  const briefing = `# Nexorra — Current State (${now.toISOString().slice(0, 16)} UTC)
+## Current Numbers
+- **${totalLeads || 0}** leads in database (**${researched || 0}** researched)
+- **Conversations**: ${Object.entries(convoMap).map(([k, v]) => `${v} ${k}`).join(', ') || 'none yet'}
 
-## Active Now
-${runningStr}
+## Latest Activity
+${latestDaily || '*No activity recorded today*'}
 
-## Last 24h Runs
-${completedStr}
+## Key Learnings
+${recentKnowledge.length > 0 ? recentKnowledge.join('\n') : '- No knowledge notes yet'}
 
-## Key Numbers
-- **Leads:** ${totalLeads || 0} total (${pendingResearch || 0} pending research, ${completedResearch || 0} researched)
-- **Conversations:** ${convoStr}
-
-## Agent Status (recently active)
-${agentStr}
-
-## Recent Commits
-\`\`\`
-${gitLog}
-\`\`\`
-${issues ? `\n## Known Issues\n${issues}` : ''}
-## Quick Reference
-- Daemon: \`curl -s http://localhost:4200/status -H "x-cron-secret: $CRON_SECRET"\`
-- Start agent: \`curl -X POST localhost:4200/run -d '{"agentId":"jeff","trigger":"manual"}' -H "x-signature: $(echo -n '...' | openssl dgst -sha256 -hmac "$DAEMON_SIGNING_KEY")"\`
-- Obsidian vault: \`~/Obsidian/Nexorra/\`
-- Agent primers: \`agents/primers/{name}.md\`
-- Mulch query: \`npx tsx -e "require('./lib/mulch/client').query('topic')"\`
+## Vault Map
+- \`00-home/\` — Start here: overview, priorities, blockers
+- \`atlas/\` — Architecture, agent roster, pipeline flow
+- \`knowledge/\` — Reusable learnings (prose-as-title claims)
+- \`sessions/\` — Individual agent run summaries
+- \`daily/\` — Consolidated daily digests
 `;
 
-  // Write
-  const outPath = join(VAULT, 'BRIEFING.md');
-  writeFileSync(outPath, briefing);
+  writeFileSync(join(VAULT, 'BRIEFING.md'), briefing);
   const size = Buffer.byteLength(briefing);
-  console.log(`[briefing] Written to ${outPath} (${size} bytes, ~${Math.round(size / 4)} tokens)`);
-
-  // Also write INDEX.md
-  try {
-    const indexEntries: string[] = [];
-    const dirs = ['Daily', 'Research', 'Marketing', 'Engineering', 'Experiments'];
-    for (const dir of dirs) {
-      const dirPath = join(VAULT, dir);
-      if (!existsSync(dirPath)) continue;
-      const files = readdirSync(dirPath).filter(f => f.endsWith('.md')).sort().reverse().slice(0, 5);
-      for (const f of files) {
-        const date = f.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '?';
-        indexEntries.push(`| ${date} | ${dir.toLowerCase()} | ${f.replace('.md', '')} |`);
-      }
-    }
-    const leadsCount = existsSync(join(VAULT, 'Leads'))
-      ? readdirSync(join(VAULT, 'Leads')).filter(f => f.endsWith('.md') && f !== '_template.md').length
-      : 0;
-
-    const index = `# Vault Index (auto-generated ${today})
-
-## Recent Notes
-| Date | Type | Title |
-|------|------|-------|
-${indexEntries.slice(0, 20).join('\n')}
-
-## Stats
-- ${leadsCount} lead profiles
-- ${dirs.map(d => {
-      const p = join(VAULT, d);
-      return existsSync(p) ? `${readdirSync(p).filter(f => f.endsWith('.md')).length} ${d.toLowerCase()}` : '';
-    }).filter(Boolean).join(', ')}
-`;
-    writeFileSync(join(VAULT, 'INDEX.md'), index);
-  } catch {}
+  console.log(`[briefing] Written to ${join(VAULT, 'BRIEFING.md')} (${size} bytes, ~${Math.round(size / 4)} tokens)`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
