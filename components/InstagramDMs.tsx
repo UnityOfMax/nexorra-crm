@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Instagram, Search, RefreshCw, MessageSquare, Send,
   ChevronLeft, ChevronRight, Clock, User, Filter,
-  BarChart3, ChevronDown, ChevronUp,
+  BarChart3, ChevronDown, ChevronUp, Power,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-browser';
 
@@ -666,6 +666,29 @@ function ColdOutreachTab() {
 
 export default function InstagramDMs({ initialTab = 'inbox' }: { initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiToggling, setAiToggling] = useState(false);
+
+  // Load AI status from instagram_account_configs
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('instagram_account_configs').select('active');
+      if (data && data.length > 0) {
+        setAiEnabled(data.some((a: { active: boolean }) => a.active));
+      }
+    })();
+  }, []);
+
+  const toggleAI = async () => {
+    setAiToggling(true);
+    const newState = !aiEnabled;
+    const { error } = await supabase
+      .from('instagram_account_configs')
+      .update({ active: newState })
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // update all rows
+    if (!error) setAiEnabled(newState);
+    setAiToggling(false);
+  };
 
   return (
     <div>
@@ -678,20 +701,33 @@ export default function InstagramDMs({ initialTab = 'inbox' }: { initialTab?: Ta
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Instagram</h2>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/8 p-1 rounded-xl">
-          <button onClick={() => setTab('inbox')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              tab === 'inbox' ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}>
-            Inbox
+        <div className="flex items-center gap-3">
+          {/* AI Toggle */}
+          <button onClick={toggleAI} disabled={aiToggling}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              aiEnabled
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50'
+                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50'
+            } ${aiToggling ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <Power className="w-3.5 h-3.5" />
+            {aiToggling ? 'Switching...' : aiEnabled ? 'AI On' : 'AI Off'}
           </button>
-          <button onClick={() => setTab('cold-outreach')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              tab === 'cold-outreach' ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}>
-            Cold Outreach
-          </button>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/8 p-1 rounded-xl">
+            <button onClick={() => setTab('inbox')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                tab === 'inbox' ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}>
+              Inbox
+            </button>
+            <button onClick={() => setTab('cold-outreach')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                tab === 'cold-outreach' ? 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}>
+              Cold Outreach
+            </button>
+          </div>
         </div>
       </div>
 
