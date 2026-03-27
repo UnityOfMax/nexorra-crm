@@ -151,23 +151,53 @@ function normalizeNames(fullName) {
 
       let pageInstagram = 0;
 
+      let profilesVisited = 0;
+
       for (const agent of agents) {
         if (inserted >= target) break;
 
         const fullName = agent.full_name || '';
         if (!fullName || fullName.length < 3) continue;
 
+        // Reset tab every 10 profiles to prevent memory accumulation
+        if (profilesVisited > 0 && profilesVisited % 10 === 0) {
+          try {
+            await page.goto('about:blank', { waitUntil: 'load', timeout: 10000 });
+            await sleep(1500);
+          } catch (e) {}
+        }
+        profilesVisited++;
+
         // Visit profile to find Instagram
         try {
           await page.goto(agent.profile_url, { waitUntil: 'networkidle2', timeout: 30000 });
           await sleep(2000);
 
+          // Scroll fully to trigger lazy-loaded social media links
+          let lastHeight = 0;
+          for (let s = 0; s < 5; s++) {
+            await page.evaluate(() => window.scrollBy(0, 800));
+            await sleep(600);
+            const newHeight = await page.evaluate(() => document.body.scrollHeight);
+            if (newHeight === lastHeight) break;
+            lastHeight = newHeight;
+          }
+          await sleep(500);
+
           const igData = await page.evaluate(() => {
+            // Check direct instagram.com links
             const igLinks = document.querySelectorAll('a[href*="instagram.com"]');
             for (const link of igLinks) {
               const href = link.href;
               if (href.includes('instagram.com')) {
                 return href;
+              }
+            }
+            // Fallback: scan all links
+            const allLinks = document.querySelectorAll('a[href]');
+            for (const link of allLinks) {
+              if (link.href && link.href.includes('instagram.com')) {
+                return link.href;
               }
             }
             return null;

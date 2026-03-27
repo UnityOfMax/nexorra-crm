@@ -29,6 +29,14 @@ const CDP_PORT = portArgIdx !== -1 ? parseInt(process.argv[portArgIdx + 1]) : 92
 // Remove --port from args so it doesn't interfere with command parsing
 if (portArgIdx !== -1) process.argv.splice(portArgIdx, 2);
 
+// Support --vw and --vh flags to set viewport on connect (persists across reconnects)
+const vwIdx = process.argv.indexOf('--vw');
+const CONNECT_VW = vwIdx !== -1 ? parseInt(process.argv[vwIdx + 1]) : 0;
+if (vwIdx !== -1) process.argv.splice(vwIdx, 2);
+const vhIdx = process.argv.indexOf('--vh');
+const CONNECT_VH = vhIdx !== -1 ? parseInt(process.argv[vhIdx + 1]) : 0;
+if (vhIdx !== -1) process.argv.splice(vhIdx, 2);
+
 const CDP_URL = `http://localhost:${CDP_PORT}`;
 
 async function connectToChrome() {
@@ -37,6 +45,10 @@ async function connectToChrome() {
   let page = pages[0];
   if (!page) {
     page = await browser.newPage();
+  }
+  // Apply viewport if --vw/--vh flags were provided (ensures viewport survives reconnects)
+  if (CONNECT_VW > 0 && CONNECT_VH > 0) {
+    await page.setViewport({ width: CONNECT_VW, height: CONNECT_VH });
   }
   return { browser, page };
 }
@@ -116,6 +128,39 @@ async function dismissCookieBanners(page) {
         osanoAccept.click();
         found = true;
       }
+    }
+
+    // Strategy 4: TrustArc / TrustE consent manager (Coldwell Banker etc.)
+    if (!found) {
+      // Click "SUBMIT PREFERENCES" or close the TrustArc banner
+      const trustArcBtns = document.querySelectorAll(
+        '.pdynamicbutton .call, #consent_wall_optin, .shp, ' +
+        'a.call[onclick*="submit"], button.call, ' +
+        '#truste-consent-button, .truste-consent-close, ' +
+        '#gwt-debug-close_id, .close.consent-close'
+      );
+      for (const btn of trustArcBtns) {
+        btn.click();
+        found = true;
+        break;
+      }
+      // Also try the overlay close and preference submit
+      if (!found) {
+        const submitPref = Array.from(document.querySelectorAll('button, a')).find(
+          el => /submit preferences|save preferences/i.test(el.textContent || '')
+        );
+        if (submitPref) { submitPref.click(); found = true; }
+      }
+    }
+
+    // Strategy 5: Generic overlay/modal close (last resort)
+    if (!found) {
+      const overlay = document.querySelector(
+        '.consent-overlay .close, .cookie-overlay .close, ' +
+        '[class*="consent-banner"] [class*="close"], ' +
+        '[class*="cookie-banner"] [class*="close"]'
+      );
+      if (overlay) { overlay.click(); found = true; }
     }
 
     return found;
@@ -919,6 +964,48 @@ Prerequisites:
         break;
       }
 
+      case 'viewport': {
+        // Set viewport size: viewport <width> <height>
+        const vw = parseInt(args[1]) || 1920;
+        const vh = parseInt(args[2]) || 1080;
+        await page.setViewport({ width: vw, height: vh });
+        console.log(JSON.stringify({ viewport: { width: vw, height: vh } }));
+        break;
+      }
+
+      case 'title': {
+        // Get current page title
+        const pageTitle = await page.title();
+        console.log(pageTitle);
+        break;
+      }
+
+      case 'maximize': {
+        // Maximize Chrome window using CDP Browser domain (two-step: normal → maximized)
+        const cdpSession = await page.createCDPSession();
+        const { windowId } = await cdpSession.send('Browser.getWindowForTarget');
+        // Step 1: Set to normal state with explicit dimensions
+        await cdpSession.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { windowState: 'normal' }
+        });
+        await new Promise(r => setTimeout(r, 200));
+        await cdpSession.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { left: 0, top: 0, width: 1920, height: 1080 }
+        });
+        await new Promise(r => setTimeout(r, 200));
+        // Step 2: Maximize (cannot combine with position/size)
+        await cdpSession.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { windowState: 'maximized' }
+        });
+        await new Promise(r => setTimeout(r, 500));
+        console.log(JSON.stringify({ maximized: true, width: 1920, height: 1080 }));
+        await cdpSession.detach();
+        break;
+      }
+
       case 'dismiss-cookies': {
         const dismissed = await dismissCookieBanners(page);
         console.log(JSON.stringify({ dismissed }));
@@ -1016,8 +1103,8 @@ Prerequisites:
           break;
         }
 
-        // Small scroll to trigger any lazy loading on profile page
-        await humanScroll(page, 800);
+        // Full scroll to trigger all lazy-loaded content (social links, Instagram widgets)
+        await scrollToLoadAll(page, 5);
         await randomDelay(500, 1000);
 
         const result = await extractor(page);

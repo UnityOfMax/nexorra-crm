@@ -43,6 +43,12 @@ WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
   --disable-background-timer-throttling \
   --disable-backgrounding-occluded-windows \
   --disable-renderer-backgrounding \
+  --disable-dev-shm-usage \
+  --js-flags="--max-old-space-size=512" \
+  --memory-pressure-off \
+  --disable-extensions \
+  --disable-plugins \
+  --disable-infobars \
   "$@" >> "$LOG" 2>&1 &
 disown
 
