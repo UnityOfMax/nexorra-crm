@@ -35,11 +35,30 @@ mkdir -p "$DEBUG_PROFILE" "$(dirname "$LOG")"
 echo "[$(date)] Launching Chrome debug instance on port ${PORT}..." | tee -a "$LOG"
 
 # Launch with dedicated profile (separate from any running Chrome session)
-WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
+# Use X11 if Wayland is unavailable
+if curl -s --connect-timeout 1 "http://localhost:${PORT}/json/version" > /dev/null 2>&1; then
+  echo "Chrome already up after flag check." | tee -a "$LOG"
+  exit 0
+fi
+
+# Determine display mode: prefer X11, fall back to headless
+EXTRA_FLAGS=""
+if DISPLAY="${DISPLAY:-:0}" XAUTHORITY="${HOME}/.Xauthority" xdpyinfo >/dev/null 2>&1; then
+  DISPLAY_ENV="DISPLAY=${DISPLAY:-:0} XAUTHORITY=${HOME}/.Xauthority WAYLAND_DISPLAY="
+  EXTRA_FLAGS="--ozone-platform=x11"
+  echo "[$(date)] Using X11 display ${DISPLAY:-:0}" | tee -a "$LOG"
+else
+  DISPLAY_ENV="DISPLAY= WAYLAND_DISPLAY="
+  EXTRA_FLAGS="--headless=new"
+  echo "[$(date)] X11 unavailable, using headless mode" | tee -a "$LOG"
+fi
+
+env DISPLAY="${DISPLAY:-:0}" XAUTHORITY="${HOME}/.Xauthority" WAYLAND_DISPLAY="" XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
   --remote-debugging-port=${PORT} \
   --remote-debugging-address=127.0.0.1 \
   --user-data-dir="$DEBUG_PROFILE" \
   --no-first-run \
+  $EXTRA_FLAGS \
   --disable-background-timer-throttling \
   --disable-backgrounding-occluded-windows \
   --disable-renderer-backgrounding \
