@@ -18,31 +18,50 @@ export async function syncInstantlyStatuses(client: InstantlyClient, campaignId:
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Pull leads from Instantly (paginated, up to 1000)
-  let offset = 0;
-  let total = 0;
-  while (true) {
-    const leads = await client.listLeads(campaignId, { limit: 100, offset });
-    if (!leads || leads.length === 0) break;
+  // 1. Pull leads from Instantly (paginated, max 100 per request)
+  console.log('[instantly-sync] Fetching leads from Instantly...');
+  const allLeads = [];
+  let hasMore = true;
+  let startingAfter: string | undefined;
 
-    for (const lead of leads) {
-      // Update leads table
-      await supabase.from('leads')
-        .update({ instantly_status: lead.status })
-        .eq('email', lead.email);
+  while (hasMore) {
+    const response = await client.listLeads(campaignId, { limit: 100 });
+    const leads = Array.isArray(response) ? response : (response?.data || response?.items || []);
 
-      // Update lead_conversations if status maps to a conversation status
-      const mappedStatus = STATUS_MAP[lead.status];
-      if (mappedStatus) {
-        await supabase.from('lead_conversations')
-          .update({ instantly_status: lead.status })
-          .eq('lead_email', lead.email);
-      }
+    if (!leads || leads.length === 0) {
+      hasMore = false;
+      break;
     }
 
-    total += leads.length;
-    offset += leads.length;
-    if (leads.length < 100) break;
+    allLeads.push(...leads);
+    startingAfter = response?.next_starting_after;
+    hasMore = !!startingAfter && leads.length === 100;
+  }
+
+  if (allLeads.length === 0) {
+    console.log('[instantly-sync] No leads found');
+    return { synced: 0 };
+  }
+
+  console.log(`[instantly-sync] Found ${allLeads.length} leads, updating Supabase...`);
+  let total = 0;
+
+  try {
+    // Update leads table with batched writes
+    const { error } = await supabase.from('leads')
+      .upsert(
+        allLeads.map(lead => ({
+          email: lead.email,
+          instantly_status: lead.status,
+        })),
+        { onConflict: 'email' }
+      );
+
+    if (error) console.error('[instantly-sync] Leads update error:', error);
+
+    total = allLeads.length;
+  } catch (e) {
+    console.error('[instantly-sync] Failed to update leads:', e);
   }
 
   // 2. Pull campaign analytics
