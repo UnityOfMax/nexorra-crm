@@ -26,7 +26,12 @@ Status: operational (learning cycle blocked)
    - Still blocked: Pagination hangs after first batch
    - Fix: Add explicit timeout + connection pooling
 
-3. **Instantly Reply Endpoint** — requires `reply_to_uuid` not available
+3. **Instantly API Service Issue** — returning 502 Bad Gateway errors
+   - Impact: Cannot sync lead statuses from Instantly right now
+   - Cause: Cloudflare/Instantly service degradation (not code issue)
+   - Fix: Retry later when service recovers
+
+4. **Instantly Reply Endpoint** — requires `reply_to_uuid` not available
    - Impact: Cannot send nudges/follow-ups via Instantly API
    - Status: Needs either API schema change or alt endpoint
    - Alternative: Use campaign sequences instead of API replies
@@ -39,23 +44,24 @@ Status: operational (learning cycle blocked)
 
 ## Current State
 Database state as of run:
-- 1 nudge marked nudge_sent_at but Instantly send failed
+- 1 conversation ready for nudge (blangson@gmail.com) — blocked by reply endpoint
 - 0 ghosted conversations
 - 0 scheduled messages (table lacks send-queue columns)
-- 17 unlearned outcomes (1 nudge_sent, 2 ooo_scheduled, 12 rejected, 2 replied)
+- 17 unlearned outcomes waiting for learning analysis
 
-## Next Steps
-1. **URGENT**: Populate ANTHROPIC_API_KEY in .env.local to unblock learning cycle
-2. **HIGH**: Fix Instantly nudge send — either use campaign sequences or get reply_to_uuid from conversation_messages
-3. **HIGH**: Fix Instantly sync script — check API response structure
-4. **OPTIONAL**: Add `sent`/`scheduled_send_at` columns to conversation_messages for scheduling
-5. **RUN**: Full learning analysis on 17 queued outcomes once API key available
+## Next Steps (Prioritized)
+1. **URGENT**: Populate `ANTHROPIC_API_KEY` in .env.local → unblocks learning cycle
+2. **HIGH**: Fix Instantly reply endpoint → need reply_to_uuid or alternate flow
+3. **MEDIUM**: Monitor Instantly API recovery → 502 errors should resolve soon
+4. **MEDIUM**: Add DB columns (`sent`, `scheduled_send_at`) to conversation_messages
+5. **RUN**: Execute learning analysis on 17 queued outcomes after API key is added
 
-## Known Issues (Updated)
-- ANTHROPIC_API_KEY missing (blocks all learning analysis)
-- Instantly API reply endpoint needs reply_to_uuid (nudge sends failing)
-- Instantly sync script has parsing bug (leads response not iterable)
-- conversation_messages schema doesn't support scheduled sends
+## Known Issues (Updated 2026-03-28)
+- ❌ ANTHROPIC_API_KEY missing → blocks learning cycle
+- ❌ Instantly API 502 errors → blocks status sync
+- ❌ Instantly reply endpoint needs reply_to_uuid → blocks nudges
+- ❌ conversation_messages schema → blocks scheduled message queue
+- ✅ Sync parsing fixed (was "leads is not iterable")
 
 ## Today's Briefing
 
