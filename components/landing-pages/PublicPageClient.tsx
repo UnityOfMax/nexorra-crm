@@ -39,6 +39,29 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
       .catch(() => setNotFound(true));
   }, [slug, pageId]);
 
+  // Override PWA shell styles that block scrolling on public landing pages
+  useEffect(() => {
+    const targets = [document.documentElement, document.body];
+    targets.forEach(el => {
+      el.style.overflow = 'auto';
+      el.style.position = 'static';
+      el.style.height = 'auto';
+      el.style.width = '100%';
+      el.style.overscrollBehavior = 'auto';
+      el.style.touchAction = 'auto';
+    });
+    return () => {
+      targets.forEach(el => {
+        el.style.overflow = '';
+        el.style.position = '';
+        el.style.height = '';
+        el.style.width = '';
+        el.style.overscrollBehavior = '';
+        el.style.touchAction = '';
+      });
+    };
+  }, []);
+
   // Inject Meta Pixel on every landing page (hardcoded pixel ID, always active)
   useEffect(() => {
     if (document.getElementById('fb-pixel')) return;
