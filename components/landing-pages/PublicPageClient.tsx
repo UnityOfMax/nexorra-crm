@@ -124,6 +124,8 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         accountId={accountId}
+        pageId={pageId}
+        slug={slug}
         accentColor={accentColor}
         agentName={agentName}
         agentPhoto={agentPhoto}

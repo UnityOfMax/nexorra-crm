@@ -44,21 +44,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { slug, event_type, metadata } = body;
+    const { slug, page_id, event_type, metadata } = body;
 
-    if (!slug || !event_type) {
-      return NextResponse.json({ error: 'Missing slug or event_type' }, { status: 400 });
+    if ((!slug && !page_id) || !event_type) {
+      return NextResponse.json({ error: 'Missing slug/page_id or event_type' }, { status: 400 });
     }
 
     // Rate limit by IP (simple: max 100 per hour)
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '';
     const ipHash = createHash('sha256').update(ip).digest('hex').slice(0, 16);
 
-    const { data: page } = await supabaseAdmin
-      .from('landing_pages')
-      .select('id, lead_id')
-      .eq('slug', slug)
-      .single();
+    const query = supabaseAdmin.from('landing_pages').select('id, lead_id');
+    const { data: page } = await (page_id ? query.eq('id', page_id) : query.eq('slug', slug)).single();
 
     if (!page) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });

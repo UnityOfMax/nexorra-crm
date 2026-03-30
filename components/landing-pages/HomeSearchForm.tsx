@@ -13,6 +13,7 @@ interface HomeSearchFormProps {
   agentName?: string;
   agentPhoto?: string;
   pageId?: string;
+  slug?: string;
   pixelIds?: string[];
   calendarSettings?: LandingPageContent['calendarSettings'];
   questionnaireConfig?: QuestionnaireConfig;
@@ -111,9 +112,18 @@ function fireFbq(event: string, params?: Record<string, any>) {
   } catch (_) {}
 }
 
+function trackEvent(pageId: string | undefined, slug: string | undefined, event_type: string, metadata?: Record<string, any>) {
+  if (!pageId && !slug) return;
+  fetch('/api/landing-pages/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page_id: pageId, slug, event_type, metadata: metadata || {} }),
+  }).catch(() => {});
+}
+
 export default function HomeSearchForm({
   isOpen, onClose, accountId, accentColor = '#f59e0b',
-  agentName = 'Your Agent', agentPhoto, pageId, pixelIds, calendarSettings, questionnaireConfig,
+  agentName = 'Your Agent', agentPhoto, pageId, slug, pixelIds, calendarSettings, questionnaireConfig,
 }: HomeSearchFormProps) {
   // Build active steps from config (skip disabled)
   const activeQuestionSteps: QuestionStep[] = ALL_QUESTION_STEPS.filter(
@@ -137,6 +147,13 @@ export default function HomeSearchForm({
   const [metaFbp, setMetaFbp] = useState<string | null>(null);
   const [metaFbc, setMetaFbc] = useState<string | null>(null);
 
+  // Track step views whenever step changes
+  useEffect(() => {
+    if (isOpen && step) {
+      trackEvent(pageId, slug, 'step_view', { step });
+    }
+  }, [step, isOpen]);
+
   // Reset when opened; capture fbp/fbc
   useEffect(() => {
     if (isOpen) {
@@ -148,6 +165,7 @@ export default function HomeSearchForm({
         sell_also: '', employment: '', income: '', call_time: '', serious: '',
         first_name: '', last_name: '', phone: '', email: '',
       });
+      trackEvent(pageId, slug, 'cta_click');
 
       // Capture _fbp cookie (Meta browser pixel cookie)
       const fbpCookie = document.cookie
@@ -230,6 +248,7 @@ export default function HomeSearchForm({
       const data = await res.json();
       if (res.ok && data.contactId) {
         setSubmittedContactId(data.contactId);
+        trackEvent(pageId, slug, 'form_submit', { contact_id: data.contactId });
         // Fire browser-side Lead pixel event with matching eventID for CAPI deduplication
         fireFbq('Lead', { content_name: 'Real Estate Form', eventID: metaEventId });
         setStep('calendar');
@@ -245,6 +264,7 @@ export default function HomeSearchForm({
   };
 
   const handleBookingConfirmed = () => {
+    trackEvent(pageId, slug, 'booking_confirmed');
     // Fire Schedule pixel event
     fireFbq('Schedule', { content_name: 'Call Booked' });
     setStep('confirmed');
