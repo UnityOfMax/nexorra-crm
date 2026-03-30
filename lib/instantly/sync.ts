@@ -25,8 +25,8 @@ export async function syncInstantlyStatuses(client: InstantlyClient, campaignId:
   let startingAfter: string | undefined;
 
   while (hasMore) {
-    const response = await client.listLeads(campaignId, { limit: 100 });
-    const leads = Array.isArray(response) ? response : (response?.data || response?.items || []);
+    const response = await client.listLeads(campaignId, { limit: 100 }) as any;
+    const leads: any[] = Array.isArray(response) ? response : (response?.data || response?.items || []);
 
     if (!leads || leads.length === 0) {
       hasMore = false;
@@ -34,7 +34,7 @@ export async function syncInstantlyStatuses(client: InstantlyClient, campaignId:
     }
 
     allLeads.push(...leads);
-    startingAfter = response?.next_starting_after;
+    startingAfter = (response as any)?.next_starting_after;
     hasMore = !!startingAfter && leads.length === 100;
   }
 
