@@ -124,9 +124,21 @@ const ACTION_VERBS = /^(fix|add|update|create|build|implement|change|remove|move
  * No LLM — pure string heuristics.
  */
 function generateContext(messages: string[]): string {
+  // Filter out any blobs that slipped through (task notifications, XML, JSON, system text)
+  const clean = messages.filter(m => {
+    const t = m.trim();
+    return t.length > 10
+      && !t.includes('taskId')
+      && !t.includes('toolUseId')
+      && !t.startsWith('<')
+      && !t.startsWith('{')
+      && !t.startsWith('You are ')
+      && !t.startsWith('System:');
+  });
+
   // Prefer messages that start with action verbs or are imperative requests
-  const actionMessages = messages.filter(m => ACTION_VERBS.test(m.trim()));
-  const candidate = actionMessages[0] || messages.find(m => m.length > 40) || messages[0] || '';
+  const actionMessages = clean.filter(m => ACTION_VERBS.test(m.trim()));
+  const candidate = actionMessages[0] || clean.find(m => m.length > 40) || clean[0] || '';
 
   // Clean up: remove newlines, truncate, strip common filler
   const cleaned = candidate
@@ -202,7 +214,7 @@ async function extractSessionInfo(filePath: string, sessionId: string): Promise<
           text = content;
         }
 
-        // Skip system injections
+        // Skip system injections and non-human messages
         if (
           text.length > 20 &&
           !text.startsWith("This session is being continued") &&
@@ -210,7 +222,20 @@ async function extractSessionInfo(filePath: string, sessionId: string): Promise<
           !text.includes("<ide_opened_file>") &&
           !text.includes("## Agent Primer") &&
           !text.includes("EXECUTE IMMEDIATELY") &&
-          !text.includes("<user-prompt-submit-hook>")
+          !text.includes("<user-prompt-submit-hook>") &&
+          !text.includes("<TaskNotification") &&
+          !text.includes("taskId") &&
+          !text.includes("toolUseId") &&
+          !text.startsWith("<channel source=") &&
+          !text.startsWith("You are ") &&
+          !text.startsWith("System:") &&
+          !text.startsWith("Your current state") &&
+          !text.startsWith("Base directory for this skill") &&
+          !text.startsWith("CommandMessage") &&
+          !text.startsWith("LocalCommandCaveat") &&
+          !text.match(/^(skill|name|description):/i) &&
+          !text.startsWith("<") &&
+          !text.startsWith("{")
         ) {
           userMessages.push(text.slice(0, 600).trim());
           messageCount++;
