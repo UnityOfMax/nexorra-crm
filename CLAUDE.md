@@ -47,6 +47,7 @@ This CRM (Next.js 14 App Router + Supabase) serves both the agency's own operati
 | `meta_ad_metrics` | Per-account | Daily Meta ad set performance metrics |
 | `funnel_events` | Per-account | Per-contact funnel stage tracking |
 | `optimizer_actions` | Per-account | AI campaign change proposals (approval-gated) |
+| `local_biz_leads` | Global | Local business leads for Petra's website demo pipeline |
 
 ### API Patterns
 - All routes in `app/api/`
@@ -271,6 +272,9 @@ GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/
 - `lib/resend/client.ts` — Resend email client
 - `lib/workflow-engine/executor.ts` — Workflow execution engine
 - `lib/workflow-engine/scheduler.ts` — Delayed job scheduler
+- `lib/outscraper/client.ts` — Outscraper API client (Google Maps / GMB scraping)
+- `lib/apollo/client.ts` — Apollo.io email enrichment client (10K/month free tier)
+- `lib/landing-pages/website-demo-builder.ts` — Template engine + personalization for local biz demos
 
 ### Agent Files
 - `agents/reference/` — Static data (brokerages, city pools)
@@ -295,6 +299,11 @@ GH_TOKEN=$(cat .gh-token) && git push https://${GH_TOKEN}@github.com/UnityOfMax/
 | `scripts/chrome-launch.sh` | Launch Chrome with debug port 9222 | `bash scripts/chrome-launch.sh` |
 | `scripts/cold-email-upload-agent.ts` | Upload leads to Instantly campaign | `npx tsx scripts/cold-email-upload-agent.ts` |
 | `scripts/daemon/server.ts` | Agent daemon (spawns agents, tracks runs) | `npx tsx scripts/daemon/server.ts` |
+| `scripts/local-biz/scout.ts` | Phase 1: Scrape GMB + Apollo enrichment | `npx tsx scripts/local-biz/scout.ts` |
+| `scripts/local-biz/build-demo.ts` | Phase 2: Build website demo pages | `npx tsx scripts/local-biz/build-demo.ts` |
+| `scripts/local-biz/email-outreach.ts` | Phase 3a: Upload to Instantly (local biz campaign) | `npx tsx scripts/local-biz/email-outreach.ts` |
+| `scripts/local-biz/sms-outreach.ts` | Phase 3b: SMS via OpenPhone (10AM–1PM BST only) | `npx tsx scripts/local-biz/sms-outreach.ts` |
+| `scripts/chrome-launch-local-biz.sh` | Launch Chrome port 9232 (Petra — isolated) | `bash scripts/chrome-launch-local-biz.sh` |
 
 ### Obsidian Vault
 - Location: `~/Obsidian/Nexorra/`
