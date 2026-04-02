@@ -60,6 +60,16 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
     schedule: '11:00 PM daily',
     legacyId: 'lead-gen-quality-check',
   },
+  'petra': {
+    promptFile: '.claude/commands/research/local-biz-scout.md',
+    model: 'sonnet', maxTurns: 120,
+    department: 'research', role: 'agent', reportsTo: 'jeff',
+    displayName: 'Petra',
+    skills: ['opencli'],
+    mcps: ['21st-magic', 'memory', 'filesystem', 'supabase'],
+    schedule: '11:30 AM daily',
+    legacyId: 'local-biz-scout',
+  },
   'derek': {
     promptFile: '.claude/commands/research/market-research.md',
     model: 'opus', maxTurns: 30,
@@ -133,6 +143,14 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
     skills: ['humanizer', 'opencli'],
     mcps: ['21st-magic', 'memory'],
     schedule: 'Manual',
+  },
+  'cole': {
+    promptFile: '.claude/commands/marketing/calling-outreach.md',
+    model: 'haiku', maxTurns: 30,
+    department: 'marketing', role: 'agent', reportsTo: 'stacey',
+    displayName: 'Cole',
+    schedule: '3:00 AM BST daily (nightly review after calling window)',
+    legacyId: 'calling-outreach',
   },
 
   // ─── Client Success & Delivery ─────────────────────────────────────────────

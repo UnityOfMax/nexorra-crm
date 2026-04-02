@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}} — {{CITY}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --bg: #f8f9fb; --card: #ffffff; --text: #1e2535; --muted: #6b7a99; --border: #e8ecf3; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito Sans', sans-serif; background: var(--bg); color: var(--text); }
+  nav { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; padding: 0 5%; }
+  .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .logo { font-family: 'Lora', serif; font-size: 1.25rem; color: var(--text); font-weight: 600; }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: var(--muted); font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+  .nav-links a:hover { color: var(--primary); }
+  .nav-cta { background: var(--primary); color: #fff; padding: 0.6rem 1.5rem; border-radius: 6px; font-size: 0.88rem; font-weight: 700; text-decoration: none; }
+  /* Hero */
+  .hero { padding: 5rem 5% 4rem; background: linear-gradient(150deg, #fff 0%, #f0f4ff 100%); }
+  .hero-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(var(--primary-rgb),0.08); border: 1px solid rgba(var(--primary-rgb),0.15); color: var(--primary); border-radius: 50px; padding: 0.4rem 1rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 1.5rem; }
+  .hero h1 { font-family: 'Lora', serif; font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 700; line-height: 1.2; margin-bottom: 1.2rem; }
+  .hero p { color: var(--muted); line-height: 1.75; margin-bottom: 2rem; font-size: 1rem; }
+  .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-primary { background: var(--primary); color: #fff; padding: 0.85rem 1.8rem; border-radius: 8px; font-weight: 700; font-size: 0.95rem; text-decoration: none; }
+  .btn-ghost { background: transparent; color: var(--primary); padding: 0.85rem 1.8rem; border-radius: 8px; font-weight: 700; font-size: 0.95rem; text-decoration: none; border: 1.5px solid var(--primary); }
+  .hero-img { border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
+  .hero-img img { width: 100%; height: 380px; object-fit: cover; }
+  .credentials { display: flex; gap: 1.5rem; margin-top: 2rem; flex-wrap: wrap; }
+  .cred-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .cred-icon { color: var(--accent); }
+  /* Services */
+  .services { padding: 5rem 5%; background: #fff; }
+  .section-inner { max-width: 1100px; margin: 0 auto; }
+  .section-head { text-align: center; margin-bottom: 3rem; }
+  .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.8rem; }
+  h2 { font-family: 'Lora', serif; font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-weight: 700; }
+  .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+  .s-card { border: 1.5px solid var(--border); border-radius: 14px; padding: 2rem; transition: border-color 0.2s, box-shadow 0.2s; }
+  .s-card:hover { border-color: var(--primary); box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+  .s-icon { width: 46px; height: 46px; background: rgba(var(--primary-rgb),0.08); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem; }
+  .s-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
+  .s-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.65; }
+  /* Team */
+  .team { padding: 5rem 5%; }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem; margin-top: 2.5rem; }
+  .team-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 2rem; text-align: center; }
+  .team-img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; }
+  .team-name { font-family: 'Lora', serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .team-title { color: var(--primary); font-size: 0.82rem; font-weight: 700; margin-bottom: 0.8rem; }
+  .team-bio { color: var(--muted); font-size: 0.82rem; line-height: 1.6; }
+  .team-creds { display: flex; gap: 0.4rem; justify-content: center; margin-top: 0.8rem; flex-wrap: wrap; }
+  .cred-pill { background: rgba(var(--primary-rgb),0.08); color: var(--primary); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.7rem; border-radius: 50px; }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: #fff; }
+  .reviews-inner { max-width: 900px; margin: 0 auto; }
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { border: 1.5px solid var(--border); border-radius: 14px; padding: 1.8rem; }
+  .r-stars { color: #f59e0b; margin-bottom: 0.8rem; }
+  .r-text { font-family: 'Lora', serif; font-style: italic; color: var(--text); font-size: 0.92rem; line-height: 1.7; margin-bottom: 1rem; }
+  .r-name { font-weight: 700; color: var(--muted); font-size: 0.82rem; }
+  /* CTA */
+  .cta { padding: 5rem 5%; background: var(--primary); text-align: center; }
+  .cta h2 { font-family: 'Lora', serif; color: #fff; margin-bottom: 1rem; }
+  .cta p { color: rgba(255,255,255,0.8); max-width: 450px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  .btn-white { background: #fff; color: var(--primary); padding: 0.9rem 2.2rem; border-radius: 8px; font-weight: 700; text-decoration: none; }
+  footer { background: var(--text); color: rgba(255,255,255,0.45); padding: 2.5rem 5%; text-align: center; font-size: 0.82rem; }
+  footer .fn { font-family: 'Lora', serif; color: #fff; font-size: 1.2rem; margin-bottom: 0.3rem; }
+  @media (max-width: 768px) { .hero-inner { grid-template-columns: 1fr; } .hero-img { display: none; } .nav-links { display: none; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}</div>
+    <ul class="nav-links">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#team">Our Team</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-cta">Free Consultation</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-badge">✓ {{CREDENTIALS}}</div>
+      <h1>{{HERO_HEADLINE}}</h1>
+      <p>{{HERO_SUBHEADLINE}}</p>
+      <div class="hero-btns">
+        <a href="tel:{{PHONE}}" class="btn-primary">Book Consultation</a>
+        <a href="#services" class="btn-ghost">Our Services</a>
+      </div>
+      <div class="credentials">
+        <span class="cred-item"><span class="cred-icon">✓</span> {{CRED_1}}</span>
+        <span class="cred-item"><span class="cred-icon">✓</span> {{CRED_2}}</span>
+        <span class="cred-item"><span class="cred-icon">✓</span> {{CRED_3}}</span>
+      </div>
+    </div>
+    <div class="hero-img"><img src="{{HERO_IMAGE}}" alt="{{BUSINESS_NAME}}"></div>
+  </div>
+</section>
+
+<section class="services" id="services">
+  <div class="section-inner">
+    <div class="section-head">
+      <div class="section-label">What We Do</div>
+      <h2>Our Services</h2>
+    </div>
+    <div class="services-grid">
+      <div class="s-card"><div class="s-icon">📋</div><div class="s-name">{{SERVICE_1}}</div><p class="s-desc">{{SERVICE_1_DESC}}</p></div>
+      <div class="s-card"><div class="s-icon">📊</div><div class="s-name">{{SERVICE_2}}</div><p class="s-desc">{{SERVICE_2_DESC}}</p></div>
+      <div class="s-card"><div class="s-icon">🔍</div><div class="s-name">{{SERVICE_3}}</div><p class="s-desc">{{SERVICE_3_DESC}}</p></div>
+      <div class="s-card"><div class="s-icon">🤝</div><div class="s-name">{{SERVICE_4}}</div><p class="s-desc">{{SERVICE_4_DESC}}</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="team" id="team">
+  <div class="section-inner">
+    <div class="section-head">
+      <div class="section-label">Our Team</div>
+      <h2>Meet the Professionals</h2>
+    </div>
+    <div class="team-grid">
+      <div class="team-card"><img class="team-img" src="{{PHOTO_1}}" alt="{{TEAM_1}}"><div class="team-name">{{TEAM_1}}</div><div class="team-title">{{TEAM_1_TITLE}}</div><p class="team-bio">{{TEAM_1_BIO}}</p><div class="team-creds"><span class="cred-pill">{{TEAM_1_CRED}}</span></div></div>
+      <div class="team-card"><img class="team-img" src="{{PHOTO_2}}" alt="{{TEAM_2}}"><div class="team-name">{{TEAM_2}}</div><div class="team-title">{{TEAM_2_TITLE}}</div><p class="team-bio">{{TEAM_2_BIO}}</p><div class="team-creds"><span class="cred-pill">{{TEAM_2_CRED}}</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner reviews-inner">
+    <div class="section-head">
+      <div class="section-label">Client Testimonials</div>
+      <h2>{{RATING}} Stars on Google</h2>
+    </div>
+    <div class="reviews-grid">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Book a Free Consultation</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-white">Call {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · {{HOURS}}</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}} — {{CITY}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --warm: #f9f5ef; --dark: #1c1008; --text: #2c1e0f; --muted: #7a6045; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Outfit', sans-serif; background: var(--warm); color: var(--text); }
+  nav { background: var(--warm); border-bottom: 1px solid rgba(0,0,0,0.07); padding: 0 5%; position: sticky; top: 0; z-index: 100; }
+  .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 65px; }
+  .logo { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: var(--muted); font-size: 0.87rem; font-weight: 500; text-decoration: none; }
+  .nav-order { background: var(--primary); color: #fff; padding: 0.55rem 1.4rem; border-radius: 50px; font-size: 0.87rem; font-weight: 600; text-decoration: none; }
+  /* Hero */
+  .hero { min-height: 90vh; background: var(--dark); display: flex; align-items: center; padding: 0 5%; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: url('{{HERO_IMAGE}}') center/cover; opacity: 0.3; }
+  .hero-content { position: relative; z-index: 2; max-width: 600px; }
+  .hero-eyebrow { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.15rem; color: var(--accent); margin-bottom: 1rem; display: block; }
+  .hero h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(3.5rem, 7vw, 6rem); font-weight: 600; color: #fff; line-height: 1; margin-bottom: 1.5rem; }
+  .hero p { color: rgba(255,255,255,0.65); font-size: 1rem; line-height: 1.7; max-width: 440px; margin-bottom: 2.5rem; }
+  .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-warm { background: var(--accent); color: #fff; padding: 0.9rem 2rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; text-decoration: none; }
+  .btn-outline { color: #fff; padding: 0.9rem 2rem; font-weight: 600; font-size: 0.95rem; text-decoration: none; border: 1.5px solid rgba(255,255,255,0.25); border-radius: 6px; }
+  /* Hours */
+  .hours-bar { background: var(--primary); padding: 1rem 5%; }
+  .hours-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 3rem; align-items: center; color: #fff; font-size: 0.88rem; font-weight: 500; flex-wrap: wrap; }
+  /* Menu */
+  .menu { padding: 5rem 5%; background: #fff; }
+  .section-inner { max-width: 1100px; margin: 0 auto; }
+  .section-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.8rem; }
+  h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2.2rem, 4vw, 3rem); font-weight: 600; margin-bottom: 2.5rem; }
+  .menu-tabs { display: flex; gap: 0; border-bottom: 1.5px solid #f0ede6; margin-bottom: 2.5rem; }
+  .tab { padding: 0.8rem 1.5rem; font-weight: 600; font-size: 0.88rem; cursor: default; color: var(--muted); border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .menu-items { display: grid; gap: 0; }
+  .menu-item { display: flex; align-items: center; gap: 1.5rem; padding: 1.4rem 0; border-bottom: 1px solid #f5f0ea; }
+  .menu-item-img { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+  .menu-item-info { flex: 1; }
+  .menu-item-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .menu-item-desc { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+  .menu-item-price { font-weight: 700; color: var(--primary); font-size: 1rem; white-space: nowrap; }
+  /* About */
+  .about { padding: 5rem 5%; }
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
+  .about-img { border-radius: 16px; overflow: hidden; }
+  .about-img img { width: 100%; height: 400px; object-fit: cover; }
+  .about-text p { color: var(--muted); line-height: 1.8; margin-bottom: 1rem; font-size: 0.95rem; }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: #fff; }
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { background: var(--warm); border-radius: 14px; padding: 1.8rem; }
+  .r-stars { color: #f59e0b; margin-bottom: 0.8rem; }
+  .r-text { font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1rem; line-height: 1.65; margin-bottom: 1rem; color: var(--text); }
+  .r-name { font-weight: 600; color: var(--muted); font-size: 0.82rem; }
+  /* CTA */
+  .cta { background: var(--dark); padding: 5rem 5%; text-align: center; }
+  .cta h2 { font-family: 'Cormorant Garamond', serif; color: #fff; font-size: clamp(2.2rem, 4vw, 3rem); margin-bottom: 1rem; }
+  .cta p { color: rgba(255,255,255,0.6); max-width: 400px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  .btn-accent { background: var(--accent); color: #fff; padding: 0.9rem 2.2rem; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.95rem; }
+  footer { background: #0e0905; color: rgba(255,255,255,0.35); padding: 2rem 5%; text-align: center; font-size: 0.8rem; }
+  footer .fn { font-family: 'Cormorant Garamond', serif; color: #fff; font-size: 1.3rem; margin-bottom: 0.3rem; }
+  @media (max-width: 768px) { .about-grid { grid-template-columns: 1fr; } .nav-links { display: none; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}</div>
+    <ul class="nav-links">
+      <li><a href="#menu">Menu</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-order">Order / Visit</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <span class="hero-eyebrow">{{CITY}}'s Favourite {{BUSINESS_TYPE}}</span>
+    <h1>{{HERO_HEADLINE}}</h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-btns">
+      <a href="tel:{{PHONE}}" class="btn-warm">Order Now</a>
+      <a href="#menu" class="btn-outline">View Menu</a>
+    </div>
+  </div>
+</section>
+
+<div class="hours-bar">
+  <div class="hours-inner">
+    <span>📍 {{ADDRESS}}</span>
+    <span>📞 {{PHONE}}</span>
+    <span>⏰ {{HOURS}}</span>
+    <span>⭐ {{RATING}} Stars</span>
+  </div>
+</div>
+
+<section class="menu" id="menu">
+  <div class="section-inner">
+    <div class="section-label">What We Serve</div>
+    <h2>Our Menu</h2>
+    <div class="menu-tabs">
+      <div class="tab active">{{MENU_CAT_1}}</div>
+      <div class="tab">{{MENU_CAT_2}}</div>
+      <div class="tab">{{MENU_CAT_3}}</div>
+    </div>
+    <div class="menu-items">
+      <div class="menu-item"><img class="menu-item-img" src="{{PHOTO_1}}" alt="{{MENU_ITEM_1}}" loading="lazy"><div class="menu-item-info"><div class="menu-item-name">{{MENU_ITEM_1}}</div><p class="menu-item-desc">{{MENU_ITEM_1_DESC}}</p></div><div class="menu-item-price">{{MENU_ITEM_1_PRICE}}</div></div>
+      <div class="menu-item"><img class="menu-item-img" src="{{PHOTO_2}}" alt="{{MENU_ITEM_2}}" loading="lazy"><div class="menu-item-info"><div class="menu-item-name">{{MENU_ITEM_2}}</div><p class="menu-item-desc">{{MENU_ITEM_2_DESC}}</p></div><div class="menu-item-price">{{MENU_ITEM_2_PRICE}}</div></div>
+      <div class="menu-item"><img class="menu-item-img" src="{{PHOTO_3}}" alt="{{MENU_ITEM_3}}" loading="lazy"><div class="menu-item-info"><div class="menu-item-name">{{MENU_ITEM_3}}</div><p class="menu-item-desc">{{MENU_ITEM_3_DESC}}</p></div><div class="menu-item-price">{{MENU_ITEM_3_PRICE}}</div></div>
+      <div class="menu-item"><img class="menu-item-img" src="{{PHOTO_4}}" alt="{{MENU_ITEM_4}}" loading="lazy"><div class="menu-item-info"><div class="menu-item-name">{{MENU_ITEM_4}}</div><p class="menu-item-desc">{{MENU_ITEM_4_DESC}}</p></div><div class="menu-item-price">{{MENU_ITEM_4_PRICE}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="about" id="about">
+  <div class="section-inner">
+    <div class="about-grid">
+      <div class="about-img"><img src="{{PHOTO_5}}" alt="{{BUSINESS_NAME}}"></div>
+      <div>
+        <div class="section-label">Our Story</div>
+        <h2>{{ABOUT_HEADLINE}}</h2>
+        <div class="about-text"><p>{{ABOUT_TEXT}}</p><p>{{ABOUT_TEXT_2}}</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">What People Say</div>
+    <h2>{{RATING}} Stars</h2>
+    <div class="reviews-grid">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Come In or Order Today</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-accent">Call {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · {{HOURS}}</p>
+</footer>
+
+</body>
+</html>

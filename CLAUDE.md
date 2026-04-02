@@ -90,6 +90,9 @@ These are completely separate systems with different agents, different feedback 
 | Meta Conversions API | Server-side Lead/Schedule events (CAPI) | `META_ACCESS_TOKEN`, `META_DATASET_ID` |
 | Google AI (Imagen 3) | Ad creative image generation (Nano Banana) | `GOOGLE_AI_API_KEY` |
 | Google Calendar | Calendar sync (clients) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Outscraper | Google Maps / GMB scraping (Petra) | `OUTSCRAPER_API_KEY` |
+| Apollo.io | Email enrichment for local biz leads (Petra) | `APOLLO_API_KEY` |
+| Instantly (local biz) | Local biz demo outreach campaign | `INSTANTLY_LOCAL_BIZ_CAMPAIGN` |
 
 ### API Rate Limits
 - Instantly: 5s between calls, 429 → wait 60s + retry once
@@ -106,12 +109,13 @@ These are completely separate systems with different agents, different feedback 
 #### A. Nexorra Main Account Operations
 | Command | Schedule | Model | Purpose |
 |---------|----------|-------|---------|
-| `/nexorra/lead-gen` | Cron 8 AM daily | Claude (orchestration) | Scrape brokerage sites → `leads` table |
-| `/nexorra/cold-email-upload` | Cron 9 AM daily | Claude (orchestration) | Push leads to Instantly with loom links |
+| `/nexorra/lead-gen` | Cron 10 AM daily (BST) | Claude (orchestration) | Scrape brokerage sites → `leads` table |
+| `/nexorra/cold-email-upload` | Cron 12 PM daily (BST) | Claude (orchestration) | Push leads to Instantly with loom links |
 | `/nexorra/cold-email-replies` | Cron every 15 min | Claude Haiku 4.5 | Classify + respond to cold email replies |
 | `/nexorra/cold-email-maintenance` | Cron 8 PM daily | Claude Haiku 4.5 | Nudge, ghosted detection, learning cycle |
 | `/nexorra/campaign-review` | Manual | Claude | Analyze campaign metrics |
 | `/nexorra/campaign-optimizer` | Cron 10 PM daily | Claude | Analyze Meta + funnel data → propose ad changes |
+| `/research/local-biz-scout` | Cron 11:30 AM daily | Claude Sonnet | Petra: local biz demo pipeline (Scout → Build → Outreach) |
 
 #### B. Client Sub-Account Operations
 | Command | Schedule | Model | Purpose |
@@ -147,16 +151,29 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 - `code-review.md` — Common issues, fixes
 - `campaign-metrics.md` — Open/reply/booking rates
 - `funnel-insights.md` — Cross-client Meta + funnel performance (auto-maintained by campaign-optimizer)
+- `local-biz.md` — Local biz pipeline: city/type yield patterns, Apollo success rate, template performance
 
 ### Cron Schedule
-| Time | Script | Agent |
-|------|--------|-------|
-| 8:00 AM | `scripts/cron/lead-gen.sh` | Lead Gen |
-| 9:00 AM | `scripts/cron/cold-email-upload.sh` | Cold Email Upload |
-| 8:00 PM | `scripts/cron/cold-email-maintenance.sh` | Cold Email Maintenance |
+**Device wake/sleep: 9:50 AM – 2:00 AM BST. No jobs before 10 AM or after 1 AM.**
+
+| Time (BST) | Script | Agent |
+|------------|--------|-------|
+| 10:00 AM | `scripts/cron/lead-gen.sh` | Lead Gen (Jeff) |
+| 10:15 AM | `scripts/cron/meta-sync.sh` | Meta Ad Metrics Sync |
+| 10:30 AM | `scripts/cron/video-pipeline.sh` | Video Pipeline (Derek) |
+| 11:30 AM | `scripts/cron/local-biz-pipeline.sh` | Local Biz Demo Pipeline (Petra) |
+| 12:00 PM | `scripts/cron/cold-email-upload.sh` | Cold Email Upload (Stacey) |
+| 2:00 PM | `scripts/cron/instagram-outreach.sh` | Instagram Outreach (Tara) |
+| 2:00 PM | `scripts/calling/start-calling.sh` | Calling Start (Cole) |
+| 6:00 PM | `scripts/cron/instagram-followup.sh` | Instagram Follow-up |
+| 8:00 PM | `scripts/cron/cold-email-maintenance.sh` | Cold Email Maintenance (Lionel) |
 | 9:00 PM | `scripts/cron/daily-report.sh` | Reporter |
-| 6:00 AM | `scripts/cron/meta-sync.sh` | Meta Ad Metrics Sync |
 | 10:00 PM | `scripts/cron/campaign-optimizer.sh` | Campaign Optimizer |
+| 11:00 PM | `scripts/cron/lead-gen-quality-check.sh` | Lead Quality Check (Nina) |
+| 11:00 PM | `scripts/cron/calling-outreach.sh` | Calling Review (Cole) |
+| 1:00 AM | `scripts/cron/landing-page-cleanup.sh` | Landing Page Cleanup |
+| 1:15 AM | `scripts/cron/obsidian-conversations.sh` | Obsidian Conversation Sync |
+| 2:00 AM | `scripts/setup/sleep-schedule.sh` | Auto-Sleep |
 
 ### Webhook-Triggered Agents
 | Webhook | Agent | Trigger |

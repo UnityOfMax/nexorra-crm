@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: {{COLOR_PRIMARY}};
+    --accent: {{COLOR_ACCENT}};
+    --dark: #1a1207;
+    --text: #2d1f0a;
+    --muted: #6b5a3e;
+    --bg: #faf7f2;
+    --card: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+  /* Nav */
+  nav { position: fixed; top: 0; width: 100%; background: rgba(250,247,242,0.95); backdrop-filter: blur(12px); z-index: 100; border-bottom: 1px solid rgba(0,0,0,0.08); padding: 0 5%; }
+  .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 70px; }
+  .nav-logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--primary); }
+  .nav-cta { background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s; }
+  .nav-cta:hover { opacity: 0.85; }
+  /* Hero */
+  .hero { min-height: 100vh; display: flex; align-items: center; padding: 0 5%; background: linear-gradient(135deg, var(--dark) 0%, #2d1810 60%, var(--dark) 100%); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background: url('{{HERO_IMAGE}}') center/cover no-repeat; opacity: 0.35; }
+  .hero-content { position: relative; z-index: 2; max-width: 680px; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 50px; padding: 0.4rem 1rem; font-size: 0.8rem; color: rgba(255,255,255,0.9); margin-bottom: 1.5rem; }
+  .hero-badge::before { content: '★'; color: var(--accent); }
+  .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(3rem, 6vw, 5rem); font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 1.2rem; }
+  .hero p { font-size: 1.15rem; color: rgba(255,255,255,0.75); line-height: 1.7; margin-bottom: 2.5rem; max-width: 500px; }
+  .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-primary { background: var(--accent); color: #fff; padding: 0.9rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; transition: transform 0.2s, box-shadow 0.2s; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+  .btn-outline { background: transparent; color: #fff; padding: 0.9rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; border: 2px solid rgba(255,255,255,0.4); transition: border-color 0.2s; }
+  .btn-outline:hover { border-color: #fff; }
+  /* Hours strip */
+  .hours-strip { background: var(--primary); color: #fff; padding: 1.2rem 5%; }
+  .hours-inner { max-width: 1200px; margin: 0 auto; display: flex; gap: 3rem; align-items: center; flex-wrap: wrap; }
+  .hours-item { display: flex; align-items: center; gap: 0.7rem; font-size: 0.9rem; }
+  .hours-icon { width: 20px; opacity: 0.8; }
+  /* About */
+  .section { padding: 6rem 5%; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
+  .about-img { border-radius: 16px; overflow: hidden; aspect-ratio: 4/3; }
+  .about-img img { width: 100%; height: 100%; object-fit: cover; }
+  .section-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 1rem; }
+  h2 { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; line-height: 1.2; margin-bottom: 1.2rem; }
+  .about-text p { color: var(--muted); line-height: 1.8; margin-bottom: 1rem; }
+  /* Menu highlights */
+  .menu-bg { background: #fff; }
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 3rem; }
+  .menu-card { border: 1px solid #f0ece4; border-radius: 16px; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; }
+  .menu-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.1); transform: translateY(-4px); }
+  .menu-img { aspect-ratio: 16/9; overflow: hidden; }
+  .menu-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+  .menu-card:hover .menu-img img { transform: scale(1.05); }
+  .menu-info { padding: 1.5rem; }
+  .menu-info h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 0.5rem; }
+  .menu-info p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+  .menu-price { display: inline-block; margin-top: 1rem; color: var(--primary); font-weight: 700; font-size: 1.1rem; }
+  /* Reviews */
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 3rem; }
+  .review-card { background: var(--card); border: 1px solid #f0ece4; border-radius: 16px; padding: 2rem; }
+  .review-stars { color: #f59e0b; font-size: 1.1rem; margin-bottom: 1rem; letter-spacing: 2px; }
+  .review-text { color: var(--text); line-height: 1.7; font-size: 0.95rem; margin-bottom: 1.2rem; font-style: italic; }
+  .review-author { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+  /* CTA */
+  .cta-section { background: linear-gradient(135deg, var(--primary), var(--dark)); padding: 6rem 5%; text-align: center; }
+  .cta-section h2 { color: #fff; font-family: 'Playfair Display', serif; margin-bottom: 1rem; }
+  .cta-section p { color: rgba(255,255,255,0.75); max-width: 500px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  /* Footer */
+  footer { background: var(--dark); color: rgba(255,255,255,0.6); padding: 3rem 5%; text-align: center; font-size: 0.85rem; }
+  footer .footer-name { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #fff; margin-bottom: 0.5rem; }
+  footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
+  @media (max-width: 768px) {
+    .about-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">{{BUSINESS_NAME}}</div>
+    <ul class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#menu">Menu</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-cta">Reserve a Table</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">{{RATING}} stars · {{REVIEW_COUNT}} reviews</div>
+    <h1>{{HERO_HEADLINE}}</h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-actions">
+      <a href="tel:{{PHONE}}" class="btn-primary">Reserve a Table</a>
+      <a href="#menu" class="btn-outline">View Menu</a>
+    </div>
+  </div>
+</section>
+
+<div class="hours-strip">
+  <div class="hours-inner">
+    <div class="hours-item">📍 {{ADDRESS}}</div>
+    <div class="hours-item">📞 {{PHONE}}</div>
+    <div class="hours-item">🕐 {{HOURS}}</div>
+  </div>
+</div>
+
+<section class="section" id="about">
+  <div class="section-inner">
+    <div class="about-grid">
+      <div class="about-img"><img src="{{PHOTO_1}}" alt="{{BUSINESS_NAME}}" loading="lazy"></div>
+      <div class="about-text">
+        <div class="section-label">Our Story</div>
+        <h2>{{ABOUT_HEADLINE}}</h2>
+        <p>{{ABOUT_TEXT}}</p>
+        <p>{{ABOUT_TEXT_2}}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section menu-bg" id="menu">
+  <div class="section-inner">
+    <div class="section-label">What We Serve</div>
+    <h2>Menu Highlights</h2>
+    <div class="menu-grid">
+      <div class="menu-card">
+        <div class="menu-img"><img src="{{PHOTO_2}}" alt="{{MENU_ITEM_1}}" loading="lazy"></div>
+        <div class="menu-info">
+          <h3>{{MENU_ITEM_1}}</h3>
+          <p>{{MENU_ITEM_1_DESC}}</p>
+          <span class="menu-price">{{MENU_ITEM_1_PRICE}}</span>
+        </div>
+      </div>
+      <div class="menu-card">
+        <div class="menu-img"><img src="{{PHOTO_3}}" alt="{{MENU_ITEM_2}}" loading="lazy"></div>
+        <div class="menu-info">
+          <h3>{{MENU_ITEM_2}}</h3>
+          <p>{{MENU_ITEM_2_DESC}}</p>
+          <span class="menu-price">{{MENU_ITEM_2_PRICE}}</span>
+        </div>
+      </div>
+      <div class="menu-card">
+        <div class="menu-img"><img src="{{PHOTO_4}}" alt="{{MENU_ITEM_3}}" loading="lazy"></div>
+        <div class="menu-info">
+          <h3>{{MENU_ITEM_3}}</h3>
+          <p>{{MENU_ITEM_3_DESC}}</p>
+          <span class="menu-price">{{MENU_ITEM_3_PRICE}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">What Guests Say</div>
+    <h2>{{RATING}} Stars on Google</h2>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">{{REVIEW_1}}</p>
+        <div class="review-author">— {{REVIEWER_1}}</div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">{{REVIEW_2}}</p>
+        <div class="review-author">— {{REVIEWER_2}}</div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">{{REVIEW_3}}</p>
+        <div class="review-author">— {{REVIEWER_3}}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Ready for a Great Meal?</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-primary">Call to Reserve · {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="footer-name">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · <a href="tel:{{PHONE}}">{{PHONE}}</a></p>
+</footer>
+
+</body>
+</html>

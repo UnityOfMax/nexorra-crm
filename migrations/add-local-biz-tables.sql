@@ -1,0 +1,34 @@
+-- Local Business Website Demo Pipeline
+-- Run in Supabase SQL editor: supabase.com/dashboard/project/nhflmisklsanfiiywrfo/sql
+
+CREATE TABLE IF NOT EXISTS local_biz_leads (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gmb_place_id        TEXT UNIQUE NOT NULL,
+  business_name       TEXT NOT NULL,
+  business_type       TEXT NOT NULL,
+  phone               TEXT,
+  email               TEXT,
+  website_url         TEXT,
+  address             TEXT,
+  city                TEXT,
+  state_province      TEXT,
+  country             TEXT DEFAULT 'US',
+  gmb_rating          NUMERIC(3,1),
+  gmb_reviews         INT,
+  gmb_photos          JSONB,           -- array of photo URLs from GMB
+  website_score       INT,             -- 0-100, null = not yet scored
+  demo_page_id        UUID,            -- FK to landing_pages.id
+  outreach_channel    TEXT,            -- 'email'|'sms'|'none'
+  email_sent          BOOLEAN DEFAULT false,
+  sms_sent            BOOLEAN DEFAULT false,
+  email_sent_at       TIMESTAMPTZ,
+  sms_sent_at         TIMESTAMPTZ,
+  scraped_at          TIMESTAMPTZ DEFAULT now(),
+  created_at          TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lbl_outreach   ON local_biz_leads(outreach_channel);
+CREATE INDEX IF NOT EXISTS idx_lbl_demo       ON local_biz_leads(demo_page_id);
+CREATE INDEX IF NOT EXISTS idx_lbl_city_type  ON local_biz_leads(city, business_type);
+CREATE INDEX IF NOT EXISTS idx_lbl_pending    ON local_biz_leads(email_sent, sms_sent) WHERE demo_page_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_lbl_score      ON local_biz_leads(website_score) WHERE website_score IS NOT NULL;

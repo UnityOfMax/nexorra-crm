@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}} — {{CITY}}'s Trusted {{TRADE_TYPE}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --dark: #0f1923; --bg: #f5f7fa; --text: #1a2332; --muted: #5a6a7a; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); }
+  /* Emergency bar */
+  .emergency-bar { background: var(--accent); color: #fff; text-align: center; padding: 0.5rem; font-size: 0.85rem; font-weight: 600; }
+  .emergency-bar a { color: #fff; text-decoration: none; font-weight: 800; }
+  nav { background: var(--dark); padding: 0 5%; }
+  .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 65px; }
+  .logo { color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.05em; }
+  .logo span { color: var(--primary); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .nav-links a:hover { color: #fff; }
+  .nav-call { background: var(--primary); color: #fff; padding: 0.6rem 1.5rem; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 0.9rem; }
+  /* Hero */
+  .hero { background: var(--dark); padding: 6rem 5% 5rem; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; right: 0; top: 0; width: 55%; height: 100%; background: url('{{HERO_IMAGE}}') center/cover; opacity: 0.2; }
+  .hero-content { position: relative; max-width: 600px; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 0.4rem 0.9rem; font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 800; color: #fff; line-height: 1; text-transform: uppercase; margin-bottom: 1rem; }
+  .hero h1 span { color: var(--primary); }
+  .hero p { color: rgba(255,255,255,0.65); font-size: 1.1rem; line-height: 1.7; margin-bottom: 2.5rem; }
+  .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-primary { background: var(--primary); color: #fff; padding: 1rem 2rem; border-radius: 4px; font-weight: 700; font-size: 1rem; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
+  .btn-outline { background: transparent; color: #fff; padding: 1rem 2rem; border-radius: 4px; font-weight: 700; font-size: 1rem; text-decoration: none; border: 2px solid rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.05em; }
+  /* Trust strip */
+  .trust-strip { background: var(--primary); padding: 2rem 5%; }
+  .trust-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
+  .trust-item { text-align: center; color: #fff; }
+  .trust-num { font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 800; display: block; }
+  .trust-label { font-size: 0.82rem; opacity: 0.85; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+  /* Services */
+  .services { padding: 5rem 5%; background: #fff; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.7rem; }
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; }
+  .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+  .service-card { border: 2px solid #e8ecf0; border-radius: 8px; padding: 2rem; transition: border-color 0.2s, box-shadow 0.2s; }
+  .service-card:hover { border-color: var(--primary); box-shadow: 0 6px 25px rgba(0,0,0,0.08); }
+  .service-icon-wrap { width: 50px; height: 50px; background: rgba(0,0,0,0.04); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
+  .service-name { font-family: 'Barlow Condensed', sans-serif; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .service-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+  /* Process */
+  .process { padding: 5rem 5%; }
+  .process-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; margin-top: 2.5rem; position: relative; }
+  .process-step { text-align: center; padding: 2rem 1.5rem; position: relative; }
+  .step-num { font-family: 'Barlow Condensed', sans-serif; font-size: 3.5rem; font-weight: 800; color: rgba(0,0,0,0.04); line-height: 1; margin-bottom: 0.5rem; }
+  .step-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .step-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: var(--dark); }
+  .reviews h2 { color: #fff; }
+  .reviews .section-label { color: var(--primary); }
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 1.8rem; }
+  .r-stars { color: #f59e0b; margin-bottom: 0.8rem; }
+  .r-text { color: rgba(255,255,255,0.7); font-size: 0.9rem; line-height: 1.65; font-style: italic; margin-bottom: 1rem; }
+  .r-name { color: rgba(255,255,255,0.45); font-size: 0.82rem; font-weight: 600; }
+  /* CTA */
+  .cta { background: var(--primary); padding: 5rem 5%; text-align: center; }
+  .cta h2 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 800; text-transform: uppercase; color: #fff; margin-bottom: 1rem; }
+  .cta p { color: rgba(255,255,255,0.85); max-width: 480px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  .btn-white { background: #fff; color: var(--primary); padding: 1rem 2.5rem; border-radius: 4px; font-weight: 800; font-size: 1.05rem; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
+  footer { background: #080e14; color: rgba(255,255,255,0.4); padding: 2rem 5%; text-align: center; font-size: 0.82rem; }
+  footer .fn { color: #fff; font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.3rem; }
+  @media (max-width: 768px) { .trust-inner { grid-template-columns: 1fr 1fr; } .nav-links { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="emergency-bar">24/7 Emergency Service Available — <a href="tel:{{PHONE}}">Call Now: {{PHONE}}</a></div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}<span>.</span></div>
+    <ul class="nav-links">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#process">How We Work</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-call">📞 {{PHONE}}</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">Licensed & Insured · {{CITY}}, {{STATE}}</div>
+    <h1>{{HERO_HEADLINE}}<span> {{HERO_HEADLINE_2}}</span></h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-actions">
+      <a href="tel:{{PHONE}}" class="btn-primary">Get Free Quote</a>
+      <a href="#services" class="btn-outline">Our Services</a>
+    </div>
+  </div>
+</section>
+
+<div class="trust-strip">
+  <div class="trust-inner">
+    <div class="trust-item"><span class="trust-num">{{YEARS_IN_BIZ}}+</span><span class="trust-label">Years Experience</span></div>
+    <div class="trust-item"><span class="trust-num">{{JOBS_DONE}}+</span><span class="trust-label">Jobs Completed</span></div>
+    <div class="trust-item"><span class="trust-num">{{RATING}}</span><span class="trust-label">Google Rating</span></div>
+    <div class="trust-item"><span class="trust-num">24/7</span><span class="trust-label">Emergency Service</span></div>
+  </div>
+</div>
+
+<section class="services" id="services">
+  <div class="section-inner">
+    <div class="section-label">What We Do</div>
+    <h2>Our Services</h2>
+    <div class="services-grid">
+      <div class="service-card"><div class="service-icon-wrap">🔧</div><div class="service-name">{{SERVICE_1}}</div><p class="service-desc">{{SERVICE_1_DESC}}</p></div>
+      <div class="service-card"><div class="service-icon-wrap">⚡</div><div class="service-name">{{SERVICE_2}}</div><p class="service-desc">{{SERVICE_2_DESC}}</p></div>
+      <div class="service-card"><div class="service-icon-wrap">🏠</div><div class="service-name">{{SERVICE_3}}</div><p class="service-desc">{{SERVICE_3_DESC}}</p></div>
+      <div class="service-card"><div class="service-icon-wrap">🚨</div><div class="service-name">{{SERVICE_4}}</div><p class="service-desc">{{SERVICE_4_DESC}}</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="process" id="process">
+  <div class="section-inner">
+    <div class="section-label">Simple Process</div>
+    <h2>How It Works</h2>
+    <div class="process-steps">
+      <div class="process-step"><div class="step-num">01</div><div class="step-title">Call or Text</div><p class="step-desc">Reach us any time — we answer 24/7 for emergencies.</p></div>
+      <div class="process-step"><div class="step-num">02</div><div class="step-title">Free Assessment</div><p class="step-desc">We come to you and give you a straight, no-surprise quote.</p></div>
+      <div class="process-step"><div class="step-num">03</div><div class="step-title">We Get It Done</div><p class="step-desc">Prompt, clean, professional work — done right the first time.</p></div>
+      <div class="process-step"><div class="step-num">04</div><div class="step-title">You're Covered</div><p class="step-desc">All work is fully guaranteed. We stand behind everything we do.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">Real Customer Reviews</div>
+    <h2>{{RATING}} Stars on Google</h2>
+    <div class="reviews-grid">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Need Help? Call Now.</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-white">📞 {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · Licensed & Insured</p>
+</footer>
+
+</body>
+</html>

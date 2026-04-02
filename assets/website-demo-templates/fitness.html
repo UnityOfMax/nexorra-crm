@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}} — {{CITY}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --dark: #0a0a0a; --bg: #f7f7f7; --text: #0a0a0a; --muted: #666; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); }
+  nav { position: fixed; top: 0; width: 100%; z-index: 100; background: var(--dark); padding: 0 5%; }
+  .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 65px; }
+  .logo { color: #fff; font-family: 'Space Mono', monospace; font-size: 1.15rem; letter-spacing: -0.02em; }
+  .logo span { color: var(--primary); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: rgba(255,255,255,0.55); text-decoration: none; font-size: 0.85rem; font-weight: 500; }
+  .nav-cta { background: var(--primary); color: #000; padding: 0.55rem 1.4rem; border-radius: 50px; font-size: 0.85rem; font-weight: 700; text-decoration: none; }
+  /* Hero */
+  .hero { min-height: 100vh; background: var(--dark); display: flex; align-items: center; padding: 0 5%; padding-top: 65px; position: relative; overflow: hidden; }
+  .hero::after { content: ''; position: absolute; right: 0; top: 0; width: 50%; height: 100%; background: url('{{HERO_IMAGE}}') center/cover; opacity: 0.25; }
+  .hero-content { position: relative; z-index: 2; max-width: 650px; }
+  .hero-tag { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--primary); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem; display: block; }
+  .hero h1 { font-size: clamp(3.5rem, 7vw, 6rem); font-weight: 700; color: #fff; line-height: 0.95; letter-spacing: -0.03em; margin-bottom: 1.5rem; }
+  .hero h1 em { display: block; font-style: normal; color: var(--primary); }
+  .hero p { color: rgba(255,255,255,0.55); font-size: 1rem; line-height: 1.7; max-width: 420px; margin-bottom: 2.5rem; }
+  .hero-btns { display: flex; gap: 1rem; }
+  .btn-glow { background: var(--primary); color: #000; padding: 0.9rem 2rem; border-radius: 6px; font-weight: 700; font-size: 0.95rem; text-decoration: none; box-shadow: 0 0 30px rgba(var(--primary-rgb),0.4); }
+  .btn-ghost { color: #fff; padding: 0.9rem 2rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; text-decoration: none; border: 1.5px solid rgba(255,255,255,0.2); }
+  /* Stats */
+  .stats { background: var(--primary); padding: 2rem 5%; }
+  .stats-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .stat { text-align: center; }
+  .stat-n { font-family: 'Space Mono', monospace; font-size: 2rem; font-weight: 700; color: #000; }
+  .stat-l { font-size: 0.78rem; font-weight: 600; color: rgba(0,0,0,0.6); text-transform: uppercase; letter-spacing: 0.1em; }
+  /* Classes */
+  .classes { padding: 5rem 5%; background: #fff; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-label { font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.8rem; }
+  h2 { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 700; letter-spacing: -0.03em; margin-bottom: 2.5rem; }
+  .classes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+  .class-card { border: 1.5px solid #ebebeb; border-radius: 12px; padding: 1.8rem; transition: border-color 0.2s, transform 0.2s; cursor: default; }
+  .class-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+  .class-time { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.8rem; }
+  .class-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .class-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+  .class-intensity { display: inline-block; margin-top: 1rem; padding: 0.25rem 0.8rem; background: rgba(0,0,0,0.05); border-radius: 50px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  /* Trainers */
+  .trainers { padding: 5rem 5%; }
+  .trainers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem; margin-top: 2.5rem; }
+  .trainer-card { text-align: center; }
+  .trainer-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; border: 3px solid var(--primary); }
+  .trainer-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .trainer-title { color: var(--primary); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .trainer-bio { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: var(--dark); }
+  .reviews .section-label { color: var(--primary); }
+  .reviews h2 { color: #fff; }
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1.8rem; }
+  .r-stars { color: var(--primary); margin-bottom: 0.8rem; font-size: 0.95rem; letter-spacing: 2px; }
+  .r-text { color: rgba(255,255,255,0.65); font-size: 0.88rem; line-height: 1.65; font-style: italic; margin-bottom: 1rem; }
+  .r-name { color: rgba(255,255,255,0.35); font-size: 0.8rem; font-weight: 600; }
+  /* CTA */
+  .cta { background: var(--primary); padding: 5rem 5%; text-align: center; }
+  .cta h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; color: #000; letter-spacing: -0.03em; margin-bottom: 1rem; }
+  .cta p { color: rgba(0,0,0,0.65); max-width: 430px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  .btn-dark { background: #000; color: #fff; padding: 1rem 2.5rem; border-radius: 6px; font-weight: 700; font-size: 1rem; text-decoration: none; }
+  footer { background: #050505; color: rgba(255,255,255,0.35); padding: 2rem 5%; text-align: center; font-size: 0.8rem; }
+  footer .fn { color: #fff; font-family: 'Space Mono', monospace; font-size: 1rem; margin-bottom: 0.3rem; }
+  @media (max-width: 768px) { .stats-inner { grid-template-columns: 1fr 1fr; } .nav-links { display: none; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}<span>.</span></div>
+    <ul class="nav-links">
+      <li><a href="#classes">Classes</a></li>
+      <li><a href="#trainers">Trainers</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-cta">Free Trial</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <span class="hero-tag">{{CITY}}'s Best {{BUSINESS_TYPE}}</span>
+    <h1>{{HERO_HEADLINE}}<em>{{HERO_HEADLINE_EM}}</em></h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-btns">
+      <a href="tel:{{PHONE}}" class="btn-glow">Start Free Trial</a>
+      <a href="#classes" class="btn-ghost">See Schedule</a>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stats-inner">
+    <div class="stat"><div class="stat-n">{{MEMBER_COUNT}}+</div><div class="stat-l">Active Members</div></div>
+    <div class="stat"><div class="stat-n">{{CLASS_COUNT}}+</div><div class="stat-l">Weekly Classes</div></div>
+    <div class="stat"><div class="stat-n">{{TRAINER_COUNT}}</div><div class="stat-l">Certified Trainers</div></div>
+    <div class="stat"><div class="stat-n">{{RATING}}</div><div class="stat-l">Google Rating</div></div>
+  </div>
+</div>
+
+<section class="classes" id="classes">
+  <div class="section-inner">
+    <div class="section-label">Weekly Schedule</div>
+    <h2>Classes</h2>
+    <div class="classes-grid">
+      <div class="class-card"><div class="class-time">{{CLASS_1_TIME}}</div><div class="class-name">{{CLASS_1}}</div><p class="class-desc">{{CLASS_1_DESC}}</p><span class="class-intensity">{{CLASS_1_LEVEL}}</span></div>
+      <div class="class-card"><div class="class-time">{{CLASS_2_TIME}}</div><div class="class-name">{{CLASS_2}}</div><p class="class-desc">{{CLASS_2_DESC}}</p><span class="class-intensity">{{CLASS_2_LEVEL}}</span></div>
+      <div class="class-card"><div class="class-time">{{CLASS_3_TIME}}</div><div class="class-name">{{CLASS_3}}</div><p class="class-desc">{{CLASS_3_DESC}}</p><span class="class-intensity">{{CLASS_3_LEVEL}}</span></div>
+      <div class="class-card"><div class="class-time">{{CLASS_4_TIME}}</div><div class="class-name">{{CLASS_4}}</div><p class="class-desc">{{CLASS_4_DESC}}</p><span class="class-intensity">{{CLASS_4_LEVEL}}</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="trainers" id="trainers">
+  <div class="section-inner">
+    <div class="section-label">Your Coaches</div>
+    <h2>Meet the Team</h2>
+    <div class="trainers-grid">
+      <div class="trainer-card"><img class="trainer-img" src="{{PHOTO_1}}" alt="{{TRAINER_1}}"><div class="trainer-name">{{TRAINER_1}}</div><div class="trainer-title">{{TRAINER_1_TITLE}}</div><p class="trainer-bio">{{TRAINER_1_BIO}}</p></div>
+      <div class="trainer-card"><img class="trainer-img" src="{{PHOTO_2}}" alt="{{TRAINER_2}}"><div class="trainer-name">{{TRAINER_2}}</div><div class="trainer-title">{{TRAINER_2_TITLE}}</div><p class="trainer-bio">{{TRAINER_2_BIO}}</p></div>
+      <div class="trainer-card"><img class="trainer-img" src="{{PHOTO_3}}" alt="{{TRAINER_3}}"><div class="trainer-name">{{TRAINER_3}}</div><div class="trainer-title">{{TRAINER_3_TITLE}}</div><p class="trainer-bio">{{TRAINER_3_BIO}}</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">Member Results</div>
+    <h2>What Our Members Say</h2>
+    <div class="reviews-grid">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Your First Class is Free.</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-dark">Call {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · {{HOURS}}</p>
+</footer>
+
+</body>
+</html>

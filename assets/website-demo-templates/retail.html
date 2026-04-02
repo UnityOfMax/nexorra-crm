@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --bg: #ffffff; --dark: #111; --text: #111; --muted: #666; --border: #f0f0f0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Manrope', sans-serif; background: var(--bg); color: var(--text); }
+  nav { padding: 0 5%; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 65px; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { color: var(--muted); font-size: 0.87rem; font-weight: 600; text-decoration: none; }
+  .nav-info { display: flex; gap: 1.5rem; font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+  .nav-info span { display: flex; align-items: center; gap: 0.4rem; }
+  /* Hero */
+  .hero { display: grid; grid-template-columns: 1fr 1fr; min-height: 90vh; }
+  .hero-left { background: var(--dark); display: flex; flex-direction: column; justify-content: center; padding: 5rem; }
+  .hero-right { overflow: hidden; }
+  .hero-right img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-badge { display: inline-block; background: var(--primary); color: #fff; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; padding: 0.35rem 0.9rem; border-radius: 3px; margin-bottom: 1.8rem; }
+  .hero h1 { font-family: 'Syne', sans-serif; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 800; color: #fff; line-height: 1.05; margin-bottom: 1.2rem; }
+  .hero p { color: rgba(255,255,255,0.55); line-height: 1.75; max-width: 380px; margin-bottom: 2.5rem; font-size: 0.95rem; }
+  .hero-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .hero-meta-item { text-align: center; }
+  .hmeta-n { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--primary); display: block; }
+  .hmeta-l { font-size: 0.72rem; color: rgba(255,255,255,0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+  .hero-btns { display: flex; gap: 1rem; margin-top: 2.5rem; }
+  .btn-primary { background: var(--primary); color: #fff; padding: 0.85rem 2rem; border-radius: 6px; font-weight: 700; font-size: 0.92rem; text-decoration: none; }
+  .btn-ghost { color: rgba(255,255,255,0.7); padding: 0.85rem 2rem; font-weight: 600; font-size: 0.92rem; text-decoration: none; border: 1.5px solid rgba(255,255,255,0.15); border-radius: 6px; }
+  /* Products */
+  .products { padding: 5rem 5%; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-label { font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.7rem; }
+  h2 { font-family: 'Syne', sans-serif; font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800; margin-bottom: 2.5rem; }
+  .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; }
+  .product-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: box-shadow 0.2s; }
+  .product-card:hover { box-shadow: 0 10px 35px rgba(0,0,0,0.1); }
+  .product-img { aspect-ratio: 1; overflow: hidden; background: #f8f8f8; }
+  .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+  .product-card:hover .product-img img { transform: scale(1.04); }
+  .product-info { padding: 1.2rem; }
+  .product-name { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .product-desc { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+  .product-price { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--primary); margin-top: 0.8rem; display: block; }
+  /* Map+Hours */
+  .info-strip { background: var(--dark); padding: 3rem 5%; }
+  .info-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+  .info-block h3 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; color: #fff; margin-bottom: 1rem; }
+  .info-block p { color: rgba(255,255,255,0.55); font-size: 0.88rem; line-height: 1.7; }
+  .hours-list { list-style: none; }
+  .hours-list li { display: flex; justify-content: space-between; color: rgba(255,255,255,0.6); font-size: 0.85rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hours-list .today { color: var(--primary); font-weight: 700; }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: #fafafa; }
+  .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 1.8rem; }
+  .r-stars { color: #f59e0b; margin-bottom: 0.8rem; }
+  .r-text { color: var(--text); font-size: 0.88rem; line-height: 1.65; font-style: italic; margin-bottom: 1rem; }
+  .r-name { font-weight: 700; color: var(--muted); font-size: 0.82rem; }
+  /* CTA */
+  .cta { background: var(--primary); padding: 4rem 5%; text-align: center; }
+  .cta h2 { font-family: 'Syne', sans-serif; font-weight: 800; color: #fff; margin-bottom: 0.8rem; }
+  .cta p { color: rgba(255,255,255,0.8); max-width: 400px; margin: 0 auto 2rem; font-size: 0.95rem; }
+  .btn-white { background: #fff; color: var(--primary); padding: 0.85rem 2rem; border-radius: 6px; font-weight: 800; text-decoration: none; font-size: 0.95rem; }
+  footer { background: #0a0a0a; color: rgba(255,255,255,0.35); padding: 2rem 5%; text-align: center; font-size: 0.8rem; }
+  footer .fn { font-family: 'Syne', sans-serif; font-weight: 800; color: #fff; font-size: 1.15rem; margin-bottom: 0.3rem; }
+  @media (max-width: 768px) { .hero { grid-template-columns: 1fr; } .hero-right { display: none; } .info-inner { grid-template-columns: 1fr; } .nav-links { display: none; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}</div>
+    <ul class="nav-links">
+      <li><a href="#products">Products</a></li>
+      <li><a href="#hours">Hours & Location</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <div class="nav-info">
+      <span>📍 {{CITY}}</span>
+      <span>📞 {{PHONE}}</span>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <span class="hero-badge">{{CITY}}'s Favourite {{BUSINESS_TYPE}}</span>
+    <h1>{{HERO_HEADLINE}}</h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><span class="hmeta-n">{{RATING}}★</span><span class="hmeta-l">Rating</span></div>
+      <div class="hero-meta-item"><span class="hmeta-n">{{REVIEW_COUNT}}+</span><span class="hmeta-l">Reviews</span></div>
+      <div class="hero-meta-item"><span class="hmeta-n">{{YEARS_IN_BIZ}}yr</span><span class="hmeta-l">In Business</span></div>
+    </div>
+    <div class="hero-btns">
+      <a href="tel:{{PHONE}}" class="btn-primary">Visit Us Today</a>
+      <a href="#products" class="btn-ghost">Browse Products</a>
+    </div>
+  </div>
+  <div class="hero-right"><img src="{{HERO_IMAGE}}" alt="{{BUSINESS_NAME}}"></div>
+</section>
+
+<section class="products" id="products">
+  <div class="section-inner">
+    <div class="section-label">Featured</div>
+    <h2>Popular Products</h2>
+    <div class="products-grid">
+      <div class="product-card"><div class="product-img"><img src="{{PHOTO_1}}" alt="{{PRODUCT_1}}" loading="lazy"></div><div class="product-info"><div class="product-name">{{PRODUCT_1}}</div><p class="product-desc">{{PRODUCT_1_DESC}}</p><span class="product-price">{{PRODUCT_1_PRICE}}</span></div></div>
+      <div class="product-card"><div class="product-img"><img src="{{PHOTO_2}}" alt="{{PRODUCT_2}}" loading="lazy"></div><div class="product-info"><div class="product-name">{{PRODUCT_2}}</div><p class="product-desc">{{PRODUCT_2_DESC}}</p><span class="product-price">{{PRODUCT_2_PRICE}}</span></div></div>
+      <div class="product-card"><div class="product-img"><img src="{{PHOTO_3}}" alt="{{PRODUCT_3}}" loading="lazy"></div><div class="product-info"><div class="product-name">{{PRODUCT_3}}</div><p class="product-desc">{{PRODUCT_3_DESC}}</p><span class="product-price">{{PRODUCT_3_PRICE}}</span></div></div>
+      <div class="product-card"><div class="product-img"><img src="{{PHOTO_4}}" alt="{{PRODUCT_4}}" loading="lazy"></div><div class="product-info"><div class="product-name">{{PRODUCT_4}}</div><p class="product-desc">{{PRODUCT_4_DESC}}</p><span class="product-price">{{PRODUCT_4_PRICE}}</span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="info-strip" id="hours">
+  <div class="info-inner">
+    <div class="info-block"><h3>📍 Find Us</h3><p>{{ADDRESS}}<br><br>{{PHONE}}</p></div>
+    <div class="info-block"><h3>🕐 Opening Hours</h3><ul class="hours-list"><li><span>Monday–Friday</span><span>{{HOURS_WEEKDAY}}</span></li><li><span>Saturday</span><span>{{HOURS_SAT}}</span></li><li class="today"><span>Sunday</span><span>{{HOURS_SUN}}</span></li></ul></div>
+  </div>
+</div>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">Customer Reviews</div>
+    <h2>{{RATING}} Stars · {{REVIEW_COUNT}} Reviews</h2>
+    <div class="reviews-grid">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Come Visit Us</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-white">Call {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}}</p>
+</footer>
+
+</body>
+</html>

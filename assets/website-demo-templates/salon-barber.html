@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{BUSINESS_NAME}}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: {{COLOR_PRIMARY}}; --accent: {{COLOR_ACCENT}}; --bg: #fdfcfb; --text: #1a1a1a; --muted: #6b6b6b; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+  nav { position: fixed; top: 0; width: 100%; z-index: 100; padding: 0 5%; background: rgba(253,252,251,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 1.3rem; }
+  .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; }
+  .nav-book { background: var(--primary); color: #fff; padding: 0.55rem 1.4rem; border-radius: 50px; font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+  /* Hero split */
+  .hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: 68px; }
+  .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 4rem 5%; background: var(--bg); }
+  .hero-right { overflow: hidden; }
+  .hero-right img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-tag { display: inline-block; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.35rem 0.9rem; border-radius: 4px; margin-bottom: 1.5rem; }
+  .hero h1 { font-family: 'DM Serif Display', serif; font-size: clamp(2.8rem, 5vw, 4.5rem); line-height: 1.05; margin-bottom: 1.2rem; }
+  .hero h1 em { font-style: italic; color: var(--primary); }
+  .hero p { color: var(--muted); line-height: 1.75; max-width: 420px; margin-bottom: 2.5rem; font-size: 1.05rem; }
+  .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-dark { background: var(--text); color: #fff; padding: 0.85rem 2rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; text-decoration: none; }
+  .btn-ghost { color: var(--text); padding: 0.85rem 2rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; text-decoration: none; border: 1.5px solid rgba(0,0,0,0.15); }
+  /* Services */
+  .services { padding: 6rem 5%; background: #fff; }
+  .section-inner { max-width: 1100px; margin: 0 auto; }
+  .section-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; }
+  .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); margin-bottom: 0.7rem; }
+  h2 { font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 3.5vw, 2.8rem); }
+  .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+  .service-card { border: 1.5px solid #f0ede8; border-radius: 16px; padding: 2rem; transition: border-color 0.2s, box-shadow 0.2s; }
+  .service-card:hover { border-color: var(--primary); box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+  .service-icon { font-size: 2rem; margin-bottom: 1rem; }
+  .service-name { font-family: 'DM Serif Display', serif; font-size: 1.15rem; margin-bottom: 0.5rem; }
+  .service-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+  .service-price { margin-top: 1rem; font-weight: 700; color: var(--primary); }
+  /* Gallery */
+  .gallery { padding: 6rem 5%; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 280px 280px; gap: 1rem; margin-top: 2.5rem; }
+  .gallery-grid .g1 { grid-column: 1; grid-row: 1 / 3; }
+  .gallery-grid .g2 { grid-column: 2; grid-row: 1; }
+  .gallery-grid .g3 { grid-column: 3; grid-row: 1; }
+  .gallery-grid .g4 { grid-column: 2 / 4; grid-row: 2; }
+  .gallery-grid div { border-radius: 12px; overflow: hidden; }
+  .gallery-grid img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+  .gallery-grid div:hover img { transform: scale(1.04); }
+  /* Reviews */
+  .reviews { padding: 5rem 5%; background: #fff; }
+  .reviews-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+  .r-card { background: var(--bg); border-radius: 14px; padding: 1.8rem; }
+  .r-stars { color: #f59e0b; margin-bottom: 0.8rem; font-size: 1rem; }
+  .r-text { font-style: italic; color: var(--muted); font-size: 0.9rem; line-height: 1.65; margin-bottom: 1rem; }
+  .r-name { font-weight: 600; font-size: 0.85rem; }
+  /* CTA */
+  .cta { padding: 6rem 5%; text-align: center; background: var(--primary); color: #fff; }
+  .cta h2 { font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 1rem; }
+  .cta p { opacity: 0.8; max-width: 450px; margin: 0 auto 2.5rem; line-height: 1.7; }
+  .btn-white { background: #fff; color: var(--primary); padding: 0.9rem 2.2rem; border-radius: 8px; font-weight: 700; font-size: 1rem; text-decoration: none; }
+  footer { background: var(--text); color: rgba(255,255,255,0.5); padding: 2.5rem 5%; text-align: center; font-size: 0.82rem; }
+  footer .fn { font-family: 'DM Serif Display', serif; color: #fff; font-size: 1.3rem; margin-bottom: 0.4rem; }
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-right { display: none; }
+    .gallery-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+    .gallery-grid .g1, .gallery-grid .g4 { grid-column: auto; grid-row: auto; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">{{BUSINESS_NAME}}</div>
+    <ul class="nav-links">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#gallery">Gallery</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+    </ul>
+    <a href="tel:{{PHONE}}" class="nav-book">Book Now</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <span class="hero-tag">{{CITY}}'s Premier {{BUSINESS_TYPE}}</span>
+    <h1>{{HERO_HEADLINE}}<em>{{HERO_HEADLINE_EM}}</em></h1>
+    <p>{{HERO_SUBHEADLINE}}</p>
+    <div class="hero-btns">
+      <a href="tel:{{PHONE}}" class="btn-dark">Book Appointment</a>
+      <a href="#services" class="btn-ghost">See Services</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <img src="{{HERO_IMAGE}}" alt="{{BUSINESS_NAME}}">
+  </div>
+</section>
+
+<section class="services" id="services">
+  <div class="section-inner">
+    <div class="section-top">
+      <div>
+        <div class="section-label">What We Offer</div>
+        <h2>Our Services</h2>
+      </div>
+    </div>
+    <div class="services-grid">
+      <div class="service-card"><div class="service-icon">✂️</div><div class="service-name">{{SERVICE_1}}</div><p class="service-desc">{{SERVICE_1_DESC}}</p><div class="service-price">{{SERVICE_1_PRICE}}</div></div>
+      <div class="service-card"><div class="service-icon">💆</div><div class="service-name">{{SERVICE_2}}</div><p class="service-desc">{{SERVICE_2_DESC}}</p><div class="service-price">{{SERVICE_2_PRICE}}</div></div>
+      <div class="service-card"><div class="service-icon">🎨</div><div class="service-name">{{SERVICE_3}}</div><p class="service-desc">{{SERVICE_3_DESC}}</p><div class="service-price">{{SERVICE_3_PRICE}}</div></div>
+      <div class="service-card"><div class="service-icon">💅</div><div class="service-name">{{SERVICE_4}}</div><p class="service-desc">{{SERVICE_4_DESC}}</p><div class="service-price">{{SERVICE_4_PRICE}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="gallery" id="gallery">
+  <div class="section-inner">
+    <div class="section-label">Our Work</div>
+    <h2>Recent Looks</h2>
+    <div class="gallery-grid">
+      <div class="g1"><img src="{{PHOTO_1}}" alt="Work 1"></div>
+      <div class="g2"><img src="{{PHOTO_2}}" alt="Work 2"></div>
+      <div class="g3"><img src="{{PHOTO_3}}" alt="Work 3"></div>
+      <div class="g4"><img src="{{PHOTO_4}}" alt="Work 4"></div>
+    </div>
+  </div>
+</section>
+
+<section class="reviews" id="reviews">
+  <div class="section-inner">
+    <div class="section-label">Client Love</div>
+    <h2>{{RATING}} Stars · {{REVIEW_COUNT}} Reviews</h2>
+    <div class="reviews-list">
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
+      <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Ready for Your Next Look?</h2>
+  <p>{{CTA_TEXT}}</p>
+  <a href="tel:{{PHONE}}" class="btn-white">Call {{PHONE}}</a>
+</section>
+
+<footer>
+  <div class="fn">{{BUSINESS_NAME}}</div>
+  <p>{{ADDRESS}} · {{HOURS}}</p>
+</footer>
+
+</body>
+</html>
