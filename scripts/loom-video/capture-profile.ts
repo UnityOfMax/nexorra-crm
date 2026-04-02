@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Capture Website Screenshots using chrome-tool.js on port 9224 (video-dedicated Chrome).
- * Records the lead's PERSONAL WEBSITE (not brokerage profile) with Claude vision verification.
+ * Capture a single website screenshot for video generation.
+ * Single static screenshot — no scroll animation.
+ * Chrome frame generated via ffmpeg drawtext (no Chrome round-trip).
+ *
+ * Output: 1 frame at 1920x1080 (88px Chrome header + 992px page content).
  *
  * Usage: npx tsx scripts/loom-video/capture-profile.ts <website_url> [profile_url]
  */
@@ -12,7 +15,49 @@ import * as os from "os";
 import * as path from "path";
 
 const CHROME_TOOL = path.join(__dirname, "..", "chrome-tool.js");
-const VIDEO_PORT = 9224;
+const DEFAULT_VIDEO_PORT = 9224;
+const FONT_PATH = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf";
+const CHROME_FRAMES_DIR = path.join(__dirname, "../../assets/chrome-frames");
+
+// Chrome header is 88px tall, page content fills 992px below it
+const FRAME_WIDTH = 1920;
+const HEADER_HEIGHT = 88;
+const PAGE_HEIGHT = 1080 - HEADER_HEIGHT; // 992
+
+// Module-level warmup cache: port → Set of already-warmed hostnames
+// Avoids hitting homepage on every lead — once per process per hostname per port
+const warmedHosts = new Map<number, Set<string>>();
+
+// Hostname → brokerage key mapping (matches assets/chrome-frames/{key}.png)
+const HOSTNAME_TO_BROKERAGE: Record<string, string> = {
+  "compass.com":          "compass",
+  "bhhs.com":             "bhhs",
+  "remax.com":            "remax",
+  "realtor.com":          "realtor",
+  "sothebysrealty.com":   "sothebys",
+  "sothebys.realty":      "sothebys",
+  "exprealty.com":        "exp",
+  "expcommercial.com":    "exp",
+  "kw.com":               "kw",
+  "kellerwilliams.com":   "kw",
+  "coldwellbanker.com":   "coldwellbanker",
+  "century21.com":        "century21",
+  "instagram.com":        "instagram",
+};
+
+/**
+ * Returns the brokerage key for a URL, or "default" if unknown.
+ * Used to look up prerendered chrome frame PNGs.
+ */
+function getBrokerageKey(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    for (const [domain, key] of Object.entries(HOSTNAME_TO_BROKERAGE)) {
+      if (hostname === domain || hostname.endsWith("." + domain)) return key;
+    }
+  } catch {}
+  return "default";
+}
 
 export interface CaptureResult {
   screenshotDir: string;
@@ -20,22 +65,10 @@ export interface CaptureResult {
 }
 
 export interface CaptureOptions {
-  websiteUrl?: string;     // Lead's personal website (preferred)
-  profileUrl: string;      // Brokerage profile (fallback)
+  websiteUrl?: string;   // Lead's personal website (preferred)
+  profileUrl: string;    // Brokerage profile (fallback)
   fallbackUrls?: string[];
-}
-
-function chrome(cmd: string): string {
-  try {
-    return execSync(`node "${CHROME_TOOL}" --port ${VIDEO_PORT} ${cmd}`, {
-      encoding: "utf-8",
-      timeout: 30000,
-    }).trim();
-  } catch (e) {
-    const msg = (e as any).stderr?.toString() || (e as Error).message;
-    console.log(`[chrome] Warning: ${msg.slice(0, 100)}`);
-    return "";
-  }
+  port?: number;         // Chrome debug port (default 9224)
 }
 
 function sleep(ms: number) {
@@ -43,104 +76,70 @@ function sleep(ms: number) {
 }
 
 /**
- * Use Claude Haiku 4.5 vision to verify the screenshot shows an actual website
- * (not a CAPTCHA, cookie wall, error page, or wrong site).
+ * Get Chrome header PNG for a URL.
+ * Prefers a prerendered brokerage frame (instant copy) over per-lead ffmpeg drawtext (~150ms).
+ * Falls back to per-lead generation if prerendered frame not found.
  */
-async function verifyScreenshot(
-  screenshotPath: string,
-  expectedUrl: string
-): Promise<{ valid: boolean; reason: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.log("[verify] No ANTHROPIC_API_KEY, skipping vision check");
-    return { valid: true, reason: "skipped — no API key" };
+function generateChromeFrame(
+  tmpDir: string,
+  pageTitle: string,
+  pageUrl: string
+): string {
+  const outputPath = path.join(tmpDir, "chrome-frame.png");
+
+  // Use prerendered brokerage frame if available (~0ms vs ~150ms)
+  const brokerageKey = getBrokerageKey(pageUrl);
+  const prerenderedPath = path.join(CHROME_FRAMES_DIR, `${brokerageKey}.png`);
+  if (fs.existsSync(prerenderedPath)) {
+    fs.copyFileSync(prerenderedPath, outputPath);
+    return outputPath;
   }
 
+  // Fallback: per-lead ffmpeg drawtext (used when prerendered frames not generated yet)
+  const tabTitle =
+    pageTitle.length > 45 ? pageTitle.slice(0, 43) + "..." : pageTitle;
+  let displayUrl = pageUrl;
   try {
-    const imageData = fs.readFileSync(screenshotPath).toString("base64");
-    const domain = new URL(expectedUrl).hostname;
+    const u = new URL(pageUrl);
+    displayUrl = u.hostname + u.pathname;
+    if (displayUrl.length > 85) displayUrl = displayUrl.slice(0, 83) + "...";
+  } catch {}
 
-    const body = JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 200,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: "image/png",
-                data: imageData,
-              },
-            },
-            {
-              type: "text",
-              text: `I'm trying to screenshot the website at ${domain}. Is this screenshot showing the actual website content? Reply with ONLY valid JSON: {"valid": true/false, "reason": "brief explanation"}. It is NOT valid if it shows: a CAPTCHA/challenge page, a cookie consent popup covering most of the page, a "page not found" or error page, a completely blank/empty page, a browser error, or an obviously unrelated website. Minor cookie banners at the bottom that don't block the main content are OK (valid).`,
-            },
-          ],
-        },
-      ],
-    });
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/:/g, "\\:");
+  const escTitle = esc(tabTitle);
+  const escUrl = esc(displayUrl);
+  const fontArg = fs.existsSync(FONT_PATH) ? `fontfile=${FONT_PATH}:` : "";
 
-    const result = execSync(
-      `curl -s -X POST https://api.anthropic.com/v1/messages \
-       -H "content-type: application/json" \
-       -H "x-api-key: ${apiKey}" \
-       -H "anthropic-version: 2023-06-01" \
-       -d '${body.replace(/'/g, "'\\''")}'`,
-      { encoding: "utf-8", timeout: 30000 }
-    );
+  execSync(
+    `ffmpeg -y -f lavfi -i "color=c=#202124:size=${FRAME_WIDTH}x${HEADER_HEIGHT}:r=1" \
+      -vf "drawbox=x=8:y=5:w=265:h=35:color=#35363a@1.0:t=fill,\
+drawbox=x=0:y=40:w=${FRAME_WIDTH}:h=48:color=#35363a@1.0:t=fill,\
+drawbox=x=48:y=46:w=1828:h=35:color=#202124@1.0:t=fill,\
+drawtext=${fontArg}fontcolor=white:fontsize=11:x=28:y=15:text='${escTitle}',\
+drawtext=${fontArg}fontcolor=#9aa0a6:fontsize=13:x=74:y=54:text='${escUrl}'" \
+      -frames:v 1 "${outputPath}"`,
+    { stdio: "pipe", timeout: 5000 }
+  );
 
-    const response = JSON.parse(result);
-    const text =
-      response.content
-        ?.filter((b: any) => b.type === "text")
-        .map((b: any) => b.text)
-        .join("") || "";
-
-    try {
-      return JSON.parse(text);
-    } catch {
-      const isValid =
-        text.toLowerCase().includes('"valid": true') ||
-        text.toLowerCase().includes('"valid":true');
-      return { valid: isValid, reason: text.slice(0, 100) };
-    }
-  } catch (err) {
-    console.log(`[verify] Vision check failed: ${(err as Error).message.slice(0, 80)}`);
-    return { valid: true, reason: "verification error — proceeding" };
-  }
+  return outputPath;
 }
 
 /**
- * Aggressively dismiss cookie banners and popups.
+ * Composite Chrome frame (88px) on top of page screenshot (992px) → 1920x1080.
  */
-function dismissPopups(): void {
-  // First pass
-  chrome("dismiss-cookies");
-  sleep(2000);
-
-  // Second pass (some popups appear after delay)
-  chrome("dismiss-cookies");
-  sleep(500);
-
-  // Try common close buttons
-  chrome('click "[aria-label=Close]"');
-  sleep(300);
-  chrome('click "[aria-label=close]"');
-  sleep(300);
-  chrome('click "button.close"');
-  sleep(300);
-
-  // Scroll down slightly to trigger any lazy popups, then dismiss again
-  chrome("scroll 50");
-  sleep(500);
-  chrome("dismiss-cookies");
-  sleep(300);
-  chrome("scroll -50");
-  sleep(300);
+function compositeFrame(
+  chromeFramePath: string,
+  pageScreenshot: string,
+  outputPath: string
+): void {
+  execSync(
+    `ffmpeg -y -i "${chromeFramePath}" -i "${pageScreenshot}" \
+      -filter_complex "[0:v]scale=${FRAME_WIDTH}:${HEADER_HEIGHT}[top];\
+[1:v]scale=${FRAME_WIDTH}:${PAGE_HEIGHT}[bot];\
+[top][bot]vstack=inputs=2[v]" \
+      -map "[v]" -frames:v 1 "${outputPath}"`,
+    { stdio: "pipe", timeout: 15000 }
+  );
 }
 
 export async function captureProfile(
@@ -148,29 +147,49 @@ export async function captureProfile(
 ): Promise<CaptureResult> {
   const opts =
     typeof urlOrOpts === "string"
-      ? { profileUrl: urlOrOpts, fallbackUrls: [] }
+      ? { profileUrl: urlOrOpts, fallbackUrls: [], port: DEFAULT_VIDEO_PORT }
       : urlOrOpts;
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-profile-"));
-  let frameIndex = 0;
+  const port = opts.port ?? DEFAULT_VIDEO_PORT;
 
-  const framePath = (idx: number) =>
-    path.join(tmpDir, `frame_${String(idx).padStart(5, "0")}.png`);
+  // Initialize warmup cache for this port if needed
+  if (!warmedHosts.has(port)) warmedHosts.set(port, new Set());
+  const portWarmed = warmedHosts.get(port)!;
 
-  // 1. Check Chrome connection on video port
-  console.log(`[capture] Checking Chrome on port ${VIDEO_PORT}...`);
-  const status = chrome("status");
-  if (
-    !status.includes("connected") &&
-    !status.includes("true") &&
-    !status.includes("tabs")
-  ) {
-    throw new Error(
-      `Chrome not connected on port ${VIDEO_PORT}. Run: bash scripts/chrome-launch-video.sh`
-    );
+  // Viewport: page content only (Chrome frame added via ffmpeg later)
+  const vp = { vw: FRAME_WIDTH, vh: PAGE_HEIGHT };
+
+  function chrome(cmd: string, timeoutMs = 30000): string {
+    const vwArgs = `--vw ${vp.vw} --vh ${vp.vh}`;
+    try {
+      return execSync(`node "${CHROME_TOOL}" --port ${port} ${vwArgs} ${cmd}`, {
+        encoding: "utf-8",
+        timeout: timeoutMs,
+      }).trim();
+    } catch (e) {
+      const msg = (e as any).stderr?.toString() || (e as Error).message;
+      console.log(`[chrome:${port}] Warning: ${msg.slice(0, 200)}`);
+      return "";
+    }
   }
 
-  // 2. Build URL priority list: personal website first, then brokerage profile
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "loom-profile-"));
+  const rawPath = path.join(tmpDir, "raw_00000.png");
+  const framePath = path.join(tmpDir, "frame_00000.png");
+
+  // 1. Check Chrome connection
+  console.log(`[capture] Checking Chrome on port ${port}...`);
+  const status = chrome("status");
+  if (!status.includes("connected") && !status.includes("true") && !status.includes("tabs")) {
+    throw new Error(`Chrome not connected on port ${port}. Run: bash scripts/chrome-launch-video.sh ${port}`);
+  }
+
+  // 2. Maximize + set viewport
+  chrome("maximize");
+  sleep(100);
+  chrome(`viewport ${FRAME_WIDTH} ${PAGE_HEIGHT}`);
+
+  // 3. URL priority: personal website → brokerage profile → fallbacks
   const urlsToTry = [
     opts.websiteUrl,
     opts.profileUrl,
@@ -178,122 +197,106 @@ export async function captureProfile(
   ].filter(Boolean) as string[];
 
   let loadedUrl = "";
+  let pageTitle = "";
 
   for (const url of urlsToTry) {
-    // Visit homepage first to accept cookies
+    // Homepage warmup for cookies — only ONCE per port per hostname across all leads
     try {
       const siteUrl = new URL(url);
-      const homepage = `${siteUrl.protocol}//${siteUrl.hostname}`;
-      console.log(`[capture] Visiting homepage for cookies: ${homepage}`);
-      chrome(`navigate "${homepage}"`);
-      sleep(3000);
-      dismissPopups();
-    } catch {
-      // URL parse error — skip homepage visit
-    }
+      const hostname = siteUrl.hostname;
+      const homepage = `${siteUrl.protocol}//${hostname}`;
 
-    // Navigate to the actual page
+      if (!portWarmed.has(hostname)) {
+        console.log(`[capture] Warming up ${hostname} for port ${port}...`);
+        const homeResult = chrome(`navigate "${homepage}"`);
+        portWarmed.add(hostname);
+        if (!homeResult.includes('"blocked":true') && !homeResult.includes('"cloudflare":true')) {
+          sleep(800);
+          chrome("dismiss-cookies");
+          sleep(300);
+        }
+      }
+    } catch {}
+
+    // Navigate to profile
     console.log(`[capture] Navigating to: ${url}`);
-    chrome(`navigate "${url}"`);
-    sleep(4000);
-    dismissPopups();
-
-    // Check for basic content
-    const text = chrome('text "body"');
-    if (
-      text.length < 200 ||
-      text.includes("404") ||
-      text.includes("Page Not Found")
-    ) {
-      console.log(`[capture] Page empty or 404, trying next URL...`);
+    const navResult = chrome(`navigate "${url}"`);
+    if (navResult.includes('"blocked":true') || navResult.includes('"cloudflare":true')) {
+      console.log(`[capture] Cloudflare blocked, trying next URL...`);
       continue;
     }
 
-    // Take a verification screenshot
-    const verifyPath = path.join(tmpDir, "verify.png");
-    chrome(`screenshot "${verifyPath}"`);
+    // Wait for page render (JS frameworks need ~1s after DOMContentLoaded)
+    sleep(1500);
+    chrome("dismiss-cookies");
+    sleep(300);
 
-    // Claude vision verification (retry up to 2x on this URL)
-    let verified = false;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const check = await verifyScreenshot(verifyPath, url);
+    // Check for bot/auth blocks via text + title
+    const text = chrome('text "body"');
+    const title = chrome("title");
+    if (
+      text.length < 200 ||
+      text.includes("404") ||
+      text.includes("Page Not Found") ||
+      text.includes("request could not be processed") ||
+      text.includes("access to this page has been denied") ||
+      text === "chrome is not defined" ||
+      /just a moment|attention required|security check|cloudflare/i.test(title) ||
+      /sign (in|up)|log in|join now/i.test(title) ||
+      ((title === "Loading..." || title === "") && text.length < 1000)
+    ) {
       console.log(
-        `[capture] Vision check (attempt ${attempt + 1}): valid=${check.valid}, reason=${check.reason}`
+        `[capture] Page blocked or empty (title: "${title}", chars: ${text.length}), trying next...`
       );
-
-      if (check.valid) {
-        verified = true;
-        break;
-      }
-
-      // Not valid — try dismissing popups again and retake
-      console.log("[capture] Retrying after additional popup dismissal...");
-      dismissPopups();
-      sleep(2000);
-      chrome(`screenshot "${verifyPath}"`);
-    }
-
-    if (!verified) {
-      console.log(`[capture] URL failed vision verification: ${url}`);
       continue;
     }
 
     loadedUrl = url;
-    console.log(`[capture] Verified website loaded: ${url} (${text.length} chars)`);
-
-    // Clean up verification screenshot
-    try {
-      fs.unlinkSync(verifyPath);
-    } catch {}
+    pageTitle = title || "Loading...";
+    console.log(`[capture] Loaded: ${url} (${text.length} chars, "${pageTitle}")`);
     break;
   }
 
   if (!loadedUrl) {
-    console.log("[capture] All URLs failed verification, using whatever loaded");
+    const currentTitle = chrome("title") || "";
+    if (/attention required|cloudflare|security check|just a moment/i.test(currentTitle)) {
+      throw new Error(
+        `all-urls-cloudflare-blocked: all profile URLs Cloudflare-blocked (title: "${currentTitle}")`
+      );
+    }
+    // Use whatever is loaded (best effort)
+    loadedUrl = urlsToTry[0] || opts.profileUrl;
+    pageTitle = currentTitle || "Loading...";
   }
 
-  // 3. Take static screenshot (held for 13s in video)
-  console.log("[capture] Taking static screenshot");
-  chrome(`screenshot "${framePath(frameIndex)}"`);
-  frameIndex++;
-
-  // 4. Elastic flick scroll — single trackpad flick down + bounce back
-  //    Smooth deceleration for natural feel. ~20 frames total for 3s in composite.
-  console.log("[capture] Scrolling (trackpad flick)...");
-
-  // Fast flick down: 10 steps with deceleration
-  const downSteps = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
-  for (const step of downSteps) {
-    chrome(`scroll ${step}`);
-    sleep(60);
-    chrome(`screenshot "${framePath(frameIndex)}"`);
-    frameIndex++;
-  }
-
-  // Hold at bottom briefly (2 frames)
+  // 4. Scroll to top then take ONE static screenshot
+  chrome("scroll -2000");
   sleep(200);
-  chrome(`screenshot "${framePath(frameIndex)}"`);
-  frameIndex++;
-  sleep(200);
-  chrome(`screenshot "${framePath(frameIndex)}"`);
-  frameIndex++;
+  chrome("scroll -2000");
+  sleep(300);
 
-  // Bounce back up: 6 steps
-  const upSteps = [120, 100, 80, 60, 40, 20];
-  for (const step of upSteps) {
-    chrome(`scroll -${step}`);
-    sleep(50);
-    chrome(`screenshot "${framePath(frameIndex)}"`);
-    frameIndex++;
+  console.log(`[capture] Taking screenshot...`);
+  chrome(`screenshot "${rawPath}"`, 45000);
+
+  const shotSize = fs.existsSync(rawPath) ? fs.statSync(rawPath).size : 0;
+  console.log(`[capture] Screenshot: ${(shotSize / 1024).toFixed(1)}KB`);
+  if (shotSize < 5000) {
+    console.log("[capture] WARNING: screenshot appears blank");
   }
 
-  // Final frame at top
-  sleep(100);
-  chrome(`screenshot "${framePath(frameIndex)}"`);
-  frameIndex++;
+  // 5. Generate Chrome frame via ffmpeg (fast, no Chrome navigate)
+  const chromeFramePath = generateChromeFrame(tmpDir, pageTitle, loadedUrl);
+  console.log(`[capture] Chrome frame: "${pageTitle.slice(0, 40)}" | ${loadedUrl.slice(0, 60)}`);
 
-  console.log(`[capture] Done. ${frameIndex} frames saved to ${tmpDir}`);
-  return { screenshotDir: tmpDir, frameCount: frameIndex };
+  // 6. Composite: chrome frame (88px) + page screenshot (992px) → 1920x1080
+  compositeFrame(chromeFramePath, rawPath, framePath);
+
+  // Clean up intermediate files
+  try { fs.unlinkSync(rawPath); } catch {}
+  try { fs.unlinkSync(chromeFramePath); } catch {}
+
+  console.log(`[capture] Done. 1 frame → ${tmpDir}`);
+  return { screenshotDir: tmpDir, frameCount: 1 };
 }
 
 // CLI entry point
@@ -302,23 +305,18 @@ if (require.main === module) {
   const profileUrl = process.argv[3];
 
   if (!websiteUrl) {
-    console.error(
-      "Usage: npx tsx scripts/loom-video/capture-profile.ts <website_url> [profile_url]"
-    );
+    console.error("Usage: npx tsx scripts/loom-video/capture-profile.ts <website_url> [profile_url]");
     process.exit(1);
   }
 
   (async () => {
     try {
-      const opts: CaptureOptions = {
+      const result = await captureProfile({
         websiteUrl,
         profileUrl: profileUrl || websiteUrl,
         fallbackUrls: [],
-      };
-      const result = await captureProfile(opts);
-      console.log(
-        `Screenshots: ${result.screenshotDir} (${result.frameCount} frames)`
-      );
+      });
+      console.log(`Screenshot dir: ${result.screenshotDir} (${result.frameCount} frames)`);
     } catch (err) {
       console.error("[capture] FATAL:", (err as Error).message);
       process.exit(1);

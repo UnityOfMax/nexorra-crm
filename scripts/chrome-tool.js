@@ -50,6 +50,27 @@ async function connectToChrome() {
   if (CONNECT_VW > 0 && CONNECT_VH > 0) {
     await page.setViewport({ width: CONNECT_VW, height: CONNECT_VH });
   }
+  // Stealth: remove bot signals so Cloudflare fingerprinting doesn't block us.
+  // evaluateOnNewDocument injects before any page JS runs.
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    // Remove Chrome automation globals
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+    // Restore chrome runtime (missing in automated sessions)
+    if (!window.chrome) window.chrome = { runtime: {} };
+    // Pass Notification permission check used by bot detectors
+    const origQuery = window.navigator.permissions && window.navigator.permissions.query;
+    if (origQuery) {
+      window.navigator.permissions.query = (p) =>
+        p.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : origQuery.call(window.navigator.permissions, p);
+    }
+  });
   return { browser, page };
 }
 
@@ -174,13 +195,11 @@ async function dismissCookieBanners(page) {
  */
 async function handleCloudflare(page) {
   const title = await page.title();
-  const isChallenge = /just a moment|cloudflare|security check|verif/i.test(title);
+  const isChallenge = /just a moment|attention required|cloudflare|security check|verif/i.test(title);
   if (isChallenge) {
-    console.error(JSON.stringify({ cloudflare: true, waiting: 25000 }));
-    await new Promise(r => setTimeout(r, 25000));
-    // Check again
-    const newTitle = await page.title();
-    return /just a moment|cloudflare|security check|verif/i.test(newTitle);
+    // Fail immediately — no 25s wait. Callers should try fallback URLs.
+    console.error(JSON.stringify({ cloudflare: true, blocked: true }));
+    return true;
   }
   return false;
 }
@@ -324,62 +343,62 @@ function mailtoScanExtractor(baseUrl, profileLinkPattern) {
   };
 }
 
-// Profile-link-based extractor helper for brokerages where email is NOT on listing page.
-function profileLinkExtractor(baseUrl, linkSelector, nameSelector) {
-  return () => {
-    const agents = [];
-    const seen = new Set();
-    const links = document.querySelectorAll(linkSelector);
+// Profile-link-based extractor logic (inlined into each extractor via page.evaluate args).
+// IMPORTANT: Puppeteer does NOT serialize closures. Always use page.evaluate(fn, arg1, arg2)
+// and pass variables as explicit args — never rely on outer-scope captures.
+function _profileLinkExtractorFn(baseUrl, linkSelector, nameSelector) {
+  const agents = [];
+  const seen = new Set();
+  const links = document.querySelectorAll(linkSelector);
 
-    links.forEach(link => {
-      const href = link.getAttribute('href');
-      if (!href || seen.has(href)) return;
+  links.forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href || seen.has(href)) return;
 
-      const container = link.closest(
-        '[class*="card"], [class*="Card"], [class*="agent"], [class*="Agent"], ' +
-        '[class*="result"], [class*="Result"], [class*="item"], [class*="Item"], ' +
-        '[class*="member"], [class*="associate"], li, article'
-      ) || link.parentElement?.parentElement;
-      if (!container) return;
+    const container = link.closest(
+      '[class*="card"], [class*="Card"], [class*="agent"], [class*="Agent"], ' +
+      '[class*="result"], [class*="Result"], [class*="item"], [class*="Item"], ' +
+      '[class*="member"], [class*="associate"], li, article'
+    ) || link.parentElement?.parentElement;
+    if (!container) return;
 
-      const nameEl = nameSelector
-        ? container.querySelector(nameSelector)
-        : container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
-      let name = nameEl?.textContent?.trim();
-      if (!name) {
-        name = link.textContent?.trim()?.split('\n')[0]?.trim();
-      }
-      if (!name || name.length < 3 || name.length > 80) return;
-      if (/view|more|search|page|next|prev|load/i.test(name)) return;
+    const nameEl = nameSelector
+      ? container.querySelector(nameSelector)
+      : container.querySelector('h1, h2, h3, h4, h5, [class*="name"], [class*="Name"]');
+    let name = nameEl?.textContent?.trim();
+    if (!name) {
+      name = link.textContent?.trim()?.split('\n')[0]?.trim();
+    }
+    if (!name || name.length < 3 || name.length > 80) return;
+    if (/view|more|search|page|next|prev|load/i.test(name)) return;
 
-      const fullUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
-      if (seen.has(fullUrl)) return;
-      seen.add(fullUrl);
+    const fullUrl = href.startsWith('http') ? href : new URL(href, baseUrl).href;
+    if (seen.has(fullUrl)) return;
+    seen.add(fullUrl);
 
-      const phoneEl = container.querySelector('a[href^="tel:"]');
-      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+    const phoneEl = container.querySelector('a[href^="tel:"]');
+    const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
 
-      const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
-      let picture = img?.src || null;
-      if (picture && !picture.startsWith('http')) {
-        try { picture = new URL(picture, baseUrl).href; } catch { picture = null; }
-      }
+    const img = container.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+    let picture = img?.src || null;
+    if (picture && !picture.startsWith('http')) {
+      try { picture = new URL(picture, baseUrl).href; } catch { picture = null; }
+    }
 
-      const igLink = container.querySelector('a[href*="instagram.com"]');
-      const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
+    const igLink = container.querySelector('a[href*="instagram.com"]');
+    const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
 
-      agents.push({
-        full_name: name,
-        profile_url: fullUrl,
-        profile_picture_url: picture,
-        email: null, // Must visit profile
-        phone,
-        instagram_handle: igHandle,
-      });
+    agents.push({
+      full_name: name,
+      profile_url: fullUrl,
+      profile_picture_url: picture,
+      email: null,
+      phone,
+      instagram_handle: igHandle,
     });
+  });
 
-    return agents;
-  };
+  return agents;
 }
 
 // Profile page extractor helper — extracts email from a single agent's profile page.
@@ -408,7 +427,41 @@ function profilePageExtractor() {
     const igLink = document.querySelector('a[href*="instagram.com"]');
     const igHandle = igLink?.href?.match(/instagram\.com\/([^/?#]+)/)?.[1] || null;
 
-    return { full_name: name, email, phone, instagram_handle: igHandle };
+    // Find personal website — external link labeled "website" / "web" / "my site"
+    const SKIP_DOMAINS = ['instagram.com','facebook.com','twitter.com','linkedin.com','youtube.com','tiktok.com','google.com','yelp.com','bhhs.com','remax.com','exprealty.com','sothebysrealty.com','kw.com','coldwellbanker.com','century21.com','realtor.com','compass.com'];
+    let personalWebsite = null;
+    const allLinks = Array.from(document.querySelectorAll('a[href^="http"]'));
+    // First pass: look for links explicitly labeled "website"
+    for (const link of allLinks) {
+      const text = (link.textContent || '').toLowerCase().trim();
+      const ariaLabel = (link.getAttribute('aria-label') || '').toLowerCase();
+      const title = (link.getAttribute('title') || '').toLowerCase();
+      const combined = text + ' ' + ariaLabel + ' ' + title;
+      if (/\bwebsite\b|\bmy site\b|\bhomepage\b|\bhome page\b|\bvisit site\b/.test(combined)) {
+        const href = link.href;
+        if (!SKIP_DOMAINS.some(d => href.includes(d))) {
+          personalWebsite = href;
+          break;
+        }
+      }
+    }
+    // Second pass: any external link that isn't social/brokerage/aggregator
+    if (!personalWebsite) {
+      const EXTENDED_SKIP = [...SKIP_DOMAINS, 'zillow.com','trulia.com','redfin.com','homesnap.com','homes.com','whitepages.com','yellowpages.com','mapquest.com','schema.org'];
+      for (const link of allLinks) {
+        const href = link.href;
+        if (!EXTENDED_SKIP.some(d => href.includes(d)) && !/^https?:\/\/[^/]+(\/?)$/.test(href)) {
+          // Must have a meaningful path (not just a root domain)
+          const path = href.replace(/^https?:\/\/[^/]+/, '');
+          if (path.length > 2) {
+            personalWebsite = href;
+            break;
+          }
+        }
+      }
+    }
+
+    return { full_name: name, email, phone, instagram_handle: igHandle, personal_website: personalWebsite };
   };
 }
 
@@ -577,20 +630,20 @@ async function extractCompass(page) {
 
 // eXp Realty — listing page (profile URLs only, no email)
 async function extractExp(page) {
-  return page.evaluate(profileLinkExtractor(
+  return page.evaluate(_profileLinkExtractorFn,
     'https://www.exprealty.com',
-    'a[href*="/agents-search/"][href*="_"]', // Profile links have Name_uuid format
+    'a[href*="/agents-search/"][href*="_"]',
     null
-  ));
+  );
 }
 
 // BHHS — listing page (profile URLs only, no email)
 async function extractBHHS(page) {
-  return page.evaluate(profileLinkExtractor(
+  return page.evaluate(_profileLinkExtractorFn,
     'https://www.bhhs.com',
     'a[href*="/agent/"], a[href*="/associate/"], a[href*="cid-"]',
     null
-  ));
+  );
 }
 
 // Sotheby's — listing page (profile URLs only, no email)
@@ -690,15 +743,59 @@ async function extractRemax(page) {
 // RE/MAX — profile page (Instagram handle + phone + email)
 async function extractRemaxProfile(page) {
   return page.evaluate(() => {
-    // Find Instagram — exclude the generic @remax account
-    const igLinks = document.querySelectorAll('a[href*="instagram.com"]');
+    const REMAX_GENERIC = new Set(['remax', 'remaxllc', 'remax_llc', 'remaxcanada']);
+
+    function parseIgHandle(href) {
+      if (!href) return null;
+      const match = href.match(/instagram\.com\/([^/?#&\s]+)/);
+      const handle = match?.[1];
+      if (!handle || REMAX_GENERIC.has(handle.toLowerCase())) return null;
+      return handle;
+    }
+
     let igHandle = null;
-    for (const link of igLinks) {
-      const match = link.href.match(/instagram\.com\/([^/?#&]+)/);
-      if (match && match[1].toLowerCase() !== 'remax') {
-        igHandle = match[1];
-        break;
+
+    // 1. Direct <a href*="instagram.com"> links
+    if (!igHandle) {
+      for (const link of document.querySelectorAll('a[href*="instagram.com"]')) {
+        igHandle = parseIgHandle(link.href);
+        if (igHandle) break;
       }
+    }
+
+    // 2. data-href or data-url attributes (React-rendered social buttons)
+    if (!igHandle) {
+      for (const el of document.querySelectorAll('[data-href*="instagram.com"],[data-url*="instagram.com"],[data-link*="instagram.com"]')) {
+        igHandle = parseIgHandle(el.getAttribute('data-href') || el.getAttribute('data-url') || el.getAttribute('data-link'));
+        if (igHandle) break;
+      }
+    }
+
+    // 3. JSON-LD structured data — Person.sameAs array
+    if (!igHandle) {
+      for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+        try {
+          const data = JSON.parse(script.textContent);
+          const items = Array.isArray(data) ? data : [data];
+          for (const item of items) {
+            const sameAs = item.sameAs || (item['@graph'] || []).flatMap(n => n.sameAs || []);
+            for (const url of (Array.isArray(sameAs) ? sameAs : [sameAs])) {
+              igHandle = parseIgHandle(url);
+              if (igHandle) break;
+            }
+            if (igHandle) break;
+          }
+        } catch { /* skip malformed JSON-LD */ }
+        if (igHandle) break;
+      }
+    }
+
+    // 4. Text content — look for @handle near social/instagram text
+    if (!igHandle) {
+      const bodyText = document.body.innerText;
+      // Match "instagram.com/handle" in plain text (not an <a> tag)
+      const textMatch = bodyText.match(/instagram\.com\/([A-Za-z0-9_.]{3,30})/);
+      if (textMatch) igHandle = parseIgHandle('instagram.com/' + textMatch[1]);
     }
 
     const mailtoEl = document.querySelector('a[href^="mailto:"]');
@@ -710,7 +807,20 @@ async function extractRemaxProfile(page) {
     const nameEl = document.querySelector('h1, [class*="agent-name"]');
     const name = nameEl?.textContent?.trim() || null;
 
-    return { full_name: name, email, phone, instagram_handle: igHandle };
+    // Personal website — labeled link or external non-brokerage link
+    const SKIP = ['remax.com','instagram.com','facebook.com','twitter.com','linkedin.com','youtube.com','google.com','yelp.com'];
+    let personalWebsite = null;
+    for (const link of document.querySelectorAll('a[href^="http"]')) {
+      const href = link.href;
+      if (SKIP.some(d => href.includes(d))) continue;
+      const text = (link.textContent || '').toLowerCase();
+      const aria = (link.getAttribute('aria-label') || '').toLowerCase();
+      if (/\bwebsite\b|\bmy site\b|\bhomepage\b/.test(text + ' ' + aria)) {
+        personalWebsite = href; break;
+      }
+    }
+
+    return { full_name: name, email, phone, instagram_handle: igHandle, personal_website: personalWebsite };
   });
 }
 
@@ -791,6 +901,119 @@ async function extractCentury21(page) {
 }
 
 
+// Realtor.com — listing page (profile URLs + names, minimal phone on listing)
+async function extractRealtor(page) {
+  return page.evaluate(() => {
+    const agents = [];
+    const seen = new Set();
+
+    // Try card containers first
+    const cards = document.querySelectorAll('[class*="AgentCard"], [class*="agent-card"], [data-testid*="agent-card"], [class*="agent_card"]');
+
+    const processLink = (link, container) => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      // Profile URLs: /realestateagents/{hex-id} or /realestateagents/{slug}/{id}
+      if (!/\/realestateagents\/[0-9a-f]{16,}/.test(href) && !/\/realestateagents\/[^/]+\/[0-9a-f]{16,}/.test(href)) return;
+      const fullUrl = href.startsWith('http') ? href : 'https://www.realtor.com' + href;
+      if (seen.has(fullUrl)) return;
+      seen.add(fullUrl);
+
+      const nameEl = container?.querySelector('h3, h2, [class*="agent-name"], [class*="AgentName"], [data-testid="agent-name"]');
+      let name = nameEl?.textContent?.trim();
+      if (!name || name.length < 3 || name.length > 80) return;
+      if (/view|more|search|page|next|prev/i.test(name)) return;
+
+      const phoneEl = container?.querySelector('a[href^="tel:"]');
+      const phone = phoneEl?.href?.replace('tel:', '').trim() || null;
+
+      const img = container?.querySelector('img[src]:not([src*="logo"]):not([src*="icon"])');
+      const picture = img?.src || null;
+
+      const nameParts = name.trim().split(/\s+/);
+      agents.push({
+        full_name: name,
+        first_name: nameParts[0] || null,
+        last_name: nameParts.slice(1).join(' ') || null,
+        profile_url: fullUrl,
+        profile_picture_url: picture,
+        email: null,
+        phone,
+        instagram_handle: null,
+      });
+    };
+
+    if (cards.length > 0) {
+      cards.forEach(card => {
+        const link = card.querySelector('a[href*="/realestateagents/"]');
+        if (link) processLink(link, card);
+      });
+    } else {
+      // Fallback: find all profile links on page
+      document.querySelectorAll('a[href*="/realestateagents/"]').forEach(link => {
+        const container = link.closest('li, article, [class*="card"], [class*="Card"], [class*="item"]') || link.parentElement?.parentElement;
+        processLink(link, container);
+      });
+    }
+    return agents;
+  });
+}
+
+// Realtor.com — profile page (mobile phone, email, Instagram)
+async function extractRealtorProfile(page) {
+  return page.evaluate(() => {
+    // Collect all phone numbers — prefer mobile/cell labeled ones
+    const phoneLinks = Array.from(document.querySelectorAll('a[href^="tel:"]'));
+    let mobilePhone = null;
+    let anyPhone = null;
+
+    phoneLinks.forEach(link => {
+      const num = link.href.replace('tel:', '').trim();
+      if (!anyPhone) anyPhone = num;
+      const context = (link.closest('[class*="phone"], [class*="contact"], [class*="Phone"]')?.textContent ||
+                       link.parentElement?.textContent || '').toLowerCase();
+      if ((context.includes('mobile') || context.includes('cell')) && !mobilePhone) {
+        mobilePhone = num;
+      }
+    });
+    const phone = mobilePhone || anyPhone;
+
+    // Instagram
+    const igLinks = document.querySelectorAll('a[href*="instagram.com"]');
+    let igHandle = null;
+    for (const link of igLinks) {
+      const match = link.href.match(/instagram\.com\/([^/?#&]+)/);
+      if (match && !['realtor', 'realtordotcom', 'realtorcom'].includes(match[1].toLowerCase())) {
+        igHandle = match[1];
+        break;
+      }
+    }
+
+    // Email
+    const mailtoEl = document.querySelector('a[href^="mailto:"]');
+    const email = mailtoEl?.href?.replace('mailto:', '')?.split('?')[0]?.trim()?.toLowerCase() || null;
+
+    // Name
+    const nameEl = document.querySelector('h1, [class*="agent-name"], [data-testid="agent-name"]');
+    const name = nameEl?.textContent?.trim() || null;
+
+    // Personal website
+    const SKIP_RT = ['realtor.com','instagram.com','facebook.com','twitter.com','linkedin.com','youtube.com','google.com'];
+    let personalWebsite = null;
+    for (const link of document.querySelectorAll('a[href^="http"]')) {
+      const href = link.href;
+      if (SKIP_RT.some(d => href.includes(d))) continue;
+      const text = (link.textContent || '').toLowerCase();
+      const aria = (link.getAttribute('aria-label') || '').toLowerCase();
+      if (/\bwebsite\b|\bmy site\b|\bhomepage\b|\bweb\b/.test(text + ' ' + aria)) {
+        personalWebsite = href; break;
+      }
+    }
+
+    return { full_name: name, email, phone, instagram_handle: igHandle, personal_website: personalWebsite };
+  });
+}
+
 const EXTRACTORS = {
   kw: extractKW,
   exp: extractExp,
@@ -801,12 +1024,14 @@ const EXTRACTORS = {
   sothebys: extractSothebys,
   remax: extractRemax,
   century21: extractCentury21,
+  realtor: extractRealtor,
 };
 
 const PROFILE_EXTRACTORS = {
   exp: extractExpProfile,
   bhhs: extractBHHSProfile,
   remax: extractRemaxProfile,
+  realtor: extractRealtorProfile,
   sothebys: extractSothebysProfile,
 };
 
@@ -880,6 +1105,19 @@ Prerequisites:
         console.log(`Navigating to: ${url}`);
         const result = await smartNavigate(page, url);
         console.log(JSON.stringify(result));
+        break;
+      }
+
+      case 'links': {
+        // Extract all anchor hrefs using page.evaluate — captures JS-rendered links
+        // that page.content() misses (e.g. Google search results)
+        const links = await page.evaluate(() => {
+          return Array.from(document.querySelectorAll('a'))
+            .map(a => a.href)
+            .filter(h => h && h.startsWith('http'))
+            .slice(0, 100);
+        });
+        console.log(JSON.stringify(links));
         break;
       }
 
