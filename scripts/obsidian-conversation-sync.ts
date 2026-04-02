@@ -229,11 +229,12 @@ async function extractSessionInfo(filePath: string, sessionId: string): Promise<
           !text.startsWith("<channel source=") &&
           !text.startsWith("You are ") &&
           !text.startsWith("System:") &&
-          !text.startsWith("Your current state") &&
+          !text.toLowerCase().startsWith("your current state") &&
           !text.startsWith("Base directory for this skill") &&
           !text.startsWith("CommandMessage") &&
           !text.startsWith("LocalCommandCaveat") &&
           !text.match(/^(skill|name|description):/i) &&
+          !text.match(/^(cold.email reply|client reply|instagram reply|lead.gen agent|campaign optimizer)\s*(handler|agent)/i) &&
           !text.startsWith("<") &&
           !text.startsWith("{")
         ) {
