@@ -36,26 +36,50 @@ export async function GET(request: NextRequest) {
     );
     const adAccountsData = await adAccountsResponse.json();
 
-    // Get pages
-    const pagesResponse = await fetch(
-      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`
-    );
-    const pagesData = await pagesResponse.json();
-
-    // Log errors from Facebook for debugging
     if (adAccountsData.error) {
       console.error('[facebook/accounts] Ad accounts error:', JSON.stringify(adAccountsData.error));
     }
-    if (pagesData.error) {
-      console.error('[facebook/accounts] Pages error:', JSON.stringify(pagesData.error));
+
+    // ── Pages: try two paths and merge ──────────────────────────────────────
+    // Path 1: direct page roles (/me/accounts) — works for pages the user directly admins
+    const directRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username}&limit=200&access_token=${accessToken}`
+    );
+    const directData = await directRes.json();
+    if (directData.error) {
+      console.error('[facebook/accounts] /me/accounts error:', JSON.stringify(directData.error));
     }
+
+    // Path 2: Business Manager owned + client pages
+    // Many users manage pages through a Business Manager rather than directly
+    const bizRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/businesses?fields=id,name,owned_pages{id,name,instagram_business_account{id,username}},client_pages{id,name,instagram_business_account{id,username}}&limit=50&access_token=${accessToken}`
+    );
+    const bizData = await bizRes.json();
+    if (bizData.error) {
+      console.error('[facebook/accounts] /me/businesses error:', JSON.stringify(bizData.error));
+    }
+
+    // Merge all pages, deduplicate by id
+    const pageMap = new Map<string, any>();
+    for (const p of (directData.data || [])) {
+      pageMap.set(p.id, p);
+    }
+    for (const biz of (bizData.data || [])) {
+      for (const p of (biz.owned_pages?.data || [])) pageMap.set(p.id, p);
+      for (const p of (biz.client_pages?.data || [])) pageMap.set(p.id, p);
+    }
+    const pages = Array.from(pageMap.values());
 
     return NextResponse.json({
       adAccounts: adAccountsData.data || [],
-      pages: pagesData.data || [],
+      pages,
       debug: {
         adAccountsError: adAccountsData.error || null,
-        pagesError: pagesData.error || null,
+        directPagesError: directData.error || null,
+        directPagesCount: (directData.data || []).length,
+        bizError: bizData.error || null,
+        bizCount: (bizData.data || []).length,
       }
     });
   } catch (error: any) {

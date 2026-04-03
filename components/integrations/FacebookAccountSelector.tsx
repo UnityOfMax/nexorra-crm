@@ -60,8 +60,14 @@ export default function FacebookAccountSelector({
       setAdAccounts(data.adAccounts || []);
       setPages(data.pages || []);
 
-      if (data.debug?.pagesError) {
-        setPagesError(data.debug.pagesError.message || JSON.stringify(data.debug.pagesError));
+      const debug = data.debug || {};
+      if (debug.directPagesError || debug.bizError) {
+        const msg = (debug.directPagesError?.message || '') || (debug.bizError?.message || '');
+        setPagesError(msg || JSON.stringify(debug.directPagesError || debug.bizError));
+      }
+      // Log full debug for inspection
+      if ((data.pages || []).length === 0) {
+        console.warn('[facebook] No pages found. Debug:', debug);
       }
     } catch (error: any) {
       console.error('Error loading Facebook accounts:', error);
