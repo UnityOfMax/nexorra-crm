@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Account, NotificationPreferences } from '@/types';
 import type { UserRole } from '@/types/agency';
-import { supabase } from '@/lib/supabase-browser';
 import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink, ArrowLeft, ChevronRight } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
@@ -141,12 +140,11 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
   const loadFacebookIntegration = async () => {
     try {
-      const { data, error } = await supabase
-        .from('facebook_integrations')
-        .select('*')
-        .eq('account_id', account.id)
-        .single();
-      if (data && !error) setFacebookIntegration(data);
+      const res = await fetch(`/api/integrations/facebook/status?accountId=${account.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFacebookIntegration(data.integration);
+      }
     } catch {
       // No Facebook integration yet
     }
