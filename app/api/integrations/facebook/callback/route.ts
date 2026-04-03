@@ -4,10 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 // GET /api/integrations/facebook/callback - Handle Facebook OAuth callback
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const accountId = searchParams.get('state');
+
   try {
-    const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
-    const accountId = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
