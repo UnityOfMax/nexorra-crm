@@ -243,7 +243,6 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     PRODUCT_3: 'New Arrival', PRODUCT_3_DESC: '', PRODUCT_3_PRICE: '',
     PRODUCT_4: 'Staff Pick', PRODUCT_4_DESC: '', PRODUCT_4_PRICE: '',
     HOURS_WEEKDAY: '9:00 AM – 6:00 PM', HOURS_SAT: '10:00 AM – 4:00 PM', HOURS_SUN: 'Closed',
-    YEARS_IN_BIZ: biz.years_in_business || '5',
     // Home services
     TRUST_1: 'Licensed, bonded, and insured',
     TRUST_2: 'Free quotes with no obligation',
