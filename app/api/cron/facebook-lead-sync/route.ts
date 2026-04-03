@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
   const { data: integrations, error } = await supabaseAdmin
     .from('facebook_integrations')
-    .select('account_id, access_token, page_id, last_sync_at')
+    .select('account_id, access_token, page_id, last_sync_at, selected_form_ids, field_mappings')
     .not('page_id', 'is', null);
 
   if (error) {
@@ -65,8 +65,10 @@ async function syncAccountLeads(integration: {
   access_token: string;
   page_id: string;
   last_sync_at: string | null;
+  selected_form_ids: string[] | null;
+  field_mappings: Record<string, string> | null;
 }): Promise<number> {
-  const { account_id, access_token, page_id, last_sync_at } = integration;
+  const { account_id, access_token, page_id, last_sync_at, selected_form_ids, field_mappings } = integration;
 
   // 1. Get page-scoped token (works with both user tokens and system user tokens)
   const pageTokenRes = await fetch(
@@ -80,16 +82,33 @@ async function syncAccountLeads(integration: {
   }
   const pageToken = pageTokenData.access_token;
 
-  // 2. List active lead forms on this page
-  const formsRes = await fetch(
-    `https://graph.facebook.com/v21.0/${page_id}/leadgen_forms?fields=id,name,status&filtering=[{"field":"status","operator":"IN","value":["ACTIVE"]}]&access_token=${pageToken}`
-  );
-  const formsData = await formsRes.json();
+  // 2. Determine which forms to sync
+  // If the user has selected specific forms, only sync those.
+  // Otherwise fall back to all active forms on the page.
+  let formsToSync: Array<{ id: string; name: string }> = [];
 
-  if (formsData.error || !formsData.data?.length) {
-    console.log(`[fb-lead-sync] No active forms for page ${page_id}:`, formsData.error?.message || 'none');
-    return 0;
+  if (selected_form_ids && selected_form_ids.length > 0) {
+    // Fetch details for each selected form
+    formsToSync = await Promise.all(
+      selected_form_ids.map(async (formId) => {
+        const r = await fetch(`https://graph.facebook.com/v21.0/${formId}?fields=id,name&access_token=${pageToken}`);
+        const d = await r.json();
+        return d.error ? null : { id: d.id, name: d.name };
+      })
+    ).then(results => results.filter(Boolean) as Array<{ id: string; name: string }>);
+  } else {
+    const formsRes = await fetch(
+      `https://graph.facebook.com/v21.0/${page_id}/leadgen_forms?fields=id,name,status&filtering=[{"field":"status","operator":"IN","value":["ACTIVE"]}]&access_token=${pageToken}`
+    );
+    const formsData = await formsRes.json();
+    if (formsData.error || !formsData.data?.length) {
+      console.log(`[fb-lead-sync] No active forms for page ${page_id}:`, formsData.error?.message || 'none');
+      return 0;
+    }
+    formsToSync = formsData.data;
   }
+
+  if (!formsToSync.length) return 0;
 
   // Sync window: last_sync_at (default: 30 min ago for first run)
   const since = last_sync_at
@@ -98,12 +117,12 @@ async function syncAccountLeads(integration: {
 
   let syncedCount = 0;
 
-  for (const form of formsData.data) {
+  for (const form of formsToSync) {
     const formLeads = await fetchFormLeads(form.id, pageToken, since);
 
     for (const lead of formLeads) {
       try {
-        const processed = await processLead(lead, form, account_id);
+        const processed = await processLead(lead, form, account_id, field_mappings || {});
         if (processed) syncedCount++;
       } catch (err: any) {
         console.error(`[fb-lead-sync] Error processing lead ${lead.id}:`, err.message);
@@ -162,7 +181,8 @@ async function fetchFormLeads(formId: string, pageToken: string, since: number):
 async function processLead(
   lead: GraphLead,
   form: { id: string; name: string },
-  accountId: string
+  accountId: string,
+  fieldMappings: Record<string, string> = {}
 ): Promise<boolean> {
   // Dedup by Facebook lead ID
   const { data: existing } = await supabaseAdmin
@@ -173,8 +193,8 @@ async function processLead(
 
   if (existing) return false; // Already processed
 
-  // Map form fields to contact fields
-  const fields = mapLeadFields(lead.field_data);
+  // Map form fields to contact fields (applying user-configured field mappings)
+  const fields = mapLeadFields(lead.field_data, fieldMappings);
   const normalizedPhone = fields.phone ? normalizePhone(fields.phone) : null;
 
   // Upsert contact (dedup by phone or email)
@@ -322,14 +342,37 @@ interface MappedFields {
   custom: Record<string, string>;
 }
 
-function mapLeadFields(fieldData: Array<{ name: string; values: string[] }>): MappedFields {
+/**
+ * Map Meta lead form field_data to contact fields.
+ * fieldMappings: { questionKey -> crmField } from user configuration.
+ * crmField is either a top-level field ('first_name', 'email', etc.)
+ * or a custom field prefixed with 'custom:' ('custom:address').
+ */
+function mapLeadFields(
+  fieldData: Array<{ name: string; values: string[] }>,
+  fieldMappings: Record<string, string> = {}
+): MappedFields {
   const result: MappedFields = { custom: {} };
 
   for (const field of fieldData) {
     const value = field.values?.[0] || '';
     if (!value) continue;
 
-    switch (field.name.toLowerCase()) {
+    const key = field.name.toLowerCase();
+
+    // Check if user has mapped this question to a specific CRM field
+    const userMapping = fieldMappings[field.name] || fieldMappings[key];
+    if (userMapping) {
+      if (userMapping.startsWith('custom:')) {
+        result.custom[userMapping.slice(7)] = value;
+      } else {
+        (result as any)[userMapping] = value;
+      }
+      continue;
+    }
+
+    // Standard auto-mapping for common field names
+    switch (key) {
       case 'first_name':
         result.first_name = value;
         break;
@@ -350,6 +393,7 @@ function mapLeadFields(fieldData: Array<{ name: string; values: string[] }>): Ma
         result.email = value;
         break;
       default:
+        // Unmapped custom questions go into custom_fields by their key
         result.custom[field.name] = value;
     }
   }
