@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       'ads_read',
       'ads_management',
       'leads_retrieval',
+      'business_management',
     ].join(',');
 
     const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');

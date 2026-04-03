@@ -155,32 +155,41 @@ export default function FacebookAccountSelector({
 
       {/* Page Selection */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Facebook Page (Optional)
         </label>
-        <select
-          value={selectedPage}
-          onChange={(e) => setSelectedPage(e.target.value)}
-          className="input"
-        >
-          <option value="">No page selected</option>
-          {pages.map((page) => (
-            <option key={page.id} value={page.id}>
-              {page.name}
-              {page.instagram_business_account && ` (+ Instagram: @${page.instagram_business_account.username})`}
-            </option>
-          ))}
-        </select>
-        {pages.length === 0 && (
-          <div className="mt-1 space-y-1">
+        {pages.length > 0 ? (
+          <select
+            value={selectedPage}
+            onChange={(e) => setSelectedPage(e.target.value)}
+            className="input"
+          >
+            <option value="">No page selected</option>
+            {pages.map((page) => (
+              <option key={page.id} value={page.id}>
+                {page.name}
+                {page.instagram_business_account && ` (+ Instagram: @${page.instagram_business_account.username})`}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={selectedPage}
+              onChange={(e) => setSelectedPage(e.target.value.trim())}
+              placeholder="Enter Page ID (e.g. 187715877269)"
+              className="input"
+            />
             {pagesError ? (
-              <p className="text-xs text-red-500">API error: {pagesError}</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Could not load pages automatically ({pagesError}). Enter your Page ID manually — find it in your Facebook Page settings under &ldquo;About&rdquo; → Page transparency.
+              </p>
             ) : (
-              <p className="text-xs text-gray-500">No pages found.</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                No pages found via API. Enter your Page ID manually.
+              </p>
             )}
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              To fix: disconnect and reconnect Facebook, then make sure to select your pages when Facebook asks.
-            </p>
           </div>
         )}
       </div>
