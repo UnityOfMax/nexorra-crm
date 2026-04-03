@@ -123,14 +123,34 @@ export async function GET(request: NextRequest) {
 
     console.log('Facebook connected successfully for account:', accountId);
 
-    // Redirect back to settings page with success message
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&facebook=connected`
-    );
+    // Look up account slug to redirect back to the correct subaccount
+    const { data: accountRow } = await supabaseAdmin
+      .from('accounts')
+      .select('slug')
+      .eq('id', accountId)
+      .maybeSingle();
+
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const successUrl = accountRow?.slug
+      ? `${base}/account/${accountRow.slug}?view=settings&facebook=connected`
+      : `${base}/?view=settings&facebook=connected`;
+
+    return NextResponse.redirect(successUrl);
   } catch (error: any) {
     console.error('Error in Facebook OAuth callback:', error);
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?view=settings&facebook=error&message=${encodeURIComponent(error.message)}`
-    );
+    // Best-effort: try to redirect back to the initiating account
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    let errorUrl = `${base}/?view=settings&facebook=error&message=${encodeURIComponent(error.message)}`;
+    if (accountId) {
+      const { data: accountRow } = await supabaseAdmin
+        .from('accounts')
+        .select('slug')
+        .eq('id', accountId)
+        .maybeSingle();
+      if (accountRow?.slug) {
+        errorUrl = `${base}/account/${accountRow.slug}?view=settings&facebook=error&message=${encodeURIComponent(error.message)}`;
+      }
+    }
+    return NextResponse.redirect(errorUrl);
   }
 }
