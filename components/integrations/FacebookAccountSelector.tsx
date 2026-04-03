@@ -39,6 +39,7 @@ export default function FacebookAccountSelector({
   const [selectedAdAccount, setSelectedAdAccount] = useState(currentAdAccountId || '');
   const [selectedPage, setSelectedPage] = useState(currentPageId || '');
   const [message, setMessage] = useState('');
+  const [pagesError, setPagesError] = useState('');
   const [activeSection, setActiveSection] = useState<'main' | 'lead-forms'>('main');
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function FacebookAccountSelector({
 
   const loadAccounts = async () => {
     setLoading(true);
+    setPagesError('');
     try {
       const response = await fetch(`/api/integrations/facebook/accounts?accountId=${accountId}`);
       const data = await response.json();
@@ -57,6 +59,10 @@ export default function FacebookAccountSelector({
 
       setAdAccounts(data.adAccounts || []);
       setPages(data.pages || []);
+
+      if (data.debug?.pagesError) {
+        setPagesError(data.debug.pagesError.message || JSON.stringify(data.debug.pagesError));
+      }
     } catch (error: any) {
       console.error('Error loading Facebook accounts:', error);
       setMessage('Failed to load accounts: ' + error.message);
@@ -160,9 +166,16 @@ export default function FacebookAccountSelector({
           ))}
         </select>
         {pages.length === 0 && (
-          <p className="text-xs text-gray-500 mt-1">
-            No pages found. Make sure your account manages Facebook Pages.
-          </p>
+          <div className="mt-1 space-y-1">
+            {pagesError ? (
+              <p className="text-xs text-red-500">API error: {pagesError}</p>
+            ) : (
+              <p className="text-xs text-gray-500">No pages found.</p>
+            )}
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              To fix: disconnect and reconnect Facebook, then make sure to select your pages when Facebook asks.
+            </p>
+          </div>
         )}
       </div>
 
