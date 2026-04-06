@@ -37,6 +37,11 @@ const vhIdx = process.argv.indexOf('--vh');
 const CONNECT_VH = vhIdx !== -1 ? parseInt(process.argv[vhIdx + 1]) : 0;
 if (vhIdx !== -1) process.argv.splice(vhIdx, 2);
 
+// --fast: skip humanising random delays (for video capture pipeline — not for scraping)
+const fastIdx = process.argv.indexOf('--fast');
+const FAST_MODE = fastIdx !== -1;
+if (fastIdx !== -1) process.argv.splice(fastIdx, 1);
+
 const CDP_URL = `http://localhost:${CDP_PORT}`;
 
 async function connectToChrome() {
@@ -50,27 +55,31 @@ async function connectToChrome() {
   if (CONNECT_VW > 0 && CONNECT_VH > 0) {
     await page.setViewport({ width: CONNECT_VW, height: CONNECT_VH });
   }
-  // Stealth: remove bot signals so Cloudflare fingerprinting doesn't block us.
-  // evaluateOnNewDocument injects before any page JS runs.
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-    // Remove Chrome automation globals
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
-    // Restore chrome runtime (missing in automated sessions)
-    if (!window.chrome) window.chrome = { runtime: {} };
-    // Pass Notification permission check used by bot detectors
-    const origQuery = window.navigator.permissions && window.navigator.permissions.query;
-    if (origQuery) {
-      window.navigator.permissions.query = (p) =>
-        p.name === 'notifications'
-          ? Promise.resolve({ state: Notification.permission })
-          : origQuery.call(window.navigator.permissions, p);
-    }
-  });
+  // FAST_MODE (video pipeline): skip evaluateOnNewDocument entirely.
+  // Page.addScriptToEvaluateOnNewDocument is a well-known Puppeteer fingerprint that Cloudflare
+  // specifically checks for. In fast mode we navigate via xdotool so the browser starts clean —
+  // no CDP injection before any page load. --disable-blink-features=AutomationControlled on the
+  // Chrome launch flags already handles navigator.webdriver.
+  //
+  // In normal mode (Jeff scraping), keep the injection for sites that need it.
+  if (!FAST_MODE) {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+      if (!window.chrome) window.chrome = { runtime: {} };
+      const origQuery = window.navigator.permissions && window.navigator.permissions.query;
+      if (origQuery) {
+        window.navigator.permissions.query = (p) =>
+          p.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission })
+            : origQuery.call(window.navigator.permissions, p);
+      }
+    });
+  }
   return { browser, page };
 }
 
@@ -191,16 +200,37 @@ async function dismissCookieBanners(page) {
 
 /**
  * Check if current page is a Cloudflare challenge and wait for it to pass.
- * Returns true if challenge was detected (and waited), false if page is normal.
+ * Returns true if still blocked after all attempts, false if page is normal/resolved.
+ *
+ * Two types of CF challenge:
+ *  - "Attention Required!" / "Access Denied" → hard block, no auto-resolve, fail immediately.
+ *  - "Just a moment..." → JS challenge that auto-resolves for real browsers.
+ *    We wait in pure setTimeout loops (NO CDP calls) — CDP page.evaluate() calls
+ *    interfere with the challenge JS and prevent it from completing.
  */
 async function handleCloudflare(page) {
   const title = await page.title();
-  const isChallenge = /just a moment|attention required|cloudflare|security check|verif/i.test(title);
-  if (isChallenge) {
-    // Fail immediately — no 25s wait. Callers should try fallback URLs.
-    console.error(JSON.stringify({ cloudflare: true, blocked: true }));
+
+  // Hard block — Cloudflare has denied access, won't auto-resolve regardless of wait.
+  if (/attention required|access denied/i.test(title)) {
     return true;
   }
+
+  // Soft JS challenge — auto-resolves for real browsers, just needs time without interference.
+  if (/just a moment|checking your browser/i.test(title)) {
+    // Wait in pure setTimeout increments — avoid any CDP calls (eval, evaluate, etc.)
+    // which can stall the challenge JS. Check every 8s, up to 40s total.
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 8000));
+      const newTitle = await page.title();
+      if (!/just a moment|checking your browser/i.test(newTitle)) {
+        return false; // challenge resolved — proceed normally
+      }
+    }
+    // 40s elapsed, still on challenge page
+    return true;
+  }
+
   return false;
 }
 
@@ -209,8 +239,13 @@ async function handleCloudflare(page) {
  * Also auto-dismisses cookie banners and handles Cloudflare.
  */
 async function smartNavigate(page, url) {
+  // FAST_MODE (video pipeline): use 'load' event — fires when all resources are downloaded
+  // but doesn't wait for AJAX/WebSockets. Compass/ColdwellBanker have persistent connections
+  // that cause networkidle2 to always timeout at 30s.
+  // Normal mode (scraping): networkidle2 for more thorough load detection.
+  const waitEvent = FAST_MODE ? 'load' : 'networkidle2';
   try {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(url, { waitUntil: waitEvent, timeout: 30000 });
   } catch (err) {
     if (err.message.includes('timeout')) {
       // Page may have loaded but background requests are still running
@@ -219,7 +254,7 @@ async function smartNavigate(page, url) {
       if (!hasContent) {
         // Try with less strict wait
         try {
-          await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+          await page.goto(url, { waitUntil: 'load', timeout: 20000 });
         } catch {
           // Still timeout — page may be partially loaded, continue anyway
         }
@@ -229,7 +264,9 @@ async function smartNavigate(page, url) {
     }
   }
 
-  await randomDelay(2000, 4000);
+  // In fast mode (video pipeline), skip the humanising delay — saves 2-4s per navigate.
+  // In normal mode (scraping), keep the delay to appear more human.
+  if (!FAST_MODE) await randomDelay(2000, 4000);
 
   // Handle Cloudflare challenge
   const stillBlocked = await handleCloudflare(page);
@@ -1218,6 +1255,28 @@ Prerequisites:
         break;
       }
 
+      case 'wait-for-title': {
+        // Poll until title is not blank/"Loading..." and body has content.
+        // Handles React/Next.js SPAs that render title after JS hydration.
+        // Usage: wait-for-title [maxMs=5000]
+        const maxMs = parseInt(args[1]) || 5000;
+        const pollInterval = 400;
+        const deadline = Date.now() + maxMs;
+        let title = '';
+        let textLen = 0;
+        while (Date.now() < deadline) {
+          title = await page.title().catch(() => '');
+          textLen = await page.evaluate(() => document.body?.innerText?.length || 0).catch(() => 0);
+          if (title && title !== 'Loading...' && textLen > 300) break;
+          await new Promise(r => setTimeout(r, pollInterval));
+        }
+        // Final read
+        title = await page.title().catch(() => '');
+        textLen = await page.evaluate(() => document.body?.innerText?.length || 0).catch(() => 0);
+        console.log(JSON.stringify({ title, textLength: textLen }));
+        break;
+      }
+
       case 'maximize': {
         // Maximize Chrome window using CDP Browser domain (two-step: normal → maximized)
         const cdpSession = await page.createCDPSession();
@@ -1250,37 +1309,53 @@ Prerequisites:
         break;
       }
 
-      case 'reset-tab': {
-        // Close current tab and open fresh one — fixes stuck pages (reCAPTCHA, SPA routing)
-        const http = require('http');
-        const port = CDP_PORT || 9222;
-        // Get current tabs
-        const tabsJson = await new Promise((resolve, reject) => {
-          http.get(`http://localhost:${port}/json`, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(data));
-          }).on('error', reject);
-        });
-        const tabs = JSON.parse(tabsJson);
-        const pageTabs = tabs.filter(t => t.type === 'page');
-        // Open new tab first
-        await new Promise((resolve, reject) => {
-          http.get(`http://localhost:${port}/json/new?about:blank`, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(data));
-          }).on('error', reject);
-        });
-        await new Promise(r => setTimeout(r, 500));
-        // Close old page tabs
-        for (const tab of pageTabs) {
-          await new Promise((resolve) => {
-            http.get(`http://localhost:${port}/json/close/${tab.id}`, () => resolve()).on('error', () => resolve());
-          });
+      case 'eval': {
+        // Evaluate arbitrary JS in the page context. Supports top-level await.
+        // Usage: eval <js-file-path>  OR  eval --inline <js string>
+        let evalCode = '';
+        if (args[1] === '--inline') {
+          evalCode = args.slice(2).join(' ');
+        } else {
+          const evalFile = args[1];
+          if (!evalFile) { console.error('Usage: eval <file.js> OR eval --inline <code>'); break; }
+          const fs = require('fs');
+          evalCode = fs.readFileSync(evalFile, 'utf8');
         }
-        await new Promise(r => setTimeout(r, 500));
-        console.log(JSON.stringify({ reset: true, closedTabs: pageTabs.length }));
+        try {
+          const evalResult = await page.evaluate(new Function(`return (async () => { ${evalCode} })()`));
+          console.log(JSON.stringify({ result: evalResult }));
+        } catch (e) {
+          console.error(JSON.stringify({ error: e.message }));
+        }
+        break;
+      }
+
+      case 'wait-content': {
+        // Wait until page has rendered visible text content (handles React SPAs).
+        // Polls document.body.innerText.length up to 5s.
+        const minChars = parseInt(args[1]) || 200;
+        const deadline = Date.now() + 5000;
+        let len = 0;
+        while (Date.now() < deadline) {
+          len = await page.evaluate(() => (document.body?.innerText || '').length).catch(() => 0);
+          if (len >= minChars) break;
+          await new Promise(r => setTimeout(r, 400));
+        }
+        console.log(JSON.stringify({ contentLength: len, ready: len >= minChars }));
+        break;
+      }
+
+      case 'reset-tab': {
+        // Close current tab and open a fresh blank one after each lead capture.
+        // Uses Puppeteer's native newPage()/page.close() which is reliable under load —
+        // the old HTTP-API approach (/json/new + /json/close) could race and leave 0 tabs,
+        // causing Chrome to exit entirely.
+        const newPage = await browser.newPage();
+        // Wait for new page to initialize before closing old one (prevents 0-tab race)
+        await new Promise(r => setTimeout(r, 300));
+        await page.close().catch(() => {});
+        await new Promise(r => setTimeout(r, 200));
+        console.log(JSON.stringify({ reset: true }));
         break;
       }
 
