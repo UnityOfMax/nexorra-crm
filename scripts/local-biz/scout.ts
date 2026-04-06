@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 import { searchPlaces } from '../../lib/google-maps/scraper';
 import { findEmail } from '../../lib/email-finder/client';
 import { analyzeWebsite } from './analyze-website';
+import { scrapeFacebookBusiness } from '../../lib/facebook/scraper';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -107,6 +108,27 @@ function randomSample<T>(arr: T[], n: number): T[] {
   return shuffled.slice(0, n);
 }
 
+// ─── Chain / franchise detection ─────────────────────────────────────────────
+
+const CHAIN_SIGNALS = [
+  /\bfranchise\b/i, /\blocations\b/i, /\/location\//i, /\bcorporate\b/i,
+  /\bnational\b.*\bchain\b/i, /\bheadquarters\b/i,
+];
+const CHAIN_800_RE = /1[-.\s]?800/;
+
+function isChain(name: string, site: string | null, phone: string | null): boolean {
+  if (site && CHAIN_SIGNALS.some(re => re.test(site))) return true;
+  if (phone && CHAIN_800_RE.test(phone)) return true;
+  // Common franchise brand names
+  const chainBrands = [
+    'great clips', 'supercuts', 'sport clips', 'fantastic sams', 'cookie cutters',
+    'mcdonalds', 'starbucks', 'subway', 'anytime fitness', 'planet fitness',
+    'snap fitness', 'orange theory', 'franchise',
+  ];
+  if (chainBrands.some(b => name.toLowerCase().includes(b))) return true;
+  return false;
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -152,30 +174,106 @@ async function main() {
 
       if (existing) continue;
 
+      // Skip chains and franchises immediately
+      if (isChain(place.name, place.site, place.phone)) {
+        console.log(`[scout]   ⊘ Chain/franchise skip: ${place.name}`);
+        continue;
+      }
+
       totalNew++;
 
-      // Parse photos
       const photos: string[] = place.photos || [];
-
-      // Determine country from city string
       const country = CANADA_CITIES.some(c => c.includes(combo.city.split(',')[0].trim())) ? 'CA' : 'US';
+      const hasFacebook = !!place.facebook_url;
+      const hasWebsite = !!place.site;
 
-      // Insert raw record
+      // ── Priority classification ───────────────────────────────────────────
+      // HIGH: No website + has Facebook (best raw material + clear need)
+      // MEDIUM: Has website with score < 40 (clearly bad)
+      // LOW: Has website with score 40-60 (mediocre)
+      // Skip: Has good website OR no website AND no Facebook
+
+      // Website scoring
+      let websiteScore: number | null = null;
+      if (hasWebsite) {
+        try {
+          websiteScore = await analyzeWebsite(place.site!);
+        } catch { /* score stays null — treat as bad */ }
+      }
+
+      let priority: 'high' | 'medium' | 'low';
+      let qualifies: boolean;
+
+      if (!hasWebsite && hasFacebook) {
+        priority = 'high';
+        qualifies = true;
+      } else if (hasWebsite && (websiteScore === null || websiteScore < 40)) {
+        priority = 'medium';
+        qualifies = true;
+      } else if (hasWebsite && websiteScore !== null && websiteScore < 60) {
+        priority = 'low';
+        qualifies = true;
+      } else {
+        // Good website or no web presence at all — skip
+        continue;
+      }
+
+      totalQualified++;
+
+      // ── Facebook scraping for no-website leads ────────────────────────────
+      let fbAbout: string | null = null;
+      let fbPhotos: string[] = [];
+      let fbEmail: string | null = null;
+      let fbReviews: string[] = [];
+
+      if (!hasWebsite && hasFacebook) {
+        try {
+          console.log(`[scout]   FB: Scraping ${place.facebook_url}`);
+          const fbData = await scrapeFacebookBusiness(place.facebook_url!, 9232);
+          fbAbout   = fbData.about_text;
+          fbPhotos  = fbData.photos;
+          fbEmail   = fbData.email;
+          fbReviews = fbData.reviews.map(r => r.text);
+        } catch (err) {
+          console.warn(`[scout]   FB scrape failed: ${(err as Error).message}`);
+        }
+      }
+
+      // ── Email enrichment ──────────────────────────────────────────────────
+      let email: string | null = fbEmail ?? null;
+      if (!email && hasWebsite) {
+        try {
+          email = await findEmail(place.site!, place.name, place.city || combo.city.split(',')[0].trim());
+        } catch { /* no email found */ }
+      }
+
+      const outreachChannel = email ? 'email' : (place.phone ? 'sms' : 'none');
+
+      // ── Insert to DB ──────────────────────────────────────────────────────
       const { data: inserted, error: insertError } = await supabaseAdmin
         .from('local_biz_leads')
         .insert({
-          gmb_place_id: place.place_id,
-          business_name: place.name,
-          business_type: combo.type.replace(/s$/, ''), // singularize
-          phone: place.phone || null,
-          website_url: place.site || null,
-          address: place.full_address || null,
-          city: place.city || combo.city.split(',')[0].trim(),
-          state_province: place.state || combo.city.split(',')[1]?.trim() || null,
+          gmb_place_id:      place.place_id,
+          business_name:     place.name,
+          business_type:     combo.type.replace(/s$/, ''),
+          phone:             place.phone || null,
+          website_url:       place.site || null,
+          address:           place.full_address || null,
+          city:              place.city || combo.city.split(',')[0].trim(),
+          state_province:    place.state || combo.city.split(',')[1]?.trim() || null,
           country,
-          gmb_rating: place.rating || null,
-          gmb_reviews: place.reviews || null,
-          gmb_photos: photos.length > 0 ? photos : null,
+          gmb_rating:        place.rating || null,
+          gmb_reviews:       place.reviews || null,
+          gmb_photos:        photos.length > 0 ? photos : null,
+          website_score:     websiteScore,
+          email,
+          outreach_channel:  outreachChannel,
+          outreach_priority: priority,
+          facebook_url:      place.facebook_url || null,
+          facebook_photos:   fbPhotos.length > 0 ? fbPhotos : null,
+          facebook_about:    fbAbout,
+          facebook_email:    fbEmail,
+          facebook_reviews:  fbReviews.length > 0 ? fbReviews : null,
         })
         .select('id')
         .single();
@@ -185,57 +283,7 @@ async function main() {
         continue;
       }
 
-      // Website scoring — check if site is bad/missing
-      let websiteScore: number | null = null;
-      if (place.site) {
-        try {
-          websiteScore = await analyzeWebsite(place.site);
-          await supabaseAdmin
-            .from('local_biz_leads')
-            .update({ website_score: websiteScore })
-            .eq('id', inserted.id);
-        } catch (e) {
-          // Score stays null — qualifies for demo
-        }
-      }
-
-      // Qualify: no website OR bad website (score < 50)
-      const qualifies = !place.site || websiteScore === null || websiteScore < 50;
-      if (!qualifies) continue;
-
-      totalQualified++;
-
-      // Email enrichment — scrape business website via Chrome CDP
-      let email: string | null = null;
-      if (place.site) {
-        try {
-          email = await findEmail(place.site, place.name, place.city || combo.city.split(',')[0].trim());
-        } catch {
-          // No email found
-        }
-      }
-
-      if (email) {
-        await supabaseAdmin
-          .from('local_biz_leads')
-          .update({
-            email,
-            outreach_channel: 'email',
-          })
-          .eq('id', inserted.id);
-      } else if (place.phone) {
-        await supabaseAdmin
-          .from('local_biz_leads')
-          .update({ outreach_channel: 'sms' })
-          .eq('id', inserted.id);
-      } else {
-        await supabaseAdmin
-          .from('local_biz_leads')
-          .update({ outreach_channel: 'none' })
-          .eq('id', inserted.id);
-      }
-
-      console.log(`[scout]  + ${place.name} (${place.city}) — email: ${email ? '✓' : 'x'}, website: ${websiteScore ?? 'none'}`);
+      console.log(`[scout]  + [${priority.toUpperCase()}] ${place.name} (${place.city}) — email: ${email ? '✓' : 'x'}, fb: ${hasFacebook ? '✓' : 'x'}, site: ${websiteScore ?? 'none'}`);
     }
 
     // Polite delay between Outscraper jobs

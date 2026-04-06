@@ -3,6 +3,7 @@
 const puppeteer = require('puppeteer-core');
 const { execSync } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 const city = process.argv[2] || 'Charlotte';
 const state = process.argv[3] || 'NC';
@@ -11,7 +12,26 @@ const country = process.argv[5] || 'US';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const MAX_LEADS = 100;
+const MAX_LEADS = 500; // per run — enough for ~10 pages; next run resumes from last page
+
+// State file — shared with bhhs scraper, tracks last scraped page per city
+const STATE_FILE = path.resolve(__dirname, '../agents/state/scrape-progress.json');
+const CITY_KEY = `${city}_${state}`;
+
+function readState() {
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8')); }
+  catch (e) { return {}; }
+}
+function saveState(state_data) {
+  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state_data, null, 2));
+}
+
+// Read starting page from state — resumes where the last run left off
+const existingState = readState();
+const cityProgress = existingState.exp?.[CITY_KEY] || { last_page: 0 };
+const START_PAGE = cityProgress.last_page + 1;
+console.log(`[exp] ${city}, ${state} — resuming from page ${START_PAGE}`);
 
 function insertLead(agent) {
   const data = JSON.stringify({
@@ -23,6 +43,7 @@ function insertLead(agent) {
     profile_url: agent.profile_url || null,
     profile_picture_url: agent.profile_picture_url || null,
     source_brokerage: 'exp',
+    lead_category: 'email',
     country: country,
     state_province: state,
     city: city,
@@ -46,6 +67,19 @@ function insertLead(agent) {
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+// Random delay within a range — defeats fixed-interval detection
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Simulate human reading pause (occasionally much longer)
+function humanPause(baseMin, baseMax) {
+  const base = rand(baseMin, baseMax);
+  // 15% chance of a longer "reading" pause
+  const extra = Math.random() < 0.15 ? rand(3000, 8000) : 0;
+  return sleep(base + extra);
 }
 
 (async () => {
@@ -75,25 +109,35 @@ function sleep(ms) {
     }
   });
 
-  // Navigate to eXp homepage first for cookies
-  console.log('Getting eXp cookies...');
+  // Natural homepage warmup — browse like a human before searching
+  console.log('Warming up eXp session...');
   await page.goto('https://www.exprealty.com', { waitUntil: 'networkidle2', timeout: 60000 });
-  await sleep(8000);
+  await humanPause(6000, 11000);
+  // Scroll the homepage a bit (human behaviour)
+  await page.evaluate(() => window.scrollBy(0, Math.floor(Math.random() * 400) + 300));
+  await humanPause(1500, 3500);
+  await page.evaluate(() => window.scrollBy(0, Math.floor(Math.random() * 300) + 200));
+  await humanPause(2000, 4000);
 
   let inserted = 0;
   let skipped = 0;
 
-  for (let pageNum = 1; pageNum <= 20 && inserted < MAX_LEADS; pageNum++) {
+  for (let pageNum = START_PAGE; pageNum <= 200 && inserted < MAX_LEADS; pageNum++) {
     interceptedData = [];
     const locationEncoded = `${city}%2C+${state}`;
     const url = `https://www.exprealty.com/agents-search?page=${pageNum}&country=${country}&m=f&location=${locationEncoded}`;
-    
+
     console.log(`Page ${pageNum}: ${url}`);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     await sleep(5000);
 
     if (interceptedData.length === 0) {
-      console.log('No agents on page, done.');
+      console.log('No agents on page — city exhausted.');
+      // Mark city as exhausted so future runs skip it
+      const s = readState();
+      if (!s.exp) s.exp = {};
+      s.exp[CITY_KEY] = { last_page: pageNum, exhausted: true };
+      saveState(s);
       break;
     }
 
@@ -128,11 +172,19 @@ function sleep(ms) {
       if (code === '201') { inserted++; console.log(`  + ${fullName} <${email}> [${code}]`); }
       else if (code === '409') { skipped++; }
       else { console.log(`  ! ${fullName} [${code}]`); }
-      await sleep(200);
+      await humanPause(150, 500);
     }
 
     console.log(`Page ${pageNum} done. Inserted: ${inserted}, Skipped: ${skipped}`);
-    await sleep(10000);
+
+    // Save progress after every page — next run resumes from here
+    const s = readState();
+    if (!s.exp) s.exp = {};
+    s.exp[CITY_KEY] = { last_page: pageNum };
+    saveState(s);
+
+    await humanPause(9000, 18000);
+    if (pageNum % 3 === 0) await humanPause(5000, 12000);
   }
 
   console.log(`\nFINAL: Inserted ${inserted}, Skipped ${skipped}`);

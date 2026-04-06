@@ -85,7 +85,7 @@ const server = http.createServer(async (req, res) => {
       const bridgeRes = await fetch('http://127.0.0.1:4201/health', { signal: AbortSignal.timeout(3000) });
       const data = await bridgeRes.json();
       return json(res, data);
-    } catch {
+    } catch (_e) {
       return json(res, { ok: false, error: 'Bridge offline' }, 503);
     }
   }
@@ -201,7 +201,7 @@ const server = http.createServer(async (req, res) => {
             }
           }
         }
-      } catch {}
+      } catch (_e) {}
 
       const allAgents = [...memAgents, ...dbOnlyAgents];
       return json(res, {
@@ -370,7 +370,7 @@ const server = http.createServer(async (req, res) => {
               if (event.type === 'result') {
                 resultText = event.result || '';
               }
-            } catch {}
+            } catch (_e) {}
           }
 
           if (!resultText && code !== 0) {
@@ -508,9 +508,9 @@ async function pollAgentMessages() {
                 if (parsed.type === 'result' && parsed.result) {
                   return String(parsed.result).slice(0, 500);
                 }
-              } catch {}
+              } catch (_e) {}
             }
-          } catch {}
+          } catch (_e) {}
           return '';
         };
 

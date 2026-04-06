@@ -10,10 +10,10 @@ mkdir -p logs
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') — Starting Instagram DM Outreach" >> "$LOG_FILE"
 
-# Ensure Chrome is running
-if ! curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
+# Ensure Stacey's Chrome is running (port 9225 — dedicated Instagram window)
+if ! curl -s http://localhost:9225/json/version > /dev/null 2>&1; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') — Chrome not running, launching..." >> "$LOG_FILE"
-  bash scripts/chrome-launch.sh >> "$LOG_FILE" 2>&1
+  bash scripts/chrome-launch-instagram.sh >> "$LOG_FILE" 2>&1
   sleep 5
 fi
 

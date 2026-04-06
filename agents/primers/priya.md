@@ -1,43 +1,45 @@
 # Priya — Primer
-Last run: 2026-03-24 21:32 UTC
-Status: completed
+Last run: 2026-04-06 22:47 UTC
+Status: **BLOCKED on schema migration**
 
 ## Current State
-✅ Processed 1 pending conversation (Teresa Espinoza)
-✅ Generated & sent reply via Instantly
-✅ All conversations current (0 pending)
+✅ Processed 1 pending conversation (Erica Burke: unsubscribe)
+✅ Classified as unsubscribe, marked rejected
+❌ Cannot handle scheduled messages (schema missing)
+✅ needs_reply: 0 (no pending conversations)
 
-## Last Run Summary (2026-03-24 21:32 UTC)
+## This Run Summary (2026-04-06 22:47 UTC)
 
 ### Work Completed
-1. **Pre-check**: 1 pending conversation identified
-2. **Processed conversation**: Teresa Espinoza (teresa.espinoza@bhhsaz.com)
-   - Inbound: "Carl I have not thx I will" (positive — committed to watching Loom)
-   - Classification: curious + interested
-   - Generated reply: "Perfect! No rush — just watch when you get a chance and let me know what you think. In the meantime, here's where you can grab a time: https://calendly.com/nexorra/demo-call"
-   - Sent via Instantly: ✅ (message ID: 019d21c3-0423-7bbb-b691-97489982aafb)
-3. **Updated conversation**:
-   - Status: needs_reply → replied
-   - Booking link sent: true
-   - Last outbound: 2026-03-24T21:32:04Z
+1. **Pre-check**: 1 conversation with status=needs_reply
+2. **Conversations processed**:
+   - **Erica Burke** (erica.burke@exprealty.com) — "Hi please remove me from your email listed"
+     - Classification: unsubscribe (explicit removal request)
+     - Action: Marked conversation rejected, no reply sent (Hard Rule #11)
+3. **Schema blocker**: Cannot send 4 scheduled messages (schema migration not applied)
 
 ### Current Conversation State
-- **needs_reply**: 0
-- **replied**: 1 (Teresa Espinoza) + 1 (Carime Colon from earlier)
-- **ooo_scheduled**: 0
-- **rejected**: 15
+- **needs_reply**: 0 ✅
+- **ooo_scheduled**: 2 (pending return dates)
+- **rejected**: 19 (↑ +1 Erica Burke)
+- **ghosted**: 3
 
-### Schema Blockers
-- ⚠️ **CRITICAL**: `conversation_messages` missing columns `sent`, `scheduled_send_at`, `classification`, `reply_latency_seconds`
-  - Migration: `migrations/add-conversation-reply-fields.sql` (not yet applied)
-  - Impact: Cannot track sent status or schedule messages; all replies sent immediately
-  - Action: Run SQL migration in Supabase console immediately
-- ⚠️ Loom links empty in `agents/state/sender-loom-config.json`
-  - Blocks Scenario 15 (send Loom on request)
+### CRITICAL Schema Blocker
+- **Status**: Schema migration `add-conversation-reply-fields.sql` NOT APPLIED
+- **Missing columns in `conversation_messages`**:
+  - `sent` (boolean)
+  - `classification` (text)
+  - `reply_latency_seconds` (integer)
+  - `scheduled_send_at` (timestamp)
+  - `sender_name` (text)
+- **Impact**: 
+  - ❌ Cannot query scheduled_send_at to send pending messages
+  - ❌ Cannot track message send status
+  - ⚠️ OOO follow-ups blocked (need scheduled_send_at column)
+- **Action required**: Max must run SQL migration in Supabase SQL editor (see `/home/max/crm/migrations/add-conversation-reply-fields.sql`)
 
 ### Next Steps
-1. **URGENT**: Apply schema migration `migrations/add-conversation-reply-fields.sql` in Supabase
-2. Fill Loom video URLs in sender config
-3. Re-test scheduling workflow after migration
-4. Monitor inbound replies continuously
+1. **URGENT**: Max to apply schema migration in Supabase SQL editor
+2. After schema applied: scheduled message sending will resume automatically
+3. OOO follow-ups will then work correctly
 

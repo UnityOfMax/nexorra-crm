@@ -1,15 +1,15 @@
 # Lionel — Cold Email Maintenance Agent
-Last run: 2026-04-04 (complete)
+Last run: 2026-04-05 (complete)
 Status: partially operational (4 critical blockers remain)
 
-## What Just Happened (Run 2026-04-04)
+## What Just Happened (Run 2026-04-05)
 
 ### Maintenance Actions Summary
 ✓ Nudge Check: 0 conversations ready (all already have nudges sent or are < 3 days old)
 ✓ Ghosted Detection: 0 conversations to mark ghosted
 ✓ Video Viewed Check: 0 leads viewed videos in last 3 days
 ✗ Scheduled Messages: BLOCKED (schema columns confirmed missing — conversation_messages.sent, conversation_messages.scheduled_send_at)
-✗ Instantly Status Sync: BLOCKED (sync script times out after 45s — persistent socket error)
+✗ Instantly Status Sync: BLOCKED (sync script times out after ~15s — persistent socket error)
 ✓ Learning Cycle: 0 unlearned outcomes (all analyzed)
 
 ### Status by Component
@@ -19,12 +19,12 @@ Status: partially operational (4 critical blockers remain)
 | Ghosted detection | ✓ OK | 0 to mark |
 | Video conditional | ✓ OK | 0 viewers |
 | Scheduled send | ✗ Blocked | Schema columns missing (confirmed) |
-| Instantly sync | ✗ Blocked | Timeout after 45s (socket error) |
+| Instantly sync | ✗ Blocked | Timeout after ~15s (socket error) |
 | Learning cycle | ✓ OK | 0 unlearned outcomes |
 
 ### Blocker Status (CRITICAL — NO PROGRESS SINCE 2026-03-31)
 
-**2026-04-04 Check**: 0 nudges, 0 ghosted, 0 learnings. Same blockers. **No actionable items.**
+**2026-04-05 Check**: 0 nudges, 0 ghosted, 0 learnings. Same blockers. **No actionable items.**
 
 1. **Instantly reply endpoint** — API requires `reply_to_uuid`, returns 400 if missing
    - Confirmed: Endpoint non-functional without UUID
@@ -33,9 +33,9 @@ Status: partially operational (4 critical blockers remain)
    - Fix needed: Fetch UUID from Instantly API or capture from raw_html, OR use different endpoint
    - Status: **CRITICAL BLOCKER — 10 days stuck**
 
-2. **Instantly API socket error** — sync script times out after 30s with socket close
+2. **Instantly API socket error** — sync script times out after ~15s with socket close
    - Impact: Cannot validate lead statuses from Instantly
-   - Status: PERSISTENT (6+ days)
+   - Status: PERSISTENT (7+ days, verified 2026-04-05)
    - Likely: Rate limiting, network instability, or API endpoint deprecation
    - Impact on learning: Cannot distinguish genuine ghosted from "Instantly data stale"
 
@@ -48,7 +48,7 @@ Status: partially operational (4 critical blockers remain)
    - Status: Awaiting configuration
 
 ## Current State
-Database state as of 2026-04-04:
+Database state as of 2026-04-05:
 - 0 conversations ready for nudge (all sent or recent)
 - 0 video views (last 3 days)
 - 0 scheduled messages to send
@@ -93,36 +93,22 @@ Database state as of 2026-04-04:
    - Calendly-only follow-up insufficient for low-conversion intent
    - Fix: For "curious + engaged tone" leads, offer conditional video (e.g., "saw you interested — 2-min recap?") before or alongside Calendly
 
-## Known Issues (Updated 2026-04-02)
-- ❌ **CRITICAL**: Instantly reply endpoint requires `reply_to_uuid` → 400 Bad Request (10 days stuck)
-- ❌ **CRITICAL**: Instantly API sync times out (30s socket close) → cannot validate lead statuses
+## Known Issues (Updated 2026-04-05)
+- ❌ **CRITICAL**: Instantly reply endpoint requires `reply_to_uuid` → 400 Bad Request (11 days stuck as of 2026-04-05)
+- ❌ **CRITICAL**: Instantly API sync times out (~15s socket close) → cannot validate lead statuses (7+ days stuck)
 - ❌ conversation_messages schema incomplete → affects scheduling (low priority: 0 pending)
 - ❌ ANTHROPIC_API_KEY missing → used manual learning workaround
-- ✅ Ghosted detection working correctly (1 marked ghosted)
-- ✅ Learning analysis working correctly (manual analysis)
+- ✅ Nudge check working correctly (0 ready)
+- ✅ Ghosted detection working correctly (0 to mark today)
 - ✅ Video view detection working correctly (0 viewers)
+- ✅ Learning cycle working correctly (0 unlearned outcomes)
 
-## Today's Briefing
+## Maintenance Execution Notes
 
-# Morning Briefing — 2026-03-24
-
-## Vault: 395 leads, 0 clients, 1 research topics
-
-## Yesterday's Digest
-# Nexorra Digest — 2026-03-23
-
-## Vault Stats
-- 195 lead notes
-- 0 client profiles
-
-
-
-## Active Context
-- All agents have access to ~/Obsidian/Nexorra/ via filesystem MCP
-- Write findings to the vault using brain.writers.{department}()
-- Read from vault to avoid re-querying DB for known information
-
-*(Generated at 2026-03-24 09:55:04)*
-
-*(See full briefing in Obsidian vault)*
+**2026-04-05 Execution**:
+- All operational components executed successfully (nudge check, ghosted detection, video check, learning cycle)
+- No actionable items found in any component
+- All 4 blockers remain unresolved
+- System idle, awaiting blocker fixes to resume follow-up operations
+- Estimated time until next actionable item: 7+ days (when first "replied" conversation reaches 7-day mark without outbound)
 

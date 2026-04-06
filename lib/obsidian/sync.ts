@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
-import { writeLeadNote, VAULT_ROOT, ensureVault } from './client';
+import { VAULT_ROOT, ensureVault } from './client';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -14,88 +14,123 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const SYNC_STATE_PATH = path.join(VAULT_ROOT, '.sync-state.json');
-
-interface SyncState {
-  last_sync: string | null;
-}
-
-async function readSyncState(): Promise<SyncState> {
-  try {
-    const raw = await fs.readFile(SYNC_STATE_PATH, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return { last_sync: null };
-  }
-}
-
-async function writeSyncState(state: SyncState): Promise<void> {
-  await ensureVault();
-  await fs.writeFile(SYNC_STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
-}
-
-/** Check if a lead note already exists in the vault */
-async function leadNoteExists(lead: any): Promise<boolean> {
-  const firstName = (lead.first_name || 'Unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const lastName = (lead.last_name || 'Unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const filename = `${firstName}-${lastName}.md`;
-  const filepath = path.join(VAULT_ROOT, 'Leads', filename);
-
-  try {
-    await fs.access(filepath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Sync leads from Supabase to the Obsidian vault.
- * Only syncs leads with research_status = 'completed' or modified since last sync.
+ * Sync daily scraping session summary to Obsidian vault.
+ * Does NOT create individual lead notes — only session summaries with stats.
+ * Also syncs new client accounts.
  */
 export async function syncLeads(): Promise<{ created: number; updated: number }> {
   await ensureVault();
-  const syncState = await readSyncState();
 
-  let query = supabaseAdmin
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  // Get today's lead stats by brokerage and category
+  const { data: emailLeads, count: emailCount } = await supabaseAdmin
     .from('leads')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('id', { count: 'exact', head: true })
+    .eq('lead_category', 'email')
+    .gte('scraped_at', `${today}T00:00:00Z`);
 
-  if (syncState.last_sync) {
-    query = query.gt('created_at', syncState.last_sync);
+  const { count: igCount } = await supabaseAdmin
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('lead_category', 'instagram')
+    .gte('scraped_at', `${today}T00:00:00Z`);
+
+  const { count: totalCount } = await supabaseAdmin
+    .from('leads')
+    .select('id', { count: 'exact', head: true });
+
+  const { count: videosCount } = await supabaseAdmin
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .not('video_url', 'is', null);
+
+  const { count: pushedCount } = await supabaseAdmin
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('pushed_to_instantly', true);
+
+  // Get brokerage breakdown for today
+  const { data: brokerageBreakdown } = await supabaseAdmin
+    .from('leads')
+    .select('source_brokerage')
+    .gte('scraped_at', `${today}T00:00:00Z`);
+
+  const brokerageCounts: Record<string, number> = {};
+  for (const lead of brokerageBreakdown || []) {
+    const b = lead.source_brokerage || 'unknown';
+    brokerageCounts[b] = (brokerageCounts[b] || 0) + 1;
   }
-  // Limit to 200 per sync to avoid overwhelming the vault
-  query = query.limit(200);
 
-  const { data: leads, error } = await query;
+  // Write daily summary
+  const summaryDir = path.join(VAULT_ROOT, 'Daily');
+  await fs.mkdir(summaryDir, { recursive: true });
 
-  if (error) {
-    throw new Error(`Failed to fetch leads: ${error.message}`);
-  }
+  const summaryPath = path.join(summaryDir, `${today}-scraping.md`);
+  const brokerageLines = Object.entries(brokerageCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([b, c]) => `- ${b}: ${c}`)
+    .join('\n');
 
-  if (!leads || leads.length === 0) {
-    console.log('No leads to sync.');
-    await writeSyncState({ last_sync: new Date().toISOString() });
-    return { created: 0, updated: 0 };
-  }
+  const summary = `---
+date: ${today}
+type: scraping-session
+---
 
-  let created = 0;
-  let updated = 0;
+# Scraping Session — ${today}
 
-  for (const lead of leads) {
-    const exists = await leadNoteExists(lead);
-    await writeLeadNote(lead);
+## Today's Numbers
+- Email leads scraped: ${emailCount || 0}
+- Instagram leads scraped: ${igCount || 0}
+- Total today: ${(emailCount || 0) + (igCount || 0)}
 
-    if (exists) {
-      updated++;
-    } else {
-      created++;
+## Brokerage Breakdown
+${brokerageLines || '- No leads scraped today'}
+
+## Pipeline Totals
+- Total leads in DB: ${totalCount || 0}
+- With videos generated: ${videosCount || 0}
+- Pushed to Instantly: ${pushedCount || 0}
+- Pending video generation: ${(totalCount || 0) - (videosCount || 0)}
+`;
+
+  await fs.writeFile(summaryPath, summary, 'utf-8');
+  console.log(`Written daily summary: ${summaryPath}`);
+
+  // Sync client accounts (only new ones)
+  const clientsDir = path.join(VAULT_ROOT, 'Clients');
+  await fs.mkdir(clientsDir, { recursive: true });
+
+  const { data: accounts } = await supabaseAdmin
+    .from('accounts')
+    .select('id, name, created_at')
+    .neq('id', 'da99b768-79dd-48f8-af86-abf95e61a69f'); // Exclude agency account
+
+  let clientsCreated = 0;
+  for (const acct of accounts || []) {
+    const clientPath = path.join(clientsDir, `${acct.name}.md`);
+    try {
+      await fs.access(clientPath);
+      // Already exists, skip
+    } catch {
+      // Create new client note
+      await fs.writeFile(clientPath, `---
+name: ${acct.name}
+status: active
+account_id: ${acct.id}
+added: ${acct.created_at?.slice(0, 10) || today}
+---
+
+# ${acct.name}
+
+Client sub-account. Details from CRM.
+`, 'utf-8');
+      clientsCreated++;
+      console.log(`Created client note: ${acct.name}`);
     }
   }
 
-  await writeSyncState({ last_sync: new Date().toISOString() });
-
-  console.log(`Sync complete: ${created} created, ${updated} updated (${leads.length} total processed)`);
-  return { created, updated };
+  return { created: clientsCreated, updated: 1 }; // 1 = daily summary written
 }

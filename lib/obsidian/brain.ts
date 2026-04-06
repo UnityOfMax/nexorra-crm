@@ -8,7 +8,6 @@
  * Structure:
  *   ~/Obsidian/Nexorra/
  *     Daily/           — Daily digests (one per day)
- *     Leads/           — Per-lead notes (synced from DB)
  *     Clients/         — Per-client profiles
  *     Research/         — Market research, competitor analysis
  *     Engineering/      — ADRs, bug reports, architecture decisions
@@ -26,7 +25,7 @@ import os from 'os';
 const VAULT = path.join(os.homedir(), 'Obsidian', 'Nexorra');
 
 const SECTIONS = [
-  'Daily', 'Leads', 'Clients', 'Research', 'Engineering',
+  'Daily', 'Clients', 'Research', 'Engineering',
   'Marketing', 'Experiments', 'Briefings',
 ] as const;
 
@@ -251,10 +250,8 @@ export function consolidateDay(): string {
     parts.push(`## Experiments\n${expContent.replace(/^# .+\n/, '')}\n`);
   }
 
-  // Lead stats
-  const leadCount = listNotes('Leads').length;
   const clientCount = listNotes('Clients').length;
-  parts.push(`## Vault Stats\n- ${leadCount} lead notes\n- ${clientCount} client profiles\n`);
+  parts.push(`## Vault Stats\n- ${clientCount} client profiles\n`);
 
   const digest = parts.join('\n');
   writeSection('Daily', `${date}-digest.md`, digest);
@@ -280,19 +277,18 @@ export function generateMorningBriefing(): string {
   const latestExp = expNotes.length > 0 ? readNote('Experiments', expNotes[expNotes.length - 1]) : null;
 
   // Count vault stats
-  const leadCount = listNotes('Leads').length;
   const clientCount = listNotes('Clients').length;
   const researchCount = listNotes('Research').length;
 
   const briefing = `# Morning Briefing — ${date}
 
-## Vault: ${leadCount} leads, ${clientCount} clients, ${researchCount} research topics
+## Vault: ${clientCount} clients, ${researchCount} research topics
 
 ${digest ? `## Yesterday's Digest\n${digest.split('\n').slice(0, 30).join('\n')}\n` : '## No digest from yesterday.\n'}
 ${latestExp ? `## Latest Experiments\n${latestExp.split('\n').slice(0, 10).join('\n')}\n` : ''}
 ## Active Context
-- All agents have access to ~/Obsidian/Nexorra/ via filesystem MCP
-- Write findings to the vault using brain.writers.{department}()
+- Lead data lives ONLY in Supabase — do NOT write individual lead notes to Obsidian
+- Write session summaries and findings to the vault using brain.writers.{department}()
 - Read from vault to avoid re-querying DB for known information
 
 *(Generated at ${now()})*

@@ -11,6 +11,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { personalizeLead } from "../lib/email/personalize";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -32,7 +33,7 @@ async function fetchReadyLeads(): Promise<any[]> {
   // 4. Have a video_url (Derek has processed them)
   const { data, error } = await supabaseAdmin
     .from("leads")
-    .select("id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage,video_url,lead_category,thumbnail_url")
+    .select("id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage,video_url,lead_category,thumbnail_url,personal_research")
     .eq("pushed_to_instantly", false)
     .not("email", "is", null)
     .not("video_url", "is", null)
@@ -144,20 +145,32 @@ async function createLandingPage(lead: any): Promise<string> {
   }
 }
 
+const ROLE_PREFIXES = ['noreply','no-reply','support','info','hello','contact','admin','sales','team','office','mail','marketing','newsletter','donotreply','do-not-reply'];
+
 async function uploadToInstantly(
   leads: any[],
   campaignId: string
-): Promise<{ uploaded: number; duplicated: number; invalid: number }> {
+): Promise<{ uploaded: number; duplicated: number; invalid: number; roleSkipped: number }> {
   console.log(`[upload] Preparing ${leads.length} leads for Instantly...`);
 
   const leadsPayload = [];
+  let roleSkipped = 0;
 
   for (const lead of leads) {
+    // Skip role-based / non-personal email addresses
+    const emailPrefix = (lead.email || '').split('@')[0].toLowerCase();
+    if (ROLE_PREFIXES.some(p => emailPrefix === p || emailPrefix.startsWith(p + '.'))) {
+      console.log(`[upload] Skipping role email: ${lead.email}`);
+      roleSkipped++;
+      continue;
+    }
     // Get or create landing page URL
     let landingUrl = await getLandingPageUrl(lead.id);
     if (!landingUrl && lead.video_url) {
       landingUrl = await createLandingPage(lead);
     }
+
+    const copy = personalizeLead(lead);
 
     leadsPayload.push({
       email: lead.email,
@@ -170,6 +183,9 @@ async function uploadToInstantly(
         timezone: lead.timezone || "",
         loom_link: landingUrl, // Landing page URL (shown as "Watch Video" in email)
         thumbnail_url: lead.thumbnail_url || "", // First frame of video — shown as clickable preview in email
+        first_line: copy.first_line,   // Personalized opening line
+        email_body: copy.email_body,   // City-based pitch variant
+        ps_line: copy.ps_line,         // Personalized PS
       },
     });
   }
@@ -214,12 +230,13 @@ async function uploadToInstantly(
   }
 
   const result = await response!.json();
-  console.log(`[upload] Uploaded: ${result.leads_uploaded || 0}, Duplicated: ${result.duplicated_leads || 0}, Invalid: ${result.invalid_email_count || 0}`);
+  console.log(`[upload] Uploaded: ${result.leads_uploaded || 0}, Duplicated: ${result.duplicated_leads || 0}, Invalid: ${result.invalid_email_count || 0}, Role-skipped: ${roleSkipped}`);
 
   return {
     uploaded: result.leads_uploaded || 0,
     duplicated: result.duplicated_leads || 0,
     invalid: result.invalid_email_count || 0,
+    roleSkipped,
   };
 }
 
@@ -250,7 +267,7 @@ async function main() {
   const result = await uploadToInstantly(leads, campaignId);
   await markLeadsAsPushed(leads, campaignId);
 
-  console.log(`\n=== Done === Uploaded: ${result.uploaded}, Skipped: ${result.duplicated + result.invalid}`);
+  console.log(`\n=== Done === Uploaded: ${result.uploaded}, Skipped: ${result.duplicated + result.invalid}, Role-filtered: ${result.roleSkipped}`);
 }
 
 main().catch(err => {

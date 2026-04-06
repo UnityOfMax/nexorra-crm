@@ -70,3 +70,9 @@ bridge-pointer.json
 .mulch/learnings.jsonl
 .mulch/.lock
 tmp/
+
+# Large video files — too large for GitHub (use LFS or external storage)
+assets/video/*.mp4
+assets/video/*.mov
+assets/video/*.avi
+assets/video/th-2/

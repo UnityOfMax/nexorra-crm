@@ -1,36 +1,83 @@
 # Jeff — Lead Generation Agent (Primer)
 
-**Last run:** 2026-04-01 11:30 UTC
-**Session status:** COMPLETE — All targets hit except Instagram (broken extraction)
-**Session totals:** Email 1,000/1000 ✅ | Instagram 0/350 ❌ | Calling 609/500 ✅ | **Total: 1,609 leads**
+**Last run:** 2026-04-06 19:15 UTC (extended email phase — 3.5 hrs) — **COMPLETE**
+**Session status:** DONE — 739/1850 leads (40%)
+**Session totals:** Email 436/1000 (43%) | Calling 303/500 (60%) | Instagram 0/350 (0%) | **Total: 739/1850 (40%)**
 
-## Session 2026-04-01 Results
+## Session 2026-04-06 Results (Extended Afternoon)
+- **Compass Email**: 341 leads from 8+ cities ✅ **HIGHLY PRODUCTIVE**
+  - Cities hit: Philadelphia (p2-6), Phoenix (p1), Orlando (p1-4), Raleigh (p1-4), Milwaukee (p1-5), Boston, Miami, Washington DC
+  - Added 341 email leads (started at 95, now 436)
+  - Rate: ~40 leads/page, but 50%+ duplicate rate after 400+ total leads (database saturation)
+- **RE/MAX & Realtor.com**: 0 leads ❌ **BLOCKED**
+  - agents remax command returning 0 agents on Houston/Austin pages
+  - agents realtor command returning empty pages
+  - Chrome tool/page structure issue — needs debugging next session
+- **BHHS Instagram**: 0 leads ❌ **EXHAUSTED**
+  - BHHS previously scraped extensively (NY p9-26, LA p1-22, Chicago p1-20)
+  - Scrape-progress shows BHHS cities exhausted or heavily depleted
+  - Would need fresh cities not yet in progress (Houston, Phoenix, Philadelphia, etc.) OR Puppeteer scraper
 
-**Phase 1 (Email):** COMPLETE — 1,000 leads from Compass across 20+ cities
-- Nashville TN: 35 + 37 (p7-8) = 72 | Charlotte NC: 38 + 38 + 37 = 113 | Atlanta GA: 33 + 31 = 64
-- Austin TX: 1 dup | Dallas TX: 32 + 12 + 14 = 58 | Chicago IL: 33 + 38 + 34 = 105
-- Seattle WA: 34 + 37 + 36 + 37 = 144 | Denver CO: 34 + 39 + 8 + 37 = 118
-- Boston MA: 32 + 36 + 36 = 104 | Los Angeles CA: 35 + 10 + 11 = 56 | San Francisco CA: 0 dupes
-- San Diego CA: 36 + 38 + 18 = 92 | Tampa FL: 33 + 37 = 70 | Portland OR: 5
-- Washington DC: 34 | Sacramento CA: 31 | And 10+ more cities (total 1,000)
+## Current Blockers (2026-04-06)
 
-**Phase 2 (Calling):** EXCEEDED — 609 leads from RE/MAX across 30+ cities
-- Nashville: 21 | Atlanta: 15 + 9 = 24 | Chicago: 20 + 19 + 14 = 53
-- Dallas: 19 + 14 + 12 = 45 | Denver: 13 + 13 + 8 = 34 | Houston: 19 + 19 + 16 = 54
-- Los Angeles: 16 + 10 + 11 = 37 | Miami: 11 + 5 = 16 | New York: 21 + 1 = 22
-- Boston: 12 | Charlotte: 23 + 23 + 17 = 63 | Columbus: 23 | Jacksonville: 14 | Minneapolis: 20 | Orlando: 23 | Philadelphia: 23 + 17 = 40
-- San Diego: 36 + 38 + 18 = 92 | And 15+ more cities (total 609)
+1. **Email Saturation**: Compass hitting 50%+ duplicate rate after 436 leads
+   - Database already has ~15,359 lifetime leads
+   - Each city typically has 50-100 total agents; Compass pages exhausting rapidly
+   - Need: (a) Fix RE/MAX/Realtor to get fresh phone leads, (b) Try BHHS, KW, eXp, Coldwell Banker for email, (c) Accept that 1000 daily may be ceiling given DB saturation
 
-**Phase 2 (Instagram):** INCOMPLETE — 0 leads (extraction method failed)
-- RE/MAX profile visits returned 0% Instagram handles (profile page HTML extraction not working)
-- Realtor.com returned empty agent lists (format mismatch or blocking)
-- No time to debug before hitting calling target
+2. **Instagram Zero**: All sources blocked
+   - RE/MAX agents command returning 0 (not working)
+   - BHHS Puppeteer script requires manual execution or Chrome evaluation workaround
+   - Profile visit approach too slow without working agents command
 
-**Key Blockers:**
-- eXp Realty: Still Cloudflare-protected — couldn't use for email phase
-- BHHS: Likely still working but not needed after hitting 1000 email target
-- RE/MAX Instagram: 4 fallback detection methods all returned null (lazy-loaded or API issue)
-- Chrome instability: Profile visits >10 in batch cause crashes (reason for abandoning Instagram)
+3. **Calling Stuck at 303**: RE/MAX/Realtor profile visits not accessible
+   - agents remax returning 0 on all pages (issue with chrome-tool or page structure)
+   - agents realtor returning empty pages (page not loading or command mismatch)
+   - Need: Debug chrome-tool `agents` commands or implement profile visit fallback
+
+## Key Insights
+- **Email target (1000)**: Need 564 more. Compass alone insufficient due to saturation. Need 4-5 fresh brokerages or cities not yet scraped.
+- **Calling target (500)**: Need 197 more. Close to target but blocked on RE/MAX profiles. Quick win if agents command fixed.
+- **Instagram target (350)**: Need 350. Critical blocker — no working source. BHHS Puppeteer or fresh RE/MAX approach needed.
+
+## Next Session Recommendations
+1. **For Email**: Continue Compass rotation across remaining 35+ cities (Philadelphia, Raleigh, Orlando, Pittsburgh, etc.)
+2. **For Calling**: Finish RE/MAX remaining major cities (San Francisco, Seattle, Boston, Chicago, etc.) — likely hit 500 in next session
+3. **For Instagram**: Either fix BHHS Puppeteer connection OR pivot to RE/MAX profile visits (slower but documented approach)
+
+## ⚠️ VIDEO NOTE: BHHS Franchise Subdomain Leads
+Derek's video pipeline cannot render pages from BHHS franchise subdomain sites:
+`bhhsamericas.com`, `bhhskarr.com`, `bhhslafayette.com`, `bhhsjordan.com`, `bhhsvdw.com`, `bhhscoloradorealestate.com`
+
+These agents are stored in DB but their `profile_url` points to heavy React franchise sites Chrome can't screenshot.
+**Action**: When scraping BHHS via Solr API, if an agent's `officeSiteUrl` or profile URL matches these subdomains, still scrape them (email/instagram are fine) — but note that no video will be generated. Do NOT skip them, they are valid email leads. The main `bhhs.com` profile pages work fine.
+
+## Session 2026-04-01 Results (Run 2 — BHHS Instagram + Compass email top-up)
+
+**Email Phase (Run 1 + Run 2):** ~2,919 leads total
+- Run 1: ~999 leads from Compass across 20+ cities
+- Run 2: +38 from Compass Nashville p8 (top-up) + ~1,882 from BHHS (NY p9-26, LA p1-22, Chicago p1-20) as email-category leads
+
+**Calling Phase:** 609 from RE/MAX (run 1 only — already exceeded)
+
+**Instagram Phase:** 360 leads from BHHS `SocialMediaInstagramUrlOrId` field ✅
+- **NO PROFILE VISITS NEEDED** — BHHS Solr API returns instagram handle directly
+- New York: ~85 instagram (pages 9-26, ~26% of new agents had instagram)
+- Los Angeles: ~88 instagram (pages 1-22, ~12% hit rate)
+- Chicago: ~187 instagram (pages 1-20, ~14% hit rate)
+- BHHS instagram hit rate: **~12% overall** across all agents
+- Scraper: `scripts/bhhs-puppeteer-scraper.ts` — now sets `lead_category` properly
+  - `lead_category: 'instagram'` if `SocialMediaInstagramUrlOrId` present
+  - `lead_category: 'email'` if email-only
+
+## KEY DISCOVERY: BHHS is the PRIMARY Instagram Source
+
+BHHS Solr API returns `SocialMediaInstagramUrlOrId` directly — no slow profile visits.
+Instagram leads from BHHS are extracted automatically while scraping for email.
+At 12% hit rate × 50 agents/page = ~6 instagram leads per page.
+To get 350 instagram = ~58 BHHS pages = ~1 hour of BHHS scraping.
+
+**For Instagram, ALWAYS run BHHS first.** RE/MAX profile visits are a fallback only.
 
 ## Compass — FIXED. 33 Cities Pre-loaded.
 
@@ -38,46 +85,58 @@ The old city-slug URL pattern is dead — it redirects to /agents/ root. **All l
 
 URL pattern: `https://www.compass.com/agents/locations/{seoId}/{location_id}/page-{N}/`
 
-**Pre-loaded cities ready to scrape (all at page 0, not exhausted):**
-Nashville TN (27781), Charlotte NC (825), Atlanta GA (32533), Chicago IL (37237), Seattle WA (9962), Denver CO (16237), Miami FL (35648), Austin TX (42626), Dallas TX (40435), Boston MA (20737), Philadelphia PA (14527), Phoenix AZ (25866), San Francisco CA (44474), Los Angeles CA (12902), San Diego CA (20243), Tampa FL (33352), Portland OR (11670), Minneapolis MN (7425), Kansas City MO (286659), New York City NY (21429), Raleigh NC (11232), Washington DC (30230), Orlando FL (39022), Pittsburgh PA (26675), Jacksonville FL (2801), Baltimore MD (45888), Sacramento CA (8273), Las Vegas NV (34866), Milwaukee WI (289075), Durham NC (11215), Fort Worth TX (40574), San Antonio TX (12248)
+**Cities in scrape-progress (check exhausted/last_page before using):**
+Nashville TN (27781) p8, Charlotte NC (825) p6, Atlanta GA (32533) p5, Chicago IL (37237) p2, Seattle WA (9962) p2, Denver CO (16237) p1, Miami FL (35648) p1, Austin TX (42626) p4, Dallas TX (40435) p4, Boston MA (20737) p1, Philadelphia PA (14527), Phoenix AZ (25866), San Francisco CA (44474) p1, Los Angeles CA (12902) p1, San Diego CA (20243) p1, Tampa FL (33352) p1, Portland OR (11670) p1, and more.
 
-**Houston is exhausted (pages 1-9 done).** Start with any other city.
+**Houston_TX exhausted.** BHHS: NY exhausted p26, LA exhausted p22, Chicago at p20.
 
-## eXp / BHHS Status
+## BHHS Status
 
-- **eXp**: Was Cloudflare-blocked in last session but pattern-based — TRY with fresh session. New cities (Nashville TN, Portland OR, Austin TX etc) may work fine.
-- **BHHS**: Same — pattern-based block. Try `scripts/bhhs-puppeteer-scraper.ts` with a new city.
+`scripts/bhhs-puppeteer-scraper.ts` — WORKING. Connects to Chrome port 9222.
+- Uses Solr API via `page.evaluate(fetch(...))` — bypasses Cloudflare
+- **Now correctly sets lead_category** (instagram or email based on SocialMediaInstagramUrlOrId)
+- Progress tracked in `scrape-progress.json["bhhs"]`
+- NY exhausted (p26), LA exhausted (p22) — next cities: Houston, Phoenix, Philadelphia, San Diego, Dallas...
+- 105 cities still remaining in city list
 
-## RE/MAX Instagram Fix
+## eXp Status
 
-`scripts/chrome-tool.js profile remax` now has 4 Instagram detection methods (a[href*="instagram.com"], data-href attributes, JSON-LD sameAs, text pattern). Visit profiles — Instagram handles should now be found.
+Still Cloudflare-blocked in most cities. Try with fresh city per session.
+Cities tried: Charlotte NC (p10), Austin TX (p4), Nashville TN (exhausted), Kansas City MO (not started), Denver CO (not started), Portland OR (not started).
 
-## RE/MAX / Realtor.com Duplicates
+## RE/MAX Instagram (BACKUP ONLY)
 
-Some cities ARE saturated. Use `scrape-progress.json` to track pages per city. If a page is 100% duplicates (all 409 conflicts), mark it as done and try a new city — don't retry the same city.
+Profile visit instagram extraction still unreliable. Use BHHS first.
+If BHHS exhausted: RE/MAX `profile remax` has 4 detection methods but low success rate.
 
-## Next Session Recommendations
+## Next Session Recommendations (2026-04-07)
 
-**For Session 2026-04-02:**
+**Priority 1: Fix Chrome Tools (blocks Phase 2)**
+- Debug why `agents remax` and `agents realtor` return 0 leads
+- Test on known working page (e.g., Compass page that worked today)
+- If still broken, implement fallback: use `navigate` + `profile remax/realtor` directly for profile visits
 
-1. **Email Phase (if needed):** Compass is the only reliable email source now (eXp/BHHS still Cloudflare-blocked). ~30-40 leads per page, ~25 pages per city = 750-1000 per city. Can easily hit 1000 with 2-3 cities.
+**Priority 2: Email Phase (current: 436/1000 — need 564 more)**
+1. Run BHHS Puppeteer scraper directly: `npx tsx scripts/bhhs-puppeteer-scraper.ts` across fresh cities (Houston, Phoenix, Philadelphia, San Diego, Dallas)
+2. Try KW email search: `agents kw` across 5-10 fresh cities
+3. Try Coldwell Banker: `agents coldwellbanker` across 5-10 fresh cities
+4. Try eXp via `exp_city_scraper.js` for cities not yet exhausted
+5. If still below 1000: accept saturation, focus on Phase 2
 
-2. **Instagram Phase (critical blocker):** RE/MAX profile extraction completely broken. Options:
-   - Debug RE/MAX profile HTML parsing (Instagram handle extraction failing on all 4 methods)
-   - Try different brokerage: Realtor.com, Century 21, Sotheby's (slower but may work)
-   - Consider if Instagram phase is worth effort (low yield ~20-25%, high time cost 100+ profiles at 5sec each)
+**Priority 3: Instagram + Calling (need 350 + 197)**
+- Once chrome tools fixed: Run RE/MAX profile visits (`navigate {profile_url}` → `profile remax`) in batches of 10
+- Realtor.com profile visits as fallback
+- BHHS Instagram via Puppeteer scraper (returns `SocialMediaInstagramUrlOrId` directly with ~12% hit rate)
 
-3. **Calling Phase (working well):** RE/MAX listing pages = 100% phone coverage, ~15-24 agents per page. Hit 500 easily with 20-30 city pages. Can do 500 calling in <1 hour.
+**Session Duration:** Realistic 4-6 hours to hit all three targets given current saturation and tool issues.
 
-4. **Chrome Stability:** Profile-visit loops >10 agents in a batch cause context destruction. If pursuing Instagram, implement batching with longer breaks (10 profiles max, 30s+ break between batches).
-
-**Speed Optimizations:**
-- Phase 1 (email): ~45 min for 1000 leads (Compass pages load slow ~5-8s each)
-- Phase 2 (calling): ~30 min for 500 leads (fast page loads, no profile visits needed)
-- Instagram extraction: Not viable without architectural fix (profile HTML parsing broken)
+**Speed benchmarks (actual):**
+- BHHS: ~6 instagram/page, ~12s/page = ~50 instagram/hour
+- Compass: ~40 email/page, ~15s/page (including navigation) = ~160 email/hour
+- RE/MAX calling: ~20 calling/page, ~20s/page = ~60 calling/hour
 
 ## Environment
 
 - Chrome is running on DISPLAY=:99 (Xvfb virtual display) — stable, won't crash on screen lock
-- Google account logged into Chrome — should pass BHHS login walls
+- Google account logged into Chrome — passes BHHS login walls
 - Chrome port 9222 for Jeff

@@ -21,6 +21,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildWebsiteDemo, LocalBizData } from '../../lib/landing-pages/website-demo-builder';
+import { humanizeCopyFields } from '../../lib/local-biz/copy-humanizer';
+import { generateDemoHtml, BizForDemo, GeneratedCopyForDemo } from '../../lib/local-biz/demo-generator';
 
 const execAsync = promisify(exec);
 
@@ -67,6 +69,11 @@ interface GeneratedCopy {
   services: Array<{ name: string; desc: string; price: string }>;
   color_primary: string;
   color_accent: string;
+  // Design direction
+  design_vibe:       string;
+  design_adjectives: string[];
+  color_mood:        string;
+  business_category: string;
   // Outreach personalisation
   website_pain_points: string[];
   review_insight: string | null;
@@ -97,18 +104,24 @@ ${websiteContext}
 Generate all of the following in one JSON object:
 
 1. Demo website copy (for a beautiful site we've built for them)
-2. Pain points (2-3 specific issues with their current site/online presence)
-3. A personalised outreach email body (5 short phrases, friend tone, casual but professional, proper capitalisation and punctuation — reference a specific pain point and what it costs them in lost customers, tell them the site is already built and free, CTA is a call booking link)
-4. A personalised SMS (3 phrases, same tone, shorter)
+2. Pain points (2-3 specific issues with their current site/online presence — be concrete, not generic)
+3. A personalised outreach email body. Format:
+   - Phrase 1: Intro — "Hey, I'm Max — I came across [Business Name] while looking around [City] and decided to put a new website together for you (hope that's okay!)"
+   - Phrase 2: One specific thing you noticed that's wrong — reference what's actually broken/missing (no booking form, site looks like it's from 2005, no gallery, etc.)
+   - Phrase 3: What that costs them — "that probably costs you 3-4 enquiries a week that go to someone who's easier to find/book"
+   - Phrase 4: "Here's what I put together: {{DEMO_LINK}}"
+   - Phrase 5: "I charge £450–£950 for the site, just so it's not a shock if you do want to go ahead — but take a look first, no obligation."
+   Tone: like a friend who spotted something useful. Casual but professional. Proper capitalisation. No sales jargon. NO calendly link in this email.
+4. A personalised SMS (2-3 short phrases, same tone, with {{DEMO_LINK}})
 
 Output JSON:
 {
   "hero_headline": "4-8 word punchy headline",
   "hero_headline_em": "2-4 word emphasis part (can be empty)",
   "hero_subheadline": "1-2 sentence description",
-  "about_text": "2-3 sentence paragraph about the business",
-  "about_text_2": "1-2 sentence follow-up",
-  "cta_text": "1 sentence CTA for bottom section",
+  "about_text": "Short punchy phrase used as the About section headline — e.g. 'Macon's most trusted hair salon since 2002' or 'Where every client leaves feeling their best'",
+  "about_text_2": "2-3 sentence paragraph about the business, warm and personal",
+  "cta_text": "1 warm sentence inviting them to book",
   "services": [
     {"name": "Service", "desc": "1 sentence", "price": "Starting at $X or empty"},
     {"name": "Service", "desc": "1 sentence", "price": ""},
@@ -117,9 +130,13 @@ Output JSON:
   ],
   "color_primary": "#hex",
   "color_accent": "#hex",
-  "website_pain_points": ["specific issue 1", "specific issue 2", "specific issue 3"],
+  "design_vibe": "2-3 word vibe description e.g. 'warm luxury' or 'playful fun' or 'trustworthy trades'",
+  "design_adjectives": ["adj1", "adj2", "adj3"],
+  "color_mood": "1 sentence describing the colour atmosphere e.g. 'dark espresso backgrounds with cream and gold accents'",
+  "business_category": "one of: salon, barber, restaurant, cafe, gym, yoga, plumber, dentist, accountant, pet groomer",
+  "website_pain_points": ["specific issue 1", "specific issue 2"],
   "review_insight": "one notable thing about their online reputation, or null",
-  "outreach_body_email": "5 short phrases separated by \\n\\n. Phrase 1: specific pain point noticed. Phrase 2: what it costs them (3-4 customers/week framing). Phrase 3: I built you a site already, it's done, free, no strings. Phrase 4: {{DEMO_LINK}}. Phrase 5: if you like it, happy to set it all up on a quick call — {{CALENDLY_LINK}}",
+  "outreach_body_email": "5 phrases separated by \\n\\n. Follow the format above exactly.",
   "outreach_body_sms": "3 phrases as one continuous message. Phrase 1: specific thing noticed. Phrase 2: built them a free site: {{DEMO_LINK}}. Phrase 3: happy to get on a call and set it up"
 }`;
 
@@ -150,6 +167,10 @@ Output JSON:
       ],
       color_primary: '#2563eb',
       color_accent: '#f59e0b',
+      design_vibe: 'clean professional',
+      design_adjectives: ['clean', 'professional', 'trustworthy'],
+      color_mood: 'blue and white, modern and clean',
+      business_category: 'professional',
       website_pain_points: biz.hasWebsite ? ['outdated design', 'no contact form'] : ['no website'],
       review_insight: null,
       outreach_body_email: `I noticed ${biz.name} doesn't have a modern website set up — that usually means losing a few enquiries a week to competitors who do.\n\nI went ahead and built you a site already — took me about 20 minutes.\n\n{{DEMO_LINK}}\n\nIt's yours, no catch. If you like it and want to get it live, we can jump on a quick call and sort it out.\n\n{{CALENDLY_LINK}}`,
@@ -232,7 +253,7 @@ async function main() {
       const { text: existingCopy, colors: existingColors } = await scrapeExistingSite(lead.website_url || '');
 
       // Generate copy + pain points + outreach copy with Haiku
-      const copy = await generateCopy({
+      let copy = await generateCopy({
         name: lead.business_name,
         type: lead.business_type,
         city: lead.city || '',
@@ -245,31 +266,94 @@ async function main() {
         existingColors,
       });
 
-      // Build the demo
-      const bizData: LocalBizData = {
-        id: lead.id,
-        business_name: lead.business_name,
-        business_type: lead.business_type,
-        phone: lead.phone,
-        email: lead.email,
-        website_url: lead.website_url,
+      // Humanize outreach copy (stop-slop + humanizer) — eliminates em dashes and AI patterns
+      try {
+        const fieldsToHumanize = {
+          hero_subheadline:    copy.hero_subheadline,
+          about_text_2:        copy.about_text_2,
+          outreach_body_email: copy.outreach_body_email,
+          outreach_body_sms:   copy.outreach_body_sms,
+        };
+        const humanized = await humanizeCopyFields(
+          fieldsToHumanize,
+          `Copy for ${lead.business_name} (${lead.business_type}) in ${lead.city}, ${lead.state_province}. Outreach from Max Fawcett.`,
+        );
+        copy = {
+          ...copy,
+          hero_subheadline:    humanized.hero_subheadline    || copy.hero_subheadline,
+          about_text_2:        humanized.about_text_2        || copy.about_text_2,
+          outreach_body_email: humanized.outreach_body_email || copy.outreach_body_email,
+          outreach_body_sms:   humanized.outreach_body_sms   || copy.outreach_body_sms,
+        };
+      } catch (err) {
+        console.warn(`[build-demo]  Humanizer failed: ${(err as Error).message} — using original`);
+      }
+
+      // Use photos from Facebook if available (no-website leads), else GMB photos
+      const photos: string[] = (lead as any).facebook_photos?.length
+        ? (lead as any).facebook_photos
+        : (lead.gmb_photos || []);
+
+      // About text: use Facebook about for no-website leads
+      const aboutText2 = (lead as any).facebook_about || copy.about_text_2;
+
+      // Generate demo with new demo-generator (skills + QA loop)
+      const bizForDemo: BizForDemo = {
+        name:    lead.business_name,
+        type:    lead.business_type,
+        city:    lead.city || '',
+        state:   lead.state_province || '',
+        phone:   lead.phone,
         address: lead.address,
-        city: lead.city,
-        state_province: lead.state_province,
-        country: lead.country || 'US',
-        gmb_rating: lead.gmb_rating,
-        gmb_reviews: lead.gmb_reviews,
-        gmb_photos: lead.gmb_photos,
-        color_primary: copy.color_primary,
-        color_accent: copy.color_accent,
-        hero_headline: copy.hero_headline,
-        hero_subheadline: copy.hero_subheadline,
-        about_text: copy.about_text,
-        services: copy.services,
-        cta_text: copy.cta_text,
+        rating:  lead.gmb_rating,
+        reviews: lead.gmb_reviews,
+        photos,
+        testimonials: (lead as any).facebook_reviews || undefined,
       };
 
-      const pageId = await buildWebsiteDemo(bizData);
+      const copyForDemo: GeneratedCopyForDemo = {
+        hero_headline:     copy.hero_headline,
+        hero_headline_em:  copy.hero_headline_em,
+        hero_subheadline:  copy.hero_subheadline,
+        about_text:        copy.about_text,
+        about_text_2:      aboutText2,
+        cta_text:          copy.cta_text,
+        services:          copy.services,
+        color_primary:     copy.color_primary,
+        color_accent:      copy.color_accent,
+        design_vibe:       copy.design_vibe || 'clean professional',
+        design_adjectives: copy.design_adjectives || ['clean', 'professional'],
+        color_mood:        copy.color_mood || 'blue and white',
+        business_category: copy.business_category || 'professional',
+      };
+
+      const demoHtml = await generateDemoHtml(bizForDemo, copyForDemo);
+
+      // Store in landing_pages
+      const slugBase = lead.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const slug = `demo-${slugBase}-${Date.now().toString(36)}`;
+
+      const { error: lpError } = await supabaseAdmin
+        .from('landing_pages')
+        .insert({
+          account_id:       'da99b768-79dd-48f8-af86-abf95e61a69f',
+          slug,
+          name:             `${lead.business_name} — Website Demo`,
+          content:          demoHtml,
+          page_type:        'website-demo',
+          published:        true,
+          meta_title:       `${lead.business_name} | ${lead.city} ${lead.business_type}`,
+          meta_description: `${lead.business_name} — serving ${lead.city}, ${lead.state_province}.`,
+        });
+
+      if (lpError) throw new Error(`landing_pages insert: ${lpError.message}`);
+
+      await supabaseAdmin
+        .from('local_biz_leads')
+        .update({ demo_page_id: slug })
+        .eq('id', lead.id);
+
+      const pageId = slug;
       const demoUrl = `https://app.ainexorra.com/website-demo/${pageId}`;
 
       // Store outreach personalisation data — substitute placeholders

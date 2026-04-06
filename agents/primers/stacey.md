@@ -195,3 +195,64 @@ Email breakdown:
 - Requires: either update chrome-tool.js selectors OR implement alternative automation method (Puppeteer, Playwright, manual queue)
 
 *(Generated at 2026-04-05 07:35 UTC)*
+
+## Session 2026-04-06
+
+### Email Upload — COMPLETE ✓
+- **Leads fetched:** 214 unpushed leads with videos (scraped before 2026-04-06)
+- **Upload to Instantly:** 214 valid, 0 invalid emails
+- **Campaign ID:** f5a6f6cc-af7d-4db9-b5c6-a21ede5319fc
+- **All marked as pushed:** 214/214 leads → `pushed_to_instantly=true`
+- **Loom distribution:** All senders empty → uploaded without loom_link field
+- **Distribution:** ~43 leads per sender (Ben, Carl, Olivia, Stacey, Stan)
+
+Email breakdown:
+- Total: 214 leads (214 valid + 0 invalid)
+- All leads had valid email addresses
+- Completed in: 3 minutes
+
+### Instagram DMs — BLOCKED ✗
+- **Leads available for DM:** 350 (category=instagram, dm_sent=false, before 2026-04-06)
+- **Accounts ready:** 5 configured (2 known working: fawcettmaximilian, maxwellfawctt)
+- **Status:** FAILED — Instagram login form not submitting
+- **Root cause:** Chrome CDP click not triggering form submission button
+  - Email/password entered successfully
+  - Form submit button click not responsive — all selector variants failed
+  - Indicates Instagram may use React event handlers not accessible via CDP
+  - Same blocker as 2026-04-05
+
+## Campaign Stats (Cumulative)
+- **Campaign ID:** f5a6f6cc-af7d-4db9-b5c6-a21ede5319fc
+- **Total uploaded:** ~7,275 leads (7,061 previous + 214 today)
+- **Email uploads this week:** 5,361 leads (2026-04-02 through 2026-04-06)
+- **Instagram pending:** 350 leads (unable to send — login automation broken)
+- **Email completion time:** ~3 minutes
+
+## Blockers
+- **CRITICAL: Instagram login form submit button not responding** — CDP click events not working for Instagram's login button
+- **All accounts blocked** — neither fawcettmaximilian nor maxwellfawctt can log in
+- **Impact:** 350 leads queued for DM, unable to proceed until login automation fixed
+- **Solutions needed:**
+  1. Update chrome-tool.js with different button selector approach (e.g., coordinate-based click, keyboard Enter)
+  2. OR switch to Puppeteer/Playwright which may have better event handling for React apps
+  3. OR manually re-verify accounts via 2FA, then resume automation
+
+*(Generated at 2026-04-06 11:02 UTC)*
+
+## Session 2026-04-06 (second run verification)
+
+### Email Upload — ALREADY COMPLETE ✓
+- **Status:** All video-ready leads from previous days have been pushed
+- **Verified at:** 2026-04-06 ~12:00 UTC
+- **Query result:** 0 unpushed leads with video_url set (scraped before today)
+- **Database state:** 6,664 leads with videos — all have `pushed_to_instantly=true`
+- **Unpushed queue:** 1,201 leads remain (1,088 have no email, 113 have email but no video)
+- **Conclusion:** Today's run already completed. Nothing new to push until Derek generates overnight videos for today's scrape.
+
+### Instagram DMs — STILL BLOCKED ✗
+- **Queue:** 522 leads (category=instagram, dm_sent=false, before 2026-04-06)
+- **Status:** BLOCKED — Chrome CDP login automation still not functional
+- **Same blocker as previous sessions:** Instagram login button not responding to CDP click events
+- **Accounts configured:** 5 (maximillian_fawcett, _mmmmmmmax, maximefawcett, fawcettmaximilian, maxwellfawctt)
+
+*(Run verified at 2026-04-06 ~12:00 UTC)*

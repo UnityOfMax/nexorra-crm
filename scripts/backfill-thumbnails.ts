@@ -18,7 +18,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const STORAGE_BUCKET = "lead-thumbnails";
 const BATCH = 50;
-const CONCURRENCY = 2;
+const CONCURRENCY = 1;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -76,7 +76,7 @@ async function procesLead(lead: { id: string; video_url: string }): Promise<bool
         break;
       }
       const errText = await uploadRes.text();
-      if (attempt < 3 && (uploadRes.status === 429 || uploadRes.status >= 500)) {
+      if (attempt < 3) {
         await new Promise(r => setTimeout(r, attempt * 2000));
         continue;
       }
@@ -141,13 +141,14 @@ async function main() {
       succeeded += ok;
       processed += chunk.length;
       process.stdout.write(`  ${processed} done (${succeeded} ok)\r`);
+      await new Promise(r => setTimeout(r, 300));
     }
 
     offset += leads.length;
     if (leads.length < BATCH) break;
 
     // Pause between batches to avoid storage rate limits
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 3000));
   }
 
   console.log(`\n\nDone. ${succeeded}/${processed} thumbnails generated.`);

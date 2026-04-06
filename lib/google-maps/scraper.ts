@@ -35,6 +35,8 @@ export interface GMBPlace {
   type:         string;             // primary category
   photos:       string[];
   working_hours: Record<string, string> | null;
+  social_links:  string[];          // All social/external links found
+  facebook_url:  string | null;     // Facebook page URL if found
 }
 
 export async function searchPlaces(query: string, limit = 20, port = 9232): Promise<GMBPlace[]> {
@@ -48,12 +50,39 @@ export async function searchPlaces(query: string, limit = 20, port = 9232): Prom
   try {
     await page.goto(
       `https://www.google.com/maps/search/${encodeURIComponent(query)}`,
-      { waitUntil: 'networkidle2', timeout: 30000 },
+      { waitUntil: 'domcontentloaded', timeout: 30000 },
     );
 
-    // Wait for results feed
+    // Handle Google consent screen (appears on new tabs in UK/EU)
+    if (page.url().includes('consent.google.com')) {
+      try {
+        // Click the "Accept all" button
+        await page.waitForSelector('button', { timeout: 5000 });
+        await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button, [role="button"]'));
+          const accept = buttons.find(b =>
+            /accept|agree|yes|continue/i.test((b as HTMLElement).innerText || '')
+          ) as HTMLElement | undefined;
+          if (accept) accept.click();
+        });
+        await sleep(2000);
+        // Should now be on Maps
+        if (page.url().includes('consent.google.com')) {
+          // Try navigating directly again
+          await page.goto(
+            `https://www.google.com/maps/search/${encodeURIComponent(query)}`,
+            { waitUntil: 'domcontentloaded', timeout: 20000 },
+          );
+        }
+      } catch {
+        // Consent bypass failed — continue anyway
+      }
+    }
+
+    // Wait for results feed — longer timeout, then check if still blank
+    await sleep(3000);
     try {
-      await page.waitForSelector(SEL.feed, { timeout: 15000 });
+      await page.waitForSelector(SEL.feed, { timeout: 20000 });
     } catch {
       console.warn(`[gmaps] No results feed for: ${query}`);
       return [];
@@ -117,6 +146,7 @@ async function extractPlace(page: any, query: string): Promise<GMBPlace> {
   const ratingStr   = await safeText(page, SEL.rating);
   const reviewsStr  = await safeText(page, SEL.reviews);
   const photos      = await safePhotos(page);
+  const socialLinks = await safeSocialLinks(page);
 
   // Extract place_id from Maps URL — encoded as !1sChIJ... in the data param
   const url = page.url();
@@ -126,6 +156,7 @@ async function extractPlace(page: any, query: string): Promise<GMBPlace> {
     : `gmb_${Date.now()}_${Math.floor(Math.random() * 99999)}`;
 
   const { city, state, country_code } = parseAddress(address, query);
+  const facebook_url = socialLinks.find(l => l.includes('facebook.com')) ?? null;
 
   return {
     place_id,
@@ -141,6 +172,8 @@ async function extractPlace(page: any, query: string): Promise<GMBPlace> {
     type:         (category.trim() || query.split(' in ')[0] || '').trim(),
     photos,
     working_hours: null,
+    social_links:  socialLinks,
+    facebook_url,
   };
 }
 
@@ -173,6 +206,22 @@ async function safeAttr(page: any, selectorList: string, attr: string): Promise<
     } catch {}
   }
   return '';
+}
+
+async function safeSocialLinks(page: any): Promise<string[]> {
+  try {
+    return await page.evaluate(() => {
+      const SOCIAL_DOMAINS = ['facebook.com', 'instagram.com', 'twitter.com', 'linkedin.com', 'yelp.com', 'tiktok.com'];
+      const links: string[] = [];
+      document.querySelectorAll('a[href]').forEach(el => {
+        const href = (el as HTMLAnchorElement).href || '';
+        if (SOCIAL_DOMAINS.some(d => href.includes(d))) links.push(href);
+      });
+      return Array.from(new Set(links));
+    });
+  } catch {
+    return [];
+  }
 }
 
 async function safePhotos(page: any): Promise<string[]> {

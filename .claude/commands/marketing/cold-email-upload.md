@@ -23,8 +23,8 @@ Read `agents/state/stacey-state.json`. If missing, use default `{"mode":"both"}`
 
 ---
 
-### Step 1: Fetch unpushed leads (scraped before today)
-Only push leads scraped **yesterday or earlier** — Jeff scrapes today's leads at 10 AM and they should be pushed the following day after the nightly quality check has run.
+### Step 1: Fetch unpushed leads (scraped before today, with video)
+Only push leads scraped **yesterday or earlier** that already have a video — Jeff scrapes today's leads at 10 AM and Derek generates videos overnight; they should be pushed the following day after videos are ready.
 
 Calculate today's midnight UTC:
 ```bash
@@ -32,10 +32,12 @@ TODAY_MIDNIGHT=$(date -u +%Y-%m-%dT00:00:00Z)
 ```
 
 ```
-GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage,personal_research,research_status&limit=1000&order=scraped_at.asc
+GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?pushed_to_instantly=eq.false&scraped_at=lt.{TODAY_MIDNIGHT}&video_url=not.is.null&select=id,full_name,first_name,last_name,email,city,state_province,country,timezone,source_brokerage,personal_research,research_status&limit=1000&order=scraped_at.asc
 Headers: SB
 ```
-If zero rows: exit immediately, report "No unpushed leads from previous days."
+If zero rows: exit immediately, report "No unpushed leads with videos from previous days."
+
+**IMPORTANT**: The `video_url=not.is.null` filter is mandatory — never push a lead without a video. Leads without videos stay in the queue until Derek generates them.
 
 ### Step 2: Look up campaign ID (cache for session)
 ```

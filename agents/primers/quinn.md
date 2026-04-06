@@ -1,50 +1,37 @@
 # Quinn — Primer
-Last run: 2026-03-24
-Status: task-assigned — 3 proposals pending
+Last run: 2026-03-25 (tasked) → 2026-03-26 (retriggered with Cycle 3 update)
+Status: TRIGGERED — write updated Obsidian vault entry covering Cycles 1–3
 
 ## Current State
-Hugo has written 3 proposals to `agents/state/quinn-proposals.json`. Quinn needs to log results and write formal proposals to Lena.
+Hugo has completed Cycle 3 simulations (inline, 2026-03-26). Results in `agents/state/mira-simulation-results.json` (cycle: 3). Cycle 2 Obsidian task was assigned last cycle — Quinn should now write a consolidated entry covering all three cycles, not just 1+2.
 
-## Task: Log Cycle 1 Experiment Results + Propose Changes to Lena
+## Task: Write Obsidian Vault Entry (Experiment Cycles 1–3)
 
-### Source Data
-- Experiment specs: `agents/memory/experiments.md`
-- Simulation results: `agents/state/mira-simulation-results.json`
-- Proposals drafted by Hugo: `agents/state/quinn-proposals.json`
+### Target File
+`~/Obsidian/Nexorra/Research/experiment-cycles-1-3-results.md`
 
-### What Quinn Must Do
+### What to Include
+Pull from:
+- `agents/memory/experiments.md` — full experiment log (EXP-001 through EXP-009 specs)
+- `agents/state/mira-simulation-results.json` — Cycle 3 results (current file)
+- `agents/state/quinn-proposals.json` — all 8 proposals, statuses
 
-1. **Log experiment outcomes** in the Obsidian vault (Nexorra/Engineering/ or Nexorra/Research/)
-2. **Write formal proposal to Lena** with the 3 items below (in order of priority):
+Structure:
+1. **Summary table** — all 7 completed experiments (EXP-001 to EXP-007), winner, lift %, confidence, status
+2. **Deployed changes** — what's live (EXP-003 nudge deployed, all others pending Lena)
+3. **Pending proposals** — PROP-001/003/004/005/006/007/008 with urgency levels
+4. **Blockers** — Loom URLs empty (critical), Instantly API 404, scraping halted
+5. **Cumulative stack** — theoretical +160% composite lift if all winners deployed
+6. **Cycle 4 preview** — EXP-008 (guarantee language) + EXP-009 (commission contrast) queued for Mira
 
-#### PROP-001 — Cold Email Subject Line A/B Test [URGENT — this week]
-- Swap subject: "Quick question, {first_name}" → "I recorded something for you, {first_name}"
-- Run as A/B in Instantly: 150 sends per variant for 2 weeks
-- Evidence: +24.5% projected composite lift, 94.3% simulation confidence
-- Action needed: Lena approves → ops updates Instantly campaign
+### Key Cycle 3 Findings to Highlight
+- EXP-006 Sun Belt: +16.7%, 81.2% confidence — regional segmentation pays off, grounded in real market data
+- EXP-006 Northeast: +12.2%, 78.6% — BORDERLINE, retest at 250/variant (do not retire)
+- EXP-007: +21.8% composite, -32.1% unsubscribe — 63 words > 120 words, mobile-first win
+- Compounding stack: subject + opener + timing + compression = ~+160% theoretical lift over original baseline
 
-#### PROP-002 — Nudge Template [DONE — inform Lena]
-- New nudge already live in cold-email-system.md (Hugo applied directly)
-- +40% directional lift. Confident re-anchor copy replaces apologetic check-in.
-- No action needed from Lena — awareness only
-
-#### PROP-003 — Instagram DM 2-Step Automation [Medium priority]
-- Change IG opener: pitch-first → qualifying question ("Are you still actively looking for listings?")
-- Requires Barny to build stateful reply-detection in instagram-outreach agent (~2-3h)
-- Evidence: +63.3% projected reply rate lift
-- Action needed: Lena approves engineering request → Barny builds → deploy as A/B
-
-### Format for Lena Proposal
-Write to `agents/state/lena-inbox.json` (create if not exists). Structure:
-- From: Quinn
-- Date: 2026-03-24
-- Subject: Experiment Cycle 1 Results — 3 Proposals
-- Body: Short summary with 3 bullet points + action items
-
-## Next Steps
-1. Write Obsidian vault entry for experiment cycle
-2. Write lena-inbox.json proposal
-3. Update this primer with completion status
+### Also Do
+- Update this primer with completion status when done
 
 ## Blockers
-None.
+None — all data available in state files.

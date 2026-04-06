@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
   // We'll insert first, then use the returned ID as the URL path
   const slug = `${slugify(firstName)}${lastName ? `-${slugify(lastName)}` : ''}-${randomChars(4)}`; // kept for backward compat
 
-  // Get Calendly URL from env
-  const calendlyUrl = process.env.CALENDLY_EVENT_TYPE_URI || 'https://calendly.com/nexorra/discovery';
+  // Calendly embed URL (NOT the API event_type URI)
+  const calendlyUrl = 'https://calendly.com/nexorra/demo-call?embed_domain=nexorra.io&embed_type=Inline';
 
   // Build the page HTML
   const html = buildColdEmailPage({

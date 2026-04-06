@@ -1,38 +1,38 @@
 # Marcus — Primer
-Last run: 2026-03-24 (nightly campaign optimizer)
+Last run: 2026-04-05 (nightly campaign optimizer)
 Status: idle
 
 ## Last Run Summary
 
-**Campaign Optimizer — 2026-03-24**
+**Campaign Optimizer — 2026-04-05**
 
 Ran full analysis cycle. Results:
 
-- **Client accounts scanned**: 95
-- **Accounts with Meta ad data**: 0 (no clients have connected Meta ad accounts yet)
+- **Client accounts scanned**: 116 (no change)
+- **Accounts with Meta ad data**: 0
 - **Actions proposed**: 0
 - **AI tone updates**: 0
 
 ### What I Found
-- No client accounts have `meta_ad_account_id` in their campaign settings — the Meta optimization loop is architecturally ready but awaiting client ad account connections.
-- Only existing Meta ad data is a single historical record for the Nexorra agency account from 2026-02-14 (CPL $21.26, 3 leads, "Buyers Campaign").
-- `funnel_events` table is empty — no funnel stage transitions tracked yet.
-- `optimizer_actions` table is empty — no prior proposals.
-- AI configs exist for 2 accounts only (Test + Nexorra agency), both using default "Dan" prompt. Neither had ≥5 leads in the last 7 days from client channels.
-- Nexorra agency itself had 40 new contacts in the last 7 days (cold email pipeline) but that's agency-side, not client sub-accounts.
+- 116 client accounts total, none have `meta_ad_account_id` in campaign settings.
+- Meta ad metrics last 7 days: 0 records.
+- `funnel_events`: 0 records.
+- `optimizer_actions`: 0 pending (table empty).
+- New contacts in client sub-accounts last 7 days: 1 (likely test contact).
+- AI configs: 1 (Nexorra agency only), tone casual — no accounts qualify for AI tone update (need ≥5 leads).
 
 ### Memory
-- Created `agents/memory/funnel-insights.md` (first entry) with baseline state and benchmarks for when data starts flowing.
+- Appended 2026-04-05 entry to `agents/memory/funnel-insights.md`.
 
 ## Current State
-Idle. No actions pending. Optimizer is in standby — will activate once clients link Meta ad accounts.
+Idle. Thirteen consecutive identical runs (2026-03-24 through 2026-04-05) — system is healthy, waiting on client onboarding.
 
 ## Next Steps
-- Nothing required from this agent until clients connect Meta ad accounts OR messages start flowing through client sub-accounts.
-- Once Meta is connected: CPL thresholds and booking rate analysis will kick in automatically.
-- Watch for: first client to configure `settings.campaign.meta_ad_account_id`.
+- Nothing required until clients connect Meta ad accounts OR client SMS/email traffic starts.
+- Watch for: first client to set `settings.campaign.meta_ad_account_id`.
+- Once Meta connected: CPL thresholds + booking rate analysis activate automatically.
 
 ## Blockers
-- All client accounts have empty `settings` objects — no Meta ad account IDs configured.
-- `funnel_events` is empty — no booking data to compute booking rates.
-- These are data gaps, not bugs. System is ready.
+- 116/116 client accounts have empty campaign settings (no Meta ad account IDs).
+- `funnel_events` empty — no booking conversion data yet.
+- Data gaps, not bugs. System is ready.

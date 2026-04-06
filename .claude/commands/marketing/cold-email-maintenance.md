@@ -30,6 +30,66 @@ Headers: SB
 ```
 Bulk update both: `{ "status": "ghosted", "updated_at": "{now}" }`
 
+## Step 2b: Conditional Follow-Up — Video Viewed Check
+
+Before Step 1 fires in Instantly (2 days after Step 0), check which leads have viewed their video.
+This runs during every maintenance cycle so it catches viewers before the default "not viewed" Step 1 sends.
+
+**Query leads who viewed their video but haven't been sent the conditional reply yet:**
+```bash
+set -a && source .env.local && set +a && npx tsx -e "
+import { createClient } from '@supabase/supabase-js';
+const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+// 1. Get all video_play events from landing pages (last 3 days)
+const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+const { data: events } = await sb.from('landing_page_events')
+  .select('landing_page_id, lead_id, created_at')
+  .eq('event_type', 'video_play')
+  .gte('created_at', threeDaysAgo);
+
+if (!events?.length) { console.log('No video views in last 3 days'); process.exit(0); }
+
+// 2. Get the lead IDs that have viewed
+const leadIds = [...new Set(events.map(e => e.lead_id).filter(Boolean))];
+console.log('Leads who viewed video:', leadIds.length);
+
+// 3. Check which of these leads haven't been sent the 'viewed' conditional reply
+const { data: leads } = await sb.from('leads')
+  .select('id, email, full_name, first_name')
+  .in('id', leadIds)
+  .is('video_viewed_reply_sent', null);
+
+console.log(JSON.stringify(leads || [], null, 2));
+"
+```
+
+For each lead who viewed but hasn't received the conditional reply:
+
+**Send the 'viewed' version via Instantly reply:**
+```
+POST https://api.instantly.ai/api/v2/emails/reply
+Headers: Authorization: Bearer $INSTANTLY_API_KEY, Content-Type: application/json
+Body: {
+  "campaign_id": "{campaign_id}",
+  "lead_email": "{lead.email}",
+  "email_account": "{sending_account}",
+  "subject": "Re: {original_subject}",
+  "body": "<div>Hi {first_name},</div><div><br></div><div>I saw you checked out the video I made for you but didn't book.</div><div><br></div><div>Was it my accent?</div><div><br></div><div>I'd be happy to record a longer one for you if you'd like.</div><div><br></div><div>Best,</div><div>{sender_name} @ Nexorra</div>"
+}
+```
+
+Then mark the lead so we don't double-send:
+```
+PATCH $NEXT_PUBLIC_SUPABASE_URL/rest/v1/leads?id=eq.{lead.id}
+Headers: SB+W
+Body: { "video_viewed_reply_sent": true }
+```
+
+Leads who did NOT view will receive the default Step 1 copy from Instantly's sequence (the "not viewed" version).
+
+---
+
 ## Step 3: Send Scheduled Messages (including OOO follow-ups)
 ```
 GET $NEXT_PUBLIC_SUPABASE_URL/rest/v1/conversation_messages?direction=eq.outbound&sent=eq.false&scheduled_send_at=lte.{now}&order=scheduled_send_at.asc

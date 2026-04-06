@@ -20,7 +20,7 @@ const MCP_SERVERS: Record<string, object> = {
     url: `https://mcp.supabase.com/mcp?project_ref=nhflmisklsanfiiywrfo&features=docs,database,debugging,development,functions,branching,storage`,
   },
   'filesystem': {
-    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/home/max/crm', '/home/max/Obsidian/Nexorra'],
+    command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/home/max/crm'],
   },
   'memory': {
     command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'],
@@ -132,7 +132,7 @@ export async function spawnAgent(params: {
     if (existsSync(gitHook)) {
       require('child_process').execSync(`bash ${gitHook}`, { cwd: CRM_ROOT, timeout: 5000 });
     }
-  } catch {}
+  } catch (_e) {}
 
   // Prepend skills to prompt (so agent has skill context in its first turn)
   if (skills && skills.length > 0) {
@@ -203,7 +203,7 @@ export async function spawnAgent(params: {
       const condensed = briefing.split('\n').slice(0, 15).join('\n');
       promptContent += `\n\n--- TODAY'S BRIEFING (from Obsidian vault) ---\n${condensed}\n--- END BRIEFING ---\n`;
     }
-  } catch { /* Vault not available */ }
+  } catch (_e) { /* Vault not available */ }
 
   // Inject Mulch learnings into prompt context
   try {
@@ -221,7 +221,7 @@ export async function spawnAgent(params: {
   const { writeFileSync, unlinkSync } = require('fs');
   const { join } = require('path');
   const tmpPromptPath = join(CRM_ROOT, 'tmp', `prompt-${run.id}.md`);
-  try { require('fs').mkdirSync(join(CRM_ROOT, 'tmp'), { recursive: true }); } catch {}
+  try { require('fs').mkdirSync(join(CRM_ROOT, 'tmp'), { recursive: true }); } catch (_e) {}
   writeFileSync(tmpPromptPath, promptContent, 'utf-8');
 
   // Build CLI args — read prompt from file via stdin redirect
@@ -257,7 +257,7 @@ export async function spawnAgent(params: {
   );
 
   // Clean up prompt file after process starts
-  setTimeout(() => { try { unlinkSync(tmpPromptPath); } catch {} }, 30000);
+  setTimeout(() => { try { unlinkSync(tmpPromptPath); } catch (_e) {} }, 30000);
 
   if (child.pid) {
     runningProcesses.set(run.id, { pid: child.pid, child, agentId, startTime });
@@ -305,7 +305,7 @@ export async function spawnAgent(params: {
           outputTokens = result.usage.output_tokens ?? null;
         }
       }
-    } catch { /* ignore */ }
+    } catch (_e) { /* ignore */ }
 
     const status = (code === 0 && !resultError) ? 'completed' : 'failed';
 
@@ -340,14 +340,7 @@ export async function spawnAgent(params: {
             classification: 'tactical' as const,
           });
         }
-      } catch { /* Mulch not available */ }
-
-      // Post-run: sync Obsidian for research agents
-      if (['jeff', 'derek', 'nina'].includes(agentId)) {
-        try {
-          require('child_process').execSync('npx tsx scripts/obsidian-sync.ts', { cwd: CRM_ROOT, timeout: 30000, stdio: 'ignore' });
-        } catch { /* Obsidian sync optional */ }
-      }
+      } catch (_e) { /* Mulch not available */ }
 
       // Post-run: write to Obsidian vault as KNOWLEDGE, not logs
       try {
@@ -372,103 +365,20 @@ export async function spawnAgent(params: {
                 }
                 if (agentOutput) break;
               }
-            } catch {}
+            } catch (_e) {}
           }
         }
 
         if (agentOutput.length > 3000) agentOutput = agentOutput.slice(0, 3000) + '\n\n*[Truncated]*';
 
-        const vaultRoot = path.join(require('os').homedir(), 'Obsidian', 'Nexorra');
-        const today = new Date().toISOString().slice(0, 10);
-
-        // 1. Write SESSION note — what happened this run
-        const deptMap: Record<string, string> = {
-          jeff: 'lead-gen', nina: 'lead-gen', derek: 'lead-gen',
-          stacey: 'cold-email', priya: 'cold-email', lionel: 'cold-email',
-          tara: 'instagram', malik: 'instagram', jess: 'instagram', vera: 'cold-email',
-          barny: 'engineering', archie: 'engineering', kai: 'engineering',
-          liam: 'engineering', sophie: 'engineering', zara: 'engineering',
-          hugo: 'experiments', mira: 'experiments', quinn: 'experiments',
-          ava: 'cold-email', omar: 'cold-email', riya: 'cold-email', nadia: 'cold-email', iris: 'cold-email',
-          marcus: 'cold-email', fiona: 'cold-email', glen: 'cold-email',
-        };
-        const domain = deptMap[agentId] || 'general';
-
-        // Generate a short title from the output (first meaningful line)
-        const firstLine = (agentOutput || `${agentId} completed`).split('\n')
-          .find(l => l.trim().length > 10 && !l.startsWith('#') && !l.startsWith('---') && !l.startsWith('|'))
-          || `${agentId} completed run`;
-        const titleSlug = firstLine.slice(0, 60).replace(/[^a-zA-Z0-9 -]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
-
-        const sessionsDir = path.join(vaultRoot, 'sessions');
-        if (!existsSync(sessionsDir)) require('fs').mkdirSync(sessionsDir, { recursive: true });
-
-        const sessionPath = path.join(sessionsDir, `${today}-${agentId}-${titleSlug}.md`);
-        const sessionNote = `---
-agent: ${agentId}
-domain: ${domain}
-status: ${status}
-duration: ${duration}s
-date: ${today}
----
-# ${agentId} — ${today}
-
-${agentOutput || '*No output captured*'}
-`;
-        writeFileSync(sessionPath, sessionNote);
-
-        // 2. Extract KNOWLEDGE — learnings that are reusable beyond this session
-        const knowledgePatterns = [
-          /(?:discovered|learned|found) that (.+)/gi,
-          /(?:this works|this failed) because (.+)/gi,
-          /(?:next time|should|need to) (.+)/gi,
-          /(?:workaround|fix|solution): (.+)/gi,
-        ];
-        const knowledgeDir = path.join(vaultRoot, 'knowledge', domain);
-        if (!existsSync(knowledgeDir)) require('fs').mkdirSync(knowledgeDir, { recursive: true });
-
-        for (const pattern of knowledgePatterns) {
-          let match;
-          while ((match = pattern.exec(agentOutput)) !== null) {
-            const claim = match[1].trim().slice(0, 80);
-            if (claim.length < 15) continue;
-            const claimSlug = claim.replace(/[^a-zA-Z0-9 -]/g, '').trim();
-            const knowledgePath = path.join(knowledgeDir, `${claimSlug}.md`);
-            if (!existsSync(knowledgePath)) {
-              writeFileSync(knowledgePath, `---
-discovered: ${today}
-source: ${agentId} session
-confidence: medium
----
-# ${claimSlug}
-
-${match[0]}
-
-*Extracted from ${agentId} run on ${today}*
-`);
-            }
-          }
-        }
-
-        // 3. Append to daily digest
-        const dailyDir = path.join(vaultRoot, 'daily');
-        if (!existsSync(dailyDir)) require('fs').mkdirSync(dailyDir, { recursive: true });
-        const dailyPath = path.join(dailyDir, `${today}.md`);
-        const dailyHeader = existsSync(dailyPath) ? '' : `---\ndate: ${today}\n---\n# Daily Digest — ${today}\n\n`;
-        const snippet = (agentOutput || 'Completed').split('\n').filter(l => l.trim() && !l.startsWith('#')).slice(0, 3).join('\n');
-        appendFileSync(dailyPath, `${dailyHeader}## ${agentId} (${status}, ${duration}s)\n${snippet}\n\n`);
-
-      } catch (vaultErr) {
-        console.log(`[daemon] Vault write failed for ${agentId}:`, (vaultErr as Error).message?.slice(0, 60));
-      }
-
+      } catch (_e) { /* output read optional */ }
       // Post-run: regenerate BRIEFING.md for new Claude Code instances
       try {
         require('child_process').execSync(
           'npx tsx scripts/generate-briefing.ts',
           { cwd: CRM_ROOT, timeout: 20000, stdio: 'ignore' }
         );
-      } catch { /* Briefing generation optional */ }
+      } catch (_e) { /* Briefing generation optional */ }
     }
   });
 
@@ -483,10 +393,10 @@ export async function stopAgent(runId: string): Promise<boolean> {
   if (info) {
     try {
       process.kill(-info.pid, 'SIGTERM');
-    } catch {
+    } catch (_e) {
       try {
         process.kill(info.pid, 'SIGTERM');
-      } catch { /* process may already be dead */ }
+      } catch (_e) { /* process may already be dead */ }
     }
     runningProcesses.delete(runId);
   }
@@ -586,7 +496,7 @@ Answer concisely. Use your tools to look up real data. Do NOT start long workflo
     });
 
     const timer = setTimeout(() => {
-      try { child.kill('SIGTERM'); } catch {}
+      try { child.kill('SIGTERM'); } catch (_e) {}
       const duration = Math.round((Date.now() - startTime) / 1000);
       resolve({ text: lastAssistantText || 'Query timed out. The agent took too long.', duration });
     }, timeout);
@@ -603,7 +513,7 @@ Answer concisely. Use your tools to look up real data. Do NOT start long workflo
               if (block.type === 'text') lastAssistantText = block.text;
             }
           }
-        } catch {}
+        } catch (_e) {}
       }
     });
 

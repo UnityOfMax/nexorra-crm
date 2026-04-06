@@ -174,7 +174,7 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     STATE:           biz.state_province || '',
     RATING:          biz.gmb_rating?.toString() || '4.8',
     REVIEW_COUNT:    biz.gmb_reviews?.toString() || '50',
-    HOURS:           biz.hours || 'Mon–Sat 9am–6pm',
+    HOURS:           (biz as any).hours || biz.hours || 'Mon–Sat 9am–6pm',
     COLOR_PRIMARY:   colorPrimary,
     COLOR_ACCENT:    colorAccent,
     HERO_IMAGE:      photos[0] || fallbackImg,
@@ -183,8 +183,8 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     HERO_HEADLINE_2: '',
     HERO_SUBHEADLINE: biz.hero_subheadline || `Serving ${biz.city || 'the area'} with pride.`,
     ABOUT_HEADLINE:  `About ${biz.business_name}`,
-    ABOUT_TEXT:      biz.about_text || `${biz.business_name} has been a trusted name in ${biz.city || 'the community'}.`,
-    ABOUT_TEXT_2:    '',
+    ABOUT_TEXT:      biz.about_text || `${biz.business_name} — serving ${biz.city || 'the community'} with pride`,
+    ABOUT_TEXT_2:    (biz as any).about_text_2 || `${biz.business_name} has built a strong reputation in ${biz.city || 'the area'} for quality and care.`,
     CTA_TEXT:        biz.cta_text || `Call us today to learn more about what we can do for you.`,
     YEARS_IN_BIZ:    biz.years_in_business || '5',
     JOBS_DONE:       '200',
@@ -271,10 +271,22 @@ export async function buildWebsiteDemo(biz: LocalBizData): Promise<string> {
   const vars = buildVars(biz);
   const finalHtml = applyData(templateHtml, vars);
 
-  // Insert into landing_pages
+  // Insert into landing_pages — use Nexorra agency account_id for local biz demos
+  const NEXORRA_ACCOUNT_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
+
+  // Generate a URL-safe slug from business name + random suffix
+  const slugBase = biz.business_name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  const slug = `demo-${slugBase}-${Date.now().toString(36)}`;
+
   const { data: page, error } = await supabaseAdmin
     .from('landing_pages')
     .insert({
+      account_id: NEXORRA_ACCOUNT_ID,
+      slug,
       name: `${biz.business_name} — Website Demo`,
       content: finalHtml,
       page_type: 'website-demo',

@@ -38,3 +38,15 @@ ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS website_pain_points TEXT[] 
 ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS review_insight       TEXT;
 ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS outreach_body_email  TEXT;
 ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS outreach_body_sms    TEXT;
+
+-- Facebook-first lead pipeline (2026-04-06)
+-- For leads with no website but an active Facebook page
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS facebook_url      TEXT;
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS facebook_photos   JSONB;    -- array of photo URLs scraped from FB
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS facebook_about    TEXT;     -- About / intro section text
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS facebook_email    TEXT;     -- Email found on Facebook
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS facebook_reviews  JSONB;   -- Array of review text strings
+ALTER TABLE local_biz_leads ADD COLUMN IF NOT EXISTS outreach_priority TEXT DEFAULT 'medium'; -- 'high'|'medium'|'low'
+
+CREATE INDEX IF NOT EXISTS idx_lbl_priority ON local_biz_leads(outreach_priority);
+CREATE INDEX IF NOT EXISTS idx_lbl_facebook ON local_biz_leads(facebook_url) WHERE facebook_url IS NOT NULL;

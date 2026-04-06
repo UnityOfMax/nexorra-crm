@@ -1478,29 +1478,32 @@ Prerequisites:
         const messageText = args.slice(1).join(' ');
         if (!messageText) { console.error('Usage: instagram-dm <message text>'); break; }
         try {
-          const messageBtn = await page.$('div[role="button"]:has-text("Message")') ||
-                             await page.$x('//div[@role="button"][contains(., "Message")]').then(els => els[0]);
-          if (!messageBtn) {
-            const btns = await page.$$('div[role="button"]');
-            let found = false;
-            for (const btn of btns) {
-              const btnText = await page.evaluate(el => el.textContent, btn);
-              if (btnText && btnText.trim() === 'Message') {
-                await btn.click();
-                found = true;
-                break;
-              }
-            }
-            if (!found) {
-              console.error(JSON.stringify({ success: false, error: 'Message button not found' }));
+          // Find Message button by iterating all role="button" elements and matching text
+          const btns = await page.$$('div[role="button"]');
+          let messageBtnFound = false;
+          for (const btn of btns) {
+            const btnText = await page.evaluate(el => el.textContent?.trim(), btn);
+            if (btnText === 'Message') {
+              await btn.click();
+              messageBtnFound = true;
               break;
             }
-          } else {
-            await messageBtn.click();
+          }
+          if (!messageBtnFound) {
+            // Fallback: try Puppeteer 24 pseudo-selector
+            const msgBtn = await page.$('div[role="button"]::-p-text(Message)').catch(() => null);
+            if (msgBtn) { await msgBtn.click(); messageBtnFound = true; }
+          }
+          if (!messageBtnFound) {
+            console.error(JSON.stringify({ success: false, error: 'Message button not found' }));
+            break;
           }
           await randomDelay(2000, 3500);
-          const msgInput = await page.$('textarea[placeholder*="Message"]') ||
-                           await page.$('div[role="textbox"][contenteditable="true"]') ||
+          // Find message input — try multiple selectors
+          const msgInput = await page.$('[aria-placeholder*="Message"]') ||
+                           await page.$('[placeholder*="Message"]') ||
+                           await page.$('textarea[placeholder*="Message"]') ||
+                           await page.$('div[contenteditable="true"]') ||
                            await page.$('textarea');
           if (!msgInput) {
             console.error(JSON.stringify({ success: false, error: 'Message input not found' }));
@@ -1527,23 +1530,64 @@ Prerequisites:
         if (!igUser || !igPass) { console.error('Usage: instagram-login <username> <password>'); break; }
         try {
           await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
-          await randomDelay(2000, 3000);
+          await randomDelay(2500, 3500);
           // Dismiss cookie banner if present
           const cookieBtn = await page.$('button[class*="accept"]') || await page.$('button[data-cookiebanner="accept_button"]');
           if (cookieBtn) { await cookieBtn.click(); await randomDelay(500, 800); }
-          const userInput = await page.$('input[name="username"]');
-          const passInput = await page.$('input[name="password"]');
-          if (!userInput || !passInput) { console.error(JSON.stringify({ success: false, error: 'Login form not found' })); break; }
-          await userInput.click();
-          await randomDelay(300, 500);
-          for (const char of igUser) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
-          await randomDelay(400, 700);
-          await passInput.click();
-          await randomDelay(200, 400);
-          for (const char of igPass) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
-          await randomDelay(500, 1000);
-          await page.keyboard.press('Enter');
-          await randomDelay(4000, 6000);
+
+          // Check if account picker is shown (saved accounts) — use text-based element search (position-independent)
+          const pickerTablist = await page.$('div[role="tablist"]');
+          if (pickerTablist) {
+            // Account picker is shown — find button by username text content
+            const pickerBtn = await page.evaluateHandle((username) => {
+              const tabs = document.querySelectorAll('div[role="tablist"] div[role="button"]');
+              return Array.from(tabs).find(t => t.textContent && t.textContent.includes(username)) || null;
+            }, igUser);
+            const pickerEl = pickerBtn.asElement ? pickerBtn.asElement() : null;
+            if (pickerEl) {
+              await pickerEl.click();
+              await randomDelay(4000, 5000); // wait for password modal or direct login
+              // Check if already logged in (direct session reuse — no password modal needed)
+              const postClickUrl = page.url();
+              if (!postClickUrl.includes('/accounts/login') && !postClickUrl.includes('/challenge') && !postClickUrl.includes('/two_factor')) {
+                console.log(JSON.stringify({ success: true, username: igUser, url: postClickUrl, method: 'picker_direct' }));
+                break;
+              }
+              const passModal = await page.$('input[type="password"]');
+              if (passModal) {
+                await passModal.click();
+                await randomDelay(200, 400);
+                for (const char of igPass) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
+                await randomDelay(400, 700);
+                const submitBtn = await page.$('input[type="submit"]') || await page.$('button[type="submit"]');
+                if (submitBtn) { await submitBtn.click(); } else { await page.keyboard.press('Enter'); }
+                await randomDelay(5000, 7000);
+              } else {
+                console.error(JSON.stringify({ success: false, error: 'Password modal not found after picker click', username: igUser }));
+                break;
+              }
+            } else {
+              // Username not in picker — fall through to manual login form
+              console.error(JSON.stringify({ success: false, error: `Account "${igUser}" not found in picker — may need fresh login`, url: page.url() }));
+              break;
+            }
+          } else {
+            // Regular login form
+            const userInput = await page.$('input[name="username"]');
+            const passInput = await page.$('input[name="password"]');
+            if (!userInput || !passInput) { console.error(JSON.stringify({ success: false, error: 'Login form not found' })); break; }
+            await userInput.click();
+            await randomDelay(300, 500);
+            for (const char of igUser) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
+            await randomDelay(400, 700);
+            await passInput.click();
+            await randomDelay(200, 400);
+            for (const char of igPass) { await page.keyboard.type(char, { delay: Math.random() * 80 + 40 }); }
+            await randomDelay(500, 1000);
+            await page.keyboard.press('Enter');
+            await randomDelay(4000, 6000);
+          }
+
           const currentUrl = page.url();
           if (currentUrl.includes('/challenge') || currentUrl.includes('/two_factor')) {
             console.error(JSON.stringify({ success: false, error: '2FA or challenge required — manual action needed', url: currentUrl }));
