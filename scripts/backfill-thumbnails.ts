@@ -16,9 +16,9 @@ import * as https from "https";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const STORAGE_BUCKET = "lead-videos";
+const STORAGE_BUCKET = "lead-thumbnails";
 const BATCH = 50;
-const CONCURRENCY = 4;
+const CONCURRENCY = 2;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -52,16 +52,38 @@ async function procesLead(lead: { id: string; video_url: string }): Promise<bool
     );
     if (!fs.existsSync(tmpThumb) || fs.statSync(tmpThumb).size < 1000) return false;
 
-    // Upload thumbnail
+    // Upload thumbnail via REST API directly (bypasses JS SDK mime-type cache issue)
     const thumbData = fs.readFileSync(tmpThumb);
     const thumbKey = `${lead.id}-thumb.jpg`;
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(thumbKey, thumbData, { contentType: "image/jpeg", upsert: true });
-    if (uploadError) { console.log(`  [${lead.id}] Upload error: ${uploadError.message}`); return false; }
-
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(thumbKey);
-    const thumbnailUrl = data.publicUrl;
+    // Upload with retry on rate limit
+    let thumbnailUrl = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const uploadRes = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${thumbKey}`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": SERVICE_ROLE_KEY,
+            "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+            "Content-Type": "image/jpeg",
+            "x-upsert": "true",
+          },
+          body: thumbData,
+        }
+      );
+      if (uploadRes.ok) {
+        thumbnailUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${thumbKey}`;
+        break;
+      }
+      const errText = await uploadRes.text();
+      if (attempt < 3 && (uploadRes.status === 429 || uploadRes.status >= 500)) {
+        await new Promise(r => setTimeout(r, attempt * 2000));
+        continue;
+      }
+      console.log(`  [${lead.id}] Upload error (${uploadRes.status}): ${errText.slice(0, 80)}`);
+      return false;
+    }
+    if (!thumbnailUrl) return false;
 
     // Update lead
     const { error: updateError } = await supabase
@@ -124,8 +146,8 @@ async function main() {
     offset += leads.length;
     if (leads.length < BATCH) break;
 
-    // Brief pause between batches
-    await new Promise(r => setTimeout(r, 1000));
+    // Pause between batches to avoid storage rate limits
+    await new Promise(r => setTimeout(r, 2000));
   }
 
   console.log(`\n\nDone. ${succeeded}/${processed} thumbnails generated.`);

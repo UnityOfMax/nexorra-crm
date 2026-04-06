@@ -289,14 +289,21 @@ export async function generateVideo(leadId: string, chromePort = 9224): Promise<
       if (fs.existsSync(thumbPath) && fs.statSync(thumbPath).size > 1000) {
         const thumbData = fs.readFileSync(thumbPath);
         const thumbKey = `${leadId}-thumb.jpg`;
-        const { error: thumbUploadError } = await supabaseAdmin.storage
-          .from(STORAGE_BUCKET)
-          .upload(thumbKey, thumbData, { contentType: "image/jpeg", upsert: true });
-        if (!thumbUploadError) {
-          const { data: thumbUrlData } = supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .getPublicUrl(thumbKey);
-          thumbnailUrl = thumbUrlData.publicUrl;
+        const thumbUploadRes = await fetch(
+          `${SUPABASE_URL}/storage/v1/object/lead-thumbnails/${thumbKey}`,
+          {
+            method: "POST",
+            headers: {
+              "apikey": SERVICE_ROLE_KEY,
+              "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+              "Content-Type": "image/jpeg",
+              "x-upsert": "true",
+            },
+            body: thumbData,
+          }
+        );
+        if (thumbUploadRes.ok) {
+          thumbnailUrl = `${SUPABASE_URL}/storage/v1/object/public/lead-thumbnails/${thumbKey}`;
           console.log(`[generate] Thumbnail: ${thumbnailUrl}`);
         }
       }
