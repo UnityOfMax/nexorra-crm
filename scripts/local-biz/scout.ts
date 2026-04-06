@@ -1,9 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
  * Petra Phase 1 — Scout
- * Picks random city+type combos, scrapes Google Maps via Outscraper,
- * deduplicates against DB, runs Apollo.io email enrichment, and
- * scores existing websites.
+ * Picks random city+type combos, scrapes Google Maps via Chrome CDP,
+ * deduplicates against DB, finds emails by scraping business websites,
+ * and scores existing websites.
  *
  * Usage: npx tsx scripts/local-biz/scout.ts [--limit 15]
  */
@@ -13,8 +13,8 @@ import { resolve } from 'path';
 dotenv.config({ path: resolve(__dirname, '../../.env.local') });
 
 import { createClient } from '@supabase/supabase-js';
-import { OutscraperClient } from '../../lib/outscraper/client';
-import { ApolloClient } from '../../lib/apollo/client';
+import { searchPlaces } from '../../lib/google-maps/scraper';
+import { findEmail } from '../../lib/email-finder/client';
 import { analyzeWebsite } from './analyze-website';
 
 const supabaseAdmin = createClient(
@@ -114,9 +114,6 @@ async function main() {
   const limitIdx = args.indexOf('--limit');
   const COMBO_LIMIT = limitIdx >= 0 ? parseInt(args[limitIdx + 1]) : 15;
 
-  const outscraper = new OutscraperClient();
-  const apollo = new ApolloClient();
-
   console.log(`[scout] Starting Petra Phase 1 — scraping ${COMBO_LIMIT} city+type combos`);
 
   // Pick random city+type combos
@@ -134,7 +131,7 @@ async function main() {
 
     let places;
     try {
-      places = await outscraper.searchPlaces(query, 100);
+      places = await searchPlaces(query, 20, 9232);
     } catch (err) {
       console.log(`[scout] Failed: ${(err as Error).message}`);
       continue;
@@ -158,9 +155,7 @@ async function main() {
       totalNew++;
 
       // Parse photos
-      const photos: string[] = [];
-      if (place.photo) photos.push(place.photo);
-      if (Array.isArray(place.photos)) photos.push(...place.photos.filter(Boolean));
+      const photos: string[] = place.photos || [];
 
       // Determine country from city string
       const country = CANADA_CITIES.some(c => c.includes(combo.city.split(',')[0].trim())) ? 'CA' : 'US';
@@ -210,27 +205,14 @@ async function main() {
 
       totalQualified++;
 
-      // Apollo.io email enrichment
+      // Email enrichment — scrape business website via Chrome CDP
       let email: string | null = null;
       if (place.site) {
         try {
-          const domain = new URL(place.site).hostname.replace(/^www\./, '');
-          const enriched = await apollo.enrichByDomain(domain, place.name);
-          email = enriched.email;
+          email = await findEmail(place.site, place.name, place.city || combo.city.split(',')[0].trim());
         } catch {
-          // No domain parseable — try by name
-          if (place.city) {
-            try {
-              const enriched = await apollo.enrichByName(place.name, place.city, place.state || '');
-              email = enriched.email;
-            } catch {}
-          }
+          // No email found
         }
-      } else if (place.city) {
-        try {
-          const enriched = await apollo.enrichByName(place.name, place.city, place.state || '');
-          email = enriched.email;
-        } catch {}
       }
 
       if (email) {
@@ -254,9 +236,6 @@ async function main() {
       }
 
       console.log(`[scout]  + ${place.name} (${place.city}) — email: ${email ? '✓' : 'x'}, website: ${websiteScore ?? 'none'}`);
-
-      // Small delay between Apollo calls
-      await new Promise(r => setTimeout(r, 500));
     }
 
     // Polite delay between Outscraper jobs

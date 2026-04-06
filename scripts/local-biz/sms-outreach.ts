@@ -41,14 +41,16 @@ function isDaylightSavingTime(date: Date): boolean {
 
 function buildSMSMessage(lead: {
   business_name: string;
-  business_type: string;
   city: string | null;
   demo_page_id: string;
+  outreach_body_sms?: string | null;
 }): string {
-  const demoLink = `${APP_URL}/website-demo/${lead.demo_page_id}`;
-  const firstName = lead.business_name.split(/\s+/)[0];
+  // Use pre-generated personalised body if available
+  if (lead.outreach_body_sms) return lead.outreach_body_sms;
 
-  return `Hi ${firstName}, I built a free website concept for ${lead.business_name} — took about 15 min. Check it out: ${demoLink}\nNo strings, just wanted to show what's possible. — Max @ Nexorra`;
+  // Fallback
+  const demoLink = `${APP_URL}/website-demo/${lead.demo_page_id}`;
+  return `Hey — I noticed ${lead.business_name} doesn't have a strong site online, so I built one for you: ${demoLink}\n\nIf you like it, happy to get on a quick call and set it all up — Max Fawcett`;
 }
 
 async function main() {
@@ -81,7 +83,7 @@ async function main() {
   // Fetch leads with phone but no email, demo built, not yet SMS'd
   const { data: leads, error } = await supabaseAdmin
     .from('local_biz_leads')
-    .select('id, business_name, business_type, city, phone, demo_page_id')
+    .select('id, business_name, business_type, city, phone, demo_page_id, outreach_body_sms')
     .eq('sms_sent', false)
     .eq('outreach_channel', 'sms')
     .not('demo_page_id', 'is', null)
@@ -113,9 +115,9 @@ async function main() {
 
     const message = buildSMSMessage({
       business_name: lead.business_name,
-      business_type: lead.business_type,
       city: lead.city,
       demo_page_id: lead.demo_page_id,
+      outreach_body_sms: lead.outreach_body_sms,
     });
 
     if (isDryRun) {

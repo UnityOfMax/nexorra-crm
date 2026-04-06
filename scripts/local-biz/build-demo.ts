@@ -55,6 +55,8 @@ function getAnthropicClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
+const CALENDLY_LINK = process.env.CALENDLY_BOOKING_URL || 'https://calendly.com/nexorra/discovery';
+
 interface GeneratedCopy {
   hero_headline: string;
   hero_headline_em: string;
@@ -65,45 +67,65 @@ interface GeneratedCopy {
   services: Array<{ name: string; desc: string; price: string }>;
   color_primary: string;
   color_accent: string;
+  // Outreach personalisation
+  website_pain_points: string[];
+  review_insight: string | null;
+  outreach_body_email: string;
+  outreach_body_sms: string;
 }
 
 async function generateCopy(biz: {
   name: string; type: string; city: string; state: string;
   rating: number | null; reviews: number | null;
+  hasWebsite: boolean; websiteScore: number | null;
   existingCopy: string; existingColors: string;
 }): Promise<GeneratedCopy> {
   const client = getAnthropicClient();
 
-  const prompt = `You are writing website copy for a local business. Output ONLY valid JSON, no markdown.
+  const websiteContext = biz.hasWebsite
+    ? `Current website score: ${biz.websiteScore ?? 'not scored'}/100\nExisting site copy/tone: ${biz.existingCopy.slice(0, 500)}\nDetected brand colors: ${biz.existingColors || 'none'}`
+    : 'They have NO website at all.';
+
+  const prompt = `You are writing for a local business. Output ONLY valid JSON, no markdown, no explanation.
 
 Business: ${biz.name}
 Type: ${biz.type}
 Location: ${biz.city}, ${biz.state}
 Rating: ${biz.rating ?? 'unknown'} stars (${biz.reviews ?? '?'} reviews)
-Existing site copy/tone (if available): ${biz.existingCopy.slice(0, 600)}
-Detected brand colors (hex): ${biz.existingColors || 'none detected'}
+${websiteContext}
 
-Generate compelling website copy. Output JSON:
+Generate all of the following in one JSON object:
+
+1. Demo website copy (for a beautiful site we've built for them)
+2. Pain points (2-3 specific issues with their current site/online presence)
+3. A personalised outreach email body (5 short phrases, friend tone, casual but professional, proper capitalisation and punctuation — reference a specific pain point and what it costs them in lost customers, tell them the site is already built and free, CTA is a call booking link)
+4. A personalised SMS (3 phrases, same tone, shorter)
+
+Output JSON:
 {
-  "hero_headline": "short punchy headline (4-8 words)",
-  "hero_headline_em": "italic/emphasis part of headline (2-4 words, can be empty)",
-  "hero_subheadline": "1-2 sentence description of what makes them special",
+  "hero_headline": "4-8 word punchy headline",
+  "hero_headline_em": "2-4 word emphasis part (can be empty)",
+  "hero_subheadline": "1-2 sentence description",
   "about_text": "2-3 sentence paragraph about the business",
-  "about_text_2": "1-2 sentence follow-up about their approach or values",
-  "cta_text": "1 sentence call to action for the bottom section",
+  "about_text_2": "1-2 sentence follow-up",
+  "cta_text": "1 sentence CTA for bottom section",
   "services": [
-    {"name": "Service Name", "desc": "1 sentence description", "price": "Starting at $X or empty"},
-    {"name": "Service Name", "desc": "1 sentence description", "price": ""},
-    {"name": "Service Name", "desc": "1 sentence description", "price": ""},
-    {"name": "Service Name", "desc": "1 sentence description", "price": ""}
+    {"name": "Service", "desc": "1 sentence", "price": "Starting at $X or empty"},
+    {"name": "Service", "desc": "1 sentence", "price": ""},
+    {"name": "Service", "desc": "1 sentence", "price": ""},
+    {"name": "Service", "desc": "1 sentence", "price": ""}
   ],
-  "color_primary": "#hex (their brand color or best fit for business type)",
-  "color_accent": "#hex (complementary accent color)"
+  "color_primary": "#hex",
+  "color_accent": "#hex",
+  "website_pain_points": ["specific issue 1", "specific issue 2", "specific issue 3"],
+  "review_insight": "one notable thing about their online reputation, or null",
+  "outreach_body_email": "5 short phrases separated by \\n\\n. Phrase 1: specific pain point noticed. Phrase 2: what it costs them (3-4 customers/week framing). Phrase 3: I built you a site already, it's done, free, no strings. Phrase 4: {{DEMO_LINK}}. Phrase 5: if you like it, happy to set it all up on a quick call — {{CALENDLY_LINK}}",
+  "outreach_body_sms": "3 phrases as one continuous message. Phrase 1: specific thing noticed. Phrase 2: built them a free site: {{DEMO_LINK}}. Phrase 3: happy to get on a call and set it up"
 }`;
 
   const msg = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 800,
+    max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }],
   });
 
@@ -113,7 +135,6 @@ Generate compelling website copy. Output JSON:
     if (!jsonMatch) throw new Error('No JSON found');
     return JSON.parse(jsonMatch[0]) as GeneratedCopy;
   } catch {
-    // Return sensible defaults
     return {
       hero_headline: `Welcome to ${biz.name}`,
       hero_headline_em: biz.city,
@@ -129,6 +150,10 @@ Generate compelling website copy. Output JSON:
       ],
       color_primary: '#2563eb',
       color_accent: '#f59e0b',
+      website_pain_points: biz.hasWebsite ? ['outdated design', 'no contact form'] : ['no website'],
+      review_insight: null,
+      outreach_body_email: `I noticed ${biz.name} doesn't have a modern website set up — that usually means losing a few enquiries a week to competitors who do.\n\nI went ahead and built you a site already — took me about 20 minutes.\n\n{{DEMO_LINK}}\n\nIt's yours, no catch. If you like it and want to get it live, we can jump on a quick call and sort it out.\n\n{{CALENDLY_LINK}}`,
+      outreach_body_sms: `Hey — I noticed ${biz.name} doesn't have a proper site online, so I built one for you: {{DEMO_LINK}}\n\nIf you like it, happy to get on a quick call and set it all up — Max Fawcett`,
     };
   }
 }
@@ -206,7 +231,7 @@ async function main() {
       // Scrape existing site for copy/color hints
       const { text: existingCopy, colors: existingColors } = await scrapeExistingSite(lead.website_url || '');
 
-      // Generate copy with Haiku
+      // Generate copy + pain points + outreach copy with Haiku
       const copy = await generateCopy({
         name: lead.business_name,
         type: lead.business_type,
@@ -214,6 +239,8 @@ async function main() {
         state: lead.state_province || '',
         rating: lead.gmb_rating,
         reviews: lead.gmb_reviews,
+        hasWebsite: !!lead.website_url,
+        websiteScore: lead.website_score ?? null,
         existingCopy,
         existingColors,
       });
@@ -244,6 +271,25 @@ async function main() {
 
       const pageId = await buildWebsiteDemo(bizData);
       const demoUrl = `https://app.ainexorra.com/website-demo/${pageId}`;
+
+      // Store outreach personalisation data — substitute placeholders
+      const emailBody = (copy.outreach_body_email || '')
+        .replace(/\{\{DEMO_LINK\}\}/g, demoUrl)
+        .replace(/\{\{CALENDLY_LINK\}\}/g, CALENDLY_LINK);
+      const smsBody = (copy.outreach_body_sms || '')
+        .replace(/\{\{DEMO_LINK\}\}/g, demoUrl)
+        .replace(/\{\{CALENDLY_LINK\}\}/g, CALENDLY_LINK);
+
+      await supabaseAdmin
+        .from('local_biz_leads')
+        .update({
+          website_pain_points: copy.website_pain_points || [],
+          review_insight: copy.review_insight || null,
+          outreach_body_email: emailBody,
+          outreach_body_sms: smsBody,
+        })
+        .eq('id', lead.id);
+
       console.log(`[build-demo]  ✓ ${lead.business_name} → ${demoUrl}`);
       built++;
     } catch (err) {

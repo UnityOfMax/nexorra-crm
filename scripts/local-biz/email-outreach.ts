@@ -48,10 +48,10 @@ async function main() {
 
   console.log(`[email-outreach] ${todayCount || 0} sent today. ${remaining} remaining (cap ${DAILY_EMAIL_CAP}).`);
 
-  // Fetch pending leads
+  // Fetch pending leads (include outreach_body_email for personalised copy)
   const { data: leads, error } = await supabaseAdmin
     .from('local_biz_leads')
-    .select('id, business_name, business_type, city, state_province, email, demo_page_id, phone')
+    .select('id, business_name, business_type, city, state_province, email, demo_page_id, phone, outreach_body_email, website_pain_points')
     .eq('email_sent', false)
     .eq('outreach_channel', 'email')
     .not('demo_page_id', 'is', null)
@@ -81,9 +81,10 @@ async function main() {
     const batch = leads.slice(i, i + BATCH_SIZE);
 
     const instantlyLeads = batch.map(lead => {
-      const demoLink = `${APP_URL}/website-demo/${lead.demo_page_id}`;
-      // Extract first name from email or use business name
       const firstName = extractFirstName(lead.email || lead.business_name);
+      // Use pre-generated personalised body if available, otherwise a sensible fallback
+      const emailBody = lead.outreach_body_email ||
+        `I noticed ${lead.business_name} could have a stronger online presence — it's likely costing a few enquiries a week.\n\nI went ahead and built you a site already — it's done and free.\n\n${APP_URL}/website-demo/${lead.demo_page_id}\n\nNo strings. If you like it, happy to get on a quick call and set it all up.`;
 
       return {
         email: lead.email!,
@@ -91,16 +92,15 @@ async function main() {
         last_name: '',
         custom_variables: {
           business_name: lead.business_name,
-          business_type: lead.business_type,
           city: lead.city || '',
-          demo_link: demoLink,
+          email_body: emailBody,
         },
       };
     });
 
     if (isDryRun) {
       console.log(`[email-outreach] [DRY RUN] Would upload ${instantlyLeads.length} leads`);
-      instantlyLeads.forEach(l => console.log(`  ${l.email} → ${l.custom_variables.demo_link}`));
+      instantlyLeads.forEach(l => console.log(`  ${l.email} → ${l.custom_variables.business_name}`));
       uploaded += instantlyLeads.length;
       continue;
     }
