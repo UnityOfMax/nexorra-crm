@@ -718,7 +718,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
             {/* Funnel diagram — shown for real sub-accounts (not agency overview) */}
             {(!isAgencyUser || isViewingClient) && (
-              <FunnelDiagram data={computeFunnelFromStats(stats.closings, stats.bookings)} className="max-w-xl mx-auto" />
+              <FunnelDiagram data={computeFunnelFromStats(stats.closings, stats.bookings)} />
             )}
               </>
             )}

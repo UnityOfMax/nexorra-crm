@@ -406,9 +406,11 @@ function monthsSinceStart(startDate: string): number {
   const [mon, year] = startDate.split(' ');
   const monthIdx = MONTH_NAMES.indexOf(mon);
   if (monthIdx < 0 || !year) return 12;
-  const startMs = new Date(parseInt(year), monthIdx, 1).getTime();
-  const nowMs = new Date(2026, 3, 1).getTime(); // Apr 2026
-  return Math.max(1, Math.floor((nowMs - startMs) / (30.44 * 24 * 3600 * 1000)));
+  // Count calendar months from start month to current month (Apr 2026)
+  const startYear = parseInt(year);
+  const nowYear = 2026;
+  const nowMonth = 3; // April = index 3
+  return Math.max(1, (nowYear - startYear) * 12 + (nowMonth - monthIdx) + 1);
 }
 
 export interface AllTimeStats {
@@ -434,7 +436,10 @@ export function computeAllTimeStats(slug: string, startDate: string, dealsPerMon
   let totalBookings = 0;
 
   for (let m = 0; m < months; m++) {
-    const monthDeals = Math.max(0, dealsPerMonth + Math.round((rng() * 2 - 1) * variance));
+    // For 1-deal/mo agents: alternate between 0 and 2 to average ≈1; for higher volumes use ±variance
+    const monthDeals = dealsPerMonth <= 1
+      ? (m % 2 === 0 ? 1 : Math.round(rng()) > 0.4 ? 1 : 0)
+      : Math.max(0, dealsPerMonth + Math.round((rng() * 2 - 1) * variance));
     const monthAppts = Math.max(0, apptsPerMonth + Math.round((rng() * 2 - 1) * apptVariance));
     totalDeals += monthDeals;
     totalBookings += monthAppts;

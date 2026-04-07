@@ -177,8 +177,8 @@ function MockDashboard({ slug }: { slug: string }) {
         ))}
       </div>
 
-      {/* Funnel diagram — centered */}
-      <FunnelDiagram data={funnelData} className="max-w-xl mx-auto" />
+      {/* Funnel diagram */}
+      <FunnelDiagram data={funnelData} />
     </div>
   );
 }
@@ -272,7 +272,7 @@ function MockCalendar({ slug }: { slug: string }) {
 
 // ── Conversations view ────────────────────────────────────────────────────────
 function MockConversations({ slug }: { slug: string }) {
-  const contacts = useMemo(() => generateMockContacts(slug, 18), [slug]);
+  const contacts = useMemo(() => generateMockContacts(slug, 70), [slug]);
   const [selectedId, setSelectedId] = useState<string | null>(contacts[0]?.id || null);
 
   const selected = contacts.find(c => c.id === selectedId);
