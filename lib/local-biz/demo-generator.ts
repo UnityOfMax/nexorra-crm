@@ -338,8 +338,15 @@ async function runVisualQALoop(
       const page = await browser.newPage();
 
       try {
-        await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'domcontentloaded', timeout: 25000 });
-        await new Promise(r => setTimeout(r, 6000)); // CDN (Tailwind), fonts, IntersectionObserver settle
+        // networkidle0 waits until Tailwind CDN + Google Fonts have loaded
+        await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'networkidle0', timeout: 40000 });
+        // Force all reveal elements visible for the QA screenshot
+        await page.evaluate(() => {
+          document.querySelectorAll<HTMLElement>('.reveal, .reveal-left, .reveal-right').forEach(el => {
+            el.classList.add('visible');
+          });
+        });
+        await new Promise(r => setTimeout(r, 1500)); // let transitions settle
 
         screenshotPath = `/tmp/qa-screenshot-${i}-${Date.now()}.jpg`;
         await page.screenshot({
