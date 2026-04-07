@@ -245,6 +245,29 @@ Start with <!DOCTYPE html> and end with </html>.`;
     throw new Error(`[demo-gen] Generation produced invalid/short HTML (${html.length} chars)`);
   }
 
+  // Inject IntersectionObserver script if model omitted it — guarantees .reveal elements become visible
+  if (!html.includes('IntersectionObserver')) {
+    const ioScript = `<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(function(el) {
+      io.observe(el);
+    });
+    // Immediately reveal anything already in the viewport on load
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(function(el) {
+      var rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight) el.classList.add('visible');
+    });
+  });
+</script>`;
+    html = html.replace(/<\/body>/i, `${ioScript}\n</body>`);
+    console.log('[demo-gen] Injected IntersectionObserver script (model omitted it)');
+  }
+
   // Save a copy for inspection
   const debugPath = '/tmp/demo-latest.html';
   fs.writeFileSync(debugPath, html, 'utf-8');
@@ -297,22 +320,26 @@ async function runVisualQALoop(
     let launchedBrowser: Browser | null = null;
 
     try {
-      // 1. Serve HTML via a temporary HTTP server so CDN resources load properly
+      // 1. Serve HTML via a temporary HTTP server (OS-assigned port to avoid conflicts)
       const htmlContent = currentHtml;
-      const httpPort = 9290 + i; // use a dedicated port range for QA
       const server = http.createServer((_req, res) => {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(htmlContent);
       });
-      await new Promise<void>(resolve => server.listen(httpPort, '127.0.0.1', resolve));
+      const httpPort = await new Promise<number>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+          resolve((server.address() as any).port);
+        });
+      });
 
       const { browser, launched } = await getBrowser();
       if (launched) launchedBrowser = browser;
       const page = await browser.newPage();
 
       try {
-        await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'networkidle2', timeout: 25000 });
-        await new Promise(r => setTimeout(r, 3000)); // fonts + images settle
+        await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        await new Promise(r => setTimeout(r, 6000)); // CDN (Tailwind), fonts, IntersectionObserver settle
 
         screenshotPath = `/tmp/qa-screenshot-${i}-${Date.now()}.jpg`;
         await page.screenshot({
