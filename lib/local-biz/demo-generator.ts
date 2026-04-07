@@ -421,16 +421,22 @@ ${currentHtml}`,
       });
 
       const fixText = ((fixMsg.content[0] as any).text || '').trim();
-      // Strip markdown fences if model wrapped the output
-      const stripped = fixText.replace(/^```html?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      const fixMatch = stripped.match(/<!DOCTYPE[\s\S]*<\/html>/i)
-                    || stripped.match(/<html[\s\S]*<\/html>/i);
-      if (fixMatch) {
-        currentHtml = fixMatch[0].startsWith('<html') ? `<!DOCTYPE html>\n${fixMatch[0]}` : fixMatch[0];
+      // Extract HTML by finding first <!DOCTYPE and last </html> — works regardless of markdown fences
+      const docStart = fixText.indexOf('<!DOCTYPE');
+      const htmlEnd = fixText.lastIndexOf('</html>');
+      if (docStart !== -1 && htmlEnd !== -1 && htmlEnd > docStart) {
+        currentHtml = fixText.slice(docStart, htmlEnd + '</html>'.length);
         console.log(`[qa] ${bizName}: fixed HTML applied (${currentHtml.length} chars)`);
       } else {
-        console.warn(`[qa] ${bizName}: fix response had no valid HTML (${fixText.slice(0, 100)}) — keeping previous`);
-        break;
+        // Try <html> without doctype
+        const htmlStart = fixText.indexOf('<html');
+        if (htmlStart !== -1 && htmlEnd !== -1 && htmlEnd > htmlStart) {
+          currentHtml = `<!DOCTYPE html>\n${fixText.slice(htmlStart, htmlEnd + '</html>'.length)}`;
+          console.log(`[qa] ${bizName}: fixed HTML applied (no doctype, ${currentHtml.length} chars)`);
+        } else {
+          console.warn(`[qa] ${bizName}: fix response had no valid HTML — keeping previous`);
+          break;
+        }
       }
 
     } catch (err) {
