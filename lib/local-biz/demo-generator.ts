@@ -389,7 +389,11 @@ Output ONLY "PASS" or "FIX\n[instructions]". No score breakdown.`,
       });
 
       const qaResult = ((qaMsg.content[0] as any).text || '').trim();
-      if (screenshotPath) fs.unlink(screenshotPath, () => {});
+      if (screenshotPath) {
+        // Save a copy at a fixed path for Telegram preview
+        fs.copyFileSync(screenshotPath, '/tmp/qa-latest.jpg');
+        fs.unlink(screenshotPath, () => {});
+      }
       screenshotPath = null;
 
       if (qaResult.startsWith('PASS')) {
@@ -417,12 +421,15 @@ ${currentHtml}`,
       });
 
       const fixText = ((fixMsg.content[0] as any).text || '').trim();
-      const fixMatch = fixText.match(/<!DOCTYPE[\s\S]*<\/html>/i);
+      // Strip markdown fences if model wrapped the output
+      const stripped = fixText.replace(/^```html?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const fixMatch = stripped.match(/<!DOCTYPE[\s\S]*<\/html>/i)
+                    || stripped.match(/<html[\s\S]*<\/html>/i);
       if (fixMatch) {
-        currentHtml = fixMatch[0];
+        currentHtml = fixMatch[0].startsWith('<html') ? `<!DOCTYPE html>\n${fixMatch[0]}` : fixMatch[0];
         console.log(`[qa] ${bizName}: fixed HTML applied (${currentHtml.length} chars)`);
       } else {
-        console.warn(`[qa] ${bizName}: fix response had no valid HTML — keeping previous`);
+        console.warn(`[qa] ${bizName}: fix response had no valid HTML (${fixText.slice(0, 100)}) — keeping previous`);
         break;
       }
 

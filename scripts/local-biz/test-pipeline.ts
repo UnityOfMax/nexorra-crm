@@ -367,6 +367,17 @@ async function main() {
     }
   }
 
+  // Send QA screenshot of the demo (after QA loop fixes applied)
+  const qaScreenshot = '/tmp/qa-latest.jpg';
+  if (fs.existsSync(qaScreenshot)) {
+    try {
+      await sendTelegramPhoto(qaScreenshot, `DEMO (after QA loop): ${demoUrl}`);
+      console.log('[test-pipeline]  ✓ Demo screenshot sent');
+    } catch (err) {
+      console.warn('[test-pipeline]  Demo screenshot send failed:', (err as Error).message);
+    }
+  }
+
   // Send full email preview
   const fullEmail = `${emailBody}\n\nBest,\nMax Fawcett`;
 
