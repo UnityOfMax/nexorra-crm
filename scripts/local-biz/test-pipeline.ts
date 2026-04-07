@@ -378,26 +378,11 @@ async function main() {
     }
   }
 
-  // Send full email preview
-  const fullEmail = `${emailBody}\n\nBest,\nMax Fawcett`;
-
-  const telegramMsg = `📧 <b>TEST — You're Dawn. This email just landed in your inbox.</b>
+  const telegramMsg = `<b>Demo ready:</b> ${demoUrl}
 
 <b>Business:</b> ${BUSINESS.name} | Score: ${BUSINESS.website_score}/100
-<b>Demo:</b> ${demoUrl}
-<b>Vibe:</b> ${copy.design_vibe} | <b>Skills used:</b> frontend-design + 10 designer-skills
-
-─────────────────────────────
-<b>Subject:</b> Something I built for A Hair Sensation
-
-${escapeHtml(fullEmail)}
-─────────────────────────────
-
-<i>Pain points:
-• ${copy.website_pain_points.join('\n• ')}</i>
-${copy.review_insight ? `\n<i>${copy.review_insight}</i>` : ''}
-
-<b>SMS:</b> ${escapeHtml(smsBody)}`;
+<b>Vibe:</b> ${copy.design_vibe}
+<b>QA:</b> 3 iterations — hero scale, service card contrast, gallery borders`;
 
   try {
     await sendTelegramText(telegramMsg);

@@ -156,18 +156,20 @@ TOKEN BUDGET: You have ~6000 output tokens. Use Tailwind utility classes for ALL
 - Google Fonts: one @import line in a <style> tag (pick 1-2 fonts matching the vibe — NOT Inter, NOT Arial)
 - Tailwind config block to extend with custom colours: <script>tailwind.config = { theme: { extend: { colors: { primary: '${copy.color_primary}', accent: '${copy.color_accent}' } } } }</script>
 - <style> block max 60 lines: Google Fonts @import + keyframes for 1-2 animations + .reveal/.reveal.visible only
-- Sections required (ALL must have actual visible content):
-  • Navigation (sticky, business name + phone number + "Book Now" link)
-  • Hero (full-width photo background using PHOTO_1, with headline and CTA overlaid)
-  • Services (3-4 service cards using Tailwind grid)
-  • Gallery (3 photos in a CSS grid, only for salon/restaurant/fitness)
-  • About (text + photo side by side using Tailwind flex/grid)
-  • Testimonials (2-3 review cards)
-  • Contact/booking form (name, email, phone, date, service, submit)
-  • Footer (name, phone, address, hours)
+- Sections required (ALL must have actual visible content, each with matching id attribute):
+  • Navigation — sticky, includes: business name, desktop nav links (hidden md:flex), mobile hamburger button (md:hidden), mobile slide-down menu toggled by JS. Nav links: href="#services", href="#gallery", href="#about", href="#contact"
+  • Hero — id="hero", full-width photo background using PHOTO_1, headline + CTA overlaid
+  • Services — id="services", 3-4 service cards using Tailwind grid
+  • Gallery — id="gallery", 3 photos in a CSS grid (salon/restaurant/fitness only)
+  • About — id="about", text + photo side by side
+  • Testimonials — id="testimonials", 2-3 review cards
+  • Contact/booking form — id="contact", name, email, phone, date, service, submit
+  • Footer — business name, phone, address, hours
 - Add class="reveal" to each section for scroll animation
-- Mobile responsive using Tailwind responsive prefixes (sm:, md:, lg:)
+- MOBILE NAV: hamburger button (md:hidden) + hidden mobile menu (hidden by default, toggled via JS). The desktop nav links div must be hidden md:flex. Add this JS pattern at end of <body>: document.getElementById('menu-btn').addEventListener('click', () => document.getElementById('mobile-menu').classList.toggle('hidden'))
+- Mobile responsive using Tailwind responsive prefixes (sm:, md:, lg:) — test at 390px
 - One hover transition on service cards: hover:scale-105 hover:shadow-lg transition-all duration-300
+- Smooth scroll: add style="scroll-behavior:smooth" to <html> tag
 
 CRITICAL — include this <style> block structure:
 <style>
