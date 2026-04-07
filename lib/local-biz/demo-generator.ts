@@ -15,15 +15,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 import puppeteer, { Browser } from 'puppeteer';
-import Anthropic from '@anthropic-ai/sdk';
 import { DESIGN_SKILL_CONTEXT } from './load-design-skills';
 
 const execAsync = promisify(exec);
 
-function getAnthropicClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('[demo-gen] ANTHROPIC_API_KEY not set');
-  return new Anthropic({ apiKey });
+// All generation uses claude -p (OAuth) — no ANTHROPIC_API_KEY needed
+async function claudeP(promptFile: string, opts: { addFile?: string; maxBuffer?: number } = {}): Promise<string> {
+  const addFile = opts.addFile ? `--add-file "${opts.addFile}"` : '';
+  const { stdout } = await execAsync(
+    `claude -p --output-format text ${addFile} < "${promptFile}"`,
+    { timeout: 120000, maxBuffer: opts.maxBuffer ?? 8 * 1024 * 1024 },
+  );
+  return stdout.trim();
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -191,49 +194,31 @@ Start with <!DOCTYPE html> and end with </html>.`;
 
   const tmpFile = `/tmp/demo-gen-${Date.now()}.txt`;
   fs.writeFileSync(tmpFile, prompt, 'utf-8');
+  console.log(`[demo-gen] Generating HTML for ${biz.name} (vibe: ${copy.design_vibe}, prompt: ${Math.round(prompt.length / 1024)}KB)...`);
 
-  const promptContent = fs.readFileSync(tmpFile, 'utf-8');
-  fs.unlink(tmpFile, () => {});
-  console.log(`[demo-gen] Generating HTML for ${biz.name} (vibe: ${copy.design_vibe}, prompt: ${Math.round(promptContent.length / 1024)}KB)...`);
-
-  const client = getAnthropicClient();
   let html = '';
-
-  // Retry up to 3 times on overload (529)
-  let lastErr: Error | null = null;
+  // Retry up to 3 times
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const msg = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        system: [
-          {
-            type: 'text',
-            text: DESIGN_SKILL_CONTEXT,
-            // @ts-ignore — prompt caching
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        messages: [{ role: 'user', content: promptContent }],
-      });
-
-      const text = (msg.content[0] as any).text || '';
-      const match = text.match(/<!DOCTYPE[\s\S]*<\/html>/i);
-      html = match ? match[0] : text.trim();
-      lastErr = null;
+      const text = await claudeP(tmpFile, { maxBuffer: 16 * 1024 * 1024 });
+      const docStart = text.indexOf('<!DOCTYPE');
+      const htmlEnd = text.lastIndexOf('</html>');
+      if (docStart !== -1 && htmlEnd !== -1) {
+        html = text.slice(docStart, htmlEnd + '</html>'.length);
+      } else {
+        html = text.trim();
+      }
       break;
     } catch (err: any) {
-      lastErr = err;
-      if (err?.status === 529 || err?.message?.includes('overloaded')) {
-        const wait = (attempt + 1) * 30000;
-        console.warn(`[demo-gen] Overloaded (529) — retrying in ${wait / 1000}s (attempt ${attempt + 1}/3)...`);
-        await new Promise(r => setTimeout(r, wait));
+      if (attempt < 2) {
+        console.warn(`[demo-gen] Attempt ${attempt + 1} failed — retrying...`);
+        await new Promise(r => setTimeout(r, 5000));
       } else {
         throw err;
       }
     }
   }
-  if (lastErr) throw lastErr;
+  fs.unlink(tmpFile, () => {});
 
   if (!html.includes('<!DOCTYPE') || html.length < 2000) {
     throw new Error(`[demo-gen] Generation produced invalid/short HTML (${html.length} chars)`);
@@ -298,7 +283,6 @@ async function runVisualQALoop(
   maxIterations = 3,
 ): Promise<string> {
   let currentHtml = html;
-  const client = getAnthropicClient();
 
   for (let i = 0; i < maxIterations; i++) {
     let screenshotPath: string | null = null;
@@ -346,22 +330,9 @@ async function runVisualQALoop(
         server.close();
       }
 
-      // 2. Claude vision QA via Anthropic SDK (supports base64 image input)
-      const imgData = fs.readFileSync(screenshotPath!).toString('base64');
-
-      const qaMsg = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: imgData },
-            },
-            {
-              type: 'text',
-              text: `You are reviewing a website demo for "${bizName}" (target vibe: ${vibe}).
+      // 2. Claude vision QA via claude -p --add-file
+      const qaPromptFile = `/tmp/qa-prompt-${i}-${Date.now()}.txt`;
+      fs.writeFileSync(qaPromptFile, `You are reviewing a website demo for "${bizName}" (target vibe: ${vibe}).
 
 Score these 5 dimensions — be strict:
 1. Vibe match (1-10): Does it actually feel like ${vibe}? Generic = 2. Genuinely tailored = 8+.
@@ -376,13 +347,11 @@ If total < 40: output FIX then list up to 3 SPECIFIC changes. Reference exact el
 BAD: "improve hero section"
 GOOD: "hero heading text-3xl is too small — change to text-6xl md:text-8xl"
 
-Output ONLY "PASS" or "FIX\n[instructions]". No score breakdown.`,
-            },
-          ],
-        }],
-      });
+Output ONLY "PASS" or "FIX\\n[instructions]". No score breakdown.`, 'utf-8');
 
-      const qaResult = ((qaMsg.content[0] as any).text || '').trim();
+      const qaResult = await claudeP(qaPromptFile, { addFile: screenshotPath! });
+      fs.unlink(qaPromptFile, () => {});
+
       if (screenshotPath) {
         // Save a copy at a fixed path for Telegram preview
         fs.copyFileSync(screenshotPath, '/tmp/qa-latest.jpg');
@@ -390,31 +359,26 @@ Output ONLY "PASS" or "FIX\n[instructions]". No score breakdown.`,
       }
       screenshotPath = null;
 
-      if (qaResult.startsWith('PASS')) {
+      if (qaResult.trim().startsWith('PASS')) {
         console.log(`[qa] ${bizName}: PASS on iteration ${i + 1}`);
         return currentHtml;
       }
 
-      // 3. Apply fixes: ask for a <style> patch only (avoids max_tokens overflow on full HTML)
+      // 3. Apply fixes: CSS patch only via claude -p
       const fixInstructions = qaResult.replace(/^FIX\s*/i, '').trim();
       console.log(`[qa] ${bizName}: applying fixes (iteration ${i + 1}):\n${fixInstructions}`);
 
-      const fixMsg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
-        messages: [{
-          role: 'user',
-          content: `You are patching a website demo HTML file. Output ONLY a <style> block containing CSS overrides that fix the issues below. No explanation, no commentary, no HTML outside the <style> tag.
+      const fixPromptFile = `/tmp/fix-prompt-${i}-${Date.now()}.txt`;
+      fs.writeFileSync(fixPromptFile, `You are patching a website demo HTML file. Output ONLY a <style> block containing CSS overrides that fix the issues below. No explanation, no commentary, no HTML outside the <style> tag.
 
 Issues to fix:
 ${fixInstructions}
 
 Current CSS custom properties (for reference):
-${(currentHtml.match(/:root\s*\{[\s\S]*?\}/)?.[0] || '').slice(0, 800)}`,
-        }],
-      });
+${(currentHtml.match(/:root\s*\{[\s\S]*?\}/)?.[0] || '').slice(0, 800)}`, 'utf-8');
 
-      const patchText = ((fixMsg.content[0] as any).text || '').trim();
+      const patchText = await claudeP(fixPromptFile);
+      fs.unlink(fixPromptFile, () => {});
       // Inject the patch style block just before </head> (or before </body> as fallback)
       if (patchText.includes('<style')) {
         const insertBefore = currentHtml.includes('</head>') ? '</head>' : '</body>';
