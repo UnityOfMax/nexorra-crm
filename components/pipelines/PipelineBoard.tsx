@@ -186,17 +186,15 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
             <button
               key={stage.id}
               onClick={() => setMobileStageId(stage.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap flex-shrink-0 transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 transition-colors border ${
                 activeMobileStage?.id === stage.id
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                  : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15'
+                  ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-transparent'
+                  : 'bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10'
               }`}
             >
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
               {stage.name}
-              <span className={`text-xs ml-0.5 ${
-                activeMobileStage?.id === stage.id ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'
-              }`}>
+              <span className="tabular-nums ml-0.5 opacity-70">
                 {stageDeals[stage.id]?.length || 0}
               </span>
             </button>
@@ -226,64 +224,67 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
 
       {/* Desktop Kanban Board (>= md) */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="hidden md:block flex-1 overflow-x-auto">
-          <div className="flex gap-4 min-h-full pb-4">
-            {sortedStages.map(stage => (
+        <div className="hidden md:block flex-1 overflow-x-auto pb-2">
+          <div className="flex gap-3 min-h-full pb-4" style={{ minWidth: `${sortedStages.length * 220}px` }}>
+            {sortedStages.map(stage => {
+              const count = stageDeals[stage.id]?.length || 0;
+              const stageVal = calculateStageValue(stage.id);
+              return (
                 <Droppable key={stage.id} droppableId={stage.id}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex-shrink-0 w-80 flex flex-col ${
-                        snapshot.isDraggingOver ? 'bg-gray-50 dark:bg-white/5' : ''
+                      className={`flex-shrink-0 flex flex-col rounded-xl transition-colors ${
+                        snapshot.isDraggingOver
+                          ? 'bg-gray-50 dark:bg-white/4'
+                          : 'bg-transparent'
                       }`}
+                      style={{ width: 210 }}
                     >
-                      {/* Stage Header */}
-                      <div className="mb-3 p-3 bg-white dark:bg-[#2c2c2e] rounded-lg border border-gray-200 dark:border-white/8">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: stage.color }}
-                          />
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{stage.name}</h4>
-                          <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-                            {stageDeals[stage.id]?.length || 0}
+                      {/* Stage header pill */}
+                      <div className="flex items-center justify-between mb-2.5 px-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                          <span className="text-[12px] font-semibold text-gray-700 dark:text-gray-200 truncate max-w-[110px]">
+                            {stage.name}
                           </span>
+                          <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{count}</span>
                         </div>
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          ${(calculateStageValue(stage.id) / 1000).toFixed(1)}k
-                        </div>
+                        {stageVal > 0 && (
+                          <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 tabular-nums">
+                            ${(stageVal / 1000).toFixed(0)}k
+                          </span>
+                        )}
                       </div>
 
-                      {/* Deals Column */}
-                      <div className="flex-1 space-y-2 min-h-[200px]">
+                      {/* Deals column */}
+                      <div className="flex-1 space-y-2 min-h-[120px]">
                         {stageDeals[stage.id]?.map((deal, index) => (
-                          <Draggable
-                            key={deal.id}
-                            draggableId={deal.id}
-                            index={index}
-                          >
+                          <Draggable key={deal.id} draggableId={deal.id} index={index}>
                             {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                               >
-                                <DealCard
-                                  deal={deal}
-                                  isDragging={snapshot.isDragging}
-                                />
+                                <DealCard deal={deal} isDragging={snapshot.isDragging} />
                               </div>
                             )}
                           </Draggable>
                         ))}
                         {provided.placeholder}
+                        {count === 0 && !snapshot.isDraggingOver && (
+                          <div className="border-2 border-dashed border-gray-200 dark:border-white/8 rounded-xl h-16 flex items-center justify-center">
+                            <span className="text-[11px] text-gray-300 dark:text-gray-600">Drop here</span>
+                          </div>
+                        )}
                       </div>
-
                     </div>
                   )}
                 </Droppable>
-              ))}
+              );
+            })}
           </div>
         </div>
       </DragDropContext>

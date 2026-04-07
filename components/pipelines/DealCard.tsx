@@ -1,104 +1,79 @@
 'use client';
 
 import { DealExtended } from '@/types';
-import { DollarSign, Calendar, User } from 'lucide-react';
+import { Calendar, GripVertical } from 'lucide-react';
 
 interface DealCardProps {
   deal: DealExtended;
   isDragging?: boolean;
 }
 
+const STAGE_PILL: Record<string, string> = {
+  'won':  'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
+  'lost': 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+};
+
 export default function DealCard({ deal, isDragging }: DealCardProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+  const isWon  = deal.status === 'won';
+  const isLost = deal.status === 'lost';
+
+  const formatDate = (s?: string) => {
+    if (!s) return null;
+    const d = new Date(s);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const stageName = deal.stage || '';
-  const isWon = stageName === 'Deal Closed' || deal.status === 'won';
-  const isLost = stageName === 'Not Interested' || (deal.status === 'lost' && stageName !== 'Deal Closed');
-
-  const borderClass = isWon
-    ? 'border-emerald-400 dark:border-emerald-500'
-    : isLost
-    ? 'border-red-400 dark:border-red-500'
-    : 'border-gray-200 dark:border-white/8';
-
-  const accentColor = isWon ? '#10b981' : isLost ? '#ef4444' : undefined;
+  const closeDate = formatDate(deal.expected_close_date);
 
   return (
     <div
-      className={`relative bg-white dark:bg-[#2c2c2e] border rounded-lg p-3 cursor-grab active:cursor-grabbing transition-shadow overflow-hidden ${borderClass} ${
-        isDragging ? 'shadow-lg ring-2 ring-primary-500' : 'hover:shadow-md'
+      className={`group bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-white/8 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all select-none ${
+        isDragging
+          ? 'shadow-xl ring-2 ring-primary-500 rotate-1 scale-[1.02]'
+          : 'shadow-sm hover:shadow-md hover:-translate-y-px'
       }`}
     >
-      {/* Stage color left accent bar */}
-      {accentColor && (
-        <div
-          className="absolute left-0 top-0 bottom-0 w-0.5"
-          style={{ backgroundColor: accentColor }}
-        />
-      )}
-
-      {/* Deal Title */}
-      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 pl-1 min-w-0 truncate">
-        {deal.title}
-      </h5>
-
-      {/* Deal Value */}
-      <div className={`flex items-center gap-1 font-semibold mb-2 pl-1 min-w-0 ${isWon ? 'text-emerald-600 dark:text-emerald-400' : isLost ? 'text-red-500 dark:text-red-400' : 'text-primary-600'}`}>
-        <DollarSign className="w-4 h-4 flex-shrink-0" />
-        <span className="truncate tabular-nums">{formatCurrency(deal.value || 0)}</span>
+      {/* Drag handle + title row */}
+      <div className="flex items-start gap-1.5 mb-1.5">
+        <GripVertical className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 flex-1 min-w-0">
+          {deal.title}
+        </p>
       </div>
 
-      {/* Deal Metadata */}
-      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 pl-1 min-w-0">
-        {/* Probability */}
-        {deal.probability !== undefined && (
-          <div className="flex items-center justify-between min-w-0">
-            <span className="truncate">Probability</span>
-            <span className="font-medium tabular-nums flex-shrink-0">{deal.probability}%</span>
-          </div>
-        )}
 
-        {/* Close Date */}
-        {deal.expected_close_date && (
-          <div className="flex items-center gap-1 min-w-0">
-            <Calendar className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Close: {formatDate(deal.expected_close_date)}</span>
-          </div>
-        )}
+      {/* Value + metadata row */}
+      <div className="flex items-center justify-between mt-2 pl-5">
+        <span className={`text-[13px] font-bold tabular-nums ${
+          isWon ? 'text-emerald-600 dark:text-emerald-400' :
+          isLost ? 'text-red-500 dark:text-red-400' :
+          'text-emerald-600 dark:text-emerald-400'
+        }`}>
+          ${(deal.value || 0).toLocaleString()}
+        </span>
 
-        {/* Assigned To */}
-        {deal.assigned_to && (
-          <div className="flex items-center gap-1 min-w-0">
-            <User className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">Assigned</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Probability */}
+          {deal.probability !== undefined && deal.probability > 0 && (
+            <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 tabular-nums">
+              {deal.probability}%
+            </span>
+          )}
+          {/* Close date */}
+          {closeDate && (
+            <span className="flex items-center gap-0.5 text-[10px] text-gray-400 dark:text-gray-500">
+              <Calendar className="w-3 h-3" />
+              {closeDate}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Status Badge (for won/lost deals) */}
+      {/* Status badge */}
       {deal.status !== 'open' && (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5 pl-1">
-          <span
-            className={`inline-block px-2 py-1 text-xs font-medium rounded ${
-              deal.status === 'won'
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-            }`}
-          >
-            {deal.status === 'won' ? 'Won' : 'Lost'}
+        <div className="mt-2 pl-5">
+          <span className={`inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${STAGE_PILL[deal.status] || STAGE_PILL.lost}`}>
+            {isWon ? 'Won' : 'Lost'}
           </span>
         </div>
       )}

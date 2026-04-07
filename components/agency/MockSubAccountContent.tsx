@@ -9,6 +9,7 @@ import {
   generateMockCalendarEvents,
   generateMockPipeline,
   computeFunnelFromStats,
+  computeAllTimeStats,
   PIPELINE_STAGES,
   STAGE_COLORS,
   MockContactItem,
@@ -16,8 +17,10 @@ import {
 import FunnelDiagram from './FunnelDiagram';
 import {
   Users, TrendingUp, Mail, MessageSquare, CalendarCheck, Award, DollarSign,
-  ChevronLeft, Send, Phone, Clock, CheckCircle2, AlertCircle, Inbox,
+  Send, Inbox,
 } from 'lucide-react';
+
+type Timeframe = '7d' | '30d' | 'all';
 
 interface Props {
   slug: string;
@@ -50,39 +53,96 @@ function StageBadge({ stage }: { stage: MockContactItem['stage'] }) {
   return <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${cls}`}>{label}</span>;
 }
 
+// ── Timeframe toggle shared component ────────────────────────────────────────
+function TimeframeToggle({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
+  const options: { key: Timeframe; label: string }[] = [
+    { key: '30d', label: 'Last 30d' },
+    { key: '7d',  label: 'Last 7d' },
+    { key: 'all', label: 'All Time' },
+  ];
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-gray-100 dark:bg-white/5 rounded-lg">
+      {options.map(o => (
+        <button
+          key={o.key}
+          onClick={() => onChange(o.key)}
+          className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+            value === o.key
+              ? 'bg-white dark:bg-white/12 text-gray-900 dark:text-gray-100 shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Dashboard view ───────────────────────────────────────────────────────────
 function MockDashboard({ slug }: { slug: string }) {
+  const [timeframe, setTimeframe] = useState<Timeframe>('30d');
   const stat = useMemo(() => CLIENT_STATS.find(s => s.slug === slug), [slug]);
+
+  const allTime = useMemo(() => stat ? computeAllTimeStats(
+    stat.slug, stat.startDate, stat.dealsPerMonth, stat.apptsPerMonth,
+    stat.textsTotal, stat.emailsTotal, stat.avgGCI
+  ) : null, [stat]);
+
   if (!stat) return <div className="p-8 text-center text-gray-400">No data</div>;
 
-  const totalContacts = Math.round(stat.apptsPerMonth * 3.8);
-  const activeLeads   = Math.round(stat.apptsPerMonth * 1.8);
-  const customers     = Math.round(stat.dealsPerMonth * 5.5);
-  const activeDeals   = Math.round(stat.dealsPerMonth * 2.8);
-  const emailsSent    = Math.round(stat.emailsTotal / 4);
-  const textsSent     = Math.round(stat.textsTotal / 4);
-  const bookings      = stat.apptsPerMonth;
-  const closings      = stat.dealsPerMonth;
-  const revenue       = stat.dealsPerMonth * stat.avgGCI;
+  const factor7d = 7 / 30;
 
-  const funnelData = computeFunnelFromStats(stat.dealsPerMonth, stat.apptsPerMonth);
+  // Derived stats by timeframe
+  const totalContacts = timeframe === 'all'
+    ? allTime!.totalContacts
+    : Math.round(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1) * 3.8);
+  const activeLeads = Math.round(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1) * 1.8);
+  const customers   = timeframe === 'all'
+    ? Math.round(allTime!.totalDeals * 1.6)
+    : Math.round(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1) * 5.5);
+  const activeDeals = Math.round(stat.dealsPerMonth * 2.8); // always current
+  const emailsSent  = timeframe === 'all'
+    ? allTime!.totalEmails
+    : Math.floor(stat.emailsTotal * (timeframe === '7d' ? factor7d : 1));
+  const textsSent   = timeframe === 'all'
+    ? allTime!.totalTexts
+    : Math.floor(stat.textsTotal * (timeframe === '7d' ? factor7d : 1));
+  const bookings    = timeframe === 'all'
+    ? allTime!.totalBookings
+    : Math.floor(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1));
+  const closings    = timeframe === 'all'
+    ? allTime!.totalClosings
+    : Math.floor(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1));
+  const revenue     = timeframe === 'all'
+    ? allTime!.totalRevenue
+    : Math.floor(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1)) * stat.avgGCI;
+
+  const funnelMultiplier = timeframe === 'all' ? allTime!.months : (timeframe === '7d' ? factor7d : 1);
+  const funnelData = computeFunnelFromStats(stat.dealsPerMonth, stat.apptsPerMonth, funnelMultiplier);
 
   const topStats = [
     { label: 'Total Contacts', value: totalContacts.toLocaleString(), color: 'bg-primary-100 dark:bg-primary-900/30', iconColor: 'text-primary-600 dark:text-primary-400', Icon: Users },
     { label: 'Active Leads',   value: activeLeads.toLocaleString(),   color: 'bg-green-100 dark:bg-green-900/30',   iconColor: 'text-green-600 dark:text-green-400',   Icon: TrendingUp },
     { label: 'Customers',      value: customers.toLocaleString(),      color: 'bg-blue-100 dark:bg-blue-900/30',     iconColor: 'text-blue-600 dark:text-blue-400',     Icon: Mail },
-    { label: 'Active Deals',   value: activeDeals.toLocaleString(),    color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400', Icon: Phone },
+    { label: 'Active Deals',   value: activeDeals.toLocaleString(),    color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400', Icon: CalendarCheck },
   ];
   const extStats = [
-    { label: 'Emails Sent', value: emailsSent.toLocaleString(),    color: 'bg-blue-100 dark:bg-blue-900/30',     iconColor: 'text-blue-600 dark:text-blue-400',     Icon: Mail },
-    { label: 'Texts Sent',  value: textsSent.toLocaleString(),     color: 'bg-green-100 dark:bg-green-900/30',   iconColor: 'text-green-600 dark:text-green-400',   Icon: MessageSquare },
-    { label: 'Bookings',    value: bookings.toLocaleString(),       color: 'bg-indigo-100 dark:bg-indigo-900/30', iconColor: 'text-indigo-600 dark:text-indigo-400', Icon: CalendarCheck },
-    { label: 'Closings',    value: closings.toLocaleString(),       color: 'bg-amber-100 dark:bg-amber-900/30',   iconColor: 'text-amber-600 dark:text-amber-400',   Icon: Award },
-    { label: 'Revenue',     value: `$${revenue.toLocaleString()}`,  color: 'bg-emerald-100 dark:bg-emerald-900/30',iconColor: 'text-emerald-600 dark:text-emerald-400',Icon: DollarSign },
+    { label: 'Emails Sent', value: emailsSent.toLocaleString(),   color: 'bg-blue-100 dark:bg-blue-900/30',      iconColor: 'text-blue-600 dark:text-blue-400',      Icon: Mail },
+    { label: 'Texts Sent',  value: textsSent.toLocaleString(),    color: 'bg-green-100 dark:bg-green-900/30',    iconColor: 'text-green-600 dark:text-green-400',    Icon: MessageSquare },
+    { label: 'Bookings',    value: bookings.toLocaleString(),      color: 'bg-indigo-100 dark:bg-indigo-900/30',  iconColor: 'text-indigo-600 dark:text-indigo-400',  Icon: CalendarCheck },
+    { label: 'Closings',    value: closings.toLocaleString(),      color: 'bg-amber-100 dark:bg-amber-900/30',    iconColor: 'text-amber-600 dark:text-amber-400',    Icon: Award },
+    { label: 'Revenue',     value: `$${revenue.toLocaleString()}`, color: 'bg-emerald-100 dark:bg-emerald-900/30',iconColor: 'text-emerald-600 dark:text-emerald-400',Icon: DollarSign },
   ];
 
   return (
     <div>
+      {/* Timeframe toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Dashboard Overview</h2>
+        <TimeframeToggle value={timeframe} onChange={setTimeframe} />
+      </div>
+
       {/* Top 4 KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {topStats.map(s => (
@@ -117,8 +177,8 @@ function MockDashboard({ slug }: { slug: string }) {
         ))}
       </div>
 
-      {/* Funnel diagram */}
-      <FunnelDiagram data={funnelData} />
+      {/* Funnel diagram — centered */}
+      <FunnelDiagram data={funnelData} className="max-w-xl mx-auto" />
     </div>
   );
 }
@@ -326,7 +386,7 @@ function MockConversations({ slug }: { slug: string }) {
 function MockPipeline({ slug }: { slug: string }) {
   const stat = useMemo(() => CLIENT_STATS.find(s => s.slug === slug), [slug]);
   const pipeline = useMemo(
-    () => stat ? generateMockPipeline(slug, stat.dealsPerMonth, stat.avgGCI) : {},
+    () => stat ? generateMockPipeline(slug, stat.dealsPerMonth, stat.avgGCI, stat.apptsPerMonth) : {},
     [slug, stat]
   );
 

@@ -135,7 +135,7 @@ function timeLabel(daysAgo: number, hour: number, min: number): string {
   return `${Math.floor(daysAgo / 7)}w ago`;
 }
 
-export function generateMockContacts(slug: string, count = 18): MockContactItem[] {
+export function generateMockContacts(slug: string, count = 35): MockContactItem[] {
   const rng = seededRng(slug + '-contacts');
   const usedNames = new Set<string>();
   const contacts: MockContactItem[] = [];
@@ -333,17 +333,17 @@ const STAGE_COLORS: Record<string, string> = {
 };
 export { PIPELINE_STAGES, STAGE_COLORS };
 
-export function generateMockPipeline(slug: string, dealsPerMonth: number, avgGCI: number): Record<string, MockDeal[]> {
+export function generateMockPipeline(slug: string, dealsPerMonth: number, avgGCI: number, apptsPerMonth = 25): Record<string, MockDeal[]> {
   const rng = seededRng(slug + '-pipeline');
-  const contacts = generateMockContacts(slug, 18);
+  const contacts = generateMockContacts(slug, 35);
 
-  // Stage counts derived from dealsPerMonth
-  const won = Math.max(1, dealsPerMonth);
-  const lost = Math.max(1, Math.floor(dealsPerMonth * 0.6));
-  const contract = Math.max(1, Math.floor(dealsPerMonth * 1.2));
-  const apptSet = Math.max(2, Math.floor(dealsPerMonth * 2.5));
-  const qualified = Math.max(3, Math.floor(dealsPerMonth * 3.5));
-  const newLead = Math.max(5, Math.floor(dealsPerMonth * 5));
+  // Stage counts derived from both dealsPerMonth and apptsPerMonth
+  const won      = Math.max(1, dealsPerMonth);
+  const lost     = Math.max(1, Math.round(dealsPerMonth * 0.7));
+  const contract = Math.max(1, Math.round(dealsPerMonth * 1.3));
+  const apptSet  = Math.max(2, Math.round(apptsPerMonth * 0.85));
+  const qualified = Math.max(3, Math.round(apptsPerMonth * 1.6));
+  const newLead  = Math.max(5, Math.round(apptsPerMonth * 3.2));
 
   const stageCounts: Record<string, number> = {
     'New Lead': newLead, 'Qualified': qualified, 'Appointment Set': apptSet,
@@ -389,12 +389,69 @@ export interface FunnelData {
   dealsClosed: number;
 }
 
-export function computeFunnelFromStats(dealsPerMonth: number, apptsPerMonth: number): FunnelData {
+export function computeFunnelFromStats(dealsPerMonth: number, apptsPerMonth: number, multiplier = 1): FunnelData {
   if (dealsPerMonth === 0) return { leads: 0, appointments: 0, contactedAppts: 0, clientsClosed: 0, dealsClosed: 0 };
-  const deals = dealsPerMonth;
-  const clients = Math.round(deals * (1.5 + Math.random() * 0.5));
-  const contacted = Math.max(clients + 2, Math.round(apptsPerMonth * 0.82));
-  const appts = Math.max(contacted + 2, apptsPerMonth);
-  const leads = Math.round(appts * (2.2 + Math.random() * 0.8));
+  const deals = Math.round(dealsPerMonth * multiplier);
+  const clients = Math.round(deals * 1.65);
+  const contacted = Math.max(clients + Math.round(multiplier), Math.round(apptsPerMonth * multiplier * 0.82));
+  const appts = Math.max(contacted + Math.round(multiplier), Math.round(apptsPerMonth * multiplier));
+  const leads = Math.round(appts * 2.4);
   return { leads, appointments: appts, contactedAppts: contacted, clientsClosed: clients, dealsClosed: deals };
+}
+
+// ── All-time cumulative stats ─────────────────────────────────────────────────
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function monthsSinceStart(startDate: string): number {
+  const [mon, year] = startDate.split(' ');
+  const monthIdx = MONTH_NAMES.indexOf(mon);
+  if (monthIdx < 0 || !year) return 12;
+  const startMs = new Date(parseInt(year), monthIdx, 1).getTime();
+  const nowMs = new Date(2026, 3, 1).getTime(); // Apr 2026
+  return Math.max(1, Math.floor((nowMs - startMs) / (30.44 * 24 * 3600 * 1000)));
+}
+
+export interface AllTimeStats {
+  months: number;
+  totalContacts: number;
+  totalDeals: number;
+  totalRevenue: number;
+  totalTexts: number;
+  totalEmails: number;
+  totalBookings: number;
+  totalClosings: number;
+}
+
+export function computeAllTimeStats(slug: string, startDate: string, dealsPerMonth: number, apptsPerMonth: number, textsPerMonth: number, emailsPerMonth: number, avgGCI: number): AllTimeStats {
+  const months = monthsSinceStart(startDate);
+  const rng = seededRng(slug + '-alltime');
+  // variance band: ±max(1, 40% of monthly rate)
+  const variance = Math.max(1, Math.round(dealsPerMonth * 0.4));
+  const apptVariance = Math.max(2, Math.round(apptsPerMonth * 0.35));
+
+  let totalDeals = 0;
+  let totalRevenue = 0;
+  let totalBookings = 0;
+
+  for (let m = 0; m < months; m++) {
+    const monthDeals = Math.max(0, dealsPerMonth + Math.round((rng() * 2 - 1) * variance));
+    const monthAppts = Math.max(0, apptsPerMonth + Math.round((rng() * 2 - 1) * apptVariance));
+    totalDeals += monthDeals;
+    totalBookings += monthAppts;
+    for (let d = 0; d < monthDeals; d++) {
+      // GCI variance ±25% per deal
+      totalRevenue += Math.round(avgGCI * (0.75 + rng() * 0.5));
+    }
+  }
+
+  return {
+    months,
+    totalContacts: Math.round(totalBookings * 3.8),
+    totalDeals,
+    totalRevenue,
+    totalTexts: Math.round(textsPerMonth * months * (0.85 + rng() * 0.3)),
+    totalEmails: Math.round(emailsPerMonth * months * (0.85 + rng() * 0.3)),
+    totalBookings,
+    totalClosings: totalDeals,
+  };
 }
