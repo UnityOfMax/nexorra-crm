@@ -407,10 +407,10 @@ Output ONLY "PASS" or "FIX\n[instructions]". No score breakdown.`,
 
       const fixMsg = await client.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
+        max_tokens: 8192,
         messages: [{
           role: 'user',
-          content: `Apply these specific HTML/CSS changes to the demo page. Return the COMPLETE updated HTML document — do not truncate or summarise.
+          content: `Apply these specific HTML/CSS changes to the demo page. Return ONLY the raw HTML — no markdown fences, no explanation, no commentary. Start directly with <!DOCTYPE html> and end with </html>.
 
 Changes to make:
 ${fixInstructions}
@@ -421,7 +421,6 @@ ${currentHtml}`,
       });
 
       const fixText = ((fixMsg.content[0] as any).text || '').trim();
-      // Extract HTML by finding first <!DOCTYPE and last </html> — works regardless of markdown fences
       const docStart = fixText.indexOf('<!DOCTYPE');
       const htmlEnd = fixText.lastIndexOf('</html>');
       if (docStart !== -1 && htmlEnd !== -1 && htmlEnd > docStart) {
