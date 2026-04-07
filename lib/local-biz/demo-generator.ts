@@ -149,48 +149,40 @@ ${photoList}
 ──────────────────────────────────────────────
 TECHNICAL REQUIREMENTS
 ──────────────────────────────────────────────
+TOKEN BUDGET: You have ~6000 output tokens. Use Tailwind utility classes for ALL layout, spacing, typography, and colour — keep the <style> block under 60 lines (Google Fonts @import + 3-4 custom animations only). Never write custom CSS for anything Tailwind can handle.
+
 - Single self-contained HTML file (<!DOCTYPE html> to </html>)
 - Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-- Google Fonts via @import in a <style> tag (pick fonts that match the vibe — NOT Inter, NOT Arial)
-- CSS custom properties at :root level for all colours and font families
-- Sections required:
-  • Navigation bar (sticky, with business name + phone)
-  • Hero section (photo-driven, not just text on a coloured background)
-  • Services section (not just a list — use cards, grids, numbered items, etc.)
-  • Gallery section (if salon/barber/restaurant/fitness — use 3+ photos in a real grid)
-  • About section (with owner/team photo using PHOTO_3 or similar)
-  • Testimonials section (use the review texts provided, or write 3 believable ones)
-  • Booking/contact form (full form: first name, last name, phone, email, date picker, time select, service dropdown, notes, submit button with JS confirmation alert)
-  • Footer (business name, phone, address, hours: ${biz.hours || 'Mon–Sat 9am–6pm'})
-- Mobile responsive — works at 390px viewport
-- Minimum 2 CSS animations:
-  • Scroll-triggered reveal using IntersectionObserver — CRITICAL: define .reveal { opacity: 0; transform: translateY(32px); transition: ... } in CSS, then include a <script> at the end of <body> that runs an IntersectionObserver to add class 'visible' to all .reveal elements. Without this JS the page will be blank.
-  • At least one hover micro-interaction on service cards or buttons
-- Use CSS custom properties (--color-primary etc.) throughout — no hard-coded hex values in HTML
-- Inline SVGs for any icons (no icon libraries, no CDN icon imports)
-- All images use loading="lazy" and have descriptive alt text
+- Google Fonts: one @import line in a <style> tag (pick 1-2 fonts matching the vibe — NOT Inter, NOT Arial)
+- Tailwind config block to extend with custom colours: <script>tailwind.config = { theme: { extend: { colors: { primary: '${copy.color_primary}', accent: '${copy.color_accent}' } } } }</script>
+- <style> block max 60 lines: Google Fonts @import + keyframes for 1-2 animations + .reveal/.reveal.visible only
+- Sections required (ALL must have actual visible content):
+  • Navigation (sticky, business name + phone number + "Book Now" link)
+  • Hero (full-width photo background using PHOTO_1, with headline and CTA overlaid)
+  • Services (3-4 service cards using Tailwind grid)
+  • Gallery (3 photos in a CSS grid, only for salon/restaurant/fitness)
+  • About (text + photo side by side using Tailwind flex/grid)
+  • Testimonials (2-3 review cards)
+  • Contact/booking form (name, email, phone, date, service, submit)
+  • Footer (name, phone, address, hours)
+- Add class="reveal" to each section for scroll animation
+- Mobile responsive using Tailwind responsive prefixes (sm:, md:, lg:)
+- One hover transition on service cards: hover:scale-105 hover:shadow-lg transition-all duration-300
 
-CRITICAL JS REQUIREMENT — include this exact script at the end of <body> (without this the page is blank):
+CRITICAL — include this <style> block structure:
+<style>
+  @import url('https://fonts.googleapis.com/...');
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+</style>
+
+CRITICAL — include this script at end of <body>:
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
-    }, { threshold: 0.1 });
-    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => io.observe(el));
-  });
+  const io = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }), { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => { io.observe(el); const r = el.getBoundingClientRect(); if (r.top < window.innerHeight) el.classList.add('visible'); });
 </script>
 
-Apply ALL skills loaded above:
-- frontend-design skill: distinctive typography, cohesive colour system, intentional layouts
-- ui-design/color-system: build a coherent palette from the provided colours
-- ui-design/typography-scale: establish a clear type hierarchy (at minimum 3 type sizes)
-- ui-design/visual-hierarchy: guide the eye from hero → services → booking
-- ui-design/layout-grid: use a real grid system, not arbitrary positioning
-- ui-design/spacing-system: consistent spacing rhythm throughout
-- interaction-design/animation-principles: purposeful, not decorative animations
-- interaction-design/micro-interaction-spec: hover states, form field focus, button feedback
-- design-systems/design-token: CSS custom properties for every design decision
-- design-systems/theming-system: colours, typography, spacing all token-driven
+Apply design principles from the skills above through Tailwind class choices — distinctive typography scale, intentional colour contrast, breathing room in spacing.
 
 Output ONLY the complete HTML document. No explanation, no markdown fences, no commentary.
 Start with <!DOCTYPE html> and end with </html>.`;
@@ -401,41 +393,36 @@ Output ONLY "PASS" or "FIX\n[instructions]". No score breakdown.`,
         return currentHtml;
       }
 
-      // 3. Apply fixes via Anthropic SDK
+      // 3. Apply fixes: ask for a <style> patch only (avoids max_tokens overflow on full HTML)
       const fixInstructions = qaResult.replace(/^FIX\s*/i, '').trim();
       console.log(`[qa] ${bizName}: applying fixes (iteration ${i + 1}):\n${fixInstructions}`);
 
       const fixMsg = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8192,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
         messages: [{
           role: 'user',
-          content: `Apply these specific HTML/CSS changes to the demo page. Return ONLY the raw HTML — no markdown fences, no explanation, no commentary. Start directly with <!DOCTYPE html> and end with </html>.
+          content: `You are patching a website demo HTML file. Output ONLY a <style> block containing CSS overrides that fix the issues below. No explanation, no commentary, no HTML outside the <style> tag.
 
-Changes to make:
+Issues to fix:
 ${fixInstructions}
 
-Current HTML:
-${currentHtml}`,
+Current CSS custom properties (for reference):
+${(currentHtml.match(/:root\s*\{[\s\S]*?\}/)?.[0] || '').slice(0, 800)}`,
         }],
       });
 
-      const fixText = ((fixMsg.content[0] as any).text || '').trim();
-      const docStart = fixText.indexOf('<!DOCTYPE');
-      const htmlEnd = fixText.lastIndexOf('</html>');
-      if (docStart !== -1 && htmlEnd !== -1 && htmlEnd > docStart) {
-        currentHtml = fixText.slice(docStart, htmlEnd + '</html>'.length);
-        console.log(`[qa] ${bizName}: fixed HTML applied (${currentHtml.length} chars)`);
+      const patchText = ((fixMsg.content[0] as any).text || '').trim();
+      // Inject the patch style block just before </head> (or before </body> as fallback)
+      if (patchText.includes('<style')) {
+        const insertBefore = currentHtml.includes('</head>') ? '</head>' : '</body>';
+        currentHtml = currentHtml.replace(insertBefore, `${patchText}\n${insertBefore}`);
+        console.log(`[qa] ${bizName}: CSS patch injected (${patchText.length} chars)`);
       } else {
-        // Try <html> without doctype
-        const htmlStart = fixText.indexOf('<html');
-        if (htmlStart !== -1 && htmlEnd !== -1 && htmlEnd > htmlStart) {
-          currentHtml = `<!DOCTYPE html>\n${fixText.slice(htmlStart, htmlEnd + '</html>'.length)}`;
-          console.log(`[qa] ${bizName}: fixed HTML applied (no doctype, ${currentHtml.length} chars)`);
-        } else {
-          console.warn(`[qa] ${bizName}: fix response had no valid HTML — keeping previous`);
-          break;
-        }
+        // Wrap raw CSS in style tags
+        const styleBlock = `<style>\n/* QA fix iteration ${i + 1} */\n${patchText}\n</style>`;
+        currentHtml = currentHtml.replace('</head>', `${styleBlock}\n</head>`);
+        console.log(`[qa] ${bizName}: CSS patch injected (wrapped, ${patchText.length} chars)`);
       }
 
     } catch (err) {
