@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
     .select('name, meta_title, meta_description')
-    .eq('id', params.id)
+    .eq('slug', params.id)
     .eq('page_type', 'website-demo')
     .single();
 
@@ -27,7 +27,7 @@ export default async function WebsiteDemoPage({ params }: { params: { id: string
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
     .select('id, content, page_type, published')
-    .eq('id', params.id)
+    .eq('slug', params.id)
     .eq('page_type', 'website-demo')
     .single();
 

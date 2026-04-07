@@ -105,13 +105,16 @@ Generate all of the following in one JSON object:
 
 1. Demo website copy (for a beautiful site we've built for them)
 2. Pain points (2-3 specific issues with their current site/online presence — be concrete, not generic)
-3. A personalised outreach email body. Format:
-   - Phrase 1: Intro — "Hey, I'm Max — I came across [Business Name] while looking around [City] and decided to put a new website together for you (hope that's okay!)"
-   - Phrase 2: One specific thing you noticed that's wrong — reference what's actually broken/missing (no booking form, site looks like it's from 2005, no gallery, etc.)
-   - Phrase 3: What that costs them — "that probably costs you 3-4 enquiries a week that go to someone who's easier to find/book"
-   - Phrase 4: "Here's what I put together: {{DEMO_LINK}}"
-   - Phrase 5: "I charge £450–£950 for the site, just so it's not a shock if you do want to go ahead — but take a look first, no obligation."
-   Tone: like a friend who spotted something useful. Casual but professional. Proper capitalisation. No sales jargon. NO calendly link in this email.
+3. A personalised outreach email body. Use exactly this format (8 paragraphs, each separated by \\n\\n):
+   - Para 1: "Hey [first name or 'there'],"
+   - Para 2: "My name is Max, I've been looking for a [business type] in [city] and I found you on Google but [if no website: 'didn't see a website' / if bad website: 'found it really tricky to navigate your website']"
+   - Para 3: "So I thought I'd make you one!"
+   - Para 4: "Here it is: {{DEMO_LINK}}"
+   - Para 5: "I've done this for a few other [business type]s and especially if their old website was a bit slow or dated they've often suddenly started booking another 5-10 more customers each week."
+   - Para 6: "Given the area I'd imagine you're missing out on another 1-2k/m in revenue minimum (depending on service cost)"
+   - Para 7: "Let me know if you like the website and I'd love to jump on a call to go through it more and change anything to work for you :)"
+   - Para 8: "I made the demo to give you an idea of what it could look like but if you want to use it and have it work I generally charge 450-950 as a one-time fee (just so it doesn't come as a shock!)"
+   Rules: no currency symbols (no £ or $), no em dashes, no Calendly link. Keep it casual and conversational.
 4. A personalised SMS (2-3 short phrases, same tone, with {{DEMO_LINK}})
 
 Output JSON:
@@ -136,7 +139,7 @@ Output JSON:
   "business_category": "one of: salon, barber, restaurant, cafe, gym, yoga, plumber, dentist, accountant, pet groomer",
   "website_pain_points": ["specific issue 1", "specific issue 2"],
   "review_insight": "one notable thing about their online reputation, or null",
-  "outreach_body_email": "5 phrases separated by \\n\\n. Follow the format above exactly.",
+  "outreach_body_email": "8 paragraphs separated by \\n\\n. Follow the format above exactly. No currency symbols, no em dashes.",
   "outreach_body_sms": "3 phrases as one continuous message. Phrase 1: specific thing noticed. Phrase 2: built them a free site: {{DEMO_LINK}}. Phrase 3: happy to get on a call and set it up"
 }`;
 
@@ -173,7 +176,7 @@ Output JSON:
       business_category: 'professional',
       website_pain_points: biz.hasWebsite ? ['outdated design', 'no contact form'] : ['no website'],
       review_insight: null,
-      outreach_body_email: `I noticed ${biz.name} doesn't have a modern website set up — that usually means losing a few enquiries a week to competitors who do.\n\nI went ahead and built you a site already — took me about 20 minutes.\n\n{{DEMO_LINK}}\n\nIt's yours, no catch. If you like it and want to get it live, we can jump on a quick call and sort it out.\n\n{{CALENDLY_LINK}}`,
+      outreach_body_email: `Hey there,\n\nMy name is Max, I've been looking for a ${biz.type} in ${biz.city} and I found you on Google but ${biz.hasWebsite ? 'found it really tricky to navigate your website' : "didn't see a website"}\n\nSo I thought I'd make you one!\n\nHere it is: {{DEMO_LINK}}\n\nI've done this for a few other ${biz.type}s and especially if their old website was a bit slow or dated they've often suddenly started booking another 5-10 more customers each week.\n\nGiven the area I'd imagine you're missing out on another 1-2k/m in revenue minimum (depending on service cost)\n\nLet me know if you like the website and I'd love to jump on a call to go through it more and change anything to work for you :)\n\nI made the demo to give you an idea of what it could look like but if you want to use it and have it work I generally charge 450-950 as a one-time fee (just so it doesn't come as a shock!)`,
       outreach_body_sms: `Hey — I noticed ${biz.name} doesn't have a proper site online, so I built one for you: {{DEMO_LINK}}\n\nIf you like it, happy to get on a quick call and set it all up — Max Fawcett`,
     };
   }
