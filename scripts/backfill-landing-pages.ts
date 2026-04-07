@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { buildColdEmailPage } from '/home/max/crm/lib/landing-pages/cold-email-builder';
+import { buildColdEmailPage } from '../lib/landing-pages/cold-email-builder';
 import { execSync } from 'child_process';
 import * as os from 'os';
 import * as path from 'path';
