@@ -14,7 +14,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import Anthropic from '@anthropic-ai/sdk';
 import { DESIGN_SKILL_CONTEXT } from './load-design-skills';
 
@@ -164,11 +164,21 @@ TECHNICAL REQUIREMENTS
   • Footer (business name, phone, address, hours: ${biz.hours || 'Mon–Sat 9am–6pm'})
 - Mobile responsive — works at 390px viewport
 - Minimum 2 CSS animations:
-  • At least one scroll-triggered reveal (use IntersectionObserver)
+  • Scroll-triggered reveal using IntersectionObserver — CRITICAL: define .reveal { opacity: 0; transform: translateY(32px); transition: ... } in CSS, then include a <script> at the end of <body> that runs an IntersectionObserver to add class 'visible' to all .reveal elements. Without this JS the page will be blank.
   • At least one hover micro-interaction on service cards or buttons
 - Use CSS custom properties (--color-primary etc.) throughout — no hard-coded hex values in HTML
 - Inline SVGs for any icons (no icon libraries, no CDN icon imports)
 - All images use loading="lazy" and have descriptive alt text
+
+CRITICAL JS REQUIREMENT — include this exact script at the end of <body> (without this the page is blank):
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => io.observe(el));
+  });
+</script>
 
 Apply ALL skills loaded above:
 - frontend-design skill: distinctive typography, cohesive colour system, intentional layouts
@@ -247,6 +257,32 @@ Start with <!DOCTYPE html> and end with </html>.`;
 
 const CHROME_PORT = 9232;
 
+async function getBrowser(): Promise<{ browser: Browser; launched: boolean }> {
+  // Try to connect to existing Chrome on port 9232 first
+  try {
+    const browser = await puppeteer.connect({
+      browserURL: `http://localhost:${CHROME_PORT}`,
+      defaultViewport: { width: 1440, height: 900 },
+    });
+    return { browser, launched: false };
+  } catch {
+    // Fall back to launching a headless Chromium instance
+    console.log('[qa] Chrome on port 9232 not available — launching headless Chromium for QA');
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--window-size=1440,900',
+      ],
+      defaultViewport: { width: 1440, height: 900 },
+    });
+    return { browser, launched: true };
+  }
+}
+
 async function runVisualQALoop(
   html: string,
   bizName: string,
@@ -258,6 +294,7 @@ async function runVisualQALoop(
 
   for (let i = 0; i < maxIterations; i++) {
     let screenshotPath: string | null = null;
+    let launchedBrowser: Browser | null = null;
 
     try {
       // 1. Serve HTML via a temporary HTTP server so CDN resources load properly
@@ -269,10 +306,8 @@ async function runVisualQALoop(
       });
       await new Promise<void>(resolve => server.listen(httpPort, '127.0.0.1', resolve));
 
-      const browser = await puppeteer.connect({
-        browserURL: `http://localhost:${CHROME_PORT}`,
-        defaultViewport: { width: 1440, height: 900 },
-      });
+      const { browser, launched } = await getBrowser();
+      if (launched) launchedBrowser = browser;
       const page = await browser.newPage();
 
       try {
@@ -288,6 +323,7 @@ async function runVisualQALoop(
         });
       } finally {
         await page.close().catch(() => {});
+        if (launchedBrowser) await launchedBrowser.close().catch(() => {});
         server.close();
       }
 
@@ -368,6 +404,7 @@ ${currentHtml}`,
     } catch (err) {
       console.warn(`[qa] ${bizName}: iteration ${i + 1} error:`, (err as Error).message);
       if (screenshotPath) fs.unlink(screenshotPath, () => {});
+      if (launchedBrowser) await launchedBrowser.close().catch(() => {});
       break;
     }
   }
