@@ -281,29 +281,20 @@ Start with <!DOCTYPE html> and end with </html>.`;
 const CHROME_PORT = 9232;
 
 async function getBrowser(): Promise<{ browser: Browser; launched: boolean }> {
-  // Try to connect to existing Chrome on port 9232 first
-  try {
-    const browser = await puppeteer.connect({
-      browserURL: `http://localhost:${CHROME_PORT}`,
-      defaultViewport: { width: 1440, height: 900 },
-    });
-    return { browser, launched: false };
-  } catch {
-    // Fall back to launching a headless Chromium instance
-    console.log('[qa] Chrome on port 9232 not available — launching headless Chromium for QA');
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--window-size=1440,900',
-      ],
-      defaultViewport: { width: 1440, height: 900 },
-    });
-    return { browser, launched: true };
-  }
+  // Always launch a dedicated headless Chromium for QA screenshots.
+  // Connecting to the shared Chrome on port 9232 doesn't render local pages reliably.
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--window-size=1440,900',
+    ],
+    defaultViewport: { width: 1440, height: 900 },
+  });
+  return { browser, launched: true };
 }
 
 async function runVisualQALoop(
@@ -365,7 +356,7 @@ async function runVisualQALoop(
       const imgData = fs.readFileSync(screenshotPath!).toString('base64');
 
       const qaMsg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 512,
         messages: [{
           role: 'user',
