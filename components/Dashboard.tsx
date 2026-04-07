@@ -28,6 +28,22 @@ import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
 import MobileNav from './MobileNav';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
+import MockSubAccountContent from './agency/MockSubAccountContent';
+import FunnelDiagram from './agency/FunnelDiagram';
+import { SHUFFLED_STATS } from '@/lib/data/client-stats';
+import { computeFunnelFromStats } from '@/lib/data/mock-subaccounts';
+
+// Mock accounts built from CLIENT_STATS in shuffled (random) order
+const MOCK_CLIENT_ACCOUNTS: Account[] = SHUFFLED_STATS.map(stat => ({
+  id: `mock-${stat.slug}`,
+  name: stat.name,
+  slug: stat.slug,
+  account_type: 'client' as const,
+  settings: {},
+  created_at: new Date().toISOString(),
+} as Account & { slug: string }));
+
+function isMockId(id: string) { return id.startsWith('mock-'); }
 
 interface DashboardProps {
   user: User;
@@ -66,9 +82,12 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }, [user]);
 
   useEffect(() => {
-    if (currentAccount) {
+    if (currentAccount && !isMockId(currentAccount.id)) {
       loadContacts();
       loadStats();
+    } else if (currentAccount && isMockId(currentAccount.id)) {
+      setContacts([]);
+      setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0 });
     }
   }, [currentAccount]);
 
@@ -186,7 +205,12 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       if (response.ok) {
         const data = await response.json();
         const clients: Account[] = data.clients || [];
-        setClientAccounts(clients);
+
+        // Merge in all mock accounts (exclude any whose slug matches a real account)
+        const realSlugs = new Set(clients.map((c: any) => c.slug).filter(Boolean));
+        const mockClients = MOCK_CLIENT_ACCOUNTS.filter(m => !realSlugs.has((m as any).slug));
+        const allClients = [...clients, ...mockClients];
+        setClientAccounts(allClients);
 
         // If URL had a sub-account slug/id, switch to it now that we have the list
         if (!urlRestoredRef.current) {
@@ -198,9 +222,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           const effectiveSlug = urlSlug || initialAccountSlug;
 
           const subAccount = effectiveSlug
-            ? clients.find((c) => (c as any).slug === effectiveSlug)
+            ? allClients.find((c) => (c as any).slug === effectiveSlug)
             : initialAccountId
-            ? clients.find((c) => c.id === initialAccountId)
+            ? allClients.find((c) => c.id === initialAccountId)
             : null;
           if (subAccount) {
             setCurrentAccount(subAccount);
@@ -230,15 +254,17 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     if (selectedAccount.account_type === 'agency') {
       setIsViewingClient(false);
       setActiveView('dashboard');
-      // Update URL without Next.js navigation so Dashboard stays mounted
       window.history.pushState(null, '', '/');
     } else {
-      // Agency owner viewing a sub-account
       setIsViewingClient(true);
       setActiveView('dashboard');
-      const slug = (selectedAccount as any).slug;
-      if (slug) {
-        window.history.pushState(null, '', `/account/${slug}`);
+      // Only persist URL for real (non-mock) accounts
+      if (!isMockId(selectedAccount.id)) {
+        const slug = (selectedAccount as any).slug;
+        if (slug) window.history.pushState(null, '', `/account/${slug}`);
+      } else {
+        // Reset to agency URL so mock accounts don't 404 on refresh
+        window.history.pushState(null, '', '/');
       }
     }
   };
@@ -335,6 +361,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         }
         return null;
       case 'contacts':
+        if (isMockId(currentAccount?.id || '')) {
+          return <MockSubAccountContent slug={(currentAccount as any)?.slug || ''} activeView="contacts" />;
+        }
         return (
           <ContactsList
             contacts={contacts}
@@ -355,6 +384,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           />
         );
       case 'conversations':
+        if (isMockId(currentAccount?.id || '')) {
+          return <MockSubAccountContent slug={(currentAccount as any)?.slug || ''} activeView="conversations" />;
+        }
         return (
           <Conversations
             accountId={currentAccount?.id || ''}
@@ -363,6 +395,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           />
         );
       case 'calendar':
+        if (isMockId(currentAccount?.id || '')) {
+          return <MockSubAccountContent slug={(currentAccount as any)?.slug || ''} activeView="calendar" />;
+        }
         return (
           <CalendarView
             accountId={currentAccount?.id || ''}
@@ -381,6 +416,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           />
         );
       case 'pipelines':
+        if (isMockId(currentAccount?.id || '')) {
+          return <MockSubAccountContent slug={(currentAccount as any)?.slug || ''} activeView="pipelines" />;
+        }
         return (
           <PipelineManager accountId={currentAccount?.id || ''} />
         );
@@ -420,6 +458,27 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           </div>
         );
       default:
+        // Mock sub-account dashboard
+        if (isMockId(currentAccount?.id || '') && isViewingClient) {
+          const mockSlug = (currentAccount as any)?.slug || '';
+          return (
+            <div>
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Viewing: {currentAccount?.name}</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Demo sub-account — display only</p>
+                </div>
+                <button
+                  onClick={() => { if (agencyAccount) { setCurrentAccount(agencyAccount); setIsViewingClient(false); setActiveView('dashboard'); } }}
+                  className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 font-medium"
+                >Back to Agency</button>
+              </div>
+              <MockSubAccountContent slug={mockSlug} activeView="dashboard" />
+            </div>
+          );
+        }
+
         // Unified dashboard
         return (
           <div>
@@ -656,6 +715,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 </div>
               </div>
             </div>
+
+            {/* Funnel diagram — shown for real sub-accounts (not agency overview) */}
+            {(!isAgencyUser || isViewingClient) && (
+              <FunnelDiagram data={computeFunnelFromStats(stats.closings, stats.bookings)} />
+            )}
               </>
             )}
 
