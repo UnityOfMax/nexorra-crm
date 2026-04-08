@@ -76,9 +76,9 @@
   <div class="nav-inner">
     <div class="logo">{{BUSINESS_NAME}}</div>
     <ul class="nav-links">
-      <li><a href="#services">Services</a></li>
-      <li><a href="#team">Our Team</a></li>
-      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="{{BASE_URL}}/services">Services</a></li>
+      <li><a href="{{BASE_URL}}/team">Our Team</a></li>
+      <li><a href="{{BASE_URL}}/reviews">Reviews</a></li>
     </ul>
     <a href="tel:{{PHONE}}" class="nav-cta">Free Consultation</a>
   </div>
@@ -92,7 +92,7 @@
       <p>{{HERO_SUBHEADLINE}}</p>
       <div class="hero-btns">
         <a href="tel:{{PHONE}}" class="btn-primary">Book Consultation</a>
-        <a href="#services" class="btn-ghost">Our Services</a>
+        <a href="{{BASE_URL}}/services" class="btn-ghost">Our Services</a>
       </div>
       <div class="credentials">
         <span class="cred-item"><span class="cred-icon">✓</span> {{CRED_1}}</span>
@@ -143,6 +143,47 @@
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
     </div>
+  </div>
+</section>
+
+<section id="booking" style="padding:5rem 5%;background:#fff">
+  <div style="max-width:700px;margin:0 auto">
+    <p style="font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--primary,#2563eb);margin-bottom:.8rem">Book Online</p>
+    <h2 style="margin-bottom:.8rem">Schedule a <span style="color:var(--primary,#2563eb)">Free Consultation</span></h2>
+    <p style="color:#666;margin-bottom:2.5rem;line-height:1.7">Tell us a little about what you need and we'll be in touch to arrange a call or visit at a time that works for you.</p>
+    <div id="pro-form-wrap">
+      <form style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" onsubmit="event.preventDefault();document.getElementById('pro-form-wrap').innerHTML='<div style=padding:2.5rem;background:#f0f7ff;border-radius:8px;border-left:4px solid var(--primary,#2563eb)><p style=font-size:1.2rem;font-weight:700>✓ Consultation Request Received</p><p style=margin-top:.8rem;color:#555>We\'ll be in touch at <strong>{{PHONE}}</strong> within one business day.</p></div>'">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888;letter-spacing:.04em">Full Name</label>
+          <input type="text" placeholder="Your name" required style="padding:.8rem 1rem;border:1px solid #dde1e7;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888;letter-spacing:.04em">Phone</label>
+          <input type="tel" placeholder="(555) 000-0000" required style="padding:.8rem 1rem;border:1px solid #dde1e7;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888;letter-spacing:.04em">Service Needed</label>
+          <select style="padding:.8rem 1rem;border:1px solid #dde1e7;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option value="">Select a service</option>
+            <option>{{SERVICE_1}}</option>
+            <option>{{SERVICE_2}}</option>
+            <option>{{SERVICE_3}}</option>
+            <option>{{SERVICE_4}}</option>
+            <option>Not sure — need advice</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888;letter-spacing:.04em">Preferred Date</label>
+          <input type="date" style="padding:.8rem 1rem;border:1px solid #dde1e7;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;grid-column:1/-1">
+          <label style="font-size:.75rem;font-weight:600;color:#888;letter-spacing:.04em">Brief Description</label>
+          <textarea placeholder="Briefly describe what you're looking for..." rows="3" style="padding:.8rem 1rem;border:1px solid #dde1e7;border-radius:4px;font-size:.95rem;outline:none;resize:vertical"></textarea>
+        </div>
+        <button type="submit" style="grid-column:1/-1;background:var(--primary,#2563eb);color:#fff;border:none;border-radius:4px;padding:1.1rem;font-size:1rem;font-weight:700;cursor:pointer">Request Free Consultation</button>
+      </form>
+    </div>
+    <p style="margin-top:1rem;font-size:.82rem;color:#aaa;text-align:center">Or call us: <strong>{{PHONE}}</strong> &nbsp;·&nbsp; {{HOURS}}</p>
   </div>
 </section>
 

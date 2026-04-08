@@ -85,7 +85,7 @@ button{font-family:'DM Sans',sans-serif}
 
 /* BOOKING */
 .book-sec{background:var(--dark);color:var(--bg);padding:6rem 8%}
-.book-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:6rem;align-items:start}
+.book-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1.6fr;gap:5rem;align-items:start}
 .book-eyebrow{font-size:.72rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:1rem}
 .book-h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,3.2vw,3.2rem);font-weight:400;line-height:1.12;margin-bottom:1.5rem}
 .book-h2 em{font-style:italic;color:var(--acc)}
@@ -93,20 +93,60 @@ button{font-family:'DM Sans',sans-serif}
 .book-detail{display:flex;align-items:flex-start;gap:.9rem;margin-bottom:.9rem;opacity:.7}
 .book-detail svg{flex-shrink:0;margin-top:2px;color:var(--acc)}
 .book-detail span{font-size:.87rem;line-height:1.5}
-.bform{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:2.5rem}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
-.ff{margin-bottom:1.2rem}
-.ff label{display:block;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;opacity:.45;margin-bottom:.45rem}
-.ff input,.ff select,.ff textarea{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:2px;padding:.8rem 1rem;color:var(--bg);font-size:.88rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none}
-.ff select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(253,250,246,.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem}
-.ff select option{background:#2C1810;color:var(--bg)}
-.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--acc)}
-.ff input::placeholder,.ff textarea::placeholder{opacity:.3;color:var(--bg)}
-.ff textarea{height:80px;resize:vertical}
-.ff input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.4);cursor:pointer}
-.fsub{width:100%;background:var(--acc);color:var(--dark);border:none;border-radius:2px;padding:1rem;font-size:.8rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:.4rem}
-.fsub:hover{background:#fff}
-.fnote{text-align:center;font-size:.75rem;opacity:.35;margin-top:.7rem}
+/* FRESHA BOOKING WIDGET */
+.bk-widget{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+.bk-steps{display:flex;border-bottom:1px solid rgba(255,255,255,.08)}
+.bk-step-tab{flex:1;padding:.9rem .5rem;text-align:center;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;opacity:.35;cursor:pointer;transition:all .2s;border-bottom:2px solid transparent;position:relative}
+.bk-step-tab.active{opacity:1;border-bottom-color:var(--acc);color:var(--acc)}
+.bk-step-tab.done{opacity:.55}
+.bk-step-num{display:block;font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:400;margin-bottom:.2rem}
+.bk-panel{display:none;padding:1.8rem}
+.bk-panel.active{display:block}
+/* Service cards */
+.bk-svc-list{display:flex;flex-direction:column;gap:.7rem}
+.bk-svc{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border:1px solid rgba(255,255,255,.08);border-radius:3px;cursor:pointer;transition:all .2s}
+.bk-svc:hover,.bk-svc.sel{border-color:var(--acc);background:rgba(255,255,255,.04)}
+.bk-svc.sel .bk-sel-btn{background:var(--acc);color:var(--dark)}
+.bk-svc-info{flex:1}
+.bk-svc-name{display:block;font-weight:500;font-size:.92rem;margin-bottom:.25rem}
+.bk-svc-meta{font-size:.75rem;opacity:.45;letter-spacing:.03em}
+.bk-sel-btn{padding:.45rem 1rem;border:1px solid rgba(255,255,255,.25);border-radius:2px;background:transparent;color:var(--bg);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+/* Stylist cards */
+.bk-team{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.8rem}
+.bk-member{border:1px solid rgba(255,255,255,.08);border-radius:3px;padding:1rem .8rem;text-align:center;cursor:pointer;transition:all .2s}
+.bk-member:hover,.bk-member.sel{border-color:var(--acc);background:rgba(255,255,255,.04)}
+.bk-member.sel .bk-sel-btn{background:var(--acc);color:var(--dark)}
+.bk-avatar{width:52px;height:52px;border-radius:50%;margin:0 auto .6rem;overflow:hidden;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--acc)}
+.bk-avatar img{width:100%;height:100%;object-fit:cover}
+.bk-member-name{font-size:.8rem;font-weight:500;display:block;margin-bottom:.2rem}
+.bk-member-role{font-size:.68rem;opacity:.4;display:block;margin-bottom:.7rem}
+/* Calendar */
+.bk-cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.bk-cal-month{font-family:'Cormorant Garamond',serif;font-size:1.2rem}
+.bk-cal-nav{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--bg);width:28px;height:28px;border-radius:2px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif}
+.bk-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:1.5rem}
+.bk-cal-day-name{font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;opacity:.3;text-align:center;padding:.3rem 0}
+.bk-cal-day{text-align:center;padding:.4rem;border-radius:2px;font-size:.82rem;cursor:pointer;transition:all .15s;border:1px solid transparent}
+.bk-cal-day:hover:not(.empty):not(.past){background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}
+.bk-cal-day.sel{background:var(--acc);color:var(--dark);font-weight:600}
+.bk-cal-day.today{border-color:var(--acc);color:var(--acc)}
+.bk-cal-day.empty,.bk-cal-day.past{opacity:.18;cursor:default}
+.bk-times{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem}
+.bk-time{padding:.5rem;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:2px;font-size:.78rem;cursor:pointer;transition:all .15s}
+.bk-time:hover{border-color:var(--acc)}
+.bk-time.sel{background:var(--acc);color:var(--dark);border-color:var(--acc);font-weight:600}
+/* Confirm panel */
+.bk-summary{background:rgba(255,255,255,.04);border-radius:3px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;font-size:.87rem;line-height:2}
+.bk-summary span{opacity:.45;font-size:.75rem;display:block;margin-bottom:-.2rem;letter-spacing:.06em;text-transform:uppercase}
+.bk-confirm-btn{width:100%;background:var(--acc);color:var(--dark);border:none;border-radius:2px;padding:1rem;font-size:.82rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.bk-confirm-btn:hover{background:#fff}
+.bk-next{width:100%;margin-top:1rem;background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--bg);border-radius:2px;padding:.75rem;font-size:.78rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.bk-next:hover{border-color:var(--acc);color:var(--acc)}
+/* Success overlay */
+.bk-success{display:none;padding:2.5rem 1.8rem;text-align:center}
+.bk-success-icon{font-size:2.5rem;margin-bottom:1rem}
+.bk-success h3{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:400;margin-bottom:.8rem}
+.bk-success p{font-size:.87rem;line-height:1.8;opacity:.6;margin-bottom:.5rem}
 
 /* ABOUT */
 .abt-sec{background:var(--bg)}
@@ -149,7 +189,10 @@ button{font-family:'DM Sans',sans-serif}
   .abt-inner{grid-template-columns:1fr}.abt-badge{position:static;display:inline-block;margin-top:1.5rem}
   .test-grid{grid-template-columns:1fr}
   .footer-inner{grid-template-columns:1fr 1fr;gap:2rem}
-  .frow{grid-template-columns:1fr}
+  .book-inner{grid-template-columns:1fr;gap:3rem}
+  .bk-steps{font-size:.6rem}
+  .bk-times{grid-template-columns:repeat(3,1fr)}
+  .bk-team{grid-template-columns:repeat(3,1fr)}
 }
 </style>
 </head>
@@ -159,12 +202,12 @@ button{font-family:'DM Sans',sans-serif}
   <div class="nav-inner">
     <div class="nav-logo">{{BUSINESS_NAME}}</div>
     <ul class="nav-links">
-      <li><a href="#services">Services</a></li>
-      <li><a href="#gallery">Gallery</a></li>
-      <li><a href="#about">About</a></li>
-      <li><a href="#booking">Book</a></li>
+      <li><a href="{{BASE_URL}}/services">Services</a></li>
+      <li><a href="{{BASE_URL}}/gallery">Gallery</a></li>
+      <li><a href="{{BASE_URL}}/about">About</a></li>
+      <li><a href="{{BASE_URL}}/booking">Book</a></li>
     </ul>
-    <a href="#booking" class="nav-cta">Book Appointment</a>
+    <a href="{{BASE_URL}}/booking" class="nav-cta">Book Appointment</a>
   </div>
 </nav>
 
@@ -174,8 +217,8 @@ button{font-family:'DM Sans',sans-serif}
     <h1 class="hero-h1">{{HERO_HEADLINE}}<br><em>{{HERO_HEADLINE_EM}}</em></h1>
     <p class="hero-p">{{HERO_SUBHEADLINE}}</p>
     <div class="hero-btns">
-      <a href="#booking" class="btn-pri">Book Appointment <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
-      <a href="#gallery" class="btn-ghost">View Our Work ↓</a>
+      <a href="{{BASE_URL}}/booking" class="btn-pri">Book Appointment <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+      <a href="{{BASE_URL}}/gallery" class="btn-ghost">View Our Work ↓</a>
     </div>
     <div class="hero-social">
       <div><span class="hero-rating-num">{{RATING}}</span><span class="hero-stars">★★★★★</span></div>
@@ -233,9 +276,9 @@ button{font-family:'DM Sans',sans-serif}
 <section class="book-sec" id="booking">
   <div class="book-inner">
     <div>
-      <div class="book-eyebrow">Reserve Your Appointment</div>
-      <h2 class="book-h2">Ready for a<br><em>fresh look?</em></h2>
-      <p class="book-p">Fill out the form and we'll be in touch within a few hours to confirm your appointment.</p>
+      <div class="book-eyebrow">Book Online</div>
+      <h2 class="book-h2">Reserve your<br><em>appointment</em></h2>
+      <p class="book-p">Choose your service, pick a stylist, and select a time that works for you. We'll confirm within a few hours.</p>
       <div class="book-detail">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span>{{ADDRESS}}</span>
@@ -249,42 +292,102 @@ button{font-family:'DM Sans',sans-serif}
         <span>{{HOURS}}</span>
       </div>
     </div>
-    <div class="bform">
-      <div class="frow">
-        <div class="ff"><label>First Name</label><input type="text" placeholder="Jane"></div>
-        <div class="ff"><label>Last Name</label><input type="text" placeholder="Smith"></div>
+    <div class="bk-widget">
+      <div class="bk-steps">
+        <div class="bk-step-tab active" data-panel="service"><span class="bk-step-num">1</span>Service</div>
+        <div class="bk-step-tab" data-panel="stylist"><span class="bk-step-num">2</span>Stylist</div>
+        <div class="bk-step-tab" data-panel="datetime"><span class="bk-step-num">3</span>Date &amp; Time</div>
+        <div class="bk-step-tab" data-panel="confirm"><span class="bk-step-num">4</span>Confirm</div>
       </div>
-      <div class="frow">
-        <div class="ff"><label>Phone</label><input type="tel" placeholder="(478) 555-0100"></div>
-        <div class="ff"><label>Email</label><input type="email" placeholder="jane@email.com"></div>
-      </div>
-      <div class="frow">
-        <div class="ff"><label>Preferred Date</label><input type="date"></div>
-        <div class="ff">
-          <label>Preferred Time</label>
-          <select>
-            <option value="">Select time</option>
-            <option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option>
-            <option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option>
-            <option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option>
-            <option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option>
-          </select>
+
+      <!-- Panel 1: Service -->
+      <div class="bk-panel active" id="panel-service">
+        <div class="bk-svc-list">
+          <div class="bk-svc" data-svc="{{SERVICE_1}}" data-price="{{SERVICE_1_PRICE}}" data-dur="{{SERVICE_1_DURATION}}">
+            <div class="bk-svc-info">
+              <span class="bk-svc-name">{{SERVICE_1}}</span>
+              <span class="bk-svc-meta">{{SERVICE_1_PRICE}} &nbsp;·&nbsp; {{SERVICE_1_DURATION}}</span>
+            </div>
+            <button class="bk-sel-btn">Select</button>
+          </div>
+          <div class="bk-svc" data-svc="{{SERVICE_2}}" data-price="{{SERVICE_2_PRICE}}" data-dur="{{SERVICE_2_DURATION}}">
+            <div class="bk-svc-info">
+              <span class="bk-svc-name">{{SERVICE_2}}</span>
+              <span class="bk-svc-meta">{{SERVICE_2_PRICE}} &nbsp;·&nbsp; {{SERVICE_2_DURATION}}</span>
+            </div>
+            <button class="bk-sel-btn">Select</button>
+          </div>
+          <div class="bk-svc" data-svc="{{SERVICE_3}}" data-price="{{SERVICE_3_PRICE}}" data-dur="{{SERVICE_3_DURATION}}">
+            <div class="bk-svc-info">
+              <span class="bk-svc-name">{{SERVICE_3}}</span>
+              <span class="bk-svc-meta">{{SERVICE_3_PRICE}} &nbsp;·&nbsp; {{SERVICE_3_DURATION}}</span>
+            </div>
+            <button class="bk-sel-btn">Select</button>
+          </div>
+          <div class="bk-svc" data-svc="{{SERVICE_4}}" data-price="{{SERVICE_4_PRICE}}" data-dur="{{SERVICE_4_DURATION}}">
+            <div class="bk-svc-info">
+              <span class="bk-svc-name">{{SERVICE_4}}</span>
+              <span class="bk-svc-meta">{{SERVICE_4_PRICE}} &nbsp;·&nbsp; {{SERVICE_4_DURATION}}</span>
+            </div>
+            <button class="bk-sel-btn">Select</button>
+          </div>
         </div>
       </div>
-      <div class="ff">
-        <label>Service</label>
-        <select>
-          <option value="">What are you coming in for?</option>
-          <option>Hair Colouring</option><option>Highlights / Lowlights</option>
-          <option>Perm</option><option>Cut &amp; Style</option>
-          <option>Shampoo &amp; Set</option><option>Waxing</option>
-          <option>Nails</option><option>Bridal / Wedding</option>
-          <option>Prom / Formal Event</option><option>Other — I'll explain below</option>
-        </select>
+
+      <!-- Panel 2: Stylist -->
+      <div class="bk-panel" id="panel-stylist">
+        <div class="bk-team">
+          <div class="bk-member" data-name="{{TEAM_1}}">
+            <div class="bk-avatar"><img src="{{PHOTO_5}}" alt="{{TEAM_1}}" onerror="this.parentNode.textContent='{{TEAM_1_INITIAL}}'"></div>
+            <span class="bk-member-name">{{TEAM_1}}</span>
+            <span class="bk-member-role">Senior Stylist</span>
+            <button class="bk-sel-btn">Choose</button>
+          </div>
+          {{TEAM_2_BLOCK}}
+          <div class="bk-member" data-name="any">
+            <div class="bk-avatar">✦</div>
+            <span class="bk-member-name">Any Available</span>
+            <span class="bk-member-role">First available</span>
+            <button class="bk-sel-btn">Choose</button>
+          </div>
+        </div>
       </div>
-      <div class="ff"><label>Notes (optional)</label><textarea placeholder="Any specific requests or questions for Dawn?"></textarea></div>
-      <button type="button" class="fsub" onclick="this.textContent='✓ Request Sent — we\'ll be in touch!';this.style.background='#7CB87E';this.disabled=true">Request Appointment</button>
-      <p class="fnote">We'll call or text you within a few hours to confirm.</p>
+
+      <!-- Panel 3: Date & Time -->
+      <div class="bk-panel" id="panel-datetime">
+        <div class="bk-cal-header">
+          <button class="bk-cal-nav" id="cal-prev">&#8249;</button>
+          <span class="bk-cal-month" id="cal-month-label"></span>
+          <button class="bk-cal-nav" id="cal-next">&#8250;</button>
+        </div>
+        <div class="bk-cal-grid" id="cal-grid"></div>
+        <div class="bk-times" id="bk-times">
+          <div class="bk-time" data-t="9:00 AM">9:00 AM</div>
+          <div class="bk-time" data-t="10:00 AM">10:00 AM</div>
+          <div class="bk-time" data-t="11:30 AM">11:30 AM</div>
+          <div class="bk-time" data-t="1:00 PM">1:00 PM</div>
+          <div class="bk-time" data-t="2:30 PM">2:30 PM</div>
+          <div class="bk-time" data-t="4:00 PM">4:00 PM</div>
+          <div class="bk-time" data-t="5:30 PM">5:30 PM</div>
+          <div class="bk-time" data-t="6:30 PM">6:30 PM</div>
+        </div>
+        <button class="bk-next" id="btn-to-confirm">Continue &rarr;</button>
+      </div>
+
+      <!-- Panel 4: Confirm -->
+      <div class="bk-panel" id="panel-confirm">
+        <div class="bk-summary" id="bk-summary"></div>
+        <button class="bk-confirm-btn" id="bk-confirm-btn">Request Appointment</button>
+        <p style="text-align:center;font-size:.74rem;opacity:.3;margin-top:.8rem">We'll call {{PHONE}} to confirm within a few hours</p>
+      </div>
+
+      <!-- Success state -->
+      <div class="bk-success" id="bk-success">
+        <div class="bk-success-icon">✓</div>
+        <h3>Request Received!</h3>
+        <p>We'll give you a call at <strong>{{PHONE}}</strong> to confirm your appointment.</p>
+        <p style="margin-top:1rem;opacity:.4">{{ADDRESS}}</p>
+      </div>
     </div>
   </div>
 </section>
@@ -295,7 +398,7 @@ button{font-family:'DM Sans',sans-serif}
       <div class="abt-imgs">
         <img class="abt-main" src="{{PHOTO_3}}" alt="{{BUSINESS_NAME}}">
         <div class="abt-badge">
-          <div class="abt-badge-num">20+</div>
+          <div class="abt-badge-num">{{YEARS_IN_BIZ}}</div>
           <div class="abt-badge-lbl">Years in {{CITY}}</div>
         </div>
       </div>
@@ -304,7 +407,7 @@ button{font-family:'DM Sans',sans-serif}
         <h2 class="sec-h2" style="margin-bottom:1.6rem">{{ABOUT_TEXT}}</h2>
         <p class="abt-p">{{ABOUT_TEXT_2}}</p>
         <p class="abt-p">{{CTA_TEXT}}</p>
-        <div class="abt-sig">Dawn</div>
+        <div class="abt-sig">{{TEAM_1}}</div>
         <div class="abt-sig-lbl">Owner &amp; Head Stylist</div>
       </div>
     </div>
@@ -338,5 +441,145 @@ button{font-family:'DM Sans',sans-serif}
   <div class="footer-bottom"><span>© {{BUSINESS_NAME}}</span><span>Website by Nexorra</span></div>
 </footer>
 
+<script>
+// ── Booking widget ────────────────────────────────────────────────────────────
+(function(){
+  var sel = {service:null,price:null,dur:null,stylist:null,date:null,time:null};
+  var curYear, curMonth;
+
+  // Step tabs
+  document.querySelectorAll('.bk-step-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      var panel = tab.dataset.panel;
+      if(!canNavigateTo(panel)) return;
+      showPanel(panel);
+    });
+  });
+
+  function canNavigateTo(panel){
+    var order = ['service','stylist','datetime','confirm'];
+    var idx = order.indexOf(panel);
+    if(idx===0) return true;
+    if(idx>=1 && !sel.service) return false;
+    if(idx>=2 && !sel.stylist) return false;
+    if(idx>=3 && (!sel.date||!sel.time)) return false;
+    return true;
+  }
+
+  function showPanel(name){
+    document.querySelectorAll('.bk-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.bk-step-tab').forEach(function(t){
+      t.classList.remove('active');
+      if(t.dataset.panel===name) t.classList.add('active');
+    });
+    var el = document.getElementById('panel-'+name);
+    if(el) el.classList.add('active');
+    if(name==='confirm') buildSummary();
+  }
+
+  // Service selection
+  document.querySelectorAll('.bk-svc').forEach(function(card){
+    card.addEventListener('click', function(){
+      document.querySelectorAll('.bk-svc').forEach(function(c){ c.classList.remove('sel'); c.querySelector('.bk-sel-btn').textContent='Select'; });
+      card.classList.add('sel');
+      card.querySelector('.bk-sel-btn').textContent='✓ Selected';
+      sel.service = card.dataset.svc;
+      sel.price = card.dataset.price;
+      sel.dur = card.dataset.dur;
+      setTimeout(function(){ showPanel('stylist'); }, 300);
+    });
+  });
+
+  // Stylist selection
+  document.querySelectorAll('.bk-member').forEach(function(card){
+    card.addEventListener('click', function(){
+      document.querySelectorAll('.bk-member').forEach(function(c){ c.classList.remove('sel'); c.querySelector('.bk-sel-btn').textContent='Choose'; });
+      card.classList.add('sel');
+      card.querySelector('.bk-sel-btn').textContent='✓ Chosen';
+      sel.stylist = card.dataset.name==='any' ? 'Any Available' : card.dataset.name;
+      setTimeout(function(){ showPanel('datetime'); }, 300);
+    });
+  });
+
+  // Calendar
+  var DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var today = new Date();
+  curYear = today.getFullYear(); curMonth = today.getMonth();
+
+  function renderCal(){
+    var label = document.getElementById('cal-month-label');
+    var grid = document.getElementById('cal-grid');
+    if(!label||!grid) return;
+    label.textContent = MONTHS[curMonth]+' '+curYear;
+    var html = DAYS.map(function(d){ return '<div class="bk-cal-day-name">'+d+'</div>'; }).join('');
+    var first = new Date(curYear, curMonth, 1).getDay();
+    var days = new Date(curYear, curMonth+1, 0).getDate();
+    for(var i=0;i<first;i++) html+='<div class="bk-cal-day empty"></div>';
+    for(var d=1;d<=days;d++){
+      var isPast = (curYear===today.getFullYear()&&curMonth===today.getMonth()&&d<today.getDate());
+      var isToday = (curYear===today.getFullYear()&&curMonth===today.getMonth()&&d===today.getDate());
+      var cls = 'bk-cal-day'+(isPast?' past':'')+(isToday?' today':'');
+      var selDate = curYear+'-'+(curMonth+1)+'-'+d;
+      if(sel.date===selDate) cls+=' sel';
+      html+='<div class="'+cls+'" data-date="'+selDate+'">'+d+'</div>';
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.bk-cal-day:not(.empty):not(.past)').forEach(function(day){
+      day.addEventListener('click', function(){
+        grid.querySelectorAll('.bk-cal-day').forEach(function(d){ d.classList.remove('sel'); });
+        day.classList.add('sel');
+        sel.date = day.dataset.date;
+      });
+    });
+  }
+
+  var prevBtn = document.getElementById('cal-prev');
+  var nextBtn = document.getElementById('cal-next');
+  if(prevBtn) prevBtn.addEventListener('click', function(){ curMonth--; if(curMonth<0){curMonth=11;curYear--;} renderCal(); });
+  if(nextBtn) nextBtn.addEventListener('click', function(){ curMonth++; if(curMonth>11){curMonth=0;curYear++;} renderCal(); });
+  renderCal();
+
+  // Time slots
+  document.querySelectorAll('.bk-time').forEach(function(slot){
+    slot.addEventListener('click', function(){
+      document.querySelectorAll('.bk-time').forEach(function(s){ s.classList.remove('sel'); });
+      slot.classList.add('sel');
+      sel.time = slot.dataset.t;
+    });
+  });
+
+  var toConfirmBtn = document.getElementById('btn-to-confirm');
+  if(toConfirmBtn) toConfirmBtn.addEventListener('click', function(){
+    if(!sel.date||!sel.time){ alert('Please pick a date and time.'); return; }
+    showPanel('confirm');
+  });
+
+  function buildSummary(){
+    var el = document.getElementById('bk-summary');
+    if(!el) return;
+    var parts = [];
+    if(sel.service) parts.push('<span>Service</span>'+sel.service+(sel.dur?' &nbsp;·&nbsp; '+sel.dur:'')+(sel.price?' &nbsp;·&nbsp; '+sel.price:''));
+    if(sel.stylist) parts.push('<span>Stylist</span>'+sel.stylist);
+    if(sel.date) parts.push('<span>Date</span>'+formatDate(sel.date));
+    if(sel.time) parts.push('<span>Time</span>'+sel.time);
+    el.innerHTML = parts.map(function(p){ return '<div style="margin-bottom:.6rem">'+p+'</div>'; }).join('');
+  }
+
+  function formatDate(d){
+    var parts=d.split('-');
+    var dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+    return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()]+', '+
+      ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()]+' '+dt.getDate()+' '+parts[0];
+  }
+
+  var confirmBtn = document.getElementById('bk-confirm-btn');
+  if(confirmBtn) confirmBtn.addEventListener('click', function(){
+    document.querySelectorAll('.bk-steps,.bk-panel').forEach(function(el){ el.style.display='none'; });
+    var succ = document.getElementById('bk-success');
+    if(succ) succ.style.display='block';
+  });
+})();
+</script>
 </body>
 </html>

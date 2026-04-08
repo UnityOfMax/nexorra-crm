@@ -82,9 +82,9 @@
   <div class="nav-inner">
     <div class="logo">{{BUSINESS_NAME}}<span>.</span></div>
     <ul class="nav-links">
-      <li><a href="#services">Services</a></li>
-      <li><a href="#process">How We Work</a></li>
-      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="{{BASE_URL}}/services">Services</a></li>
+      <li><a href="{{BASE_URL}}/process">How We Work</a></li>
+      <li><a href="{{BASE_URL}}/reviews">Reviews</a></li>
     </ul>
     <a href="tel:{{PHONE}}" class="nav-call">📞 {{PHONE}}</a>
   </div>
@@ -97,7 +97,7 @@
     <p>{{HERO_SUBHEADLINE}}</p>
     <div class="hero-actions">
       <a href="tel:{{PHONE}}" class="btn-primary">Get Free Quote</a>
-      <a href="#services" class="btn-outline">Our Services</a>
+      <a href="{{BASE_URL}}/services" class="btn-outline">Our Services</a>
     </div>
   </div>
 </section>
@@ -146,6 +146,46 @@
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
     </div>
+  </div>
+</section>
+
+<section id="booking" style="background:#fff;padding:5rem 5%;border-top:4px solid var(--primary)">
+  <div style="max-width:780px;margin:0 auto">
+    <div class="section-label">Free Quote</div>
+    <h2 style="margin-bottom:2rem">Request a <span style="color:var(--primary)">Free Quote</span></h2>
+    <div id="bk-form-wrap">
+      <form style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" onsubmit="event.preventDefault();document.getElementById('bk-form-wrap').innerHTML='<div style=padding:2.5rem;text-align:center;background:var(--bg);border-radius:6px><p style=font-size:1.4rem;font-weight:800;font-family:Barlow\\ Condensed,sans-serif;text-transform:uppercase;letter-spacing:.05em>✓ Request Received!</p><p style=margin-top:.8rem;color:var(--muted)>We\'ll call <strong>{{PHONE}}</strong> to arrange a free site visit.</p></div>'">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Your Name</label>
+          <input type="text" placeholder="John Smith" required style="padding:.8rem 1rem;border:2px solid #e2e8f0;border-radius:4px;font-size:.95rem;font-family:Barlow,sans-serif;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Phone Number</label>
+          <input type="tel" placeholder="(555) 000-0000" required style="padding:.8rem 1rem;border:2px solid #e2e8f0;border-radius:4px;font-size:.95rem;font-family:Barlow,sans-serif;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Service Needed</label>
+          <select required style="padding:.8rem 1rem;border:2px solid #e2e8f0;border-radius:4px;font-size:.95rem;font-family:Barlow,sans-serif;outline:none;background:#fff">
+            <option value="">Select a service</option>
+            <option>{{SERVICE_1}}</option>
+            <option>{{SERVICE_2}}</option>
+            <option>{{SERVICE_3}}</option>
+            <option>{{SERVICE_4}}</option>
+            <option>Not sure — need advice</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Preferred Date</label>
+          <input type="date" style="padding:.8rem 1rem;border:2px solid #e2e8f0;border-radius:4px;font-size:.95rem;font-family:Barlow,sans-serif;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;grid-column:1/-1">
+          <label style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Describe the Job</label>
+          <textarea placeholder="Tell us a little about what you need..." rows="3" style="padding:.8rem 1rem;border:2px solid #e2e8f0;border-radius:4px;font-size:.95rem;font-family:Barlow,sans-serif;outline:none;resize:vertical"></textarea>
+        </div>
+        <button type="submit" style="grid-column:1/-1;background:var(--primary);color:#fff;border:none;border-radius:4px;padding:1.1rem;font-size:1rem;font-weight:700;font-family:Barlow\\ Condensed,sans-serif;text-transform:uppercase;letter-spacing:.08em;cursor:pointer">Request Free Quote &rarr;</button>
+      </form>
+    </div>
+    <p style="margin-top:1rem;font-size:.82rem;color:var(--muted);text-align:center">Or call us directly: <strong>{{PHONE}}</strong></p>
   </div>
 </section>
 

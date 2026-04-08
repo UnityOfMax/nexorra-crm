@@ -78,9 +78,9 @@
   <div class="nav-inner">
     <div class="logo">{{BUSINESS_NAME}}<span>.</span></div>
     <ul class="nav-links">
-      <li><a href="#classes">Classes</a></li>
-      <li><a href="#trainers">Trainers</a></li>
-      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="{{BASE_URL}}/classes">Classes</a></li>
+      <li><a href="{{BASE_URL}}/trainers">Trainers</a></li>
+      <li><a href="{{BASE_URL}}/reviews">Reviews</a></li>
     </ul>
     <a href="tel:{{PHONE}}" class="nav-cta">Free Trial</a>
   </div>
@@ -93,7 +93,7 @@
     <p>{{HERO_SUBHEADLINE}}</p>
     <div class="hero-btns">
       <a href="tel:{{PHONE}}" class="btn-glow">Start Free Trial</a>
-      <a href="#classes" class="btn-ghost">See Schedule</a>
+      <a href="{{BASE_URL}}/classes" class="btn-ghost">See Schedule</a>
     </div>
   </div>
 </section>
@@ -140,6 +140,52 @@
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_1}}</p><div class="r-name">— {{REVIEWER_1}}</div></div>
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_2}}</p><div class="r-name">— {{REVIEWER_2}}</div></div>
       <div class="r-card"><div class="r-stars">★★★★★</div><p class="r-text">{{REVIEW_3}}</p><div class="r-name">— {{REVIEWER_3}}</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="booking" style="padding:5rem 5%;background:#fff">
+  <div style="max-width:700px;margin:0 auto">
+    <p style="font-size:.78rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem;text-align:center">Free Trial</p>
+    <h2 style="text-align:center;margin-bottom:.8rem">Book Your Free <span style="color:var(--accent)">Trial Session</span></h2>
+    <p style="text-align:center;color:var(--muted,#666);margin-bottom:2.5rem">Come try a class on us. No commitment, no card required.</p>
+    <div id="fit-form-wrap">
+      <form style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" onsubmit="event.preventDefault();document.getElementById('fit-form-wrap').innerHTML='<div style=padding:2.5rem;text-align:center;background:#f9f9f9;border-radius:8px><p style=font-size:1.3rem;font-weight:700>✓ Trial Booked!</p><p style=margin-top:.8rem;color:#666>We\'ll call <strong>{{PHONE}}</strong> to confirm your session.</p></div>'">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Your Name</label>
+          <input type="text" placeholder="Your name" required style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Phone</label>
+          <input type="tel" placeholder="(555) 000-0000" required style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Class Type</label>
+          <select style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option>{{CLASS_1}}</option>
+            <option>{{CLASS_2}}</option>
+            <option>{{CLASS_3}}</option>
+            <option>{{CLASS_4}}</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Preferred Date</label>
+          <input type="date" style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Experience Level</label>
+          <select style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option>Complete beginner</option><option>Some experience</option><option>Intermediate</option><option>Advanced</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;color:#888">Preferred Time</label>
+          <select style="padding:.8rem 1rem;border:2px solid #eee;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option>Morning (6–9 AM)</option><option>Midday (12–2 PM)</option><option>Evening (5–8 PM)</option>
+          </select>
+        </div>
+        <button type="submit" style="grid-column:1/-1;background:var(--accent,#e63946);color:#fff;border:none;border-radius:4px;padding:1.1rem;font-size:1rem;font-weight:700;cursor:pointer">Book Free Trial Session</button>
+      </form>
     </div>
   </div>
 </section>

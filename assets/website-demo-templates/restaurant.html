@@ -92,9 +92,9 @@
   <div class="nav-inner">
     <div class="nav-logo">{{BUSINESS_NAME}}</div>
     <ul class="nav-links">
-      <li><a href="#about">About</a></li>
-      <li><a href="#menu">Menu</a></li>
-      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="{{BASE_URL}}/about">About</a></li>
+      <li><a href="{{BASE_URL}}/menu">Menu</a></li>
+      <li><a href="{{BASE_URL}}/reviews">Reviews</a></li>
     </ul>
     <a href="tel:{{PHONE}}" class="nav-cta">Reserve a Table</a>
   </div>
@@ -107,7 +107,7 @@
     <p>{{HERO_SUBHEADLINE}}</p>
     <div class="hero-actions">
       <a href="tel:{{PHONE}}" class="btn-primary">Reserve a Table</a>
-      <a href="#menu" class="btn-outline">View Menu</a>
+      <a href="{{BASE_URL}}/menu" class="btn-outline">View Menu</a>
     </div>
   </div>
 </section>
@@ -187,6 +187,54 @@
         <p class="review-text">{{REVIEW_3}}</p>
         <div class="review-author">— {{REVIEWER_3}}</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="booking" style="padding:5rem 5%;background:#faf9f6">
+  <div style="max-width:700px;margin:0 auto;text-align:center">
+    <p style="font-size:.78rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem">Reservations</p>
+    <h2 style="font-size:clamp(2rem,4vw,3rem);margin-bottom:.8rem">Reserve Your Table</h2>
+    <p style="color:var(--muted);margin-bottom:2.5rem;font-size:.95rem">Book a table online and we'll confirm your reservation by phone.</p>
+    <div id="rst-form-wrap">
+      <form style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;text-align:left" onsubmit="event.preventDefault();document.getElementById('rst-form-wrap').innerHTML='<div style=padding:2.5rem;text-align:center;background:#fff;border-radius:8px;border:2px solid var(--accent)><p style=font-size:1.3rem;font-weight:700>✓ Reservation Request Sent!</p><p style=margin-top:.8rem;color:var(--muted)>We\'ll call <strong>{{PHONE}}</strong> to confirm your table.</p></div>'">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Name</label>
+          <input type="text" placeholder="Your name" required style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Phone</label>
+          <input type="tel" placeholder="(555) 000-0000" required style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Date</label>
+          <input type="date" required style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Time</label>
+          <select required style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option value="">Select time</option>
+            <option>12:00 PM</option><option>12:30 PM</option><option>1:00 PM</option>
+            <option>6:00 PM</option><option>6:30 PM</option><option>7:00 PM</option>
+            <option>7:30 PM</option><option>8:00 PM</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Party Size</label>
+          <select style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option>1–2 guests</option><option>3–4 guests</option><option>5–6 guests</option>
+            <option>7–8 guests</option><option>Large group (9+)</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--muted)">Occasion</label>
+          <select style="padding:.8rem 1rem;border:1px solid #ddd;border-radius:4px;font-size:.95rem;outline:none;background:#fff">
+            <option>Standard dinner</option><option>Birthday</option><option>Anniversary</option>
+            <option>Date night</option><option>Business meal</option>
+          </select>
+        </div>
+        <button type="submit" style="grid-column:1/-1;background:var(--accent);color:#fff;border:none;border-radius:4px;padding:1.1rem;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:.04em">Reserve My Table</button>
+      </form>
     </div>
   </div>
 </section>

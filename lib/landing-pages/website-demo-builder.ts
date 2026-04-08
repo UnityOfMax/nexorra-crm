@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import type { FastCopy } from '../local-biz/copy-generator';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -152,18 +153,70 @@ function getFallbackImage(businessType: string, width = 1200, height = 800): str
   return `https://images.unsplash.com/${photoId}?ixlib=rb-4.0.3&auto=format&fit=crop&w=${width}&h=${height}&q=80`;
 }
 
+// ── Service duration estimator ────────────────────────────────────────────────
+
+const DURATION_KEYWORDS: Array<[string, string]> = [
+  ['balayage', '2 hrs'], ['ombre', '2 hrs'], ['perm', '2 hrs'], ['relax', '2 hrs'],
+  ['keratin', '2 hrs'], ['wedding', '2 hrs'], ['bridal', '2 hrs'],
+  ['colour', '90 min'], ['color', '90 min'], ['highlights', '90 min'],
+  ['foil', '90 min'], ['cap', '90 min'], ['updo', '90 min'],
+  ['styling', '45 min'], ['style', '45 min'], ['cut', '45 min'], ['haircut', '45 min'],
+  ['blowout', '45 min'], ['blow dry', '45 min'],
+  ['pedicure', '60 min'], ['manicure', '60 min'], ['nail', '60 min'], ['gel', '60 min'],
+  ['massage', '60 min'], ['deep tissue', '60 min'], ['facial', '45 min'],
+  ['shampoo', '30 min'], ['wash', '30 min'], ['trim', '30 min'],
+  ['wax', '30 min'], ['threading', '20 min'], ['consultation', '30 min'],
+  ['quote', '30 min'], ['inspection', '60 min'], ['repair', '60 min'],
+  ['prom', '90 min'], ['package', '90 min'],
+];
+
+function estimateDuration(serviceName: string): string {
+  const n = serviceName.toLowerCase();
+  for (const [kw, dur] of DURATION_KEYWORDS) {
+    if (n.includes(kw)) return dur;
+  }
+  return '60 min';
+}
+
+// ── Team name extractor ───────────────────────────────────────────────────────
+
+function extractTeamName(biz: LocalBizData): string {
+  // "Dawn's Salon" → "Dawn"
+  const apostrophe = biz.business_name.match(/^([A-Z][a-z]{1,12})'/);
+  if (apostrophe) return apostrophe[1];
+  // "Owner: Dawn" in about text
+  if (biz.about_text) {
+    const m = biz.about_text.match(/owner[:\s]+([A-Z][a-z]{2,12})/i);
+    if (m) return m[1];
+  }
+  return 'Our Stylist';
+}
+
 /**
  * Build the personalization variables from business data.
  */
-function buildVars(biz: LocalBizData): Record<string, string> {
+function buildVars(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Record<string, string> {
   const photos = biz.gmb_photos || [];
-  const services = biz.services || [];
+  const services = enrichedCopy?.services?.length ? enrichedCopy.services : (biz.services || []);
   const reviews = biz.reviews || [];
   const fallbackImg = getFallbackImage(biz.business_type);
 
   // Colors — default to professional blue if not detected
   const colorPrimary = biz.color_primary || '#2563eb';
   const colorAccent = biz.color_accent || '#f59e0b';
+
+  // Merge enrichedCopy over biz defaults
+  const heroHeadline    = enrichedCopy?.hero_headline    || biz.hero_headline    || `Welcome to ${biz.business_name}`;
+  const heroHeadlineEm  = enrichedCopy?.hero_headline_em || '';
+  const heroSub         = enrichedCopy?.hero_subheadline || biz.hero_subheadline || `Serving ${biz.city || 'the area'} with pride.`;
+  const aboutText       = enrichedCopy?.about_text       || biz.about_text       || `${biz.business_name} — serving ${biz.city || 'the community'} with pride`;
+  const aboutText2      = enrichedCopy?.about_text_2     || (biz as any).about_text_2 || `${biz.business_name} has built a strong reputation in ${biz.city || 'the area'} for quality and care.`;
+  const ctaText         = enrichedCopy?.cta_text         || biz.cta_text         || 'Call us today to learn more about what we can do for you.';
+
+  // Team
+  const team1Name = extractTeamName(biz);
+  const team1Initial = team1Name[0]?.toUpperCase() || '?';
+  const team2Block = ''; // No second stylist data in current schema — placeholder renders empty
 
   const vars: Record<string, string> = {
     BUSINESS_NAME:   biz.business_name,
@@ -178,15 +231,19 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     COLOR_PRIMARY:   colorPrimary,
     COLOR_ACCENT:    colorAccent,
     HERO_IMAGE:      photos[0] || fallbackImg,
-    HERO_HEADLINE:   biz.hero_headline || `Welcome to ${biz.business_name}`,
-    HERO_HEADLINE_EM: '',
+    HERO_HEADLINE:   heroHeadline,
+    HERO_HEADLINE_EM: heroHeadlineEm,
     HERO_HEADLINE_2: '',
-    HERO_SUBHEADLINE: biz.hero_subheadline || `Serving ${biz.city || 'the area'} with pride.`,
+    HERO_SUBHEADLINE: heroSub,
     ABOUT_HEADLINE:  `About ${biz.business_name}`,
-    ABOUT_TEXT:      biz.about_text || `${biz.business_name} — serving ${biz.city || 'the community'} with pride`,
-    ABOUT_TEXT_2:    (biz as any).about_text_2 || `${biz.business_name} has built a strong reputation in ${biz.city || 'the area'} for quality and care.`,
-    CTA_TEXT:        biz.cta_text || `Call us today to learn more about what we can do for you.`,
+    ABOUT_TEXT:      aboutText,
+    ABOUT_TEXT_2:    aboutText2,
+    CTA_TEXT:        ctaText,
     YEARS_IN_BIZ:    biz.years_in_business || '5',
+    // Team (salon/barber)
+    TEAM_1:          team1Name,
+    TEAM_1_INITIAL:  team1Initial,
+    TEAM_2_BLOCK:    team2Block,
     JOBS_DONE:       '200',
     MEMBER_COUNT:    '150',
     CLASS_COUNT:     '30',
@@ -213,6 +270,11 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     SERVICE_4: services[3]?.name || 'Emergency Service',
     SERVICE_4_DESC: services[3]?.desc || '',
     SERVICE_4_PRICE: services[3]?.price || '',
+    // Service durations (rule-based — used in salon booking widget)
+    SERVICE_1_DURATION: estimateDuration(services[0]?.name || ''),
+    SERVICE_2_DURATION: estimateDuration(services[1]?.name || ''),
+    SERVICE_3_DURATION: estimateDuration(services[2]?.name || ''),
+    SERVICE_4_DURATION: estimateDuration(services[3]?.name || ''),
     // Reviews (up to 3)
     REVIEW_1: reviews[0]?.text || 'Absolutely fantastic service. Highly recommend!',
     REVIEWER_1: reviews[0]?.author || 'Google Reviewer',
@@ -234,8 +296,8 @@ function buildVars(biz: LocalBizData): Record<string, string> {
     TRAINER_1: 'Head Trainer', TRAINER_1_TITLE: 'Certified Personal Trainer', TRAINER_1_BIO: '',
     TRAINER_2: 'Group Instructor', TRAINER_2_TITLE: 'Yoga & Pilates Instructor', TRAINER_2_BIO: '',
     TRAINER_3: 'Strength Coach', TRAINER_3_TITLE: 'Strength & Conditioning', TRAINER_3_BIO: '',
-    // Professional placeholders
-    TEAM_1: 'Principal', TEAM_1_TITLE: 'Founder & Lead Professional', TEAM_1_BIO: '', TEAM_1_CRED: 'Licensed',
+    // Professional placeholders (TEAM_1 name already set above)
+    TEAM_1_TITLE: 'Founder & Lead Professional', TEAM_1_BIO: '', TEAM_1_CRED: 'Licensed',
     TEAM_2: 'Associate', TEAM_2_TITLE: 'Senior Associate', TEAM_2_BIO: '', TEAM_2_CRED: 'Certified',
     // Retail placeholders
     PRODUCT_1: 'Featured Item', PRODUCT_1_DESC: '', PRODUCT_1_PRICE: '',
@@ -259,7 +321,7 @@ function buildVars(biz: LocalBizData): Record<string, string> {
  * Build a website demo page for a local business.
  * Returns the landing_pages.id (used as the URL path segment).
  */
-export async function buildWebsiteDemo(biz: LocalBizData): Promise<string> {
+export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Promise<string> {
   const templateFile = selectTemplate(biz.business_type);
   const templatePath = path.join(TEMPLATES_DIR, templateFile);
 
@@ -267,20 +329,20 @@ export async function buildWebsiteDemo(biz: LocalBizData): Promise<string> {
     throw new Error(`Template not found: ${templatePath}. Run template builder first.`);
   }
 
-  const templateHtml = fs.readFileSync(templatePath, 'utf-8');
-  const vars = buildVars(biz);
-  const finalHtml = applyData(templateHtml, vars);
-
-  // Insert into landing_pages — use Nexorra agency account_id for local biz demos
+  // Generate slug FIRST so BASE_URL can be injected into the HTML
   const NEXORRA_ACCOUNT_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
-
-  // Generate a URL-safe slug from business name + random suffix
   const slugBase = biz.business_name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
   const slug = `demo-${slugBase}-${Date.now().toString(36)}`;
+
+  const templateHtml = fs.readFileSync(templatePath, 'utf-8');
+  const vars = buildVars(biz, enrichedCopy);
+  // Inject BASE_URL so nav links like {{BASE_URL}}/services resolve correctly
+  vars.BASE_URL = `/website-demo/${slug}`;
+  const finalHtml = applyData(templateHtml, vars);
 
   const { data: page, error } = await supabaseAdmin
     .from('landing_pages')
@@ -294,19 +356,20 @@ export async function buildWebsiteDemo(biz: LocalBizData): Promise<string> {
       meta_title: `${biz.business_name} | ${biz.city || ''} ${biz.business_type}`,
       meta_description: `${biz.business_name} — ${biz.hero_subheadline || `Serving ${biz.city || 'the area'}.`}`,
     })
-    .select('id')
+    .select('id, slug')
     .single();
 
   if (error || !page) {
     throw new Error(`Failed to insert landing page: ${error?.message}`);
   }
 
-  // Update local_biz_leads.demo_page_id
+  // Update local_biz_leads.demo_page_id with UUID (FK)
   await supabaseAdmin
     .from('local_biz_leads')
     .update({ demo_page_id: page.id })
     .eq('id', biz.id);
 
-  console.log(`[website-demo-builder] Built demo for ${biz.business_name}: /website-demo/${page.id}`);
-  return page.id;
+  console.log(`[website-demo-builder] Built demo for ${biz.business_name}: /website-demo/${page.slug}`);
+  // Return slug — the /website-demo/[id] route queries by slug
+  return page.slug;
 }
