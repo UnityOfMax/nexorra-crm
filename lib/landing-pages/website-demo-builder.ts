@@ -343,14 +343,14 @@ export function extractTeamFromReviews(
   const SKIP = new Set(['The', 'And', 'But', 'She', 'He', 'They', 'Was', 'Has', 'Her', 'His', 'You', 'We', 'My', 'Our', 'Your']);
   for (const r of reviews) {
     // Pattern 1: "my stylist Brianna", "stylist is Jamie"
-    const m1 = r.text.matchAll(/(?:stylist|hairdress\w*|cut|shampoo|wash|trainer|instructor)\s+(?:is\s+)?([A-Z][a-z]{2,12})/g);
-    for (const m of m1) { if (!SKIP.has(m[1])) names.add(m[1]); }
+    const re1 = /(?:stylist|hairdress\w*|cut|shampoo|wash|trainer|instructor)\s+(?:is\s+)?([A-Z][a-z]{2,12})/g;
+    let m1; while ((m1 = re1.exec(r.text)) !== null) { if (!SKIP.has(m1[1])) names.add(m1[1]); }
     // Pattern 2: "Brianna was amazing", "Jamie did my hair"
-    const m2 = r.text.matchAll(/([A-Z][a-z]{2,12})\s+(?:was|did|is|has|always|who|made|gave|helped|cut|styled|worked)/g);
-    for (const m of m2) { if (!SKIP.has(m[1])) names.add(m[1]); }
+    const re2 = /([A-Z][a-z]{2,12})\s+(?:was|did|is|has|always|who|made|gave|helped|cut|styled|worked)/g;
+    let m2; while ((m2 = re2.exec(r.text)) !== null) { if (!SKIP.has(m2[1])) names.add(m2[1]); }
     // Pattern 3: "ask for Brianna"
-    const m3 = r.text.matchAll(/ask\s+for\s+([A-Z][a-z]{2,12})/g);
-    for (const m of m3) { if (!SKIP.has(m[1])) names.add(m[1]); }
+    const re3 = /ask\s+for\s+([A-Z][a-z]{2,12})/g;
+    let m3; while ((m3 = re3.exec(r.text)) !== null) { if (!SKIP.has(m3[1])) names.add(m3[1]); }
   }
   const defaultRole = category === 'fitness' ? 'Trainer' : 'Stylist';
   return Array.from(names).slice(0, 4).map(name => ({ name, role: defaultRole }));
