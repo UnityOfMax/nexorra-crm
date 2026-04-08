@@ -56,7 +56,7 @@ const STEPHANIE_MESSAGES: SpecialMessage[] = [
   },
   {
     id: 'sc-4', from: 'agent', type: 'text',
-    text: "Westlake is a great call for schools. Quick question — are you pre-approved yet, or still figuring out the budget side of things?",
+    text: "Westlake is a solid choice, especially for schools. Quick question though, are you pre-approved yet or still working out the budget side of things?",
     time: '10:18 AM',
   },
   {
@@ -66,7 +66,7 @@ const STEPHANIE_MESSAGES: SpecialMessage[] = [
   },
   {
     id: 'sc-6', from: 'agent', type: 'text',
-    text: "That's totally fine, you don't need it before we chat. I can walk you through the whole thing on a quick call. Takes about 20 minutes and you'll leave knowing exactly what your next step is.",
+    text: "No worries at all, you don't need it before we talk. Happy to walk you through the whole process on a quick call. 20 minutes and you'll know exactly where to start.",
     time: '10:21 AM',
   },
   {
@@ -86,12 +86,12 @@ const STEPHANIE_MESSAGES: SpecialMessage[] = [
   },
   {
     id: 'sc-10', from: 'agent', type: 'call',
-    callDuration: '18:42',
+    callDuration: '4:51',
     time: '2:01 PM',
   },
   {
     id: 'sc-11', from: 'agent', type: 'text',
-    text: "Really enjoyed talking with you both. Just to recap — you're looking in the $520-580k range, Westlake or Bee Cave, and ideally in before the school year starts. I'll send over a few listings tonight that match.",
+    text: "Really enjoyed talking with you both. So you're looking in the $520-580k range, Westlake or Bee Cave, and ideally in before the school year. I'll pull some listings tonight that fit and send them over.",
     time: '2:21 PM',
   },
   {
@@ -101,7 +101,7 @@ const STEPHANIE_MESSAGES: SpecialMessage[] = [
   },
   {
     id: 'sc-13', from: 'agent', type: 'text',
-    text: "Before I go — want to lock in a proper consultation so we can go through those listings together? I can get you in this coming Tuesday at 10am.",
+    text: "One more thing before we hang up. Want to lock in a proper sit down so we can go through those listings together? I can get you in Tuesday at 10am.",
     time: '2:35 PM',
   },
   {
@@ -403,39 +403,35 @@ function CallRecordingBubble({ duration, isAgent }: { duration: string; isAgent:
   );
 }
 
-// ── Booking confirmation notification ────────────────────────────────────────
+// ── Booking confirmation box ─────────────────────────────────────────────────
 function BookingConfirmedBubble({ name, date, time }: { name: string; date: string; time: string }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[80%]">
-        <div className="rounded-2xl rounded-br-sm overflow-hidden border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/20">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 dark:bg-emerald-500/15 border-b border-emerald-200 dark:border-emerald-500/20">
-            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Lead Booking Confirmed</p>
-          </div>
-          <div className="px-4 py-3 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Client</p>
-              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{name}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Date</p>
-              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{date}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Time</p>
-              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{time}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Type</p>
-              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">Buyer Consultation</p>
-            </div>
-          </div>
-          <div className="px-4 py-2 bg-emerald-500/10 dark:bg-emerald-500/10 border-t border-emerald-200 dark:border-emerald-500/20">
-            <p className="text-[10px] text-emerald-600 dark:text-emerald-500">Booked by AI assistant. Calendar invite sent.</p>
-          </div>
+    <div className="w-full rounded-xl overflow-hidden border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/20 my-2">
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 dark:bg-emerald-500/15 border-b border-emerald-200 dark:border-emerald-500/20">
+        <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Lead Booking Confirmed</p>
+        <span className="ml-auto text-[10px] text-emerald-600 dark:text-emerald-500">Today 2:38 PM</span>
+      </div>
+      <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
+        <div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-500 uppercase tracking-wide mb-0.5">Client</p>
+          <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{name}</p>
         </div>
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 text-right">Today 2:38 PM</p>
+        <div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-500 uppercase tracking-wide mb-0.5">Type</p>
+          <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">Buyer Consultation</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-500 uppercase tracking-wide mb-0.5">Date</p>
+          <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{date}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-500 uppercase tracking-wide mb-0.5">Time</p>
+          <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{time}</p>
+        </div>
+      </div>
+      <div className="px-4 py-2 bg-emerald-500/10 dark:bg-emerald-500/10 border-t border-emerald-200 dark:border-emerald-500/20">
+        <p className="text-[10px] text-emerald-600 dark:text-emerald-500">Booked by AI assistant. Calendar invite sent.</p>
       </div>
     </div>
   );
@@ -540,12 +536,13 @@ function MockConversations({ slug }: { slug: string }) {
 
                   if (msg.type === 'booking') {
                     return (
-                      <BookingConfirmedBubble
-                        key={msg.id}
-                        name={msg.bookingName!}
-                        date={msg.bookingDate!}
-                        time={msg.bookingTime!}
-                      />
+                      <div key={msg.id}>
+                        <BookingConfirmedBubble
+                          name={msg.bookingName!}
+                          date={msg.bookingDate!}
+                          time={msg.bookingTime!}
+                        />
+                      </div>
                     );
                   }
 
