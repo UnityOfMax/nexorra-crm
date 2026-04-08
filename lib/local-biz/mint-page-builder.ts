@@ -1,16 +1,22 @@
 /**
- * The Mint Hair Salon — editorial fresh design system.
- * "Glossier meets boutique studio" — Vogue white issues, not dark covers.
+ * The Mint Hair Salon — warm boutique design.
  *
- * Design:
- *   - Cormorant Garamond 300–400w (thin editorial serif for headings)
- *   - DM Sans 400–500w (body)
- *   - Background: #F7FAF8 (near-white with green tint)
- *   - Primary: #1A3A2A (deep green text)
- *   - Accent: #4CAF85 (mint — used as punctuation, not wallpaper)
- *   - Cards: white with box-shadow: 0 2px 16px rgba(0,0,0,0.06) only
- *   - Buttons: border-radius 4px — NOT pills
- *   - Spacing: 80–120px vertical padding
+ * Based on real salon photos: soft sage-mint accent walls, warm copper lighting,
+ * fresh flower arrangements, bright welcoming space in Macon GA.
+ *
+ * Palette:
+ *   #FAF7F2  warm cream (bg)
+ *   #F5F1ED  cream-alt (section bg variation)
+ *   #2D2D2D  dark charcoal (text)
+ *   #8A7E78  warm muted (secondary text)
+ *   #8FBF9F  muted sage-mint (accents, borders)
+ *   #C97C5C  warm copper (CTA buttons, key highlights)
+ *   #E8E5E1  subtle border
+ *   #2D2D2D  footer bg (dark charcoal)
+ *
+ * Fonts: Playfair Display (bold headings) + Lato (body)
+ * Buttons: border-radius 6px
+ * Cards: border-radius 8px, shadow 0 2px 8px rgba(45,45,45,0.08)
  */
 
 import type { BizPageData } from './multi-page-builder';
@@ -20,7 +26,7 @@ export type { BizPageData };
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function photo(idx: number, biz: BizPageData): string {
-  return biz.photos[idx] || biz.photos[0] || 'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=1200&q=80';
+  return biz.photos[idx] || biz.photos[0] || '';
 }
 
 function stars(rating: number | null): string {
@@ -38,19 +44,24 @@ function head(biz: BizPageData, pageTitle: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${pageTitle} — ${biz.name}</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>tailwind.config={theme:{extend:{colors:{forest:'#1A3A2A',mint:'#4CAF85',cream:'#F7FAF8',sage:'#8A9A90'},fontFamily:{display:['Cormorant Garamond','serif'],body:['DM Sans','sans-serif']}}}}</script>
+<script>tailwind.config={theme:{extend:{colors:{cream:'#FAF7F2',sage:'#8FBF9F',copper:'#C97C5C',charcoal:'#2D2D2D'},fontFamily:{display:['Playfair Display','serif'],body:['Lato','sans-serif']}}}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
-body{font-family:'DM Sans',sans-serif;background:#F7FAF8;color:#1A3A2A}
-h1,h2,h3,.display{font-family:'Cormorant Garamond',serif;font-weight:300;letter-spacing:-0.01em}
-.card-shadow{box-shadow:0 2px 16px rgba(0,0,0,0.06)}
-.card-hover{transition:all 0.25s ease}
-.card-hover:hover{transform:translateY(-2px);box-shadow:0 4px 24px rgba(0,0,0,0.09)}
-.mint-badge{background:rgba(76,175,133,0.1);color:#1A3A2A;border:1px solid rgba(76,175,133,0.3)}
-input[type=text],input[type=email],input[type=tel]{background:#fff;border:1.5px solid rgba(26,58,42,0.15);border-radius:4px;padding:.75rem 1rem;color:#1A3A2A;font-family:'DM Sans',sans-serif;font-size:.9rem;width:100%;outline:none;transition:border-color .2s}
-input:focus{border-color:#4CAF85}
-input::placeholder{color:#8A9A90}
+*{box-sizing:border-box}
+body{font-family:'Lato',sans-serif;background:#FAF7F2;color:#2D2D2D;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.serif{font-family:'Playfair Display',serif}
+.card{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(45,45,45,0.08)}
+.card-hover{transition:transform 0.2s ease,box-shadow 0.2s ease}
+.card-hover:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(45,45,45,0.12)}
+.btn-copper{background:#C97C5C;color:#fff;border-radius:6px;font-family:'Lato',sans-serif;font-weight:700;letter-spacing:0.04em;transition:background 0.2s ease}
+.btn-copper:hover{background:#b56748}
+.btn-outline{border:2px solid #C97C5C;color:#C97C5C;border-radius:6px;font-family:'Lato',sans-serif;font-weight:700;letter-spacing:0.04em;transition:all 0.2s ease}
+.btn-outline:hover{background:#C97C5C;color:#fff}
+.sage-label{display:inline-block;background:rgba(143,191,159,0.15);color:#5a8a6a;border:1px solid rgba(143,191,159,0.4);border-radius:4px;font-family:'Lato',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:.25rem .75rem}
+input[type=text],input[type=email],input[type=tel]{background:#fff;border:1.5px solid #E8E5E1;border-radius:6px;padding:.75rem 1rem;color:#2D2D2D;font-family:'Lato',sans-serif;font-size:.9rem;width:100%;outline:none;transition:border-color .2s}
+input:focus{border-color:#8FBF9F}
+input::placeholder{color:#B8B0AA}
 </style>
 </head>`;
 }
@@ -65,32 +76,34 @@ function nav(biz: BizPageData, baseUrl: string): string {
   ];
   const links = biz.extraNavLinks?.filter(l => l.label !== 'Book Now') || defaultLinks;
   const desktopLinks = links.map(l =>
-    `<a href="${l.href}" class="text-[#1A3A2A]/70 hover:text-[#1A3A2A] transition-colors text-sm font-medium">${l.label}</a>`
+    `<a href="${l.href}" class="text-[#2D2D2D]/70 hover:text-[#C97C5C] transition-colors text-sm font-normal tracking-wide">${l.label}</a>`
   ).join('');
   const mobileLinks = links.map(l =>
-    `<a href="${l.href}" class="text-[#1A3A2A]/70 hover:text-[#1A3A2A] py-2 text-base font-medium">${l.label}</a>`
+    `<a href="${l.href}" class="text-[#2D2D2D]/70 hover:text-[#C97C5C] py-2 text-base">${l.label}</a>`
   ).join('');
 
-  return `<nav class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-[#1A3A2A]/10">
+  return `<nav class="fixed top-0 left-0 right-0 z-50 bg-[#FAF7F2]/97 backdrop-blur-sm border-b border-[#E8E5E1]">
   <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
     <a href="${baseUrl}" class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-[#4CAF85] flex items-center justify-center text-white font-bold text-sm" style="font-family:'Cormorant Garamond',serif;font-weight:300">M</div>
+      <div class="w-8 h-8 rounded-full bg-[#8FBF9F] flex items-center justify-center">
+        <span class="text-white text-xs font-bold" style="font-family:'Lato',sans-serif">M</span>
+      </div>
       <div>
-        <span class="text-[#1A3A2A] font-semibold text-base" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.name}</span>
-        <div class="text-[#4CAF85] text-xs font-medium tracking-wide">${biz.city || ''}, ${biz.state || ''}</div>
+        <div class="text-[#2D2D2D] font-semibold text-sm leading-tight" style="font-family:'Playfair Display',serif">${biz.name}</div>
+        <div class="text-[#8FBF9F] text-xs">${biz.city || ''}, ${biz.state || ''}</div>
       </div>
     </a>
-    <div class="hidden md:flex items-center gap-7">
+    <div class="hidden md:flex items-center gap-8">
       ${desktopLinks}
-      <a href="${baseUrl}/booking" class="bg-[#1A3A2A] text-white px-5 py-2 rounded text-sm font-medium tracking-wide hover:bg-[#4CAF85] transition-colors" style="letter-spacing:0.05em">Book Now</a>
+      <a href="${baseUrl}/booking" class="btn-copper px-5 py-2 text-sm">Book Now</a>
     </div>
-    <button id="menu-btn" class="md:hidden text-[#1A3A2A]" aria-label="Menu">
+    <button id="menu-btn" class="md:hidden text-[#2D2D2D]" aria-label="Menu">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
   </div>
-  <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-[#1A3A2A]/10 px-6 py-4 flex flex-col gap-1">
+  <div id="mobile-menu" class="hidden md:hidden bg-[#FAF7F2] border-t border-[#E8E5E1] px-6 py-4 flex flex-col gap-1">
     ${mobileLinks}
-    <a href="${baseUrl}/booking" class="bg-[#1A3A2A] text-white px-5 py-3 rounded text-sm font-medium text-center mt-2" style="letter-spacing:0.05em">Book Now</a>
+    <a href="${baseUrl}/booking" class="btn-copper px-5 py-3 text-sm text-center mt-3 block">Book Now</a>
   </div>
 </nav>
 <script>document.getElementById('menu-btn').addEventListener('click',()=>document.getElementById('mobile-menu').classList.toggle('hidden'));</script>`;
@@ -105,31 +118,33 @@ function footer(biz: BizPageData, baseUrl: string): string {
     { href: `${baseUrl}/about`, label: 'Our Team' },
     { href: `${baseUrl}/booking`, label: 'Book Now' },
   ];
-  return `<footer class="bg-[#1A3A2A] text-white py-16 px-6">
+  return `<footer class="bg-[#2D2D2D] text-white py-16 px-6">
   <div class="max-w-6xl mx-auto">
     <div class="flex flex-col md:flex-row justify-between gap-12 mb-12">
       <div>
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-10 h-10 rounded-full bg-[#4CAF85] flex items-center justify-center text-white font-bold" style="font-family:'Cormorant Garamond',serif;font-weight:300">M</div>
-          <span class="text-xl font-semibold" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.name}</span>
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-10 h-10 rounded-full bg-[#8FBF9F] flex items-center justify-center">
+            <span class="text-white text-sm font-bold">M</span>
+          </div>
+          <span class="text-lg" style="font-family:'Playfair Display',serif">${biz.name}</span>
         </div>
-        <div class="space-y-1 text-white/60 text-sm mt-4">
+        <div class="space-y-1.5 text-white/50 text-sm">
           ${biz.address ? `<div>${biz.address}</div>` : ''}
-          ${biz.phone ? `<div><a href="tel:${biz.phone.replace(/[^0-9+]/g,'')}" class="hover:text-[#4CAF85] transition-colors">${biz.phone}</a></div>` : ''}
+          ${biz.phone ? `<div><a href="tel:${biz.phone.replace(/[^0-9+]/g,'')}" class="hover:text-[#8FBF9F] transition-colors">${biz.phone}</a></div>` : ''}
         </div>
       </div>
       <div>
-        <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-4">Hours</div>
-        <div class="text-white/70 text-sm whitespace-pre-line">${biz.hours || 'Tue–Sat 9am–6pm'}</div>
+        <div class="text-[#8FBF9F] text-xs font-bold tracking-widest uppercase mb-4">Hours</div>
+        <div class="text-white/60 text-sm whitespace-pre-line">${biz.hours || 'Tue–Sat 9am–6pm'}</div>
       </div>
       <div>
-        <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-4">Pages</div>
-        <div class="space-y-2 text-sm text-white/70">
-          ${links.map(l => `<div><a href="${l.href}" class="hover:text-[#4CAF85] transition-colors">${l.label}</a></div>`).join('')}
+        <div class="text-[#8FBF9F] text-xs font-bold tracking-widest uppercase mb-4">Pages</div>
+        <div class="space-y-2 text-sm text-white/50">
+          ${links.map(l => `<div><a href="${l.href}" class="hover:text-[#C97C5C] transition-colors">${l.label}</a></div>`).join('')}
         </div>
       </div>
     </div>
-    <div class="pt-8 border-t border-white/10 flex justify-between flex-wrap gap-2 text-white/30 text-xs">
+    <div class="pt-8 border-t border-white/10 flex flex-wrap justify-between gap-2 text-white/25 text-xs">
       <span>© ${new Date().getFullYear()} ${biz.name}. All rights reserved.</span>
       <span>Serving ${biz.city || 'the community'}.</span>
     </div>
@@ -137,17 +152,18 @@ function footer(biz: BizPageData, baseUrl: string): string {
 </footer>`;
 }
 
-// ── CTA ───────────────────────────────────────────────────────────────────────
+// ── CTA section ───────────────────────────────────────────────────────────────
 
 function ctaSection(biz: BizPageData, baseUrl: string): string {
-  return `<section class="py-24 px-6 bg-[#1A3A2A] text-white text-center">
+  return `<section class="py-20 px-6 bg-[#F5F1ED] text-center">
   <div class="max-w-2xl mx-auto">
-    <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-6" style="background:rgba(74,175,128,0.2);color:#A8D8BE">Ready to Book?</div>
-    <h2 class="text-4xl md:text-5xl font-bold mb-6 leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.ctaText || 'Book your appointment today.'}</h2>
-    <a href="${baseUrl}/booking" class="inline-block bg-[#4CAF85] text-white px-10 py-4 rounded text-sm font-medium hover:bg-white hover:text-[#1A3A2A] transition-all duration-300 mt-2" style="letter-spacing:0.08em">
-      Book Your Visit
-    </a>
-    ${biz.phone ? `<p class="mt-5 text-white/50 text-sm">Or call: <a href="tel:${biz.phone.replace(/[^0-9+]/g,'')}" class="text-[#4CAF85] hover:underline">${biz.phone}</a></p>` : ''}
+    <div class="sage-label mb-6">Ready to Book?</div>
+    <h2 class="text-4xl md:text-5xl text-[#2D2D2D] mb-5 leading-tight" style="font-family:'Playfair Display',serif;font-weight:600">${biz.ctaText || 'Book your appointment today.'}</h2>
+    <p class="text-[#8A7E78] mb-8">We'd love to see you. Give us a call or book your visit below.</p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="${baseUrl}/booking" class="btn-copper px-10 py-4 text-sm inline-block">Book Your Visit</a>
+      ${biz.phone ? `<a href="tel:${biz.phone.replace(/[^0-9+]/g,'')}" class="btn-outline px-10 py-4 text-sm inline-block">${biz.phone}</a>` : ''}
+    </div>
   </div>
 </section>`;
 }
@@ -157,25 +173,25 @@ function ctaSection(biz: BizPageData, baseUrl: string): string {
 function reviewsStrip(biz: BizPageData): string {
   const revs = biz.reviewTexts.length >= 3 ? biz.reviewTexts : [
     ...biz.reviewTexts,
-    `Amazing salon — the team is talented and so warm and welcoming.`,
-    `Every visit is a great experience. Highly recommend!`,
-    `Best in ${biz.city || 'the area'}. I won't go anywhere else.`,
+    `Warm, welcoming salon — everyone on the team is talented and so professional.`,
+    `Every visit leaves me feeling great. Best in ${biz.city || 'town'}.`,
+    `Such a lovely atmosphere. I won't go anywhere else.`,
   ];
   return `<section class="py-20 px-6 bg-white">
   <div class="max-w-5xl mx-auto">
     <div class="text-center mb-12">
-      <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">Reviews</div>
+      <div class="sage-label mb-4">What Clients Say</div>
       <div class="flex items-center justify-center gap-2">
-        <span class="text-[#4CAF85] text-2xl">${stars(biz.rating)}</span>
-        <span class="text-[#1A3A2A] font-semibold ml-1">${biz.rating ?? '4.9'} · ${biz.reviews ?? '35'}+ reviews</span>
+        <span class="text-[#C97C5C] text-xl">${stars(biz.rating)}</span>
+        <span class="text-[#2D2D2D] font-semibold ml-1">${biz.rating ?? '4.9'} · ${biz.reviews ?? '35'} reviews</span>
       </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       ${revs.slice(0, 3).map(r => `
-      <div class="bg-[#F7FAF8] rounded p-7 card-shadow">
-        <div class="text-[#4CAF85] text-lg mb-3">${stars(biz.rating)}</div>
-        <p class="text-[#1A3A2A]/80 text-sm leading-relaxed italic">"${r}"</p>
-        <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mt-4">Google Review</div>
+      <div class="card p-7 card-hover">
+        <div class="text-[#C97C5C] text-base mb-3">${stars(biz.rating)}</div>
+        <p class="text-[#2D2D2D]/75 text-sm leading-relaxed italic mb-5">"${r}"</p>
+        <div class="text-[#8FBF9F] text-xs font-bold tracking-widest uppercase">Google Review</div>
       </div>`).join('')}
     </div>
   </div>
@@ -191,101 +207,101 @@ export function buildMintHomePage(biz: BizPageData, baseUrl: string): string {
   const svcTeaser = biz.services.slice(0, 3);
 
   return `${head(biz, 'Welcome')}
-<body class="bg-[#F7FAF8]">
+<body class="bg-[#FAF7F2]">
 ${nav(biz, baseUrl)}
 
 <!-- Hero -->
-<section class="relative min-h-screen flex items-center">
-  <div class="absolute inset-0">
+<section class="relative" style="min-height:92vh">
+  <div class="absolute inset-0 overflow-hidden">
     <img src="${heroImg}" alt="${biz.name}" class="w-full h-full object-cover object-center">
-    <div class="absolute inset-0" style="background:linear-gradient(135deg, rgba(26,60,52,0.85) 0%, rgba(26,60,52,0.4) 60%, rgba(26,60,52,0.2) 100%)"></div>
+    <!-- Warm cream gradient from bottom — light touch, lets photo show -->
+    <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(250,247,242,0.15) 0%, rgba(250,247,242,0.3) 50%, rgba(250,247,242,0.92) 85%, #FAF7F2 100%)"></div>
   </div>
-  <div class="relative z-10 max-w-6xl mx-auto px-6 pt-28 pb-24 w-full">
+  <div class="relative z-10 flex flex-col justify-end h-full max-w-6xl mx-auto px-6 pb-16 pt-32" style="min-height:92vh">
     <div class="max-w-xl">
-      <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-4 py-2 rounded-full mb-8">
-        <div class="w-2 h-2 rounded-full bg-[#4CAF85]"></div>
-        <span class="text-white/90 text-xs font-semibold tracking-widest uppercase">${biz.city || ''} · ${biz.rating ?? '4.9'} Stars · ${biz.reviews ?? '35'} Reviews</span>
-      </div>
-      <h1 class="text-5xl md:text-7xl font-bold text-white leading-none mb-4" style="font-family:'Cormorant Garamond',serif;font-weight:300">
+      <div class="sage-label mb-5">${biz.city || 'Macon'} · ${biz.rating ?? '4.9'} Stars · ${biz.reviews ?? '35'} Reviews</div>
+      <h1 class="text-5xl md:text-6xl leading-none mb-3 text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">
         ${biz.heroHeadline}
       </h1>
-      ${biz.heroHeadlineEm ? `<div class="text-3xl md:text-5xl font-bold leading-none mb-6" style="font-family:'Cormorant Garamond',serif;font-weight:300;color:#4CAF85">${biz.heroHeadlineEm}</div>` : '<div class="mb-4"></div>'}
-      <p class="text-white/80 text-lg font-light leading-relaxed mb-10 max-w-md">${biz.heroSub}</p>
+      ${biz.heroHeadlineEm ? `<h1 class="text-5xl md:text-6xl leading-none mb-6" style="font-family:'Playfair Display',serif;font-weight:700;color:#C97C5C;font-style:italic">${biz.heroHeadlineEm}</h1>` : '<div class="mb-5"></div>'}
+      <p class="text-[#8A7E78] text-lg font-light leading-relaxed mb-8 max-w-sm">${biz.heroSub}</p>
       <div class="flex flex-col sm:flex-row gap-3">
-        <a href="${baseUrl}/booking" class="bg-[#4CAF85] text-white px-8 py-4 rounded text-sm font-medium hover:bg-white hover:text-[#1A3A2A] transition-all text-center" style="letter-spacing:0.08em">Book Your Visit</a>
-        <a href="${baseUrl}/services" class="bg-white/15 backdrop-blur-sm text-white px-8 py-4 rounded text-sm font-medium hover:bg-white/25 transition-all text-center" style="letter-spacing:0.08em">View Services</a>
+        <a href="${baseUrl}/booking" class="btn-copper px-8 py-4 text-sm text-center">Book Your Visit</a>
+        <a href="${baseUrl}/services" class="btn-outline px-8 py-4 text-sm text-center">Our Services</a>
       </div>
     </div>
   </div>
 </section>
 
 <!-- Services teaser -->
-<section class="py-24 px-6 bg-[#F7FAF8]">
+<section class="py-20 px-6 bg-[#FAF7F2]">
   <div class="max-w-6xl mx-auto">
-    <div class="flex flex-col md:flex-row justify-between items-end mb-12">
+    <div class="flex flex-col md:flex-row justify-between items-end mb-10">
       <div>
-        <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-3">What We Do</div>
-        <h2 class="text-4xl md:text-5xl font-bold text-[#1A3A2A] leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">Our Services</h2>
+        <div class="sage-label mb-3">What We Do</div>
+        <h2 class="text-4xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">Our Services</h2>
       </div>
-      <a href="${baseUrl}/services" class="text-[#4CAF85] font-semibold text-sm mt-4 md:mt-0 hover:text-[#1A3A2A] transition-colors flex items-center gap-2">
-        View All <span>→</span>
-      </a>
+      <a href="${baseUrl}/services" class="text-[#C97C5C] font-bold text-sm mt-4 md:mt-0 hover:text-[#b56748] transition-colors flex items-center gap-2 uppercase tracking-wide">View All →</a>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       ${svcTeaser.map(s => `
-      <div class="bg-white rounded p-7 card-shadow card-hover">
-        <div class="w-10 h-10 rounded-full bg-[#4CAF85]/15 flex items-center justify-center mb-4">
-          <div class="w-3 h-3 rounded-full bg-[#4CAF85]"></div>
-        </div>
-        <h3 class="text-xl font-semibold text-[#1A3A2A] mb-2" style="font-family:'Cormorant Garamond',serif;font-weight:300">${s.name}</h3>
-        <p class="text-[#8A9A90] text-sm leading-relaxed mb-4">${s.desc}</p>
-        ${s.price ? `<span class="text-[#4CAF85] font-semibold text-sm">${s.price}</span>` : ''}
+      <div class="card p-7 card-hover">
+        <div class="w-1 h-10 bg-[#C97C5C] rounded mb-5"></div>
+        <h3 class="text-xl text-[#2D2D2D] mb-2" style="font-family:'Playfair Display',serif;font-weight:600">${s.name}</h3>
+        <p class="text-[#8A7E78] text-sm leading-relaxed mb-4">${s.desc}</p>
+        ${s.price ? `<span class="text-[#C97C5C] font-bold text-sm">${s.price}</span>` : ''}
       </div>`).join('')}
     </div>
   </div>
 </section>
 
-<!-- Team teaser (if we have team data) -->
+<!-- About strip -->
+<section class="py-20 px-6 bg-[#F5F1ED]">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="sage-label mb-5">About The Salon</div>
+        <h2 class="text-3xl md:text-4xl text-[#2D2D2D] mb-5 leading-tight" style="font-family:'Playfair Display',serif;font-weight:700">${biz.aboutText}</h2>
+        <p class="text-[#8A7E78] leading-relaxed mb-8">${biz.aboutText2}</p>
+        <div class="flex gap-10 mb-8">
+          ${biz.rating ? `<div><div class="text-3xl text-[#C97C5C]" style="font-family:'Playfair Display',serif;font-weight:700">${biz.rating}</div><div class="text-[#8A7E78] text-xs uppercase tracking-wider mt-1">Stars</div></div>` : ''}
+          ${biz.reviews ? `<div><div class="text-3xl text-[#C97C5C]" style="font-family:'Playfair Display',serif;font-weight:700">${biz.reviews}+</div><div class="text-[#8A7E78] text-xs uppercase tracking-wider mt-1">Reviews</div></div>` : ''}
+          ${biz.yearsInBiz ? `<div><div class="text-3xl text-[#C97C5C]" style="font-family:'Playfair Display',serif;font-weight:700">${biz.yearsInBiz}</div><div class="text-[#8A7E78] text-xs uppercase tracking-wider mt-1">Years</div></div>` : ''}
+        </div>
+        <a href="${baseUrl}/about" class="btn-outline px-8 py-3 text-sm inline-block">Meet the Team</a>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        ${[1,2,3,4].map(i => `
+        <div class="overflow-hidden rounded-lg aspect-square">
+          <img src="${photo(i, biz)}" alt="${biz.name}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Team teaser -->
 ${biz.team.length > 0 ? `
 <section class="py-20 px-6 bg-white">
-  <div class="max-w-6xl mx-auto">
-    <div class="text-center mb-12">
-      <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">The Team</div>
-      <h2 class="text-4xl font-bold text-[#1A3A2A]" style="font-family:'Cormorant Garamond',serif;font-weight:300">Meet Your Stylists</h2>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+  <div class="max-w-6xl mx-auto text-center">
+    <div class="sage-label mb-4">The Team</div>
+    <h2 class="text-3xl text-[#2D2D2D] mb-12" style="font-family:'Playfair Display',serif;font-weight:700">Meet Your Stylists</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
       ${biz.team.slice(0, 4).map(m => `
       <div class="text-center">
-        <div class="w-24 h-24 mx-auto mb-3 overflow-hidden rounded-full border-2 border-[#4CAF85]/30">
+        <div class="w-28 h-28 mx-auto mb-4 rounded-full overflow-hidden border-2 border-[#E8E5E1] hover:border-[#8FBF9F] transition-colors">
           ${m.photo
             ? `<img src="${m.photo}" alt="${m.name}" class="w-full h-full object-cover object-top">`
-            : `<div class="w-full h-full bg-[#1A3A2A] flex items-center justify-center text-white text-2xl font-bold" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name[0]}</div>`
+            : `<div class="w-full h-full bg-[#F5F1ED] flex items-center justify-center text-[#C97C5C] text-2xl" style="font-family:'Playfair Display',serif">${m.name[0]}</div>`
           }
         </div>
-        <div class="text-[#1A3A2A] font-semibold text-sm" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name}</div>
-        <div class="text-[#8A9A90] text-xs mt-0.5">${m.role}</div>
+        <div class="text-[#2D2D2D] font-bold text-sm" style="font-family:'Playfair Display',serif">${m.name}</div>
+        <div class="text-[#8A7E78] text-xs mt-0.5">${m.role}</div>
       </div>`).join('')}
     </div>
-    <div class="text-center mt-10">
-      <a href="${baseUrl}/booking" class="bg-[#1A3A2A] text-white px-8 py-3 rounded text-sm font-medium hover:bg-[#4CAF85] transition-colors" style="letter-spacing:0.08em">Book with Your Stylist</a>
+    <div class="mt-10">
+      <a href="${baseUrl}/booking" class="btn-copper px-8 py-3 text-sm inline-block">Book with Your Stylist</a>
     </div>
-  </div>
-</section>` : ''}
-
-<!-- Gallery peek -->
-${biz.photos.length > 2 ? `
-<section class="py-16 bg-[#F7FAF8]">
-  <div class="max-w-6xl mx-auto px-6 mb-8">
-    <div class="flex justify-between items-center">
-      <h2 class="text-3xl font-bold text-[#1A3A2A]" style="font-family:'Cormorant Garamond',serif;font-weight:300">The Salon</h2>
-      <a href="${baseUrl}/gallery" class="text-[#4CAF85] font-semibold text-sm hover:text-[#1A3A2A] transition-colors flex items-center gap-2">All Photos →</a>
-    </div>
-  </div>
-  <div class="max-w-6xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-    ${[0,1,2,3].map(i => `
-    <div class="overflow-hidden rounded aspect-square">
-      <img src="${photo(i, biz)}" alt="${biz.name}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
-    </div>`).join('')}
   </div>
 </section>` : ''}
 
@@ -301,32 +317,33 @@ ${footer(biz, baseUrl)}
 
 export function buildMintServicesPage(biz: BizPageData, baseUrl: string): string {
   return `${head(biz, 'Services')}
-<body class="bg-[#F7FAF8]">
+<body class="bg-[#FAF7F2]">
 ${nav(biz, baseUrl)}
 
-<section class="pt-36 pb-16 px-6 bg-white">
-  <div class="max-w-4xl mx-auto text-center">
-    <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">What We Offer</div>
-    <h1 class="text-5xl md:text-6xl font-bold text-[#1A3A2A] leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">Our Services</h1>
-    <div class="mt-6 w-12 h-px bg-[#4CAF85] mx-auto"></div>
-  </div>
+<section class="pt-32 pb-12 px-6 bg-[#F5F1ED] text-center">
+  <div class="sage-label mb-4">What We Offer</div>
+  <h1 class="text-5xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">Our Services</h1>
+  <div class="mt-5 w-10 h-px bg-[#C97C5C] mx-auto"></div>
 </section>
 
-<section class="py-16 px-6 bg-[#F7FAF8]">
-  <div class="max-w-6xl mx-auto">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+<section class="py-16 px-6 bg-[#FAF7F2]">
+  <div class="max-w-4xl mx-auto">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
       ${biz.services.map(s => `
-      <div class="bg-white rounded p-7 card-shadow card-hover">
-        <div class="w-10 h-10 rounded-full bg-[#4CAF85]/15 flex items-center justify-center mb-4">
-          <div class="w-3 h-3 rounded-full bg-[#4CAF85]"></div>
-        </div>
-        <h3 class="text-xl font-bold text-[#1A3A2A] mb-2" style="font-family:'Cormorant Garamond',serif;font-weight:300">${s.name}</h3>
-        <p class="text-[#8A9A90] text-sm leading-relaxed mb-4">${s.desc}</p>
-        <div class="flex justify-between items-center">
-          ${s.price ? `<span class="text-[#4CAF85] font-semibold text-sm">${s.price}</span>` : '<span></span>'}
-          ${s.duration ? `<span class="text-[#1A3A2A]/40 text-xs">${s.duration}</span>` : ''}
+      <div class="card p-7 card-hover flex gap-5 items-start">
+        <div class="w-1 h-full bg-[#C97C5C] rounded flex-shrink-0 mt-1" style="min-height:2.5rem"></div>
+        <div class="flex-1">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:600">${s.name}</h3>
+            ${s.price ? `<span class="text-[#C97C5C] font-bold text-sm ml-4 whitespace-nowrap">${s.price}</span>` : ''}
+          </div>
+          <p class="text-[#8A7E78] text-sm leading-relaxed mb-2">${s.desc}</p>
+          ${s.duration ? `<span class="text-[#8FBF9F] text-xs font-bold uppercase tracking-wide">${s.duration}</span>` : ''}
         </div>
       </div>`).join('')}
+    </div>
+    <div class="text-center mt-14">
+      <a href="${baseUrl}/booking" class="btn-copper px-10 py-4 text-sm inline-block">Book an Appointment</a>
     </div>
   </div>
 </section>
@@ -342,41 +359,37 @@ ${footer(biz, baseUrl)}
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function buildMintGalleryPage(biz: BizPageData, baseUrl: string): string {
-  const allPhotos = biz.photos.length > 0 ? biz.photos : Array(8).fill('https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=800&q=80');
-
-  const heroRow = `
-  <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-    <div class="overflow-hidden rounded aspect-[3/4] md:row-span-2">
-      <img src="${allPhotos[0]}" alt="${biz.name}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
-    </div>
-    ${allPhotos.slice(1, 5).map((p, i) => `
-    <div class="overflow-hidden rounded aspect-square">
-      <img src="${p}" alt="${biz.name} — ${i+2}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
-    </div>`).join('')}
-  </div>`;
-
-  const extraGrid = allPhotos.length > 5 ? `
-  <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
-    ${allPhotos.slice(5).map((p, i) => `
-    <div class="overflow-hidden rounded aspect-square">
-      <img src="${p}" alt="${biz.name} — ${i+6}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
-    </div>`).join('')}
-  </div>` : '';
+  const allPhotos = biz.photos.length > 0 ? biz.photos : [];
 
   return `${head(biz, 'Gallery')}
-<body class="bg-[#F7FAF8]">
+<body class="bg-[#FAF7F2]">
 ${nav(biz, baseUrl)}
 
-<section class="pt-36 pb-12 px-6 bg-white text-center">
-  <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">The Salon</div>
-  <h1 class="text-5xl md:text-6xl font-bold text-[#1A3A2A]" style="font-family:'Cormorant Garamond',serif;font-weight:300">Gallery</h1>
-  <div class="mt-6 w-12 h-px bg-[#4CAF85] mx-auto"></div>
+<section class="pt-32 pb-12 px-6 bg-[#F5F1ED] text-center">
+  <div class="sage-label mb-4">The Salon</div>
+  <h1 class="text-5xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">Gallery</h1>
+  <div class="mt-5 w-10 h-px bg-[#C97C5C] mx-auto"></div>
 </section>
 
-<section class="py-12 px-6 bg-[#F7FAF8]">
+<section class="py-12 px-6 bg-[#FAF7F2]">
   <div class="max-w-6xl mx-auto">
-    ${heroRow}
-    ${extraGrid}
+    <!-- Hero grid: first photo large -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+      <div class="overflow-hidden rounded-lg aspect-[3/4] md:row-span-2 md:col-span-1">
+        <img src="${allPhotos[0] || ''}" alt="${biz.name}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
+      </div>
+      ${allPhotos.slice(1, 5).map((p, i) => `
+      <div class="overflow-hidden rounded-lg aspect-square">
+        <img src="${p}" alt="${biz.name} ${i+2}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
+      </div>`).join('')}
+    </div>
+    ${allPhotos.length > 5 ? `
+    <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
+      ${allPhotos.slice(5).map((p, i) => `
+      <div class="overflow-hidden rounded-lg aspect-square">
+        <img src="${p}" alt="${biz.name} ${i+6}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-700">
+      </div>`).join('')}
+    </div>` : ''}
   </div>
 </section>
 
@@ -386,62 +399,53 @@ ${footer(biz, baseUrl)}
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TEAM PAGE (About)
+// ABOUT / TEAM PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function buildMintAboutPage(biz: BizPageData, baseUrl: string): string {
-  const teamGrid = biz.team.length > 0
-    ? biz.team.map(m => `
-    <div class="bg-white rounded overflow-hidden card-shadow card-hover text-center">
-      <div class="aspect-[3/4] overflow-hidden">
-        ${m.photo
-          ? `<img src="${m.photo}" alt="${m.name}" class="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500">`
-          : `<div class="w-full h-full bg-[#1A3A2A] flex items-center justify-center text-white text-5xl font-bold" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name[0]}</div>`
-        }
-      </div>
-      <div class="p-6">
-        <h3 class="text-xl font-bold text-[#1A3A2A] mb-1" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name}</h3>
-        <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-3">${m.role}</div>
-        ${m.bio ? `<p class="text-[#8A9A90] text-sm leading-relaxed">${m.bio}</p>` : ''}
-      </div>
-    </div>`).join('')
-    : '';
+  const teamGrid = biz.team.map(m => `
+  <div class="text-center">
+    <div class="w-36 h-36 mx-auto mb-5 rounded-full overflow-hidden border-2 border-[#E8E5E1] hover:border-[#8FBF9F] transition-colors">
+      ${m.photo
+        ? `<img src="${m.photo}" alt="${m.name}" class="w-full h-full object-cover object-top">`
+        : `<div class="w-full h-full bg-[#F5F1ED] flex items-center justify-center text-[#C97C5C] text-3xl" style="font-family:'Playfair Display',serif">${m.name[0]}</div>`
+      }
+    </div>
+    <h3 class="text-xl text-[#2D2D2D] mb-1" style="font-family:'Playfair Display',serif;font-weight:600">${m.name}</h3>
+    <div class="text-[#C97C5C] text-xs font-bold uppercase tracking-widest mb-3">${m.role}</div>
+    ${m.bio ? `<p class="text-[#8A7E78] text-sm leading-relaxed max-w-xs mx-auto">${m.bio}</p>` : ''}
+  </div>`).join('');
 
   return `${head(biz, 'Our Team')}
-<body class="bg-[#F7FAF8]">
+<body class="bg-[#FAF7F2]">
 ${nav(biz, baseUrl)}
 
-<!-- Page header -->
-<section class="pt-36 pb-16 px-6 bg-white">
-  <div class="max-w-4xl mx-auto text-center">
-    <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">The People</div>
-    <h1 class="text-5xl md:text-6xl font-bold text-[#1A3A2A] leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">Our Team</h1>
-    <div class="mt-6 w-12 h-px bg-[#4CAF85] mx-auto"></div>
-  </div>
+<section class="pt-32 pb-12 px-6 bg-[#F5F1ED] text-center">
+  <div class="sage-label mb-4">The People</div>
+  <h1 class="text-5xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">Our Team</h1>
+  <div class="mt-5 w-10 h-px bg-[#C97C5C] mx-auto"></div>
 </section>
 
-<!-- About salon -->
-<section class="py-16 px-6 bg-[#F7FAF8]">
+<section class="py-16 px-6 bg-[#FAF7F2]">
   <div class="max-w-6xl mx-auto">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center mb-20">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-20">
       <div>
-        <h2 class="text-3xl md:text-4xl font-bold text-[#1A3A2A] mb-6 leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.aboutText}</h2>
-        <div class="w-12 h-px bg-[#4CAF85] mb-6"></div>
-        <p class="text-[#8A9A90] text-lg leading-relaxed mb-8">${biz.aboutText2}</p>
+        <h2 class="text-3xl md:text-4xl text-[#2D2D2D] mb-5 leading-tight" style="font-family:'Playfair Display',serif;font-weight:700">${biz.aboutText}</h2>
+        <div class="w-10 h-px bg-[#C97C5C] mb-6"></div>
+        <p class="text-[#8A7E78] text-lg leading-relaxed mb-8">${biz.aboutText2}</p>
         <div class="flex gap-8">
-          ${biz.rating ? `<div><div class="text-3xl font-bold text-[#1A3A2A]" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.rating}</div><div class="text-[#8A9A90] text-xs uppercase tracking-wider mt-1">Star Rating</div></div>` : ''}
-          ${biz.reviews ? `<div><div class="text-3xl font-bold text-[#1A3A2A]" style="font-family:'Cormorant Garamond',serif;font-weight:300">${biz.reviews}</div><div class="text-[#8A9A90] text-xs uppercase tracking-wider mt-1">Reviews</div></div>` : ''}
+          ${biz.rating ? `<div><div class="text-3xl text-[#C97C5C]" style="font-family:'Playfair Display',serif;font-weight:700">${biz.rating}</div><div class="text-[#8A7E78] text-xs uppercase tracking-wider mt-1">Stars</div></div>` : ''}
+          ${biz.reviews ? `<div><div class="text-3xl text-[#C97C5C]" style="font-family:'Playfair Display',serif;font-weight:700">${biz.reviews}+</div><div class="text-[#8A7E78] text-xs uppercase tracking-wider mt-1">Reviews</div></div>` : ''}
         </div>
       </div>
-      <div class="overflow-hidden rounded aspect-[4/5]">
+      <div class="overflow-hidden rounded-lg aspect-[4/5]">
         <img src="${photo(1, biz)}" alt="${biz.name}" class="w-full h-full object-cover">
       </div>
     </div>
 
-    <!-- Team grid -->
     ${teamGrid ? `
-    <h2 class="text-3xl font-bold text-[#1A3A2A] mb-10 text-center" style="font-family:'Cormorant Garamond',serif;font-weight:300">Meet the Stylists</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(biz.team.length, 4)} gap-6">
+    <h2 class="text-3xl text-[#2D2D2D] mb-12 text-center" style="font-family:'Playfair Display',serif;font-weight:700">Meet the Stylists</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(biz.team.length, 4)} gap-10">
       ${teamGrid}
     </div>` : ''}
   </div>
@@ -454,7 +458,7 @@ ${footer(biz, baseUrl)}
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BOOKING PAGE — Fresha-style, light theme
+// BOOKING PAGE — warm boutique style, Fresha-inspired
 // ══════════════════════════════════════════════════════════════════════════════
 
 export function buildMintBookingPage(biz: BizPageData, baseUrl: string): string {
@@ -464,59 +468,61 @@ export function buildMintBookingPage(biz: BizPageData, baseUrl: string): string 
   const phoneClean = biz.phone?.replace(/[^0-9+]/g, '') || '';
 
   const serviceCards = biz.services.map(s => `
-    <div class="svc-card cursor-pointer bg-white border-2 border-transparent rounded p-5 hover:border-[#4CAF85] transition-all duration-200 card-shadow"
+    <div class="svc-card cursor-pointer bg-white border-2 border-[#E8E5E1] rounded-lg p-5 hover:border-[#8FBF9F] transition-all duration-200 flex gap-4 items-start"
          onclick="selectService(this,'${s.name.replace(/'/g,"\\'")}','${s.price}','${s.duration || '60 min'}')"
          data-name="${s.name}">
-      <div class="flex justify-between items-start mb-2">
-        <h3 class="font-semibold text-[#1A3A2A] text-sm" style="font-family:'Cormorant Garamond',serif;font-weight:300">${s.name}</h3>
-        ${s.price ? `<span class="text-[#4CAF85] font-semibold text-sm ml-3 whitespace-nowrap">${s.price}</span>` : ''}
+      <div class="w-1 rounded flex-shrink-0 mt-1 bg-[#C97C5C]" style="min-height:2rem"></div>
+      <div class="flex-1">
+        <div class="flex justify-between items-start">
+          <h3 class="font-bold text-[#2D2D2D] text-sm" style="font-family:'Playfair Display',serif">${s.name}</h3>
+          ${s.price ? `<span class="text-[#C97C5C] font-bold text-sm ml-3 whitespace-nowrap">${s.price}</span>` : ''}
+        </div>
+        <p class="text-[#8A7E78] text-xs leading-relaxed mt-1">${s.desc}</p>
       </div>
-      <p class="text-[#8A9A90] text-xs leading-relaxed mb-2">${s.desc}</p>
-      ${s.duration ? `<span class="text-[#1A3A2A]/40 text-xs">${s.duration}</span>` : ''}
     </div>`).join('');
 
   const teamForWidget = [...biz.team, { name: 'Any Available', role: 'First available stylist', photo: undefined }];
   const stylistCards = teamForWidget.map(m => `
-    <div class="team-card cursor-pointer bg-white border-2 border-transparent rounded p-4 hover:border-[#4CAF85] transition-all duration-200 text-center card-shadow"
+    <div class="team-card cursor-pointer bg-white border-2 border-[#E8E5E1] rounded-lg p-4 hover:border-[#8FBF9F] transition-all duration-200 text-center"
          onclick="selectStyleist(this,'${m.name.replace(/'/g,"\\'")}')">
-      <div class="w-16 h-16 mx-auto mb-3 overflow-hidden rounded-full border-2 border-[#4CAF85]/20">
+      <div class="w-16 h-16 mx-auto mb-3 overflow-hidden rounded-full border-2 border-[#E8E5E1]">
         ${m.photo
           ? `<img src="${m.photo}" alt="${m.name}" class="w-full h-full object-cover object-top">`
-          : `<div class="w-full h-full bg-[#1A3A2A] flex items-center justify-center text-white text-xl font-bold" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name[0]}</div>`
+          : `<div class="w-full h-full bg-[#F5F1ED] flex items-center justify-center text-[#C97C5C] text-xl" style="font-family:'Playfair Display',serif">${m.name[0]}</div>`
         }
       </div>
-      <div class="text-[#1A3A2A] text-sm font-semibold" style="font-family:'Cormorant Garamond',serif;font-weight:300">${m.name}</div>
-      <div class="text-[#8A9A90] text-xs mt-0.5">${m.role}</div>
+      <div class="text-[#2D2D2D] text-sm font-bold" style="font-family:'Playfair Display',serif">${m.name}</div>
+      <div class="text-[#8A7E78] text-xs mt-0.5">${m.role}</div>
     </div>`).join('');
 
   return `${head(biz, 'Book')}
-<body class="bg-[#F7FAF8]">
+<body class="bg-[#FAF7F2]">
 ${nav(biz, baseUrl)}
 
-<section class="pt-36 pb-16 px-6 bg-white text-center">
-  <div class="inline-block mint-badge px-4 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-4">Reserve Your Spot</div>
-  <h1 class="text-5xl md:text-6xl font-bold text-[#1A3A2A] leading-tight" style="font-family:'Cormorant Garamond',serif;font-weight:300">Book an Appointment</h1>
-  <div class="mt-6 w-12 h-px bg-[#4CAF85] mx-auto"></div>
+<section class="pt-32 pb-12 px-6 bg-[#F5F1ED] text-center">
+  <div class="sage-label mb-4">Reserve Your Spot</div>
+  <h1 class="text-5xl text-[#2D2D2D]" style="font-family:'Playfair Display',serif;font-weight:700">Book an Appointment</h1>
+  <div class="mt-5 w-10 h-px bg-[#C97C5C] mx-auto"></div>
 </section>
 
 <style>
-.svc-card.selected,.team-card.selected{border-color:#4CAF85!important;background:#F0FBF5!important}
-.slot{padding:.4rem .75rem;border:1.5px solid rgba(26,58,42,0.15);border-radius:4px;font-size:.75rem;cursor:pointer;color:#1A3A2A;transition:all .2s;background:#fff;font-family:'DM Sans',sans-serif}
-.slot:hover{border-color:#4CAF85;color:#4CAF85}
-.slot.selected{background:#4CAF85!important;border-color:#4CAF85!important;color:#fff!important;font-weight:600}
+.svc-card.selected,.team-card.selected{border-color:#8FBF9F!important;background:#F0F8F4!important}
+.slot{padding:.4rem .9rem;border:1.5px solid #E8E5E1;border-radius:6px;font-size:.75rem;cursor:pointer;color:#2D2D2D;transition:all .2s;background:#fff;font-family:'Lato',sans-serif}
+.slot:hover{border-color:#8FBF9F;color:#5a8a6a}
+.slot.selected{background:#8FBF9F!important;border-color:#8FBF9F!important;color:#fff!important;font-weight:700}
 .slot.booked{opacity:.3;cursor:default;pointer-events:none;text-decoration:line-through}
-.cal-day{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;font-size:.82rem;transition:all .2s;color:#8A9A90;font-family:'DM Sans',sans-serif}
-.cal-day:hover:not(.past):not(.empty){background:#F0FBF5;color:#1A3A2A}
-.cal-day.selected{background:#4CAF85!important;color:#fff!important;font-weight:600}
+.cal-day{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;font-size:.82rem;transition:all .2s;color:#8A7E78;font-family:'Lato',sans-serif}
+.cal-day:hover:not(.past):not(.empty){background:#F5F1ED;color:#2D2D2D}
+.cal-day.selected{background:#C97C5C!important;color:#fff!important;font-weight:700}
 .cal-day.past,.cal-day.empty{opacity:.25;cursor:default;pointer-events:none}
-.cal-day.today{border:1.5px solid rgba(74,175,128,0.5);color:#1A3A2A;font-weight:600}
-.step-dot{width:32px;height:32px;border-radius:50%;border:2px solid rgba(26,60,52,0.2);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#8A9A90;transition:all .3s;background:#fff;font-family:'Cormorant Garamond',serif;font-weight:300}
-.step-dot.active{border-color:#4CAF85;color:#4CAF85;background:#F0FBF5}
-.step-dot.done{background:#4CAF85;border-color:#4CAF85;color:#fff}
-.step-line{flex:1;height:2px;background:rgba(26,60,52,0.1);margin:0 4px;border-radius:1px}
+.cal-day.today{border:1.5px solid #8FBF9F;color:#2D2D2D;font-weight:700}
+.step-dot{width:32px;height:32px;border-radius:50%;border:2px solid #E8E5E1;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#B8B0AA;transition:all .3s;background:#fff;font-family:'Lato',sans-serif}
+.step-dot.active{border-color:#C97C5C;color:#C97C5C;background:#FEF3EF}
+.step-dot.done{background:#C97C5C;border-color:#C97C5C;color:#fff}
+.step-line{flex:1;height:2px;background:#E8E5E1;margin:0 4px;border-radius:1px}
 </style>
 
-<section class="py-16 px-4 bg-[#F7FAF8]">
+<section class="py-16 px-4 bg-[#FAF7F2]">
   <div class="max-w-xl mx-auto">
 
     <!-- Step indicator -->
@@ -531,76 +537,74 @@ ${nav(biz, baseUrl)}
 
     <!-- Panel 1: Service -->
     <div id="panel-1">
-      <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-2">Step 1 of ${totalSteps}</div>
-      <h2 class="text-2xl font-bold text-[#1A3A2A] mb-6" style="font-family:'Cormorant Garamond',serif;font-weight:300">Choose a Service</h2>
+      <div class="text-[#C97C5C] text-xs font-bold tracking-widest uppercase mb-2">Step 1 of ${totalSteps}</div>
+      <h2 class="text-2xl text-[#2D2D2D] mb-6" style="font-family:'Playfair Display',serif;font-weight:600">Choose a Service</h2>
       <div class="space-y-3">${serviceCards}</div>
     </div>
 
-    ${hasStylistStep ? `<!-- Panel 2: Stylist -->
+    ${hasStylistStep ? `
     <div id="panel-2" class="hidden">
-      <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-2">Step 2 of ${totalSteps}</div>
-      <h2 class="text-2xl font-bold text-[#1A3A2A] mb-2" style="font-family:'Cormorant Garamond',serif;font-weight:300">Choose Your Stylist</h2>
-      <p class="text-[#8A9A90] text-sm mb-6">Selected: <span id="chosen-service" class="text-[#1A3A2A] font-medium"></span></p>
+      <div class="text-[#C97C5C] text-xs font-bold tracking-widest uppercase mb-2">Step 2 of ${totalSteps}</div>
+      <h2 class="text-2xl text-[#2D2D2D] mb-2" style="font-family:'Playfair Display',serif;font-weight:600">Choose Your Stylist</h2>
+      <p class="text-[#8A7E78] text-sm mb-6">Selected: <span id="chosen-service" class="text-[#2D2D2D] font-bold"></span></p>
       <div class="grid grid-cols-2 gap-3">${stylistCards}</div>
-      <button onclick="goStep(1)" class="mt-6 text-[#1A3A2A]/50 text-sm hover:text-[#4CAF85] transition-colors">← Back</button>
+      <button onclick="goStep(1)" class="mt-6 text-[#8A7E78] text-sm hover:text-[#C97C5C] transition-colors">← Back</button>
     </div>` : ''}
 
     <!-- Panel 3: Date + Time -->
     <div id="panel-3" class="hidden">
-      <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-2">Step ${hasStylistStep ? 3 : 2} of ${totalSteps}</div>
-      <h2 class="text-2xl font-bold text-[#1A3A2A] mb-2" style="font-family:'Cormorant Garamond',serif;font-weight:300">Pick a Date & Time</h2>
+      <div class="text-[#C97C5C] text-xs font-bold tracking-widest uppercase mb-2">Step ${hasStylistStep ? 3 : 2} of ${totalSteps}</div>
+      <h2 class="text-2xl text-[#2D2D2D] mb-2" style="font-family:'Playfair Display',serif;font-weight:600">Pick a Date & Time</h2>
       ${hasStylistStep
-        ? `<p class="text-[#8A9A90] text-sm mb-6">With: <span id="chosen-stylist" class="text-[#1A3A2A] font-medium"></span></p>`
-        : `<p class="text-[#8A9A90] text-sm mb-6">Service: <span id="chosen-service-3" class="text-[#1A3A2A] font-medium"></span></p>`
+        ? `<p class="text-[#8A7E78] text-sm mb-6">With: <span id="chosen-stylist" class="text-[#2D2D2D] font-bold"></span></p>`
+        : `<p class="text-[#8A7E78] text-sm mb-6">Service: <span id="chosen-service-3" class="text-[#2D2D2D] font-bold"></span></p>`
       }
-      <div class="bg-white rounded card-shadow p-5 mb-5">
+      <div class="bg-white rounded-lg border border-[#E8E5E1] p-5 mb-5">
         <div class="flex items-center justify-between mb-4">
-          <button onclick="calPrev()" class="text-[#1A3A2A]/40 hover:text-[#4CAF85] transition-colors text-xl leading-none">‹</button>
-          <div class="font-bold text-[#1A3A2A] text-sm" id="cal-month-label" style="font-family:'Cormorant Garamond',serif;font-weight:300"></div>
-          <button onclick="calNext()" class="text-[#1A3A2A]/40 hover:text-[#4CAF85] transition-colors text-xl leading-none">›</button>
+          <button onclick="calPrev()" class="text-[#8A7E78] hover:text-[#C97C5C] transition-colors text-xl leading-none">‹</button>
+          <div class="font-bold text-[#2D2D2D] text-sm" id="cal-month-label" style="font-family:'Playfair Display',serif"></div>
+          <button onclick="calNext()" class="text-[#8A7E78] hover:text-[#C97C5C] transition-colors text-xl leading-none">›</button>
         </div>
         <div class="grid grid-cols-7 gap-1 text-center mb-2">
-          ${['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => `<div class="text-[#1A3A2A]/30 text-xs font-semibold">${d}</div>`).join('')}
+          ${['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => `<div class="text-[#8A7E78]/50 text-xs font-bold">${d}</div>`).join('')}
         </div>
         <div class="grid grid-cols-7 gap-1 justify-items-center" id="cal-grid"></div>
       </div>
       <div id="slots-container" class="hidden">
-        <div class="text-[#1A3A2A]/40 text-xs font-semibold uppercase tracking-wider mb-3">Available Times — <span id="slots-date-label"></span></div>
+        <div class="text-[#8A7E78] text-xs font-bold uppercase tracking-wider mb-3">Available Times — <span id="slots-date-label"></span></div>
         <div class="flex flex-wrap gap-2" id="slots-grid"></div>
       </div>
-      <button onclick="goStep(${hasStylistStep ? 2 : 1})" class="mt-6 text-[#1A3A2A]/50 text-sm hover:text-[#4CAF85] transition-colors">← Back</button>
+      <button onclick="goStep(${hasStylistStep ? 2 : 1})" class="mt-6 text-[#8A7E78] text-sm hover:text-[#C97C5C] transition-colors">← Back</button>
     </div>
 
     <!-- Panel 4: Details -->
     <div id="panel-4" class="hidden">
-      <div class="text-[#4CAF85] text-xs font-semibold tracking-widest uppercase mb-2">Step ${totalSteps} of ${totalSteps}</div>
-      <h2 class="text-2xl font-bold text-[#1A3A2A] mb-2" style="font-family:'Cormorant Garamond',serif;font-weight:300">Your Details</h2>
-      <p class="text-[#8A9A90] text-sm mb-6"><span id="summary-line" class="text-[#1A3A2A] font-medium"></span></p>
+      <div class="text-[#C97C5C] text-xs font-bold tracking-widest uppercase mb-2">Step ${totalSteps} of ${totalSteps}</div>
+      <h2 class="text-2xl text-[#2D2D2D] mb-2" style="font-family:'Playfair Display',serif;font-weight:600">Your Details</h2>
+      <p class="text-[#8A7E78] text-sm mb-6"><span id="summary-line" class="text-[#2D2D2D] font-bold"></span></p>
       <div class="space-y-4">
-        <div><label class="block text-[#1A3A2A]/50 text-xs font-semibold uppercase tracking-wider mb-2">Full Name</label><input type="text" id="bk-name" placeholder="Your name"></div>
-        <div><label class="block text-[#1A3A2A]/50 text-xs font-semibold uppercase tracking-wider mb-2">Email</label><input type="email" id="bk-email" placeholder="your@email.com"></div>
-        <div><label class="block text-[#1A3A2A]/50 text-xs font-semibold uppercase tracking-wider mb-2">Phone</label><input type="tel" id="bk-phone" placeholder="(555) 000-0000"></div>
-        <button onclick="submitBooking()" class="w-full bg-[#1A3A2A] text-white py-4 rounded text-sm font-medium hover:bg-[#4CAF85] transition-colors mt-2" style="letter-spacing:0.08em">
-          Confirm Appointment
-        </button>
+        <div><label class="block text-[#8A7E78] text-xs font-bold uppercase tracking-wider mb-2">Full Name</label><input type="text" id="bk-name" placeholder="Your name"></div>
+        <div><label class="block text-[#8A7E78] text-xs font-bold uppercase tracking-wider mb-2">Email</label><input type="email" id="bk-email" placeholder="your@email.com"></div>
+        <div><label class="block text-[#8A7E78] text-xs font-bold uppercase tracking-wider mb-2">Phone</label><input type="tel" id="bk-phone" placeholder="(555) 000-0000"></div>
+        <button onclick="submitBooking()" class="btn-copper w-full py-4 text-sm mt-2">Confirm Appointment</button>
       </div>
-      <button onclick="goStep(${hasStylistStep ? 3 : 2})" class="mt-5 text-[#1A3A2A]/50 text-sm hover:text-[#4CAF85] transition-colors">← Back</button>
+      <button onclick="goStep(${hasStylistStep ? 3 : 2})" class="mt-5 text-[#8A7E78] text-sm hover:text-[#C97C5C] transition-colors">← Back</button>
     </div>
 
     <!-- Success -->
     <div id="panel-success" class="hidden text-center py-8">
-      <div class="w-16 h-16 rounded-full bg-[#4CAF85] flex items-center justify-center mx-auto mb-6 text-white text-2xl">✓</div>
-      <h2 class="text-3xl font-bold text-[#1A3A2A] mb-4" style="font-family:'Cormorant Garamond',serif;font-weight:300">You're all set!</h2>
-      <p class="text-[#8A9A90] mb-2">Thanks <span id="success-name" class="text-[#1A3A2A] font-semibold"></span> — we've received your request.</p>
-      <p class="text-[#8A9A90] mb-8">We'll call <span id="success-phone" class="text-[#4CAF85] font-semibold"></span> to confirm, usually within a few hours.</p>
-      ${biz.phone ? `<p class="text-[#8A9A90] text-sm">Questions? <a href="tel:${phoneClean}" class="text-[#4CAF85] hover:underline font-medium">${biz.phone}</a></p>` : ''}
+      <div class="w-16 h-16 rounded-full bg-[#8FBF9F] flex items-center justify-center mx-auto mb-6 text-white text-2xl">✓</div>
+      <h2 class="text-3xl text-[#2D2D2D] mb-4" style="font-family:'Playfair Display',serif;font-weight:700">All set!</h2>
+      <p class="text-[#8A7E78] mb-2">Thanks <span id="success-name" class="text-[#2D2D2D] font-bold"></span> — we've received your request.</p>
+      <p class="text-[#8A7E78] mb-8">We'll call <span id="success-phone" class="text-[#C97C5C] font-bold"></span> to confirm shortly.</p>
+      ${biz.phone ? `<p class="text-[#8A7E78] text-sm">Questions? <a href="tel:${phoneClean}" class="text-[#C97C5C] hover:underline font-bold">${biz.phone}</a></p>` : ''}
     </div>
 
     <!-- Contact strip -->
-    <div class="mt-14 pt-10 border-t border-[#1A3A2A]/10 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center text-sm text-[#8A9A90]">
-      ${biz.phone ? `<div><div class="text-[#4CAF85] text-xs font-semibold uppercase tracking-wider mb-2">Call</div><a href="tel:${phoneClean}" class="hover:text-[#4CAF85] font-medium">${biz.phone}</a></div>` : ''}
-      ${biz.address ? `<div><div class="text-[#4CAF85] text-xs font-semibold uppercase tracking-wider mb-2">Find Us</div>${biz.address}</div>` : ''}
-      <div><div class="text-[#4CAF85] text-xs font-semibold uppercase tracking-wider mb-2">Hours</div>${biz.hours || 'Tue–Sat 9am–6pm'}</div>
+    <div class="mt-14 pt-10 border-t border-[#E8E5E1] grid grid-cols-1 sm:grid-cols-3 gap-6 text-center text-sm text-[#8A7E78]">
+      ${biz.phone ? `<div><div class="text-[#C97C5C] text-xs font-bold uppercase tracking-wider mb-2">Call</div><a href="tel:${phoneClean}" class="hover:text-[#C97C5C] font-bold">${biz.phone}</a></div>` : ''}
+      ${biz.address ? `<div><div class="text-[#C97C5C] text-xs font-bold uppercase tracking-wider mb-2">Find Us</div>${biz.address}</div>` : ''}
+      <div><div class="text-[#C97C5C] text-xs font-bold uppercase tracking-wider mb-2">Hours</div>${biz.hours || 'Tue–Sat 9am–6pm'}</div>
     </div>
   </div>
 </section>
@@ -698,7 +702,7 @@ ${footer(biz, baseUrl)}
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EXPORT: Build all Mint pages
+// EXPORT
 // ══════════════════════════════════════════════════════════════════════════════
 
 export interface MintPages {

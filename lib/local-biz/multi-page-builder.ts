@@ -803,18 +803,16 @@ ${footer(biz, baseUrl)}
 function buildStylistsPage(biz: BizPageData, baseUrl: string): string {
   const p = biz.colorPrimary;
   const teamGrid = biz.team.map(m => `
-  <div class="bg-[#150d05] border border-[${p}]/20 rounded-sm overflow-hidden hover:border-accent/30 transition-all">
-    <div class="aspect-[3/4] overflow-hidden">
+  <div class="text-center px-4">
+    <div class="w-44 h-44 mx-auto mb-6 rounded-full overflow-hidden border-2 border-[${p}]/40 hover:border-accent/60 transition-all">
       ${m.photo
         ? `<img src="${m.photo}" alt="${m.name}" class="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500">`
         : `<div class="w-full h-full bg-[#1a1008] flex items-center justify-center serif text-accent text-5xl">${m.name[0]}</div>`
       }
     </div>
-    <div class="p-6">
-      <h3 class="serif text-xl text-[#f5ede0] mb-1">${m.name}</h3>
-      <div class="text-accent text-xs tracking-widest uppercase mb-3">${m.role}</div>
-      ${m.bio ? `<p class="text-[#9d8e7e] text-sm leading-relaxed">${m.bio}</p>` : ''}
-    </div>
+    <h3 class="serif text-2xl text-[#f5ede0] mb-1">${m.name}</h3>
+    <div class="text-accent text-xs tracking-widest uppercase mb-4">${m.role}</div>
+    ${m.bio ? `<p class="text-[#9d8e7e] text-sm leading-relaxed max-w-xs mx-auto">${m.bio}</p>` : ''}
   </div>`).join('');
 
   return `${head(biz, 'Our Stylists')}
@@ -824,11 +822,11 @@ ${pageHeader('The Team', 'Our Stylists', biz)}
 
 <section class="py-20 px-6 bg-[#0f0a05]">
   <div class="max-w-6xl mx-auto">
-    <p class="text-center text-[#9d8e7e] text-lg max-w-2xl mx-auto mb-16">
+    <p class="text-center text-[#9d8e7e] text-lg max-w-2xl mx-auto mb-20">
       We are experienced hair stylists providing a full range of hair services for women, men and children.
       Client satisfaction is our top priority.
     </p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-14">
       ${teamGrid}
     </div>
   </div>

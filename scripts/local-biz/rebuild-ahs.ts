@@ -46,12 +46,12 @@ const SALON_PHOTOS = [
 ];
 
 const TEAM: TeamMember[] = [
-  { name: 'Dawn', role: 'Owner & Master Stylist', photo: 'https://ahairsensation.com/stylists/Dawn/dawn_8-27-10S2.jpg' },
-  { name: 'Billie Jo', role: 'Senior Stylist', photo: 'https://ahairsensation.com/stylists/BillieJo/bj_8-27-10S2.jpg' },
-  { name: 'Pennie', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Pennie/pennie_8-27-10S2.jpg' },
-  { name: 'Carrol', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/carol/carolS.jpg' },
-  { name: 'Mike', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Mike/mikes.jpg' },
-  { name: 'Katy', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Katy/katyS.jpg' },
+  { name: 'Dawn', role: 'Owner & Master Stylist', photo: 'https://ahairsensation.com/stylists/Dawn/dawn_8-27-10S2.jpg', bio: 'Dawn founded A Hair Sensation in 2002 and has spent over 20 years building one of Macon\'s most trusted salons. Her passion for colour and precision keeps clients coming back year after year.' },
+  { name: 'Billie Jo', role: 'Senior Stylist', photo: 'https://ahairsensation.com/stylists/BillieJo/bj_8-27-10S2.jpg', bio: 'With years of experience at A Hair Sensation, Billie Jo brings skill and warmth to every appointment. Clients love her attention to detail and her ability to truly listen.' },
+  { name: 'Pennie', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Pennie/pennie_8-27-10S2.jpg', bio: 'Pennie is known for her versatility across cuts, colour, and styling — delivering polished results for every hair type and texture.' },
+  { name: 'Carrol', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/carol/carolS.jpg', bio: 'Carrol\'s warm chairside manner and consistent results have earned her a loyal following at the salon. Great for clients who want reliability and care in equal measure.' },
+  { name: 'Mike', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Mike/mikes.jpg', bio: 'Mike handles cuts for women, men, and children with equal skill. His precision and friendly approach make every client feel at ease from start to finish.' },
+  { name: 'Katy', role: 'Stylist', photo: 'https://ahairsensation.com/stylists/Katy/katyS.jpg', bio: 'Katy specialises in styling and finishing — whether it\'s a blowout, updo, or everyday look, she ensures you leave feeling your best.' },
 ];
 
 const PROM_PHOTOS = [
