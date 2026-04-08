@@ -1,12 +1,14 @@
 /**
- * Website Demo Builder — personalises a category HTML template with real business data.
- * Inserts into landing_pages table (page_type='website-demo'), updates local_biz_leads.demo_page_id.
+ * Website Demo Builder — builds multi-page website demos in the dark-luxury style.
+ * Stores home + subpages (services, gallery, about, booking) as separate landing_pages rows.
+ * Slug pattern: {base-slug} (home), {base-slug}-services, {base-slug}-gallery, etc.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import type { FastCopy } from '../local-biz/copy-generator';
+import { buildAllPages, type BizPageData } from '../local-biz/multi-page-builder';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -318,18 +320,11 @@ function buildVars(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Record<
 }
 
 /**
- * Build a website demo page for a local business.
- * Returns the landing_pages.id (used as the URL path segment).
+ * Build a multi-page website demo for a local business.
+ * Stores 5 separate pages: home, services, gallery, about, booking.
+ * Returns the base slug (home page) — subpages are at {slug}-{page}.
  */
 export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Promise<string> {
-  const templateFile = selectTemplate(biz.business_type);
-  const templatePath = path.join(TEMPLATES_DIR, templateFile);
-
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`Template not found: ${templatePath}. Run template builder first.`);
-  }
-
-  // Generate slug FIRST so BASE_URL can be injected into the HTML
   const NEXORRA_ACCOUNT_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
   const slugBase = biz.business_name
     .toLowerCase()
@@ -337,39 +332,95 @@ export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
   const slug = `demo-${slugBase}-${Date.now().toString(36)}`;
+  const baseUrl = `/website-demo/${slug}`;
 
-  const templateHtml = fs.readFileSync(templatePath, 'utf-8');
+  // Build vars for fallback (used if no enrichedCopy)
   const vars = buildVars(biz, enrichedCopy);
-  // Inject BASE_URL so nav links like {{BASE_URL}}/services resolve correctly
-  vars.BASE_URL = `/website-demo/${slug}`;
-  const finalHtml = applyData(templateHtml, vars);
 
-  const { data: page, error } = await supabaseAdmin
+  // Assemble BizPageData for the multi-page builder
+  const services = biz.services?.length
+    ? biz.services.map(s => ({
+        name: s.name,
+        desc: s.desc,
+        price: s.price || '',
+        duration: vars[`SERVICE_${biz.services!.indexOf(s) + 1}_DURATION`] || '',
+      }))
+    : [
+        { name: vars.SERVICE_1, desc: vars.SERVICE_1_DESC, price: vars.SERVICE_1_PRICE, duration: vars.SERVICE_1_DURATION },
+        { name: vars.SERVICE_2, desc: vars.SERVICE_2_DESC, price: vars.SERVICE_2_PRICE, duration: vars.SERVICE_2_DURATION },
+        { name: vars.SERVICE_3, desc: vars.SERVICE_3_DESC, price: vars.SERVICE_3_PRICE, duration: vars.SERVICE_3_DURATION },
+        { name: vars.SERVICE_4, desc: vars.SERVICE_4_DESC, price: vars.SERVICE_4_PRICE, duration: vars.SERVICE_4_DURATION },
+      ];
+
+  const bizPageData: BizPageData = {
+    name:           biz.business_name,
+    type:           biz.business_type,
+    phone:          biz.phone,
+    address:        biz.address,
+    city:           biz.city,
+    state:          biz.state_province,
+    rating:         biz.gmb_rating,
+    reviews:        biz.gmb_reviews,
+    photos:         biz.gmb_photos || [],
+    hours:          vars.HOURS,
+    colorPrimary:   vars.COLOR_PRIMARY,
+    colorAccent:    vars.COLOR_ACCENT,
+    heroHeadline:   vars.HERO_HEADLINE,
+    heroHeadlineEm: vars.HERO_HEADLINE_EM,
+    heroSub:        vars.HERO_SUBHEADLINE,
+    aboutText:      vars.ABOUT_TEXT,
+    aboutText2:     vars.ABOUT_TEXT_2,
+    ctaText:        vars.CTA_TEXT,
+    services,
+    reviewTexts:    (biz.reviews || []).map(r => r.text),
+    yearsInBiz:     vars.YEARS_IN_BIZ,
+    teamName:       vars.TEAM_1,
+  };
+
+  const pages = buildAllPages(bizPageData, baseUrl);
+
+  // Insert home page
+  const { data: homePage, error } = await supabaseAdmin
     .from('landing_pages')
     .insert({
-      account_id: NEXORRA_ACCOUNT_ID,
+      account_id:      NEXORRA_ACCOUNT_ID,
       slug,
-      name: `${biz.business_name} — Website Demo`,
-      content: finalHtml,
-      page_type: 'website-demo',
-      published: true,
-      meta_title: `${biz.business_name} | ${biz.city || ''} ${biz.business_type}`,
-      meta_description: `${biz.business_name} — ${biz.hero_subheadline || `Serving ${biz.city || 'the area'}.`}`,
+      name:            `${biz.business_name} — Website Demo`,
+      content:         pages.home,
+      page_type:       'website-demo',
+      published:       true,
+      meta_title:      `${biz.business_name} | ${biz.city || ''} ${biz.business_type}`,
+      meta_description: `${biz.business_name} — ${vars.HERO_SUBHEADLINE}`,
     })
-    .select('id, slug')
+    .select('id')
     .single();
 
-  if (error || !page) {
-    throw new Error(`Failed to insert landing page: ${error?.message}`);
+  if (error || !homePage) {
+    throw new Error(`Failed to insert home page: ${error?.message}`);
   }
 
-  // Update local_biz_leads.demo_page_id with UUID (FK)
+  // Insert subpages (services, gallery, about, booking)
+  const subpages = Object.entries(pages).filter(([k]) => k !== 'home');
+  for (const [pageName, pageHtml] of subpages) {
+    const { error: spError } = await supabaseAdmin
+      .from('landing_pages')
+      .insert({
+        account_id: NEXORRA_ACCOUNT_ID,
+        slug:       `${slug}-${pageName}`,
+        name:       `${biz.business_name} — ${pageName.charAt(0).toUpperCase() + pageName.slice(1)}`,
+        content:    pageHtml,
+        page_type:  'website-demo',
+        published:  true,
+      });
+    if (spError) console.warn(`[website-demo-builder] Subpage ${pageName} insert failed: ${spError.message}`);
+  }
+
+  // Update local_biz_leads.demo_page_id with home page UUID
   await supabaseAdmin
     .from('local_biz_leads')
-    .update({ demo_page_id: page.id })
+    .update({ demo_page_id: homePage.id })
     .eq('id', biz.id);
 
-  console.log(`[website-demo-builder] Built demo for ${biz.business_name}: /website-demo/${page.slug}`);
-  // Return slug — the /website-demo/[id] route queries by slug
-  return page.slug;
+  console.log(`[website-demo-builder] Built 5-page demo for ${biz.business_name}: /website-demo/${slug}`);
+  return slug;
 }

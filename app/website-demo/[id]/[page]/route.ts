@@ -3,38 +3,26 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-function injectScrollScript(html: string, sectionId: string): string {
-  const script = `<script>
-document.addEventListener('DOMContentLoaded',function(){
-  var el=document.getElementById('${sectionId}');
-  if(el){el.scrollIntoView({behavior:'instant'});window.scrollBy(0,-72);}
-});
-</script>`;
-  const idx = html.lastIndexOf('</body>');
-  if (idx !== -1) return html.slice(0, idx) + script + html.slice(idx);
-  return html + script;
-}
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string; page: string } },
 ) {
+  // Subpages stored as {base-slug}-{page}, e.g. demo-a-hair-sensation-abc123-services
+  const subpageSlug = `${params.id}-${params.page}`;
+
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
     .select('content, published')
-    .eq('slug', params.id)
+    .eq('slug', subpageSlug)
     .eq('page_type', 'website-demo')
     .single();
 
   if (!page || !page.published) {
-    return new NextResponse('Not found', { status: 404 });
+    // Fallback: redirect to home if subpage doesn't exist (legacy single-page demos)
+    return NextResponse.redirect(new URL(`/website-demo/${params.id}`, 'https://app.ainexorra.com'));
   }
 
-  // 'home' = no scroll (show top), everything else = section ID to scroll to
-  const sectionId = params.page === 'home' ? '' : params.page;
-  const html = sectionId ? injectScrollScript(page.content, sectionId) : page.content;
-
-  return new NextResponse(html, {
+  return new NextResponse(page.content, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'X-Robots-Tag': 'noindex',
