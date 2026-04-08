@@ -9,6 +9,7 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import type { FastCopy } from '../local-biz/copy-generator';
 import { buildAllPages, type BizPageData } from '../local-biz/multi-page-builder';
+import { buildRestaurantAllPages } from '../local-biz/restaurant-page-builder';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -444,7 +445,10 @@ export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial
     extraNavLinks:    extraNavLinks.length > 4 ? extraNavLinks : undefined,
   };
 
-  const pages = buildAllPages(bizPageData, baseUrl);
+  // Route to specialist builders by category
+  const pages = bizCat === 'restaurant'
+    ? buildRestaurantAllPages(bizPageData, baseUrl)
+    : buildAllPages(bizPageData, baseUrl);
 
   // Insert home page
   const { data: homePage, error } = await supabaseAdmin
