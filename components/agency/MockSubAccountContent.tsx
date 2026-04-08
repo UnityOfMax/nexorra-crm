@@ -17,10 +17,106 @@ import {
 import FunnelDiagram from './FunnelDiagram';
 import {
   Users, TrendingUp, Mail, MessageSquare, CalendarCheck, Award, DollarSign,
-  Send, Inbox,
+  Send, Inbox, Play, Phone, CheckCircle,
 } from 'lucide-react';
 
 type Timeframe = '7d' | '30d' | 'all';
+
+// ── Stephanie Collins: hardcoded featured conversation for sabrina-delisle ──
+type SpecialMsgType = 'text' | 'call' | 'booking';
+interface SpecialMessage {
+  id: string;
+  from: 'agent' | 'contact';
+  type: SpecialMsgType;
+  text?: string;
+  time: string;
+  // call recording fields
+  callDuration?: string;
+  // booking fields
+  bookingName?: string;
+  bookingDate?: string;
+  bookingTime?: string;
+}
+
+const STEPHANIE_MESSAGES: SpecialMessage[] = [
+  {
+    id: 'sc-1', from: 'contact', type: 'text',
+    text: "Hi there, I saw your ad on Instagram. My husband and I have been talking about buying for a while now.",
+    time: '10:14 AM',
+  },
+  {
+    id: 'sc-2', from: 'agent', type: 'text',
+    text: "Hey Stephanie! Really glad you reached out. A lot of people are at that same spot right now. What area are you two thinking?",
+    time: '10:14 AM',
+  },
+  {
+    id: 'sc-3', from: 'contact', type: 'text',
+    text: "Probably somewhere in the Westlake area. We have two kids so schools matter a lot to us.",
+    time: '10:17 AM',
+  },
+  {
+    id: 'sc-4', from: 'agent', type: 'text',
+    text: "Westlake is a great call for schools. Quick question — are you pre-approved yet, or still figuring out the budget side of things?",
+    time: '10:18 AM',
+  },
+  {
+    id: 'sc-5', from: 'contact', type: 'text',
+    text: "Not yet. We're not sure where to even start with that honestly.",
+    time: '10:21 AM',
+  },
+  {
+    id: 'sc-6', from: 'agent', type: 'text',
+    text: "That's totally fine, you don't need it before we chat. I can walk you through the whole thing on a quick call. Takes about 20 minutes and you'll leave knowing exactly what your next step is.",
+    time: '10:21 AM',
+  },
+  {
+    id: 'sc-7', from: 'contact', type: 'text',
+    text: "That sounds good actually. When works for you?",
+    time: '10:24 AM',
+  },
+  {
+    id: 'sc-8', from: 'agent', type: 'text',
+    text: "I have Thursday at 11am or Friday at 2pm open. Which one fits better?",
+    time: '10:24 AM',
+  },
+  {
+    id: 'sc-9', from: 'contact', type: 'text',
+    text: "Friday at 2 works perfectly.",
+    time: '10:26 AM',
+  },
+  {
+    id: 'sc-10', from: 'agent', type: 'call',
+    callDuration: '18:42',
+    time: '2:01 PM',
+  },
+  {
+    id: 'sc-11', from: 'agent', type: 'text',
+    text: "Really enjoyed talking with you both. Just to recap — you're looking in the $520-580k range, Westlake or Bee Cave, and ideally in before the school year starts. I'll send over a few listings tonight that match.",
+    time: '2:21 PM',
+  },
+  {
+    id: 'sc-12', from: 'contact', type: 'text',
+    text: "Yes that's exactly right. Thank you so much, this was so helpful.",
+    time: '2:34 PM',
+  },
+  {
+    id: 'sc-13', from: 'agent', type: 'text',
+    text: "Before I go — want to lock in a proper consultation so we can go through those listings together? I can get you in this coming Tuesday at 10am.",
+    time: '2:35 PM',
+  },
+  {
+    id: 'sc-14', from: 'contact', type: 'text',
+    text: "Tuesday at 10 works great for us.",
+    time: '2:38 PM',
+  },
+  {
+    id: 'sc-15', from: 'agent', type: 'booking',
+    bookingName: 'Stephanie Collins',
+    bookingDate: 'Tuesday, April 8, 2026',
+    bookingTime: '10:00 AM',
+    time: '2:38 PM',
+  },
+];
 
 interface Props {
   slug: string;
@@ -271,14 +367,110 @@ function MockCalendar({ slug }: { slug: string }) {
 }
 
 // ── Conversations view ────────────────────────────────────────────────────────
+// ── Call recording bubble ────────────────────────────────────────────────────
+function CallRecordingBubble({ duration, isAgent }: { duration: string; isAgent: boolean }) {
+  const bars = [3, 5, 8, 6, 10, 7, 4, 9, 6, 5, 8, 4, 7, 10, 6, 3, 8, 5, 9, 4, 7, 6, 10, 5, 3, 8, 6, 4, 9, 5];
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${
+      isAgent
+        ? 'bg-primary-600 text-white rounded-br-sm'
+        : 'bg-gray-100 dark:bg-white/8 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+    }`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+        isAgent ? 'bg-white/20' : 'bg-primary-100 dark:bg-primary-900/40'
+      }`}>
+        <Phone className={`w-3.5 h-3.5 ${isAgent ? 'text-white' : 'text-primary-600 dark:text-primary-400'}`} />
+      </div>
+      <button className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+        isAgent ? 'bg-white/20 hover:bg-white/30' : 'bg-primary-600 hover:bg-primary-700'
+      } transition-colors`}>
+        <Play className={`w-3 h-3 ${isAgent ? 'text-white' : 'text-white'} ml-0.5`} />
+      </button>
+      {/* Waveform */}
+      <div className="flex items-center gap-[2px] flex-1">
+        {bars.map((h, i) => (
+          <div
+            key={i}
+            className={`rounded-full flex-shrink-0 ${isAgent ? 'bg-white/50' : 'bg-primary-400 dark:bg-primary-500'}`}
+            style={{ width: 2, height: `${h}px` }}
+          />
+        ))}
+      </div>
+      <span className={`text-[11px] font-mono flex-shrink-0 ${isAgent ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
+        {duration}
+      </span>
+    </div>
+  );
+}
+
+// ── Booking confirmation notification ────────────────────────────────────────
+function BookingConfirmedBubble({ name, date, time }: { name: string; date: string; time: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[80%]">
+        <div className="rounded-2xl rounded-br-sm overflow-hidden border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/20">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 dark:bg-emerald-500/15 border-b border-emerald-200 dark:border-emerald-500/20">
+            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Lead Booking Confirmed</p>
+          </div>
+          <div className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Client</p>
+              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{name}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Date</p>
+              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{date}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Time</p>
+              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">{time}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-500 w-12 flex-shrink-0">Type</p>
+              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-200">Buyer Consultation</p>
+            </div>
+          </div>
+          <div className="px-4 py-2 bg-emerald-500/10 dark:bg-emerald-500/10 border-t border-emerald-200 dark:border-emerald-500/20">
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-500">Booked by AI assistant. Calendar invite sent.</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 text-right">Today 2:38 PM</p>
+      </div>
+    </div>
+  );
+}
+
 function MockConversations({ slug }: { slug: string }) {
-  const contacts = useMemo(() => generateMockContacts(slug, 70), [slug]);
-  const [selectedId, setSelectedId] = useState<string | null>(contacts[0]?.id || null);
+  const isStephanie = slug === 'sabrina-delisle';
+
+  const stephanieMockContact: MockContactItem = {
+    id: 'stephanie-collins-fixed',
+    name: 'Stephanie Collins',
+    stage: 'scheduling',
+    lastText: 'Tuesday at 10 works great for us.',
+    lastTime: '2:38 PM',
+    unread: 0,
+  };
+
+  const contacts = useMemo(() => {
+    const generated = generateMockContacts(slug, 70);
+    if (!isStephanie) return generated;
+    // Put Stephanie at the top, filter out any random Stephanie collision
+    const rest = generated.filter(c => c.name !== 'Stephanie Collins');
+    return [stephanieMockContact, ...rest];
+  }, [slug, isStephanie]);
+
+  const [selectedId, setSelectedId] = useState<string | null>(
+    isStephanie ? 'stephanie-collins-fixed' : (contacts[0]?.id || null)
+  );
 
   const selected = contacts.find(c => c.id === selectedId);
+  const isSpecial = selectedId === 'stephanie-collins-fixed';
+
   const messages = useMemo(
-    () => selected ? generateMockMessages(slug, selected.id, selected.stage) : [],
-    [slug, selected]
+    () => (!isSpecial && selected) ? generateMockMessages(slug, selected.id, selected.stage) : [],
+    [slug, selected, isSpecial]
   );
 
   return (
@@ -297,7 +489,6 @@ function MockConversations({ slug }: { slug: string }) {
               className={`w-full text-left px-4 py-3 border-b border-gray-50 dark:border-white/5 transition-colors hover:bg-gray-50 dark:hover:bg-white/3 ${selectedId === c.id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
             >
               <div className="flex items-start gap-3">
-                {/* Avatar */}
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0 relative">
                   <span className="text-xs font-bold text-primary-700 dark:text-primary-400">
                     {c.name.split(' ').map(n => n[0]).join('').slice(0,2)}
@@ -342,25 +533,74 @@ function MockConversations({ slug }: { slug: string }) {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-            {messages.map((msg, i) => {
-              const isAgent = msg.from === 'agent';
-              return (
-                <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] ${isAgent ? 'order-2' : 'order-1'}`}>
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      isAgent
-                        ? 'bg-primary-600 text-white rounded-br-sm'
-                        : 'bg-gray-100 dark:bg-white/8 text-gray-900 dark:text-gray-100 rounded-bl-sm'
-                    }`}>
-                      {msg.text}
+            {isSpecial ? (
+              <>
+                {STEPHANIE_MESSAGES.map(msg => {
+                  const isAgent = msg.from === 'agent';
+
+                  if (msg.type === 'booking') {
+                    return (
+                      <BookingConfirmedBubble
+                        key={msg.id}
+                        name={msg.bookingName!}
+                        date={msg.bookingDate!}
+                        time={msg.bookingTime!}
+                      />
+                    );
+                  }
+
+                  if (msg.type === 'call') {
+                    return (
+                      <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                        <div className="max-w-[75%]">
+                          <CallRecordingBubble duration={msg.callDuration!} isAgent={isAgent} />
+                          <p className={`text-[10px] text-gray-400 dark:text-gray-500 mt-1 ${isAgent ? 'text-right' : 'text-left'}`}>
+                            Today {msg.time}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%]`}>
+                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                          isAgent
+                            ? 'bg-primary-600 text-white rounded-br-sm'
+                            : 'bg-gray-100 dark:bg-white/8 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+                        }`}>
+                          {msg.text}
+                        </div>
+                        <p className={`text-[10px] text-gray-400 dark:text-gray-500 mt-1 ${isAgent ? 'text-right' : 'text-left'}`}>
+                          Today {msg.time}
+                        </p>
+                      </div>
                     </div>
-                    <p className={`text-[10px] text-gray-400 dark:text-gray-500 mt-1 ${isAgent ? 'text-right' : 'text-left'}`}>
-                      {msg.daysAgo === 0 ? `Today ${msg.time}` : msg.daysAgo === 1 ? `Yesterday ${msg.time}` : `${msg.daysAgo}d ago ${msg.time}`}
-                    </p>
+                  );
+                })}
+              </>
+            ) : (
+              messages.map((msg) => {
+                const isAgent = msg.from === 'agent';
+                return (
+                  <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[75%]`}>
+                      <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        isAgent
+                          ? 'bg-primary-600 text-white rounded-br-sm'
+                          : 'bg-gray-100 dark:bg-white/8 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+                      }`}>
+                        {msg.text}
+                      </div>
+                      <p className={`text-[10px] text-gray-400 dark:text-gray-500 mt-1 ${isAgent ? 'text-right' : 'text-left'}`}>
+                        {msg.daysAgo === 0 ? `Today ${msg.time}` : msg.daysAgo === 1 ? `Yesterday ${msg.time}` : `${msg.daysAgo}d ago ${msg.time}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           {/* Compose bar (display only) */}
