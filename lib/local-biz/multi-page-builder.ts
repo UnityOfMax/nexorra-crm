@@ -319,6 +319,7 @@ ${footer(biz, baseUrl)}
 // ══════════════════════════════════════════════════════════════════════════════
 
 function buildServicesPage(biz: BizPageData, baseUrl: string): string {
+  const isRestaurant = biz.businessCategory === 'restaurant';
   const icons = ['✦','✧','◈','◇','✦','✧','♛','✦'];
   const grid = biz.services.map((s, i) => `
   <div class="group bg-[#150d05] border border-[${biz.colorPrimary}]/20 rounded-sm p-8 hover:scale-105 transition-all duration-300 hover:border-accent/40 hover:bg-[#1a1008]">
@@ -327,14 +328,17 @@ function buildServicesPage(biz: BizPageData, baseUrl: string): string {
     <p class="text-[#9d8e7e] text-sm leading-relaxed mb-5">${s.desc}</p>
     <div class="flex items-center justify-between">
       ${s.price ? `<div class="text-accent font-medium tracking-wide">${s.price}</div>` : '<div></div>'}
-      ${s.duration ? `<div class="text-[${biz.colorPrimary}] text-xs tracking-wider uppercase">${s.duration}</div>` : ''}
+      ${s.duration && !isRestaurant ? `<div class="text-[${biz.colorPrimary}] text-xs tracking-wider uppercase">${s.duration}</div>` : ''}
     </div>
   </div>`).join('');
 
-  return `${head(biz, 'Services')}
+  const pageLabel = isRestaurant ? 'The Menu' : 'What We Offer';
+  const pageTitle = isRestaurant ? 'Menu Highlights' : 'Our Services';
+
+  return `${head(biz, isRestaurant ? 'Menu' : 'Services')}
 <body class="bg-[#0f0a05] text-[#e8ddd0]">
 ${nav(biz, baseUrl)}
-${pageHeader('What We Offer', 'Our Services', biz)}
+${pageHeader(pageLabel, pageTitle, biz)}
 
 <section class="py-20 px-6 bg-[#0f0a05]">
   <div class="max-w-6xl mx-auto">
@@ -494,8 +498,183 @@ ${footer(biz, baseUrl)}
 //   professional: Consultation → Date → Your Details + Notes
 // ══════════════════════════════════════════════════════════════════════════════
 
+function buildRestaurantBookingPage(biz: BizPageData, baseUrl: string): string {
+  const p = biz.colorPrimary;
+  const phoneClean = biz.phone?.replace(/[^0-9+]/g, '') || '';
+  return `${head(biz, 'Reserve')}
+<body class="bg-[#0f0a05] text-[#e8ddd0]">
+${nav(biz, baseUrl)}
+${pageHeader('Reserve a Table', 'Make a Reservation', biz)}
+
+<style>
+.party-card{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(155,111,66,.3);border-radius:2px;cursor:pointer;color:#9d8e7e;font-size:1rem;font-weight:600;transition:all .2s;font-family:'DM Sans',sans-serif}
+.party-card:hover{border-color:${biz.colorAccent};color:${biz.colorAccent}}
+.party-card.selected{background:${biz.colorAccent};border-color:${biz.colorAccent};color:#0f0a05}
+.slot{padding:.45rem .75rem;border:1px solid rgba(155,111,66,.3);border-radius:2px;font-size:.75rem;cursor:pointer;color:#c5b49a;transition:all .2s;background:#0f0a05}
+.slot:hover{border-color:${biz.colorAccent};color:${biz.colorAccent}}
+.slot.selected{background:${biz.colorAccent};border-color:${biz.colorAccent};color:#0f0a05;font-weight:600}
+.cal-day{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:2px;cursor:pointer;font-size:.82rem;transition:all .2s;color:#9d8e7e}
+.cal-day:hover:not(.past):not(.empty){background:#1a1008;color:${biz.colorAccent}}
+.cal-day.selected{background:${biz.colorAccent}!important;color:#0f0a05!important;font-weight:600}
+.cal-day.past,.cal-day.empty{opacity:.25;cursor:default;pointer-events:none}
+.cal-day.today{border:1px solid rgba(201,165,90,.4);color:#c5b49a}
+.step-dot{width:28px;height:28px;border-radius:50%;border:2px solid rgba(155,111,66,.3);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:600;color:#4a3f35;transition:all .3s;background:#0f0a05}
+.step-dot.active{border-color:${biz.colorAccent};color:${biz.colorAccent}}
+.step-dot.done{background:${biz.colorAccent};border-color:${biz.colorAccent};color:#0f0a05}
+.step-line{flex:1;height:1px;background:rgba(155,111,66,.2);margin:0 4px}
+input[type=text],input[type=email],input[type=tel],textarea{background:#0c0804;border:1px solid rgba(155,111,66,.3);border-radius:2px;padding:.75rem 1rem;color:#e8ddd0;font-family:'DM Sans',sans-serif;font-size:.9rem;width:100%;outline:none;transition:border-color .2s;resize:vertical}
+input:focus,textarea:focus{border-color:${biz.colorAccent}}
+input::placeholder,textarea::placeholder{color:#4a3f35}
+</style>
+
+<section class="py-16 px-4 bg-[#0f0a05]">
+  <div class="max-w-xl mx-auto">
+    <div class="flex items-center mb-10">
+      <div class="step-dot active" id="dot-1">1</div><div class="step-line"></div>
+      <div class="step-dot" id="dot-2">2</div><div class="step-line"></div>
+      <div class="step-dot" id="dot-3">3</div>
+    </div>
+
+    <!-- Panel 1: Party size -->
+    <div id="panel-1">
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-2">Step 1 of 3</div>
+      <h2 class="serif text-2xl text-[#f5ede0] mb-2">Party Size</h2>
+      <p class="text-[#9d8e7e] text-sm mb-8">How many guests will be dining?</p>
+      <div class="flex flex-wrap gap-3">
+        ${[1,2,3,4,5,6,7,'8+'].map(n => `<div class="party-card" onclick="selectParty(this,'${n}')">${n}</div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Panel 2: Date + time -->
+    <div id="panel-2" class="hidden">
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-2">Step 2 of 3</div>
+      <h2 class="serif text-2xl text-[#f5ede0] mb-2">Date & Time</h2>
+      <p class="text-[#9d8e7e] text-sm mb-6">Party of <span id="chosen-party" class="text-[#c5b49a]"></span></p>
+      <div class="bg-[#0c0804] border border-[${p}]/15 rounded-sm p-4 mb-5">
+        <div class="flex items-center justify-between mb-4">
+          <button onclick="calPrev()" class="text-[${p}] hover:text-accent transition-colors text-lg">‹</button>
+          <div class="serif text-[#f5ede0] text-base" id="cal-month-label"></div>
+          <button onclick="calNext()" class="text-[${p}] hover:text-accent transition-colors text-lg">›</button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center mb-2">
+          ${['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => `<div class="text-[${p}] text-xs tracking-wider">${d}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-1 justify-items-center" id="cal-grid"></div>
+      </div>
+      <div id="slots-container" class="hidden">
+        <div class="text-[${p}] text-xs tracking-[0.2em] uppercase mb-3">Lunch — <span id="slots-date-label"></span></div>
+        <div class="flex flex-wrap gap-2 mb-4" id="lunch-slots"></div>
+        <div class="text-[${p}] text-xs tracking-[0.2em] uppercase mb-3">Dinner</div>
+        <div class="flex flex-wrap gap-2" id="dinner-slots"></div>
+      </div>
+      <button onclick="goStep(1)" class="mt-6 text-[${p}] text-sm hover:text-accent transition-colors">← Back</button>
+    </div>
+
+    <!-- Panel 3: Contact -->
+    <div id="panel-3" class="hidden">
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-2">Step 3 of 3</div>
+      <h2 class="serif text-2xl text-[#f5ede0] mb-2">Your Details</h2>
+      <p class="text-[#9d8e7e] text-sm mb-6"><span id="summary-line" class="text-[#c5b49a]"></span></p>
+      <div class="space-y-4">
+        <div><label class="block text-[${p}] text-xs tracking-[0.2em] uppercase mb-2">Full Name</label><input type="text" id="bk-name" placeholder="Your name"></div>
+        <div><label class="block text-[${p}] text-xs tracking-[0.2em] uppercase mb-2">Phone</label><input type="tel" id="bk-phone" placeholder="(555) 000-0000"></div>
+        <div><label class="block text-[${p}] text-xs tracking-[0.2em] uppercase mb-2">Special Requests <span class="text-[#4a3f35] normal-case">(optional)</span></label><textarea id="bk-notes" placeholder="Allergies, celebrations, seating preferences..." style="min-height:80px"></textarea></div>
+        <button onclick="submitReservation()" class="w-full border border-accent text-accent py-4 text-sm tracking-[0.2em] uppercase hover:bg-accent hover:text-[#0f0a05] transition-all mt-2">Reserve Table</button>
+      </div>
+      <button onclick="goStep(2)" class="mt-5 text-[${p}] text-sm hover:text-accent transition-colors">← Back</button>
+    </div>
+
+    <!-- Success -->
+    <div id="panel-success" class="hidden text-center py-8">
+      <div class="text-accent text-4xl mb-6">✦</div>
+      <h2 class="serif text-3xl text-[#f5ede0] mb-4">Table Reserved</h2>
+      <p class="text-[#9d8e7e] mb-2">Thank you <span id="success-name" class="text-[#c5b49a]"></span> — your table is provisionally held.</p>
+      <p class="text-[#9d8e7e] mb-8">We'll call <span id="success-phone" class="text-accent"></span> to confirm within the hour.</p>
+      ${biz.phone ? `<p class="text-[#9d8e7e] text-sm">Questions? <a href="tel:${phoneClean}" class="text-accent hover:underline">${biz.phone}</a></p>` : ''}
+    </div>
+
+    <div class="mt-14 pt-10 border-t border-[${p}]/15 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center text-sm text-[#9d8e7e]">
+      ${biz.phone ? `<div><div class="text-accent text-xs tracking-[0.2em] uppercase mb-2">Call</div><a href="tel:${phoneClean}" class="hover:text-accent text-[#c5b49a]">${biz.phone}</a></div>` : ''}
+      ${biz.address ? `<div><div class="text-accent text-xs tracking-[0.2em] uppercase mb-2">Find Us</div>${biz.address}</div>` : ''}
+      <div><div class="text-accent text-xs tracking-[0.2em] uppercase mb-2">Hours</div><div class="whitespace-pre-line">${biz.hours || 'Tue–Sun 11am–10pm'}</div></div>
+    </div>
+  </div>
+</section>
+
+<script>
+var sel={party:'',date:'',time:''};
+var calYear,calMonth;
+function goStep(n){
+  ['panel-1','panel-2','panel-3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
+  document.getElementById('panel-'+n).classList.remove('hidden');
+  for(var i=1;i<=3;i++){
+    var dot=document.getElementById('dot-'+i);if(!dot)continue;
+    if(i<n){dot.classList.add('done');dot.classList.remove('active');dot.textContent='✓';}
+    else if(i===n){dot.classList.add('active');dot.classList.remove('done');}
+    else{dot.classList.remove('active','done');dot.textContent=i;}
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function selectParty(el,n){
+  document.querySelectorAll('.party-card').forEach(function(c){c.classList.remove('selected');});
+  el.classList.add('selected');sel.party=n;
+  setTimeout(function(){
+    var cp=document.getElementById('chosen-party');if(cp)cp.textContent=n+(n==='1'?' guest':' guests');
+    goStep(2);
+  },200);
+}
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function renderCal(){
+  var now=new Date(),first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0);
+  document.getElementById('cal-month-label').textContent=MONTHS[calMonth]+' '+calYear;
+  var grid=document.getElementById('cal-grid');grid.innerHTML='';
+  var startDay=(first.getDay()+6)%7;
+  for(var i=0;i<startDay;i++){var e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);}
+  for(var d=1;d<=last.getDate();d++){
+    var e=document.createElement('div');e.className='cal-day';e.textContent=d;
+    var thisDate=new Date(calYear,calMonth,d);
+    if(thisDate.toDateString()===now.toDateString())e.classList.add('today');
+    if(thisDate<new Date(now.getFullYear(),now.getMonth(),now.getDate()))e.classList.add('past');
+    else{(function(day,el){el.addEventListener('click',function(){
+      document.querySelectorAll('.cal-day').forEach(function(c){c.classList.remove('selected');});
+      el.classList.add('selected');
+      sel.date=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+      document.getElementById('slots-date-label').textContent=MONTHS[calMonth]+' '+day;
+      renderSlots();document.getElementById('slots-container').classList.remove('hidden');
+    });})(d,e);}
+    grid.appendChild(e);
+  }
+}
+function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCal();}
+function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCal();}
+function renderSlots(){
+  var lunch=['12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM'];
+  var dinner=['5:30 PM','6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:30 PM','9:00 PM'];
+  function makeSlot(t,grid){var btn=document.createElement('button');btn.className='slot';btn.textContent=t;btn.addEventListener('click',function(){document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('selected');});btn.classList.add('selected');sel.time=t;setTimeout(function(){var sl=document.getElementById('summary-line');if(sl)sl.textContent=MONTHS[calMonth]+' '+parseInt(sel.date.split('-')[2])+' at '+t+' · Party of '+sel.party;goStep(3);},200);});grid.appendChild(btn);}
+  var lg=document.getElementById('lunch-slots'),dg=document.getElementById('dinner-slots');lg.innerHTML='';dg.innerHTML='';
+  lunch.forEach(function(t){makeSlot(t,lg);});dinner.forEach(function(t){makeSlot(t,dg);});
+}
+function submitReservation(){
+  var name=document.getElementById('bk-name').value.trim();
+  var phone=document.getElementById('bk-phone').value.trim();
+  if(!name||!phone){alert('Please fill in your name and phone.');return;}
+  document.getElementById('success-name').textContent=name;
+  document.getElementById('success-phone').textContent=phone;
+  ['panel-1','panel-2','panel-3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('hidden');});
+  document.getElementById('panel-success').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+var now=new Date();calYear=now.getFullYear();calMonth=now.getMonth();renderCal();
+</script>
+
+${ctaSection(biz, baseUrl)}
+${footer(biz, baseUrl)}
+</body></html>`;
+}
+
 function buildBookingPage(biz: BizPageData, baseUrl: string): string {
   const cat = biz.businessCategory;
+  if (cat === 'restaurant') return buildRestaurantBookingPage(biz, baseUrl);
   const hasStylistStep = ['salon', 'barber', 'beauty', 'fitness', 'gym'].includes(cat);
   const totalSteps = hasStylistStep ? 4 : 3;
 
