@@ -319,6 +319,43 @@ function buildVars(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Record<
   return vars;
 }
 
+// ── Business category detection ───────────────────────────────────────────────
+
+export function detectBizCategory(businessType: string): string {
+  const t = businessType.toLowerCase();
+  if (t.includes('salon') || t.includes('hair') || t.includes('hairdress') || t.includes('beauty') || t.includes('nail') || t.includes('spa')) return 'salon';
+  if (t.includes('barber')) return 'barber';
+  if (t.includes('restaurant') || t.includes('cafe') || t.includes('food') || t.includes('bakery') || t.includes('bistro')) return 'restaurant';
+  if (t.includes('gym') || t.includes('fitness') || t.includes('yoga') || t.includes('pilates') || t.includes('martial')) return 'fitness';
+  if (t.includes('plumb') || t.includes('electr') || t.includes('roof') || t.includes('hvac') || t.includes('contractor') || t.includes('builder')) return 'trades';
+  if (t.includes('dent') || t.includes('chiroprac') || t.includes('account') || t.includes('law') || t.includes('consult') || t.includes('physio')) return 'professional';
+  return 'professional';
+}
+
+// ── Team extractor from review text ──────────────────────────────────────────
+
+export function extractTeamFromReviews(
+  reviews: Array<{ text: string; author: string }>,
+  category: string,
+): Array<{ name: string; role: string; photo?: string }> {
+  if (!['salon', 'barber', 'fitness', 'gym'].includes(category)) return [];
+  const names = new Set<string>();
+  const SKIP = new Set(['The', 'And', 'But', 'She', 'He', 'They', 'Was', 'Has', 'Her', 'His', 'You', 'We', 'My', 'Our', 'Your']);
+  for (const r of reviews) {
+    // Pattern 1: "my stylist Brianna", "stylist is Jamie"
+    const m1 = r.text.matchAll(/(?:stylist|hairdress\w*|cut|shampoo|wash|trainer|instructor)\s+(?:is\s+)?([A-Z][a-z]{2,12})/g);
+    for (const m of m1) { if (!SKIP.has(m[1])) names.add(m[1]); }
+    // Pattern 2: "Brianna was amazing", "Jamie did my hair"
+    const m2 = r.text.matchAll(/([A-Z][a-z]{2,12})\s+(?:was|did|is|has|always|who|made|gave|helped|cut|styled|worked)/g);
+    for (const m of m2) { if (!SKIP.has(m[1])) names.add(m[1]); }
+    // Pattern 3: "ask for Brianna"
+    const m3 = r.text.matchAll(/ask\s+for\s+([A-Z][a-z]{2,12})/g);
+    for (const m of m3) { if (!SKIP.has(m[1])) names.add(m[1]); }
+  }
+  const defaultRole = category === 'fitness' ? 'Trainer' : 'Stylist';
+  return Array.from(names).slice(0, 4).map(name => ({ name, role: defaultRole }));
+}
+
 /**
  * Build a multi-page website demo for a local business.
  * Stores 5 separate pages: home, services, gallery, about, booking.
@@ -337,13 +374,27 @@ export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial
   // Build vars for fallback (used if no enrichedCopy)
   const vars = buildVars(biz, enrichedCopy);
 
+  // Detect business category for booking widget type
+  const bizCat = detectBizCategory(biz.business_type);
+
+  // Use team from enrichedCopy if provided (real scraped team), else extract from reviews
+  const enrichedAny = enrichedCopy as any;
+  const team = enrichedAny?.team?.length
+    ? enrichedAny.team
+    : extractTeamFromReviews(biz.reviews || [], bizCat);
+
+  // Extra content pages (products, community, special events)
+  const products   = enrichedAny?.products   || null;
+  const community  = enrichedAny?.community  || null;
+  const specialEvents = enrichedAny?.specialEvents || null;
+
   // Assemble BizPageData for the multi-page builder
   const services = biz.services?.length
-    ? biz.services.map(s => ({
+    ? biz.services.map((s, i) => ({
         name: s.name,
         desc: s.desc,
         price: s.price || '',
-        duration: vars[`SERVICE_${biz.services!.indexOf(s) + 1}_DURATION`] || '',
+        duration: vars[`SERVICE_${i + 1}_DURATION`] || '',
       }))
     : [
         { name: vars.SERVICE_1, desc: vars.SERVICE_1_DESC, price: vars.SERVICE_1_PRICE, duration: vars.SERVICE_1_DURATION },
@@ -352,29 +403,45 @@ export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial
         { name: vars.SERVICE_4, desc: vars.SERVICE_4_DESC, price: vars.SERVICE_4_PRICE, duration: vars.SERVICE_4_DURATION },
       ];
 
+  // Build extra nav links based on what content will exist
+  const extraNavLinks: Array<{ href: string; label: string }> = [];
+  extraNavLinks.push({ href: `${baseUrl}/services`, label: 'Services' });
+  extraNavLinks.push({ href: `${baseUrl}/gallery`, label: 'Gallery' });
+  if (team.length > 0)    extraNavLinks.push({ href: `${baseUrl}/stylists`, label: 'Our Stylists' });
+  extraNavLinks.push({ href: `${baseUrl}/about`, label: 'About' });
+  if (products?.length)   extraNavLinks.push({ href: `${baseUrl}/products`, label: 'Products' });
+  if (specialEvents)      extraNavLinks.push({ href: `${baseUrl}/events`, label: 'Special Events' });
+  if (community?.length)  extraNavLinks.push({ href: `${baseUrl}/community`, label: 'Community' });
+
   const bizPageData: BizPageData = {
-    name:           biz.business_name,
-    type:           biz.business_type,
-    phone:          biz.phone,
-    address:        biz.address,
-    city:           biz.city,
-    state:          biz.state_province,
-    rating:         biz.gmb_rating,
-    reviews:        biz.gmb_reviews,
-    photos:         biz.gmb_photos || [],
-    hours:          vars.HOURS,
-    colorPrimary:   vars.COLOR_PRIMARY,
-    colorAccent:    vars.COLOR_ACCENT,
-    heroHeadline:   vars.HERO_HEADLINE,
-    heroHeadlineEm: vars.HERO_HEADLINE_EM,
-    heroSub:        vars.HERO_SUBHEADLINE,
-    aboutText:      vars.ABOUT_TEXT,
-    aboutText2:     vars.ABOUT_TEXT_2,
-    ctaText:        vars.CTA_TEXT,
+    name:             biz.business_name,
+    type:             biz.business_type,
+    businessCategory: bizCat,
+    phone:            biz.phone,
+    address:          biz.address,
+    city:             biz.city,
+    state:            biz.state_province,
+    rating:           biz.gmb_rating,
+    reviews:          biz.gmb_reviews,
+    photos:           biz.gmb_photos || [],
+    hours:            vars.HOURS,
+    colorPrimary:     vars.COLOR_PRIMARY,
+    colorAccent:      vars.COLOR_ACCENT,
+    heroHeadline:     vars.HERO_HEADLINE,
+    heroHeadlineEm:   vars.HERO_HEADLINE_EM,
+    heroSub:          vars.HERO_SUBHEADLINE,
+    aboutText:        vars.ABOUT_TEXT,
+    aboutText2:       vars.ABOUT_TEXT_2,
+    ctaText:          vars.CTA_TEXT,
     services,
-    reviewTexts:    (biz.reviews || []).map(r => r.text),
-    yearsInBiz:     vars.YEARS_IN_BIZ,
-    teamName:       vars.TEAM_1,
+    reviewTexts:      (biz.reviews || []).map(r => r.text),
+    yearsInBiz:       vars.YEARS_IN_BIZ,
+    teamName:         vars.TEAM_1,
+    team,
+    products:         products || undefined,
+    community:        community || undefined,
+    specialEvents:    specialEvents || undefined,
+    extraNavLinks:    extraNavLinks.length > 4 ? extraNavLinks : undefined,
   };
 
   const pages = buildAllPages(bizPageData, baseUrl);
