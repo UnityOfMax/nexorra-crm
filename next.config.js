@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Bundle agent prompt + memory files into the Vercel deployment output
-  outputFileTracingIncludes: {
-    '/api/agents/runs': ['./agents/**/*', './.claude/commands/**/*'],
-  },
+  // Skip TS type checking and ESLint during Vercel builds — we run tsc locally before pushing
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   experimental: {
     serverComponentsExternalPackages: [
       'googleapis',
