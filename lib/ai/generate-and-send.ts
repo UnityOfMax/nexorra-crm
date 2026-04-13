@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import { generateText } from '@/lib/ai/daemon-client';
+import { generateWithOllama } from '@/lib/ai/ollama-client';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
+import { loadReplyMemory, buildMemoryBlock } from '@/lib/ai/reply-memory';
 import { twilioClient } from '@/lib/twilio/client';
 import { resendClient } from '@/lib/resend/client';
 import { updateLeadScore } from '@/lib/ai/lead-scoring';
@@ -139,6 +140,10 @@ export async function generateAIResponse(
   // Build memory-efficient context: rolling summary + last 5 messages + contact calendar slots
   const { summary, recentMessages, upcomingSlots } = await buildAIContext(accountId, contactId);
 
+  // Load local memory: agent patterns + Obsidian contact note + skills
+  const memoryCtx = loadReplyMemory(contact.first_name ?? null, contact.last_name ?? null);
+  const memoryBlock = buildMemoryBlock(memoryCtx);
+
   // Build Claude messages array from recent history
   const conversationMessages = recentMessages.map((msg) => ({
     role: msg.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
@@ -177,18 +182,19 @@ export async function generateAIResponse(
     upcomingSlots
       ? `This contact's booked call: ${upcomingSlots}`
       : '',
-    channel === 'sms' ? 'Keep responses concise and suitable for SMS (under 160 characters when possible).' : '',
-    channel === 'email' ? 'Format the response appropriately for email. You may include a greeting and sign-off.' : '',
+    channel === 'sms' ? 'Keep it under 160 characters when possible. One idea per message. No filler greetings.' : '',
+    channel === 'email' ? 'Include a greeting (first name + comma) and a natural one-line sign-off. No walls of text.' : '',
     isFollowUp
-      ? `This is a follow-up message because the contact hasn't replied yet. Keep it brief and friendly, reference something from the conversation summary if available, and gently nudge without being pushy. This is follow-up #${(followUpCount ?? 0) + 1} of 3.`
+      ? `This is follow-up #${(followUpCount ?? 0) + 1} of 3 — they haven't replied. Brief, specific reference to something from your previous exchange, gentle nudge. Not pushy.`
       : '',
-    'Writing style: sound human. Never use "crucial", "vital", "essential", "transformative", "leverage", "navigate", "foster", "Moreover", "Furthermore". No sycophantic openers. No em-dash overuse. No hedging. No generic conclusions. Use active verbs. Vary sentence length. Be specific and direct.',
-    'Respond only with the message text. Do not include any meta-commentary or labels.',
+    `## Memory\n${memoryBlock}`,
+    `## Writing style\n${memoryCtx.humanizerSkill}`,
+    `---\n${memoryCtx.stopSlopSkill}`,
+    'Respond with the message text only. No labels, no meta-commentary, no quotation marks.',
   ].filter(Boolean).join('\n\n');
 
-  // Generate via daemon bridge (subscription auth)
-  const aiResult = await generateText({
-    model: 'claude-haiku-4-5-20251001',
+  // Generate via local Ollama (Llama 3.2 3B)
+  const aiResult = await generateWithOllama({
     system: systemParts,
     messages: conversationMessages.length > 0
       ? conversationMessages
@@ -218,7 +224,7 @@ export async function generateAIResponse(
   return {
     response: responseText,
     subject,
-    model: 'claude-haiku-4-5-20251001',
+    model: process.env.OLLAMA_REPLY_MODEL || 'llama3.2:3b',
     tokens_used: aiResult.usage.output,
   };
 }
