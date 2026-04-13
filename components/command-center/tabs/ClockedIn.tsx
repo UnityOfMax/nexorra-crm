@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Square, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Square, RefreshCw, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { AGENT_DEFINITIONS, DEPARTMENTS, type DepartmentKey } from '@/lib/agents/definitions';
 import type { AgentConfig, LogEvent } from '../types';
 
@@ -234,6 +234,66 @@ function RunningAgentCard({
   );
 }
 
+// ─── Idle Agent Card (always-on agents waiting for triggers) ───
+function IdleAgentCard({ agentId }: { agentId: string }) {
+  const def = AGENT_DEFINITIONS[agentId];
+  if (!def) return null;
+  const color = getDeptColor(def.department);
+  const dept = DEPARTMENTS[def.department as DepartmentKey];
+
+  return (
+    <div className="rounded-xl bg-white dark:bg-[#2c2c2e] border border-gray-200 dark:border-gray-700/60 overflow-hidden shadow-sm opacity-80">
+      <div className="flex">
+        <div
+          className="w-7 flex-shrink-0 flex items-center justify-center relative"
+          style={{ backgroundColor: color }}
+        >
+          <span
+            className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/90"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
+          >
+            {dept?.label?.split(' ')[0] || def.department}
+          </span>
+        </div>
+        <div className="flex-1 p-3 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                {def.displayName}
+              </h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="relative flex w-2 h-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" style={{ animationDuration: '2s' }} />
+                  <span className="relative inline-flex rounded-full w-2 h-2 bg-amber-400" />
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Waiting for messages</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+              <Zap className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">24/7</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-400 dark:text-gray-500">
+            <span>{def.model}</span>
+            <span>·</span>
+            <span>{def.schedule}</span>
+          </div>
+          {def.skills && def.skills.length > 0 && (
+            <div className="flex gap-1 mt-2 flex-wrap">
+              {def.skills.map(s => (
+                <span key={s} className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───
 export default function ClockedIn({
   agents,
@@ -282,8 +342,16 @@ export default function ClockedIn({
   });
 
   const runningAgents = [...dbRunning, ...syntheticAgents];
+  const runningIds = new Set(runningAgents.map(a => a.name || a.id));
 
-  if (runningAgents.length === 0) {
+  // Always-on agents that are idle (not currently in a run)
+  const idleAlwaysOn = Object.entries(AGENT_DEFINITIONS)
+    .filter(([id, def]) => def.alwaysOn && !runningIds.has(id))
+    .map(([id]) => id);
+
+  const hasAnything = runningAgents.length > 0 || idleAlwaysOn.length > 0;
+
+  if (!hasAnything) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center">
@@ -300,6 +368,11 @@ export default function ClockedIn({
   return (
     <div className="flex-1 overflow-auto p-4 sm:p-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Always-on idle agents first */}
+        {idleAlwaysOn.map(id => (
+          <IdleAgentCard key={id} agentId={id} />
+        ))}
+        {/* Actively running agents */}
         {runningAgents.map(config => {
           const agentId = config.name || config.id;
           return (

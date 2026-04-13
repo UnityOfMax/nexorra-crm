@@ -16,6 +16,8 @@ export interface AgentDef {
   schedule?: string;
   /** Legacy ID for backward-compatible cron scripts */
   legacyId?: string;
+  /** Always show in ClockedIn as idle/waiting even when not actively running */
+  alwaysOn?: boolean;
 }
 
 export const DEPARTMENTS = {
@@ -163,12 +165,13 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
   },
   'omar': {
     promptFile: '.claude/commands/client/reply.md',
-    model: 'haiku', maxTurns: 60,
+    model: 'llama3.2:3b', maxTurns: 60,
     department: 'client', role: 'agent', reportsTo: 'ava',
     displayName: 'Omar',
-    skills: ['humanizer'],
-    schedule: 'Every 5 min + webhooks',
+    skills: ['humanizer', 'stop-slop'],
+    schedule: 'Webhook-triggered · 24/7',
     legacyId: 'client-reply',
+    alwaysOn: true,
   },
   'riya': {
     promptFile: '.claude/commands/client/onboard.md',
