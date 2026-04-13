@@ -150,7 +150,7 @@ ${nav(baseUrl, biz)}
 <div style="background:var(--red);padding:1.75rem 2rem;text-align:center">
   <p style="font-family:var(--font-display);font-size:clamp(1.4rem,4vw,2.5rem);letter-spacing:0.12em;color:#fff">
     ${esc(biz.name).toUpperCase()}
-    <span style="color:var(--mustard);font-size:0.6em;letter-spacing:0.2em;margin-left:1rem">${esc(biz.city)}, ${esc(biz.state)}</span>
+    <span style="color:var(--mustard);font-size:0.6em;letter-spacing:0.2em;margin-left:1rem">${esc(biz.city || '')}, ${esc(biz.state || '')}</span>
   </p>
   <hr class="rule" style="width:60px;margin-top:0.75rem">
 </div>
@@ -353,7 +353,7 @@ ${nav(baseUrl, biz)}
 
 <!-- ABOUT HERO -->
 <div style="background:var(--charcoal);padding:5rem 2rem;text-align:center">
-  <p style="font-family:var(--font-serif);font-style:italic;color:var(--mustard);margin-bottom:0.75rem">The real ${esc(biz.city)} institution</p>
+  <p style="font-family:var(--font-serif);font-style:italic;color:var(--mustard);margin-bottom:0.75rem">The real ${esc(biz.city || '')} institution</p>
   <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,7vw,5.5rem);letter-spacing:0.06em;color:#fff">${esc(biz.aboutText || 'OUR STORY')}</h1>
 </div>
 

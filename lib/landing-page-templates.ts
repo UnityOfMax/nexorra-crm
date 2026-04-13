@@ -10,6 +10,7 @@ export interface LandingPageBlock {
     | 'testimonial'
     | 'spacer'
     | 'features'
+    | 'raw_html'
     | 're_hero'
     | 're_about'
     | 're_reviews'
@@ -19,6 +20,23 @@ export interface LandingPageBlock {
     | 're_team';
   data: Record<string, any>;
   order: number;
+}
+
+export interface LandingPageSection {
+  id: string;
+  columns: LandingPageColumn[];
+  style?: {
+    paddingTop?: number;       // px, default 0 (blocks manage their own padding)
+    paddingBottom?: number;    // px, default 0
+    marginBottom?: number;     // px gap below this section, default 0
+    backgroundColor?: string;
+  };
+}
+
+export interface LandingPageColumn {
+  id: string;
+  width: number;  // out of 12 (e.g. 6+6 for 50/50, 4+4+4 for 33/33/33)
+  blocks: LandingPageBlock[];
 }
 
 export type QuestionnaireStepKey =
@@ -43,6 +61,7 @@ export type QuestionnaireConfig = Partial<Record<QuestionnaireStepKey, Questionn
 
 export interface LandingPageContent {
   blocks: LandingPageBlock[];
+  sections?: LandingPageSection[];
   styles: {
     fontFamily: string;
     primaryColor: string;

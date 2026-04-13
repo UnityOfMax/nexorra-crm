@@ -10,7 +10,7 @@ import {
 import type { CustomFormField, QuestionnaireConfig, QuestionnaireStepKey, QuestionnaireOption } from '@/lib/landing-page-templates';
 import LandingPageRenderer from './LandingPageRenderer';
 import type { LandingPage } from '@/types';
-import type { LandingPageBlock, LandingPageContent } from '@/lib/landing-page-templates';
+import type { LandingPageBlock, LandingPageContent, LandingPageSection, LandingPageColumn } from '@/lib/landing-page-templates';
 import { toast } from 'sonner';
 
 interface LandingPageBuilderProps {
@@ -19,6 +19,11 @@ interface LandingPageBuilderProps {
   accountSlug: string;
   onBack: () => void;
 }
+
+type SelectionState =
+  | { type: 'section'; sectionId: string }
+  | { type: 'block'; sectionId: string; columnId: string; blockId: string }
+  | null;
 
 const BLOCK_TYPES = [
   { type: 'hero', label: 'Hero', icon: LayoutList, description: 'Full-width header' },
@@ -31,6 +36,7 @@ const BLOCK_TYPES = [
   { type: 'features', label: 'Features', icon: LayoutList, description: 'Feature grid' },
   { type: 'spacer', label: 'Spacer', icon: Minus, description: 'Vertical space' },
   { type: 're_team', label: 'Team', icon: Users, description: 'Team members' },
+  { type: 'raw_html', label: 'HTML', icon: Type, description: 'Custom HTML block' },
 ] as const;
 
 function getDefaultBlockData(type: string): Record<string, any> {
@@ -45,15 +51,36 @@ function getDefaultBlockData(type: string): Record<string, any> {
     case 'features': return { heading: 'Our Features', items: [{ title: 'Feature 1', description: 'Description' }, { title: 'Feature 2', description: 'Description' }, { title: 'Feature 3', description: 'Description' }] };
     case 'spacer': return { height: 40 };
     case 're_team': return { heading: 'Meet The Team', members: [{ name: 'Team Member', title: 'Role', bio: '', photoUrl: '' }], accentColor: '' };
+    case 'raw_html': return { html: '<div style="padding:24px"><p>Enter your HTML here...</p></div>' };
     default: return {};
   }
+}
+
+const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+function blocksToSections(blocks: LandingPageBlock[]): LandingPageSection[] {
+  return blocks.sort((a, b) => a.order - b.order).map(block => ({
+    id: `sec-${block.id}`,
+    columns: [{ id: `col-${block.id}`, width: 12, blocks: [{ ...block, order: 0 }] }],
+    style: {},
+  }));
 }
 
 export default function LandingPageBuilder({ page, accountId, accountSlug, onBack }: LandingPageBuilderProps) {
   const [content, setContent] = useState<LandingPageContent>(
     page.content || { blocks: [], styles: { fontFamily: 'Inter', primaryColor: '#0ea5e9' } }
   );
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+
+  const [sections, setSections] = useState<LandingPageSection[]>(() => {
+    if (page.content?.sections?.length) return page.content.sections;
+    if (page.content?.blocks?.length) return blocksToSections(page.content.blocks);
+    return [];
+  });
+
+  const [selection, setSelection] = useState<SelectionState>(null);
+  const [activeColumn, setActiveColumn] = useState<{ sectionId: string; columnId: string } | null>(null);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -70,57 +97,201 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
   const canPublish = !published || isDirty;
   const markDirty = () => setIsDirty(true);
 
-  const selectedBlock = content.blocks.find(b => b.id === selectedBlockId) || null;
+  // Derived: find selected section and block
+  const selectedSection = selection?.type === 'section'
+    ? sections.find(s => s.id === selection.sectionId) || null
+    : null;
 
-  const addBlock = (type: string) => {
-    const newBlock: LandingPageBlock = {
-      id: `block-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: type as any,
-      data: getDefaultBlockData(type),
-      order: content.blocks.length,
+  const selectedBlock = selection?.type === 'block'
+    ? sections.find(s => s.id === selection.sectionId)?.columns.find(c => c.id === selection.columnId)?.blocks.find(b => b.id === selection.blockId) || null
+    : null;
+
+  // All form blocks across sections (for forms tab)
+  const allFormBlocks = sections.flatMap(s => s.columns.flatMap(c => c.blocks.filter(b => b.type === 'form')));
+
+  const buildSaveContent = (): LandingPageContent => ({
+    ...content,
+    blocks: [],
+    sections,
+  });
+
+  // ---- Section management ----
+
+  const addSection = (afterIdx?: number) => {
+    const newSection: LandingPageSection = {
+      id: `sec-${genId()}`,
+      columns: [{ id: `col-${genId()}`, width: 12, blocks: [] }],
+      style: {},
     };
-    setContent(prev => ({ ...prev, blocks: [...prev.blocks, newBlock] }));
-    setSelectedBlockId(newBlock.id);
-    markDirty();
-  };
-
-  const updateBlock = (blockId: string, data: Record<string, any>) => {
-    setContent(prev => ({
-      ...prev,
-      blocks: prev.blocks.map(b => b.id === blockId ? { ...b, data: { ...b.data, ...data } } : b),
-    }));
-    markDirty();
-  };
-
-  const deleteBlock = (blockId: string) => {
-    setContent(prev => ({
-      ...prev,
-      blocks: prev.blocks.filter(b => b.id !== blockId).map((b, i) => ({ ...b, order: i })),
-    }));
-    if (selectedBlockId === blockId) setSelectedBlockId(null);
-    markDirty();
-  };
-
-  const moveBlock = (blockId: string, direction: 'up' | 'down') => {
-    setContent(prev => {
-      const sorted = [...prev.blocks].sort((a, b) => a.order - b.order);
-      const idx = sorted.findIndex(b => b.id === blockId);
-      if (direction === 'up' && idx > 0) {
-        [sorted[idx], sorted[idx - 1]] = [sorted[idx - 1], sorted[idx]];
-      } else if (direction === 'down' && idx < sorted.length - 1) {
-        [sorted[idx], sorted[idx + 1]] = [sorted[idx + 1], sorted[idx]];
-      }
-      return { ...prev, blocks: sorted.map((b, i) => ({ ...b, order: i })) };
+    setSections(prev => {
+      const arr = [...prev];
+      const insertAt = afterIdx !== undefined ? afterIdx + 1 : arr.length;
+      arr.splice(insertAt, 0, newSection);
+      return arr;
     });
     markDirty();
   };
+
+  const deleteSection = (sectionId: string) => {
+    setSections(prev => prev.filter(s => s.id !== sectionId));
+    if (selection?.type === 'section' && selection.sectionId === sectionId) setSelection(null);
+    markDirty();
+  };
+
+  const moveSection = (sectionId: string, dir: 'up' | 'down') => {
+    setSections(prev => {
+      const arr = [...prev];
+      const idx = arr.findIndex(s => s.id === sectionId);
+      if (dir === 'up' && idx > 0) { const t = arr[idx]; arr[idx] = arr[idx - 1]; arr[idx - 1] = t; }
+      if (dir === 'down' && idx < arr.length - 1) { const t = arr[idx]; arr[idx] = arr[idx + 1]; arr[idx + 1] = t; }
+      return arr;
+    });
+    markDirty();
+  };
+
+  const duplicateSection = (sectionId: string) => {
+    setSections(prev => {
+      const idx = prev.findIndex(s => s.id === sectionId);
+      if (idx === -1) return prev;
+      const src = prev[idx];
+      const copy: LandingPageSection = {
+        id: `sec-${genId()}`,
+        columns: src.columns.map(col => ({
+          id: `col-${genId()}`,
+          width: col.width,
+          blocks: col.blocks.map(b => ({ ...b, id: `block-${genId()}` })),
+        })),
+        style: { ...src.style },
+      };
+      const arr = [...prev];
+      arr.splice(idx + 1, 0, copy);
+      return arr;
+    });
+    markDirty();
+  };
+
+  const updateSectionStyle = (sectionId: string, styleUpdate: Partial<NonNullable<LandingPageSection['style']>>) => {
+    setSections(prev => prev.map(s => s.id === sectionId ? { ...s, style: { ...s.style, ...styleUpdate } } : s));
+    markDirty();
+  };
+
+  const setSectionColumns = (sectionId: string, numCols: number) => {
+    const widths: Record<number, number[]> = { 1: [12], 2: [6, 6], 3: [4, 4, 4] };
+    const newWidths = widths[numCols] || [12];
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s;
+      const allBlocks = s.columns.flatMap(c => c.blocks);
+      const newCols: LandingPageColumn[] = newWidths.map((w, i) => ({
+        id: s.columns[i]?.id || `col-${genId()}`,
+        width: w,
+        blocks: i === 0 ? allBlocks.map((b, bi) => ({ ...b, order: bi })) : [],
+      }));
+      return { ...s, columns: newCols };
+    }));
+    markDirty();
+  };
+
+  const addBlockToColumn = (sectionId: string, columnId: string, type: string) => {
+    const newBlock: LandingPageBlock = {
+      id: `block-${genId()}`,
+      type: type as any,
+      data: getDefaultBlockData(type),
+      order: 0,
+    };
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        columns: s.columns.map(c => {
+          if (c.id !== columnId) return c;
+          const blocks = [...c.blocks, { ...newBlock, order: c.blocks.length }];
+          return { ...c, blocks };
+        }),
+      };
+    }));
+    setSelection({ type: 'block', sectionId, columnId, blockId: newBlock.id });
+    setActiveColumn({ sectionId, columnId });
+    markDirty();
+  };
+
+  const updateBlockInSection = (sectionId: string, columnId: string, blockId: string, data: Record<string, any>) => {
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        columns: s.columns.map(c => {
+          if (c.id !== columnId) return c;
+          return { ...c, blocks: c.blocks.map(b => b.id === blockId ? { ...b, data: { ...b.data, ...data } } : b) };
+        }),
+      };
+    }));
+    markDirty();
+  };
+
+  const deleteBlockFromSection = (sectionId: string, columnId: string, blockId: string) => {
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        columns: s.columns.map(c => {
+          if (c.id !== columnId) return c;
+          return { ...c, blocks: c.blocks.filter(b => b.id !== blockId).map((b, i) => ({ ...b, order: i })) };
+        }),
+      };
+    }));
+    if (selection?.type === 'block' && selection.blockId === blockId) setSelection(null);
+    markDirty();
+  };
+
+  const moveBlockInColumn = (sectionId: string, columnId: string, blockId: string, dir: 'up' | 'down') => {
+    setSections(prev => prev.map(s => {
+      if (s.id !== sectionId) return s;
+      return {
+        ...s,
+        columns: s.columns.map(c => {
+          if (c.id !== columnId) return c;
+          const arr = [...c.blocks].sort((a, b) => a.order - b.order);
+          const idx = arr.findIndex(b => b.id === blockId);
+          if (dir === 'up' && idx > 0) { const t = arr[idx]; arr[idx] = arr[idx - 1]; arr[idx - 1] = t; }
+          if (dir === 'down' && idx < arr.length - 1) { const t = arr[idx]; arr[idx] = arr[idx + 1]; arr[idx + 1] = t; }
+          return { ...c, blocks: arr.map((b, i) => ({ ...b, order: i })) };
+        }),
+      };
+    }));
+    markDirty();
+  };
+
+  // ---- Add block handler (from left panel) ----
+
+  const handleAddBlock = (type: string) => {
+    if (activeColumn) {
+      addBlockToColumn(activeColumn.sectionId, activeColumn.columnId, type);
+    } else if (sections.length > 0) {
+      const lastSection = sections[sections.length - 1];
+      const firstCol = lastSection.columns[0];
+      addBlockToColumn(lastSection.id, firstCol.id, type);
+    } else {
+      const newSection: LandingPageSection = {
+        id: `sec-${genId()}`,
+        columns: [{
+          id: `col-${genId()}`,
+          width: 12,
+          blocks: [{ id: `block-${genId()}`, type: type as any, data: getDefaultBlockData(type), order: 0 }],
+        }],
+        style: {},
+      };
+      setSections([newSection]);
+    }
+    markDirty();
+  };
+
+  // ---- Save / Publish ----
 
   const showMsg = (msg: string) => {
     setSaveMessage(msg);
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
-  // Save as draft only — never changes published state
   const handleSave = async () => {
     setSaving(true);
     setSaveMessage('');
@@ -131,7 +302,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
         body: JSON.stringify({
           name: pageName,
           slug: pageSlug,
-          content,
+          content: buildSaveContent(),
           meta_title: metaTitle,
           meta_description: metaDescription,
           connect_pixel: true,
@@ -151,7 +322,6 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
     }
   };
 
-  // Publish — saves all content with published: true and resets dirty flag
   const handlePublish = async () => {
     if (!canPublish) return;
     setPublishing(true);
@@ -163,7 +333,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
         body: JSON.stringify({
           name: pageName,
           slug: pageSlug,
-          content,
+          content: buildSaveContent(),
           meta_title: metaTitle,
           meta_description: metaDescription,
           connect_pixel: true,
@@ -389,12 +559,17 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           </div>
           {leftTab === 'blocks' ? (
             <div className="p-2 space-y-1 overflow-y-auto">
+              {activeColumn && (
+                <p className="text-xs text-blue-600 font-medium px-3 py-1 bg-blue-50 rounded mb-1">
+                  Adding to active column
+                </p>
+              )}
               {BLOCK_TYPES.map((bt) => {
                 const Icon = bt.icon;
                 return (
                   <button
                     key={bt.type}
-                    onClick={() => addBlock(bt.type)}
+                    onClick={() => handleAddBlock(bt.type)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded transition-colors"
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -407,25 +582,36 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
             <div className="p-2 overflow-y-auto">
               {/* Real Estate Questionnaire — always present as global form */}
               <button
-                onClick={() => setSelectedBlockId('__questionnaire__')}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left mb-1 ${selectedBlockId === '__questionnaire__' ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                onClick={() => { setShowQuestionnaire(true); setSelection(null); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left mb-1 ${showQuestionnaire ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
               >
                 <FormInput className="w-4 h-4 flex-shrink-0 text-amber-500" />
                 <span className="truncate font-medium">RE Questionnaire</span>
               </button>
               {/* Inline form blocks */}
-              {content.blocks.filter(b => b.type === 'form').map((b, idx) => (
+              {allFormBlocks.map((b, idx) => (
                 <button
                   key={b.id}
-                  onClick={() => { setSelectedBlockId(b.id); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left ${selectedBlockId === b.id ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setShowQuestionnaire(false);
+                    // Find which section/column this block is in
+                    for (const sec of sections) {
+                      for (const col of sec.columns) {
+                        if (col.blocks.some(bl => bl.id === b.id)) {
+                          setSelection({ type: 'block', sectionId: sec.id, columnId: col.id, blockId: b.id });
+                          return;
+                        }
+                      }
+                    }
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors text-left ${selection?.type === 'block' && selection.blockId === b.id ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
                   <FormInput className="w-4 h-4 flex-shrink-0" />
                   <span className="truncate">{b.data.heading || `Form ${idx + 1}`}</span>
                 </button>
               ))}
               <button
-                onClick={() => { addBlock('form'); setLeftTab('forms'); }}
+                onClick={() => { handleAddBlock('form'); setLeftTab('forms'); }}
                 className="mt-2 w-full text-xs text-primary-600 hover:text-primary-700 font-medium py-1"
               >
                 + Add Inline Form
@@ -434,57 +620,267 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           )}
         </div>
 
-        {/* Preview */}
-        <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-y-auto">
-          <LandingPageRenderer
-            content={content}
-            isPreview={true}
-            onBlockClick={(id) => setSelectedBlockId(id)}
-            selectedBlockId={selectedBlockId || undefined}
-            accountId={accountId}
-          />
+        {/* Preview Canvas */}
+        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg overflow-y-auto">
+          <div className="min-h-full" style={{ fontFamily: content.styles.fontFamily || 'Inter, sans-serif' }}>
+            {sections.length === 0 && (
+              <div className="flex flex-col items-center justify-center min-h-[400px] text-gray-400">
+                <p className="text-lg mb-3">Start building your page</p>
+                <button
+                  onClick={() => addSection()}
+                  className="btn btn-primary text-sm"
+                >
+                  + Add First Section
+                </button>
+              </div>
+            )}
+
+            {sections.map((section, sIdx) => {
+              const isSectionSelected = selection?.type === 'section' && selection.sectionId === section.id;
+              return (
+                <div
+                  key={section.id}
+                  className={`relative group ${isSectionSelected ? 'outline outline-2 outline-blue-500' : 'outline outline-2 outline-transparent hover:outline-blue-200'}`}
+                  style={{
+                    paddingTop: section.style?.paddingTop ?? 0,
+                    paddingBottom: section.style?.paddingBottom ?? 0,
+                    marginBottom: section.style?.marginBottom ?? 0,
+                    backgroundColor: section.style?.backgroundColor || undefined,
+                  }}
+                >
+                  {/* Section controls bar */}
+                  <div
+                    className={`absolute top-0 left-0 z-20 flex items-center gap-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-br-md transition-opacity ${isSectionSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  >
+                    <span className="font-medium mr-1">Section {sIdx + 1}</span>
+                    <span className="text-blue-200">|</span>
+                    {[1, 2, 3].map(n => (
+                      <button
+                        key={n}
+                        title={`${n} column${n > 1 ? 's' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setSectionColumns(section.id, n); }}
+                        className={`px-1.5 py-0.5 rounded text-xs font-bold ${section.columns.length === n ? 'bg-white text-blue-600' : 'hover:bg-blue-400'}`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                    <span className="text-blue-200">|</span>
+                    <button title="Move up" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'up'); }} className="hover:bg-blue-400 px-1 rounded">↑</button>
+                    <button title="Move down" onClick={(e) => { e.stopPropagation(); moveSection(section.id, 'down'); }} className="hover:bg-blue-400 px-1 rounded">↓</button>
+                    <button title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicateSection(section.id); }} className="hover:bg-blue-400 px-1 rounded">⧉</button>
+                    <button title="Section settings" onClick={(e) => { e.stopPropagation(); setShowQuestionnaire(false); setSelection({ type: 'section', sectionId: section.id }); }} className="hover:bg-blue-400 px-1 rounded">⚙</button>
+                    <button title="Delete section" onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }} className="hover:bg-red-500 px-1 rounded ml-1">✕</button>
+                  </div>
+
+                  {/* Columns */}
+                  <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                    {section.columns.map((col, cIdx) => {
+                      const isActiveCol = activeColumn?.sectionId === section.id && activeColumn?.columnId === col.id;
+                      const colContent: LandingPageContent = { blocks: col.blocks, styles: content.styles };
+                      return (
+                        <div
+                          key={col.id}
+                          style={{ flex: `0 0 ${(col.width / 12) * 100}%`, minWidth: 0, position: 'relative' }}
+                          className={`${section.columns.length > 1 ? 'border-r last:border-r-0 border-gray-200/60' : ''} ${isActiveCol ? 'bg-blue-50/30' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); setActiveColumn({ sectionId: section.id, columnId: col.id }); }}
+                        >
+                          {/* Render blocks in this column */}
+                          <LandingPageRenderer
+                            content={colContent}
+                            isPreview={true}
+                            onBlockClick={(blockId) => {
+                              setShowQuestionnaire(false);
+                              setSelection({ type: 'block', sectionId: section.id, columnId: col.id, blockId });
+                              setActiveColumn({ sectionId: section.id, columnId: col.id });
+                            }}
+                            selectedBlockId={
+                              selection?.type === 'block' && selection.sectionId === section.id && selection.columnId === col.id
+                                ? selection.blockId
+                                : undefined
+                            }
+                            accountId={accountId}
+                          />
+
+                          {/* Empty column placeholder */}
+                          {col.blocks.length === 0 && (
+                            <div
+                              className="m-2 min-h-[80px] border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 text-xs cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+                              style={{ padding: '16px', textAlign: 'center' }}
+                              onClick={(e) => { e.stopPropagation(); setActiveColumn({ sectionId: section.id, columnId: col.id }); }}
+                            >
+                              Click to activate, then pick an element from the left panel
+                            </div>
+                          )}
+
+                          {/* Add element to this column */}
+                          <button
+                            className="w-full py-1.5 text-xs text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors border-t border-dashed border-gray-200 mt-0"
+                            onClick={(e) => { e.stopPropagation(); setActiveColumn({ sectionId: section.id, columnId: col.id }); setLeftTab('blocks'); }}
+                          >
+                            + Add element {section.columns.length > 1 ? `(col ${cIdx + 1})` : ''}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add section below */}
+                  <button
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 text-xs px-3 py-1 rounded-full shadow-sm"
+                    onClick={(e) => { e.stopPropagation(); addSection(sIdx); }}
+                  >
+                    + Section
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Add section at bottom */}
+            {sections.length > 0 && (
+              <div className="p-4 text-center">
+                <button
+                  onClick={() => addSection()}
+                  className="border-2 border-dashed border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-500 text-sm px-6 py-3 rounded-lg w-full transition-colors"
+                >
+                  + Add Section
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Block Properties Panel */}
+        {/* Properties Panel */}
         <div className="w-72 bg-white border border-gray-200 rounded-lg overflow-y-auto flex-shrink-0">
           <div className="p-3 border-b border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900">
-              {selectedBlockId === '__questionnaire__' ? 'RE Questionnaire' : selectedBlock ? `Edit: ${selectedBlock.type}` : 'Properties'}
+              {showQuestionnaire
+                ? 'RE Questionnaire'
+                : selectedSection
+                  ? `Section ${sections.findIndex(s => s.id === selectedSection.id) + 1} Settings`
+                  : selectedBlock
+                    ? `Edit: ${selectedBlock.type}`
+                    : 'Properties'}
             </h3>
           </div>
-          {selectedBlockId === '__questionnaire__' ? (
+
+          {showQuestionnaire ? (
             <div className="p-3">
               <QuestionnaireEditor
                 config={content.questionnaireConfig || {}}
                 onChange={(cfg) => { setContent(prev => ({ ...prev, questionnaireConfig: cfg })); markDirty(); }}
               />
             </div>
-          ) : selectedBlock ? (
+          ) : selectedSection ? (
+            <div className="p-3 space-y-4">
+              {/* Column layout */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Column Layout</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { cols: 1, label: '1 Col' },
+                    { cols: 2, label: '2 Col' },
+                    { cols: 3, label: '3 Col' },
+                  ].map(({ cols, label }) => (
+                    <button
+                      key={cols}
+                      onClick={() => setSectionColumns(selectedSection.id, cols)}
+                      className={`py-2 text-xs font-medium rounded border transition-colors ${selectedSection.columns.length === cols ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Spacing */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Spacing</label>
+                <div className="space-y-2">
+                  {[
+                    { key: 'paddingTop', label: 'Padding Top (px)' },
+                    { key: 'paddingBottom', label: 'Padding Bottom (px)' },
+                    { key: 'marginBottom', label: 'Gap Below (px)' },
+                  ].map(({ key, label }) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-600 mb-1">{label}</label>
+                      <input
+                        type="number"
+                        value={(selectedSection.style as any)?.[key] ?? 0}
+                        onChange={(e) => updateSectionStyle(selectedSection.id, { [key]: parseInt(e.target.value) || 0 })}
+                        className="input text-sm"
+                        min={0}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Background */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Background</label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={selectedSection.style?.backgroundColor || '#ffffff'}
+                    onChange={(e) => updateSectionStyle(selectedSection.id, { backgroundColor: e.target.value })}
+                    className="h-10 w-10 rounded-xl border-2 border-gray-200 p-0 overflow-hidden"
+                  />
+                  <input
+                    value={selectedSection.style?.backgroundColor || ''}
+                    onChange={(e) => updateSectionStyle(selectedSection.id, { backgroundColor: e.target.value || undefined })}
+                    className="input text-sm flex-1"
+                    placeholder="Transparent"
+                  />
+                  {selectedSection.style?.backgroundColor && (
+                    <button onClick={() => updateSectionStyle(selectedSection.id, { backgroundColor: undefined })} className="text-gray-400 hover:text-red-500 px-2">✕</button>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => deleteSection(selectedSection.id)}
+                className="w-full py-2 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50 transition-colors"
+              >
+                Delete Section
+              </button>
+            </div>
+          ) : selectedBlock && selection?.type === 'block' ? (
             <div className="p-3 space-y-3">
               {/* Block controls */}
               <div className="flex items-center gap-1 pb-3 border-b border-gray-100">
-                <button onClick={() => moveBlock(selectedBlock.id, 'up')} className="p-1.5 hover:bg-gray-100 rounded" title="Move up">
+                <button
+                  onClick={() => moveBlockInColumn(selection.sectionId, selection.columnId, selectedBlock.id, 'up')}
+                  className="p-1.5 hover:bg-gray-100 rounded"
+                  title="Move up"
+                >
                   <ChevronUp className="w-4 h-4" />
                 </button>
-                <button onClick={() => moveBlock(selectedBlock.id, 'down')} className="p-1.5 hover:bg-gray-100 rounded" title="Move down">
+                <button
+                  onClick={() => moveBlockInColumn(selection.sectionId, selection.columnId, selectedBlock.id, 'down')}
+                  className="p-1.5 hover:bg-gray-100 rounded"
+                  title="Move down"
+                >
                   <ChevronDown className="w-4 h-4" />
                 </button>
-                <button onClick={() => deleteBlock(selectedBlock.id)} className="p-1.5 hover:bg-red-100 text-red-500 rounded ml-auto" title="Delete block">
+                <button
+                  onClick={() => deleteBlockFromSection(selection.sectionId, selection.columnId, selectedBlock.id)}
+                  className="p-1.5 hover:bg-red-100 text-red-500 rounded ml-auto"
+                  title="Delete block"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Block-specific fields */}
               <BlockPropertyEditor
                 block={selectedBlock}
-                onUpdate={(data) => updateBlock(selectedBlock.id, data)}
+                onUpdate={(data) => updateBlockInSection(selection.sectionId, selection.columnId, selectedBlock.id, data)}
                 primaryColor={content.styles.primaryColor}
                 accountId={accountId}
               />
             </div>
           ) : (
             <div className="p-4 text-sm text-gray-500 text-center">
-              Click a block in the preview to edit its properties
+              Click a section or element to edit its properties
             </div>
           )}
         </div>
@@ -811,6 +1207,21 @@ function BlockPropertyEditor({ block, onUpdate, primaryColor, accountId }: {
 
     case 'spacer':
       return <>{[numberInput('Height (px)', 'height')]}</>;
+
+    case 'raw_html':
+      return (
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-gray-600 mb-1">HTML Content</label>
+          <textarea
+            value={data.html || ''}
+            onChange={(e) => onUpdate({ html: e.target.value })}
+            className="input text-xs font-mono"
+            rows={10}
+            placeholder="<div>Your HTML here...</div>"
+          />
+          <p className="text-xs text-gray-400">Rendered as raw HTML. Be careful with scripts.</p>
+        </div>
+      );
 
     // ---- Real Estate Blocks ----
 

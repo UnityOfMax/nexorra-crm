@@ -125,7 +125,7 @@ function footerHtml(biz: BizPageData): string {
       ${(biz.services || []).slice(0, 4).map(s => `<p style="font-size:0.88rem;line-height:2">${esc(s.name)}</p>`).join('')}
     </div>
   </div>
-  <p style="text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.25);margin-top:3rem">© ${new Date().getFullYear()} ${esc(biz.name)} · ${esc(biz.city)}, ${esc(biz.state)}</p>
+  <p style="text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.25);margin-top:3rem">© ${new Date().getFullYear()} ${esc(biz.name)} · ${esc(biz.city || '')}, ${esc(biz.state || '')}</p>
 </footer>`;
 }
 

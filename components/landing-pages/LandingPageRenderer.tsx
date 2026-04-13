@@ -1,6 +1,6 @@
 'use client';
 
-import type { LandingPageContent, LandingPageBlock } from '@/lib/landing-page-templates';
+import type { LandingPageContent, LandingPageBlock, LandingPageSection, LandingPageColumn } from '@/lib/landing-page-templates';
 
 interface LandingPageRendererProps {
   content: LandingPageContent;
@@ -9,6 +9,8 @@ interface LandingPageRendererProps {
   selectedBlockId?: string;
   accountId?: string;
   onCtaClick?: () => void;
+  onSectionClick?: (sectionId: string) => void;
+  selectedSectionId?: string;
 }
 
 export default function LandingPageRenderer({
@@ -18,6 +20,8 @@ export default function LandingPageRenderer({
   selectedBlockId,
   accountId,
   onCtaClick,
+  onSectionClick,
+  selectedSectionId,
 }: LandingPageRendererProps) {
   const { blocks, styles } = content;
   const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order);
@@ -469,28 +473,80 @@ export default function LandingPageRenderer({
       case 'spacer':
         return <div key={block.id} className={wrapperClass} onClick={handleClick} style={{ height: block.data.height || 40 }} />;
 
+      case 'raw_html':
+        return (
+          <div key={block.id} className={wrapperClass} onClick={handleClick}
+            dangerouslySetInnerHTML={{ __html: block.data.html || '' }} />
+        );
+
       default:
         return null;
     }
   };
 
+  const globalStyles = (
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes re-scroll-left {
+        0%   { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      /* Mobile responsive overrides */
+      @media (max-width: 600px) {
+        .re-about-layout { flex-direction: column !important; align-items: center !important; }
+        .re-about-photo { width: 100% !important; display: flex; justify-content: center; margin-bottom: 8px; }
+        .re-about-photo img, .re-about-photo div {
+          width: clamp(120px,55vw,180px) !important;
+          height: clamp(150px,65vw,220px) !important;
+        }
+      }
+    `}} />
+  );
+
+  // Sections mode — render section → column → block hierarchy
+  if (content.sections && content.sections.length > 0) {
+    return (
+      <div style={{ fontFamily: styles.fontFamily || 'Inter, sans-serif', backgroundColor: styles.backgroundColor || '#ffffff', minHeight: isPreview ? '100%' : '100vh' }}>
+        {globalStyles}
+        {content.sections.map((section: LandingPageSection) => {
+          const isSelected = selectedSectionId === section.id;
+          return (
+            <div
+              key={section.id}
+              onClick={onSectionClick ? () => onSectionClick(section.id) : undefined}
+              style={{
+                paddingTop: section.style?.paddingTop ?? 0,
+                paddingBottom: section.style?.paddingBottom ?? 0,
+                marginBottom: section.style?.marginBottom ?? 0,
+                backgroundColor: section.style?.backgroundColor || undefined,
+                outline: isSelected ? '2px solid #3b82f6' : undefined,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                {section.columns.map((col: LandingPageColumn) => {
+                  const sortedColBlocks = [...col.blocks].sort((a, b) => a.order - b.order);
+                  return (
+                    <div key={col.id} style={{ flex: `0 0 ${(col.width / 12) * 100}%`, minWidth: 0 }}>
+                      {sortedColBlocks.map(renderBlock)}
+                      {col.blocks.length === 0 && isPreview && (
+                        <div style={{ minHeight: 80, border: '2px dashed #e5e7eb', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '0.875rem', margin: 8 }}>
+                          Empty column — add an element
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Flat blocks mode (legacy / fallback)
   return (
     <div style={{ fontFamily: styles.fontFamily || 'Inter, sans-serif', backgroundColor: styles.backgroundColor || '#ffffff', minHeight: isPreview ? '100%' : '100vh' }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes re-scroll-left {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        /* Mobile responsive overrides */
-        @media (max-width: 600px) {
-          .re-about-layout { flex-direction: column !important; align-items: center !important; }
-          .re-about-photo { width: 100% !important; display: flex; justify-content: center; margin-bottom: 8px; }
-          .re-about-photo img, .re-about-photo div {
-            width: clamp(120px,55vw,180px) !important;
-            height: clamp(150px,65vw,220px) !important;
-          }
-        }
-      `}} />
+      {globalStyles}
       {sortedBlocks.length === 0 && isPreview && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px', color: '#9ca3af', fontSize: '1.1rem' }}>
           Add blocks to start building your page
