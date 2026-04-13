@@ -141,34 +141,34 @@ async function pickAccount(slugHint?: string): Promise<{ id: string; name: strin
   return pool[0] ?? null;
 }
 
-async function ensureAiConfig(accountId: string, accountName: string): Promise<void> {
+async function ensureAiConfig(accountId: string, accountName: string): Promise<{ agentName: string; prompt: string }> {
   const { data } = await db
     .from('ai_agent_configs')
-    .select('account_id, enabled')
+    .select('account_id, enabled, agent_name, system_prompt')
     .eq('account_id', accountId)
     .maybeSingle();
 
-  if (data?.enabled) return; // already good
-
-  if (data && !data.enabled) {
-    // Exists but disabled — enable for test
-    await db.from('ai_agent_configs').update({ enabled: true }).eq('account_id', accountId);
-    console.log(`Enabled existing AI config for ${accountName}`);
-    return;
+  if (data?.enabled) {
+    return { agentName: data.agent_name || 'Omar', prompt: (data.system_prompt || '').slice(0, 80) + '...' };
   }
 
-  // No config at all — create a minimal test one
-  await db.from('ai_agent_configs').insert({
-    account_id: accountId,
-    enabled: true,
-    agent_name: 'Omar',
-    agent_represents: accountName,
-    system_prompt: `You are Omar, an AI assistant representing ${accountName}. You respond to leads who have enquired about the business. Be warm, direct, and helpful. Your goal is to qualify the lead and book a discovery call.`,
-    tone: 'friendly',
-    max_tokens: 300,
-    channels: { sms: true, email: true },
-  });
-  console.log(`Created test AI config for ${accountName}`);
+  if (data && !data.enabled) {
+    await db.from('ai_agent_configs').update({ enabled: true }).eq('account_id', accountId);
+  } else {
+    // No config — create a clean neutral test one
+    await db.from('ai_agent_configs').insert({
+      account_id: accountId,
+      enabled: true,
+      agent_name: 'Omar',
+      agent_represents: accountName,
+      system_prompt: `You are Omar, an AI assistant for ${accountName}. You reply to inbound leads via SMS. Be warm, direct, and concise. Goal: qualify the lead and book a call. Never invent names, appointments, or details you weren't given.`,
+      tone: 'friendly',
+      max_tokens: 300,
+      channels: { sms: true, email: true },
+    });
+  }
+
+  return { agentName: 'Omar', prompt: `Fresh config for ${accountName}` };
 }
 
 // ── Test contact ───────────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ async function main() {
       await tgSend('❌ No sub-accounts found. Add a sub-account first or pass --account <slug>.');
       return;
     }
-    await ensureAiConfig(account.id, account.name);
+    const { agentName, prompt: promptSnippet } = await ensureAiConfig(account.id, account.name);
     const contactId = await ensureTestContact(account.id);
     session = {
       accountId: account.id,
@@ -273,14 +273,15 @@ async function main() {
     };
     await saveSession(session);
 
+    const model = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:1b';
     await tgSend(
-      `🤖 *Omar Test Session Started*\n\n` +
-      `Account: *${account.name}*\n` +
-      `Model: llama3.2:3b\n` +
-      `Contact: Test Lead (${TEST_PHONE})\n\n` +
-      `Just send messages here — they'll be processed as inbound SMS from the fake lead and Omar will reply.\n\n` +
-      `Commands:\n• \`/reset\` — wipe conversation history\n• \`/history\` — show last 5 messages`,
-      'Markdown'
+      `🤖 Omar Test Session\n\n` +
+      `Account: ${account.name}\n` +
+      `Agent persona: ${agentName}\n` +
+      `Prompt: "${promptSnippet}"\n` +
+      `Model: ${model}\n\n` +
+      `Send messages as a fake lead. Omar replies.\n` +
+      `/reset — clear history  /history — last 5 messages`
     );
   } else {
     // Validate contact still exists — reset if stale
