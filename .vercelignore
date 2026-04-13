@@ -1,12 +1,12 @@
 # Agent runtime files — all agents run locally, not on Vercel
-agents/
-.claude/
+/agents/
+/.claude/
 
 # Scripts — run locally via npx tsx
-scripts/
+/scripts/
 
 # Dev assets
-assets/
+/assets/
 
 # Obsidian
-Obsidian/
+/Obsidian/
