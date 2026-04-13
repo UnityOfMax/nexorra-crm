@@ -1,10 +1,20 @@
 /**
  * Ollama client for local LLM inference.
- * Uses the OpenAI-compatible endpoint at localhost:11434.
+ * Uses the /api/chat endpoint at localhost:11434.
+ *
+ * Model selection (env vars):
+ *   OLLAMA_REPLY_MODEL — default: llama3.2:1b
+ *   OLLAMA_BASE_URL    — default: http://localhost:11434
+ *
+ * keep_alive: 10m keeps the model resident in RAM between requests.
+ * On a machine with <4GB free RAM, use llama3.2:1b (1.3GB).
+ * On a machine with >6GB free RAM, llama3.2:3b (2GB) is fine.
  */
 
 const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:3b';
+const DEFAULT_MODEL = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:1b';
+const KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || '10m';
+const TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
 
 interface OllamaMessage {
   role: 'system' | 'user' | 'assistant';
@@ -24,6 +34,31 @@ interface OllamaResult {
   usage: { input: number; output: number };
 }
 
+/**
+ * Pre-warm the model — load it into RAM before the first real request.
+ * Call this at daemon startup so the first reply isn't slow.
+ */
+export async function warmModel(model?: string): Promise<void> {
+  const m = model || DEFAULT_MODEL;
+  try {
+    await fetch(`${OLLAMA_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: m,
+        messages: [{ role: 'user', content: 'ready' }],
+        stream: false,
+        keep_alive: KEEP_ALIVE,
+        options: { num_predict: 1 },
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    console.log(`[ollama] Model ${m} warmed up, keep_alive ${KEEP_ALIVE}`);
+  } catch (err: any) {
+    console.warn(`[ollama] Warm-up failed (non-fatal): ${err.message}`);
+  }
+}
+
 export async function generateWithOllama(opts: OllamaOptions): Promise<OllamaResult> {
   const model = opts.model || DEFAULT_MODEL;
 
@@ -36,6 +71,7 @@ export async function generateWithOllama(opts: OllamaOptions): Promise<OllamaRes
     model,
     messages,
     stream: false,
+    keep_alive: KEEP_ALIVE,
     options: {
       temperature: opts.temperature ?? 0.65,
       num_predict: opts.maxTokens || 400,
@@ -46,7 +82,7 @@ export async function generateWithOllama(opts: OllamaOptions): Promise<OllamaRes
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 
   if (!res.ok) {

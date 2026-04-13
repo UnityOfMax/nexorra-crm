@@ -20,6 +20,7 @@ require('dotenv').config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
 import { generateAIResponse } from '@/lib/ai/generate-and-send';
+import { warmModel } from '@/lib/ai/ollama-client';
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -108,16 +109,66 @@ async function clearSession(): Promise<void> {
 // ── Account picker ─────────────────────────────────────────────────────────
 
 async function pickAccount(slugHint?: string): Promise<{ id: string; name: string; slug: string } | null> {
-  let query = db
+  // Get AI-enabled account IDs first
+  const { data: configs } = await db
+    .from('ai_agent_configs')
+    .select('account_id')
+    .eq('enabled', true);
+
+  const enabledIds = (configs || []).map((c: any) => c.account_id);
+
+  // Get matching accounts — prefer AI-enabled ones
+  const { data: allAccounts } = await db
     .from('accounts')
-    .select('id, name, slug')
-    .neq('id', 'da99b768-79dd-48f8-af86-abf95e61a69f'); // exclude Nexorra main
+    .select('id, name, slug');
 
-  if (slugHint) query = query.ilike('slug', `%${slugHint}%`);
+  const accounts = allAccounts || [];
 
-  const { data } = await query.limit(5);
-  if (!data || data.length === 0) return null;
-  return data[0];
+  // Filter by slug hint if provided
+  const pool = slugHint
+    ? accounts.filter((a: any) =>
+        a.slug?.includes(slugHint) || a.name?.toLowerCase().includes(slugHint.toLowerCase())
+      )
+    : accounts;
+
+  // Sort: AI-enabled first
+  pool.sort((a: any, b: any) => {
+    const aOn = enabledIds.includes(a.id) ? 0 : 1;
+    const bOn = enabledIds.includes(b.id) ? 0 : 1;
+    return aOn - bOn;
+  });
+
+  return pool[0] ?? null;
+}
+
+async function ensureAiConfig(accountId: string, accountName: string): Promise<void> {
+  const { data } = await db
+    .from('ai_agent_configs')
+    .select('account_id, enabled')
+    .eq('account_id', accountId)
+    .maybeSingle();
+
+  if (data?.enabled) return; // already good
+
+  if (data && !data.enabled) {
+    // Exists but disabled — enable for test
+    await db.from('ai_agent_configs').update({ enabled: true }).eq('account_id', accountId);
+    console.log(`Enabled existing AI config for ${accountName}`);
+    return;
+  }
+
+  // No config at all — create a minimal test one
+  await db.from('ai_agent_configs').insert({
+    account_id: accountId,
+    enabled: true,
+    agent_name: 'Omar',
+    agent_represents: accountName,
+    system_prompt: `You are Omar, an AI assistant representing ${accountName}. You respond to leads who have enquired about the business. Be warm, direct, and helpful. Your goal is to qualify the lead and book a discovery call.`,
+    tone: 'friendly',
+    max_tokens: 300,
+    channels: { sms: true, email: true },
+  });
+  console.log(`Created test AI config for ${accountName}`);
 }
 
 // ── Test contact ───────────────────────────────────────────────────────────
@@ -212,6 +263,7 @@ async function main() {
       await tgSend('❌ No sub-accounts found. Add a sub-account first or pass --account <slug>.');
       return;
     }
+    await ensureAiConfig(account.id, account.name);
     const contactId = await ensureTestContact(account.id);
     session = {
       accountId: account.id,
@@ -231,11 +283,24 @@ async function main() {
       'Markdown'
     );
   } else {
+    // Validate contact still exists — reset if stale
+    const { data: check } = await db
+      .from('contacts').select('id').eq('id', session.contactId).maybeSingle();
+    if (!check) {
+      console.log('Stale contact in session, recreating...');
+      await ensureAiConfig(session.accountId, session.accountName);
+      session.contactId = await ensureTestContact(session.accountId);
+      await saveSession(session);
+    }
     await tgSend(
-      `🔁 *Resuming session — ${session.accountName}*\nSend a message to continue the conversation or \`/reset\` to start fresh.`,
-      'Markdown'
+      `🔁 Resuming session — ${session.accountName}\nSend a message to continue or /reset to start fresh.`
     );
   }
+
+  // Warm model so first reply isn't slow
+  process.stdout.write('Warming model... ');
+  await warmModel();
+  console.log('ready.');
 
   // Poll for messages
   console.log(`Polling Telegram for messages (account: ${session.accountName}, contact: ${session.contactId})...`);
@@ -305,13 +370,13 @@ async function main() {
         // Save outbound message
         await saveMessage(session.accountId, session.contactId, 'outbound', reply);
 
-        // Replace thinking indicator with reply
-        await tgEdit(thinkingId, `🤖 *Omar* (${result.model} · ${elapsed}s)\n\n${reply}`);
-
+        const replyText = `🤖 Omar (${result.model} · ${elapsed}s)\n\n${reply}`;
+        await tgEdit(thinkingId, replyText).catch(() => tgSend(replyText));
         console.log(`→ Omar (${elapsed}s): ${reply}\n`);
       } catch (err: any) {
-        await tgEdit(thinkingId, `❌ Error: ${err.message}`);
+        const errText = `❌ Error: ${err.message}`;
         console.error('Reply error:', err.message);
+        await tgEdit(thinkingId, errText).catch(() => tgSend(errText));
       }
     }
 
