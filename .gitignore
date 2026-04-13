@@ -76,3 +76,10 @@ assets/video/*.mp4
 assets/video/*.mov
 assets/video/*.avi
 assets/video/th-2/
+
+# Large binary assets — stored in Supabase Storage
+public/videos/
+scripts/*.mp4
+scripts/*.mov
+assets/video/*.png
+assets/video/*.webm
