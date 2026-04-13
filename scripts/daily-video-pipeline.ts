@@ -80,6 +80,7 @@ async function claimNextLead(workerId: number): Promise<any | null> {
     .in("lead_category", ["email", "instagram"])
     .or("and(lead_category.eq.email,pushed_to_instantly.eq.false),lead_category.eq.instagram")
     .or("profile_url.not.is.null,instagram_handle.not.is.null")
+    .not("profile_url", "eq", "null")  // skip Jeff's string "null" placeholder
     .is("video_url", null)
     .is("video_error", null)
     .order("scraped_at", { ascending: true })   // oldest first — catch up yesterday before today

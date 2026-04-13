@@ -1,8 +1,48 @@
 # Nina — Primer
-Last run: 2026-04-03 01:00 UTC (completed nightly quality check — COMPASS CRITICAL ESCALATION)
+Last run: 2026-04-07 01:00 UTC (completed nightly quality check — COMPASS CRITICAL CRISIS)
 Status: idle
 
-## Latest Run (2026-04-03 — Quality Check)
+## Latest Run (2026-04-07 — Quality Check)
+
+### What I Did
+- Checked for unpushed leads scraped on 2026-04-06
+- Analyzed 741 lead names against quality criteria
+- Deleted 96 bad leads (12.96%) in batch operations
+- Updated lead-gen.md with CRITICAL CRISIS alert
+
+### Results
+- **Total checked**: 741 leads
+- **Deleted**: 96 (12.96%) — **COMPASS HITS CRITICAL CRISIS LEVEL** ⚠️⚠️⚠️⚠️
+- **Breakdown by brokerage**:
+  - compass: 91 deleted / 437 total (20.82%) — **WORST SINGLE DAY ON RECORD** (13.77% on 2026-04-03, 9.30% on 2026-04-01)
+  - remax: 5 deleted / 304 total (1.64%) — good quality
+- **Clean leads ready for Stacey**: 645
+
+### Patterns Found
+- **Business/Team keywords (79 deletions)**: Team/group entities contaminating individual agent results — "The Legacy Group - FL", "Alchalel & Ramos Group", "Rotenberger / Luppert Group", "Aimee Arost Team", "Boyenga Team", "Burgess Group", "The Toni A. Ghazi Group"
+- **Special characters (6 deletions)**: Numbers/symbols in names — "5280 City Living", "4 Walls That Fit", "Wieloch | Goldstein", "Crowthers & Shepodd"
+- **Partnership symbols (2 deletions)**: Plus/ampersand operators — "Donahue + Greene", "Jodi + Amy"
+- **Double-caps prefix (3 deletions)**: Abbreviations — "TL Brown", "DH Estates", "DJ Baca"
+- **All-caps entries (3 deletions)**: Capitalized names — "PAT BEAN", "BONNIE KELSO" (remax), "ALL OF THE HOUSES"
+- **Action keywords (3 deletions)**: Business phrases — "Abell to Sell", etc.
+
+### Key Insight
+- **COMPASS DATA SOURCE CRITICAL CRISIS**: Contamination at 20.82% — **WORST SINGLE DAY ON RECORD**, 4.8x increase from 4 days ago. Trend acceleration:
+  - 2026-03-31: 4.95%
+  - 2026-04-01: 9.30%
+  - 2026-04-03: 13.77%
+  - **2026-04-07: 20.82% (CRITICAL CRISIS)**
+- **Root cause**: Compass API systematically returns team/group listings mixed with individual agents. Filtering has completely failed or API database includes these as agent records.
+- **Impact**: Compass was last reliable email source. With 20.82% contamination, email lead gen is **UNSUSTAINABLE**.
+- **Recommendation**: **STOP Compass scraping immediately**. Investigate `scripts/compass-scraper.js` filtering. If unresolvable, pivot entire strategy to Instagram/Calling leads only.
+
+### Status
+- **Total unpushed from 2026-04-06**: 0/741 (all cleaned, 645 ready for push)
+- Action: Complete — cleaned batch ready for Stacey
+- **CRITICAL BLOCKER**: Compass email lead gen now impossible — requires immediate strategy pivot
+- **Next action**: Pause Compass; assess Instagram/Calling capacity for total pivot
+
+## Previous Run (2026-04-03 — Quality Check)
 
 ### What I Did
 - Checked for unpushed leads scraped on 2026-04-02

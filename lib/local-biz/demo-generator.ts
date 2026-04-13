@@ -9,7 +9,7 @@
  * Replaces the static template fill in website-demo-builder.ts for new builds.
  */
 
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,14 +19,63 @@ import { DESIGN_SKILL_CONTEXT } from './load-design-skills';
 
 const execAsync = promisify(exec);
 
-// All generation uses claude -p (OAuth) — no ANTHROPIC_API_KEY needed
-async function claudeP(promptFile: string, opts: { addFile?: string; maxBuffer?: number } = {}): Promise<string> {
-  const addFile = opts.addFile ? `--add-file "${opts.addFile}"` : '';
-  const { stdout } = await execAsync(
-    `claude -p --output-format text ${addFile} < "${promptFile}"`,
-    { timeout: 120000, maxBuffer: opts.maxBuffer ?? 8 * 1024 * 1024 },
-  );
-  return stdout.trim();
+// All generation uses claude -p (OAuth) — no ANTHROPIC_API_KEY needed.
+// Uses spawn() with explicit stdin.end() — exec + shell redirect hangs on large prompts.
+async function claudeP(promptFile: string, opts: { addFile?: string; addDir?: string; maxBuffer?: number; timeoutMs?: number } = {}): Promise<string> {
+  const prompt = fs.readFileSync(promptFile, 'utf-8');
+  const args = ['-p', '--output-format', 'text', '--no-session-persistence'];
+  if (opts.addDir) args.push('--add-dir', opts.addDir);
+  // Note: --add-file doesn't exist in this claude version; use --add-dir instead
+
+  return new Promise((resolve, reject) => {
+    const timeoutMs = opts.timeoutMs ?? 300000; // 5 min default
+    const child = spawn('claude', args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    const maxBuffer = opts.maxBuffer ?? 8 * 1024 * 1024;
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+      if (stdout.length > maxBuffer) {
+        child.kill();
+        reject(new Error(`[claude-p] stdout exceeded ${maxBuffer} bytes`));
+      }
+    });
+    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error(`[claude-p] timed out after ${timeoutMs}ms. stderr: ${stderr.slice(0, 300)}`));
+    }, timeoutMs);
+
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (stderr.trim()) console.warn('[claude-p] stderr:', stderr.slice(0, 500));
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        console.error('[claude-p] FAILED — exit:', code);
+        console.error('[claude-p] stderr:', stderr.slice(0, 800));
+        console.error('[claude-p] stdout:', stdout.slice(0, 300));
+        reject(new Error(`claude -p exited ${code}: ${stderr.slice(0, 300)}`));
+      }
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    // Write prompt to stdin and close — critical: without end(), claude waits forever
+    child.stdin.write(prompt, 'utf-8', (err) => {
+      if (err) { reject(err); return; }
+      child.stdin.end();
+    });
+  });
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -107,111 +156,147 @@ export async function generateDemoHtml(
   const serviceList = copy.services.map(s => `- ${s.name}: ${s.desc}${s.price ? ` (${s.price})` : ''}`).join('\n');
   const testimonialList = (biz.testimonials || []).slice(0, 3).map((t, i) => `Review ${i + 1}: "${t}"`).join('\n');
 
-  const prompt = `${DESIGN_SKILL_CONTEXT}
+  const CALENDLY_URL = 'https://calendly.com/nexorra/demo-call';
 
-You are building a complete, standalone, production-quality website demo for a real local business.
+  const prompt = `Build a stunning single-page website demo for a real local business. Output ONLY the complete HTML — no explanation, no markdown fences. Start with <!DOCTYPE html>.
 
-This is NOT a template fill — generate fresh, unique HTML tailored to this specific business. Every design decision should reflect the business type, vibe, and actual data provided.
-
-──────────────────────────────────────────────
-BUSINESS PROFILE
-──────────────────────────────────────────────
-Name: ${biz.name}
-Type: ${biz.type} (category: ${bizCategory})
-Location: ${biz.city}, ${biz.state}
-Phone: ${biz.phone || 'call for info'}
-Address: ${biz.address || `${biz.city}, ${biz.state}`}
+BUSINESS: ${biz.name} — ${biz.type} in ${biz.city}, ${biz.state}
+Phone: ${biz.phone || 'N/A'} | Address: ${biz.address || biz.city}
 Rating: ${biz.rating ?? '?'}/5 (${biz.reviews ?? '?'} reviews)
+Vibe: ${copy.design_vibe} — ${copy.color_mood}
+Primary: ${copy.color_primary} | Accent: ${copy.color_accent}
 
-DESIGN VIBE: ${copy.design_vibe}
-DESIGN ADJECTIVES: ${copy.design_adjectives.join(', ')}
-COLOUR MOOD: ${copy.color_mood}
-PRIMARY COLOUR: ${copy.color_primary}
-ACCENT COLOUR: ${copy.color_accent}
+COPY (verbatim):
+Hero: "${copy.hero_headline}${copy.hero_headline_em ? ' ' + copy.hero_headline_em : ''}"
+Sub: "${copy.hero_subheadline}"
+About headline: "${copy.about_text}"
+About body: "${copy.about_text_2}"
+Services: ${copy.services.map(s => `${s.name} (${s.price}): ${s.desc}`).join(' | ')}
+${testimonialList ? 'Reviews: ' + testimonialList : ''}
 
-──────────────────────────────────────────────
-COPY (use verbatim — do not paraphrase)
-──────────────────────────────────────────────
-Hero headline: ${copy.hero_headline}
-Hero emphasis (italic): ${copy.hero_headline_em || ''}
-Hero subheadline: ${copy.hero_subheadline}
-About headline: ${copy.about_text}
-About body: ${copy.about_text_2}
-CTA text: ${copy.cta_text}
-
-Services:
-${serviceList}
-
-${testimonialList ? `Customer reviews:\n${testimonialList}` : ''}
-
-──────────────────────────────────────────────
-PHOTOS (use these as actual <img> src values)
-──────────────────────────────────────────────
+PHOTOS (use as <img src>):
 ${photoList}
 
-──────────────────────────────────────────────
-TECHNICAL REQUIREMENTS
-──────────────────────────────────────────────
-TOKEN BUDGET: You have ~6000 output tokens. Use Tailwind utility classes for ALL layout, spacing, typography, and colour — keep the <style> block under 60 lines (Google Fonts @import + 3-4 custom animations only). Never write custom CSS for anything Tailwind can handle.
+TECH STACK:
+- Tailwind CDN: <script src="https://cdn.tailwindcss.com"></script>
+- <script>tailwind.config={theme:{extend:{colors:{primary:'${copy.color_primary}',accent:'${copy.color_accent}'}}}}</script>
+- Google Fonts (1-2 fonts matching vibe — NOT Inter/Arial): @import in <style>
+- Style block max 30 lines: @import only — NO .reveal CSS (sections are always visible)
+- Smooth scroll on <html>: style="scroll-behavior:smooth"
 
-- Single self-contained HTML file (<!DOCTYPE html> to </html>)
-- Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-- Google Fonts: one @import line in a <style> tag (pick 1-2 fonts matching the vibe — NOT Inter, NOT Arial)
-- Tailwind config block to extend with custom colours: <script>tailwind.config = { theme: { extend: { colors: { primary: '${copy.color_primary}', accent: '${copy.color_accent}' } } } }</script>
-- <style> block max 60 lines: Google Fonts @import + keyframes for 1-2 animations + .reveal/.reveal.visible only
-- Sections required (ALL must have actual visible content, each with matching id attribute):
-  • Navigation — sticky, includes: business name, desktop nav links (hidden md:flex), mobile hamburger button (md:hidden), mobile slide-down menu toggled by JS. Nav links: href="#services", href="#gallery", href="#about", href="#contact"
-  • Hero — id="hero", full-width photo background using PHOTO_1, headline + CTA overlaid
-  • Services — id="services", 3-4 service cards using Tailwind grid
-  • Gallery — id="gallery", 3 photos in a CSS grid (salon/restaurant/fitness only)
-  • About — id="about", text + photo side by side
-  • Testimonials — id="testimonials", 2-3 review cards
-  • Contact/booking form — id="contact", name, email, phone, date, service, submit
-  • Footer — business name, phone, address, hours
-- Add class="reveal" to each section for scroll animation
-- MOBILE NAV: hamburger button (md:hidden) + hidden mobile menu (hidden by default, toggled via JS). The desktop nav links div must be hidden md:flex. Add this JS pattern at end of <body>: document.getElementById('menu-btn').addEventListener('click', () => document.getElementById('mobile-menu').classList.toggle('hidden'))
-- Mobile responsive using Tailwind responsive prefixes (sm:, md:, lg:) — test at 390px
-- One hover transition on service cards: hover:scale-105 hover:shadow-lg transition-all duration-300
-- Smooth scroll: add style="scroll-behavior:smooth" to <html> tag
+SECTIONS (all required, all with id attr). CRITICAL: do NOT use opacity:0 or hidden on sections — all content must be visible immediately:
+1. Nav — sticky, business name left, desktop links (hidden md:flex) right: #services #about #contact. Mobile: hamburger id="menu-btn" md:hidden, dropdown id="mobile-menu" hidden. JS before </body>: document.getElementById('menu-btn').addEventListener('click',()=>document.getElementById('mobile-menu').classList.toggle('hidden'))
+2. id="hero" — full-bleed PHOTO_1 background, headline + subheadline + "Book Your Appointment" button. Button opens Calendly: onclick="window.open('${CALENDLY_URL}','_blank')"
+3. id="services" — grid of ${copy.services.length} cards with name + desc + price. hover:scale-105
+4. id="gallery" — 3 photos grid (PHOTO_2, PHOTO_3, PHOTO_4)
+5. id="about" — text left + PHOTO_5 right (md:flex-row)
+6. id="contact" — Calendly booking section. Include: heading "Book Your Appointment", subtext "Click below to pick a time that works for you", and a prominent button: <a href="${CALENDLY_URL}" target="_blank" class="...">Book Now on Calendly</a>. No form needed.
+7. Footer — name, phone, address, hours
 
-CRITICAL — include this <style> block structure:
-<style>
-  @import url('https://fonts.googleapis.com/...');
-  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
-  .reveal.visible { opacity: 1; transform: none; }
-</style>
+Design: ${copy.design_adjectives.join(', ')}. Palette: ${copy.color_primary} + ${copy.color_accent}. Distinctive typography. Real photos prominently. Make it look like THIS business's site.`;
 
-CRITICAL — include this script at end of <body>:
-<script>
-  const io = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }), { threshold: 0.1 });
-  document.querySelectorAll('.reveal').forEach(el => { io.observe(el); const r = el.getBoundingClientRect(); if (r.top < window.innerHeight) el.classList.add('visible'); });
-</script>
 
-Apply design principles from the skills above through Tailwind class choices — distinctive typography scale, intentional colour contrast, breathing room in spacing.
 
-Output ONLY the complete HTML document. No explanation, no markdown fences, no commentary.
-Start with <!DOCTYPE html> and end with </html>.`;
+  return runGeneration(prompt, biz.name, `${copy.design_vibe}`);
+}
 
+// ── All-in-one generation (copy + HTML in one call) ──────────────────────────
+
+export interface DemoResult {
+  html: string;
+  emailBody: string;
+  headline: string;
+}
+
+/**
+ * Generates a complete website demo + outreach email.
+ * HTML is generated via 1 claude -p call.
+ * Email is assembled from a template (no AI call) — matches Max's exact format.
+ */
+export async function generateDemoFull(
+  biz: BizForDemo & {
+    email?: string | null;
+    hasWebsite: boolean;
+    website_pain_points?: string[];
+  },
+): Promise<DemoResult> {
+  const bizCategory = getBizCategory(biz.type);
+
+  // ── Email template (no AI call — Max's exact format) ─────────────────────
+  const firstName = biz.name.split(' ')[0];
+  const websiteContext = biz.hasWebsite
+    ? `found it really tricky to navigate your website`
+    : `didn't see a website`;
+  const emailBody = `Hey ${firstName},
+
+My name is Max, I've been looking for a ${biz.type} in ${biz.city} and I found you on Google but ${websiteContext}
+
+So I thought I'd make you one!
+
+Here it is: {{DEMO_LINK}}
+
+I've done this for a few other ${biz.type}s and especially if their old website was a bit slow or dated they've often suddenly started booking another 5-10 more customers each week.
+
+Given the area I'd imagine you're missing out on another 1-2k/m in revenue minimum (depending on service cost)
+
+Let me know if you like the website and I'd love to jump on a call to go through it more and change anything to work for you :)
+
+I made the demo to give you an idea of what it could look like but if you want to use it and have it work I generally charge 450-950 as a one-time fee (just so it doesn't come as a shock!)`;
+
+  // ── HTML generation via claude -p ─────────────────────────────────────────
+  const photoList = biz.photos.slice(0, 8).map((url, i) => `PHOTO_${i + 1}: ${url}`).join('\n');
+  const testimonialList = (biz.testimonials || []).slice(0, 3).map(t => `"${t}"`).join(', ');
+  const CALENDLY_URL = 'https://calendly.com/nexorra/demo-call';
+
+  const htmlPrompt = `Build a stunning single-page website demo for a real local business. Output ONLY the complete HTML from <!DOCTYPE html> to </html>.
+
+BUSINESS: ${biz.name} — ${biz.type} in ${biz.city}, ${biz.state}
+Phone: ${biz.phone || 'N/A'} | Address: ${biz.address || biz.city}
+Rating: ${biz.rating ?? '?'}/5 (${biz.reviews ?? '?'} reviews)
+${testimonialList ? `Reviews: ${testimonialList}` : ''}
+
+PHOTOS:
+${photoList}
+
+DESIGN: Pick a vibe matching ${bizCategory}. Warm luxury for salons, clean/modern for professional, energetic for fitness. Choose rich palette with accent. Google Fonts (NOT Inter/Arial).
+
+TECH: Tailwind CDN. tailwind.config custom colors. <style> max 30 lines (@import only). <html> smooth scroll.
+CRITICAL: No opacity:0 on sections. All content immediately visible when page loads.
+
+SECTIONS (all with id, all with visible content):
+1. Sticky nav — business name left, links right (hidden md:flex): #services #gallery #about #contact. Mobile: hamburger id="menu-btn" (md:hidden) + dropdown id="mobile-menu"
+2. id="hero" — full-bleed PHOTO_1 background, headline, subheadline, CTA button: onclick="window.open('${CALENDLY_URL}','_blank')"
+3. id="services" — 4 service cards grid (infer from ${biz.type}), hover:scale-105
+4. id="gallery" — PHOTO_2 PHOTO_3 PHOTO_4 in a grid
+5. id="about" — text left, PHOTO_5 right (md:flex-row)
+6. id="contact" — "Book Your Appointment" heading, prominent link button href="${CALENDLY_URL}" target="_blank", phone + address + hours below
+7. Footer — name, phone, address, Mon-Sat 9am-6pm
+
+JS before </body>: document.getElementById('menu-btn').addEventListener('click',()=>document.getElementById('mobile-menu').classList.toggle('hidden'))`;
+
+  const html = await runGeneration(htmlPrompt, biz.name, bizCategory, false) as string;
+  const h1Match = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  const headline = h1Match?.[1]?.replace(/<[^>]+>/g, '').trim() ?? biz.name;
+
+  return { html, emailBody, headline };
+}
+
+// ── Shared generation runner ──────────────────────────────────────────────────
+
+async function runGeneration(prompt: string, bizName: string, vibe: string, parseEmail = false): Promise<any> {
   const tmpFile = `/tmp/demo-gen-${Date.now()}.txt`;
   fs.writeFileSync(tmpFile, prompt, 'utf-8');
-  console.log(`[demo-gen] Generating HTML for ${biz.name} (vibe: ${copy.design_vibe}, prompt: ${Math.round(prompt.length / 1024)}KB)...`);
+  console.log(`[demo-gen] Generating for ${bizName} (prompt: ${Math.round(prompt.length / 1024)}KB)...`);
 
-  let html = '';
-  // Retry up to 3 times
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let rawText = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const text = await claudeP(tmpFile, { maxBuffer: 16 * 1024 * 1024 });
-      const docStart = text.indexOf('<!DOCTYPE');
-      const htmlEnd = text.lastIndexOf('</html>');
-      if (docStart !== -1 && htmlEnd !== -1) {
-        html = text.slice(docStart, htmlEnd + '</html>'.length);
-      } else {
-        html = text.trim();
-      }
-      break;
+      rawText = await claudeP(tmpFile, { maxBuffer: 16 * 1024 * 1024, timeoutMs: 420000 });
+      if (rawText.length > 1000) break;
+      throw new Error('Output too short');
     } catch (err: any) {
-      if (attempt < 2) {
-        console.warn(`[demo-gen] Attempt ${attempt + 1} failed — retrying...`);
+      if (attempt === 0) {
+        console.warn(`[demo-gen] Attempt 1 failed — retrying in 5s... (${err.message?.slice(0, 80)})`);
         await new Promise(r => setTimeout(r, 5000));
       } else {
         throw err;
@@ -220,185 +305,75 @@ Start with <!DOCTYPE html> and end with </html>.`;
   }
   fs.unlink(tmpFile, () => {});
 
+  let html = '';
+  let emailBody = '';
+  let headline = '';
+
+  if (parseEmail) {
+    // Split on === EMAIL === and === HTML === markers
+    const emailMatch = rawText.match(/=== EMAIL ===\s*([\s\S]*?)(?:=== HTML ===|$)/);
+    const htmlMatch = rawText.match(/=== HTML ===([\s\S]*)/);
+    emailBody = emailMatch?.[1]?.trim() ?? '';
+    const htmlRaw = htmlMatch?.[1]?.trim() ?? rawText;
+    const docStart = htmlRaw.indexOf('<!DOCTYPE');
+    const htmlEnd = htmlRaw.lastIndexOf('</html>');
+    html = docStart !== -1 && htmlEnd !== -1 ? htmlRaw.slice(docStart, htmlEnd + '</html>'.length) : htmlRaw;
+    const h1Match = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+    headline = h1Match?.[1]?.replace(/<[^>]+>/g, '').trim() ?? bizName;
+  } else {
+    const docStart = rawText.indexOf('<!DOCTYPE');
+    const htmlEnd = rawText.lastIndexOf('</html>');
+    html = docStart !== -1 && htmlEnd !== -1 ? rawText.slice(docStart, htmlEnd + '</html>'.length) : rawText.trim();
+    headline = bizName;
+  }
+
   if (!html.includes('<!DOCTYPE') || html.length < 2000) {
-    throw new Error(`[demo-gen] Generation produced invalid/short HTML (${html.length} chars)`);
+    throw new Error(`[demo-gen] Invalid HTML output (${html.length} chars)`);
   }
 
-  // Inject IntersectionObserver script if model omitted it — guarantees .reveal elements become visible
-  if (!html.includes('IntersectionObserver')) {
-    const ioScript = `<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var io = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.08 });
-    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(function(el) {
-      io.observe(el);
-    });
-    // Immediately reveal anything already in the viewport on load
-    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(function(el) {
-      var rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight) el.classList.add('visible');
-    });
-  });
-</script>`;
-    html = html.replace(/<\/body>/i, `${ioScript}\n</body>`);
-    console.log('[demo-gen] Injected IntersectionObserver script (model omitted it)');
-  }
+  fs.writeFileSync('/tmp/demo-latest.html', html, 'utf-8');
+  console.log(`[demo-gen] Generated ${html.length} chars`);
 
-  // Save a copy for inspection
-  const debugPath = '/tmp/demo-latest.html';
-  fs.writeFileSync(debugPath, html, 'utf-8');
-  console.log(`[demo-gen] Generated ${html.length} chars — saved to ${debugPath}`);
-  console.log('[demo-gen] Running visual QA loop...');
-  return runVisualQALoop(html, biz.name, copy.design_vibe);
+  // Take QA screenshot (no claude vision — just save for Telegram)
+  await takeQAScreenshot(html).catch(e => console.warn('[demo-gen] QA screenshot failed:', e.message));
+
+  if (parseEmail) {
+    return { html, emailBody, headline } as DemoResult;
+  }
+  return html;
 }
 
-// ── Visual QA loop ────────────────────────────────────────────────────────────
+// ── Screenshot for Telegram preview ──────────────────────────────────────────
 
-const CHROME_PORT = 9232;
+export async function takeQAScreenshot(html: string, outPath = '/tmp/qa-latest.jpg'): Promise<string> {
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(html);
+  });
+  const httpPort = await new Promise<number>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve((server.address() as any).port));
+  });
 
-async function getBrowser(): Promise<{ browser: Browser; launched: boolean }> {
-  // Always launch a dedicated headless Chromium for QA screenshots.
-  // Connecting to the shared Chrome on port 9232 doesn't render local pages reliably.
   const browser = await puppeteer.launch({
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--window-size=1440,900',
-    ],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     defaultViewport: { width: 1440, height: 900 },
   });
-  return { browser, launched: true };
-}
 
-async function runVisualQALoop(
-  html: string,
-  bizName: string,
-  vibe: string,
-  maxIterations = 3,
-): Promise<string> {
-  let currentHtml = html;
-
-  for (let i = 0; i < maxIterations; i++) {
-    let screenshotPath: string | null = null;
-    let launchedBrowser: Browser | null = null;
-
-    try {
-      // 1. Serve HTML via a temporary HTTP server (OS-assigned port to avoid conflicts)
-      const htmlContent = currentHtml;
-      const server = http.createServer((_req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlContent);
-      });
-      const httpPort = await new Promise<number>((resolve, reject) => {
-        server.once('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-          resolve((server.address() as any).port);
-        });
-      });
-
-      const { browser, launched } = await getBrowser();
-      if (launched) launchedBrowser = browser;
-      const page = await browser.newPage();
-
-      try {
-        // networkidle0 waits until Tailwind CDN + Google Fonts have loaded
-        await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'networkidle0', timeout: 40000 });
-        // Force all reveal elements visible for the QA screenshot
-        await page.evaluate(() => {
-          document.querySelectorAll<HTMLElement>('.reveal, .reveal-left, .reveal-right').forEach(el => {
-            el.classList.add('visible');
-          });
-        });
-        await new Promise(r => setTimeout(r, 1500)); // let transitions settle
-
-        screenshotPath = `/tmp/qa-screenshot-${i}-${Date.now()}.jpg`;
-        await page.screenshot({
-          path: screenshotPath,
-          fullPage: true,
-          type: 'jpeg',
-          quality: 70,
-        });
-      } finally {
-        await page.close().catch(() => {});
-        if (launchedBrowser) await launchedBrowser.close().catch(() => {});
-        server.close();
-      }
-
-      // 2. Claude vision QA via claude -p --add-file
-      const qaPromptFile = `/tmp/qa-prompt-${i}-${Date.now()}.txt`;
-      fs.writeFileSync(qaPromptFile, `You are reviewing a website demo for "${bizName}" (target vibe: ${vibe}).
-
-Score these 5 dimensions — be strict:
-1. Vibe match (1-10): Does it actually feel like ${vibe}? Generic = 2. Genuinely tailored = 8+.
-2. Visual hierarchy (1-10): Hero → services → booking flow?
-3. Typography (1-10): Fonts distinctive for the vibe? Clear size hierarchy?
-4. Spacing (1-10): Breathing room appropriate?
-5. Colour (1-10): Palette cohesive?
-
-If total >= 40: output exactly: PASS
-
-If total < 40: output FIX then list up to 3 SPECIFIC changes. Reference exact element + exact change.
-BAD: "improve hero section"
-GOOD: "hero heading text-3xl is too small — change to text-6xl md:text-8xl"
-
-Output ONLY "PASS" or "FIX\\n[instructions]". No score breakdown.`, 'utf-8');
-
-      const qaResult = await claudeP(qaPromptFile, { addFile: screenshotPath! });
-      fs.unlink(qaPromptFile, () => {});
-
-      if (screenshotPath) {
-        // Save a copy at a fixed path for Telegram preview
-        fs.copyFileSync(screenshotPath, '/tmp/qa-latest.jpg');
-        fs.unlink(screenshotPath, () => {});
-      }
-      screenshotPath = null;
-
-      if (qaResult.trim().startsWith('PASS')) {
-        console.log(`[qa] ${bizName}: PASS on iteration ${i + 1}`);
-        return currentHtml;
-      }
-
-      // 3. Apply fixes: CSS patch only via claude -p
-      const fixInstructions = qaResult.replace(/^FIX\s*/i, '').trim();
-      console.log(`[qa] ${bizName}: applying fixes (iteration ${i + 1}):\n${fixInstructions}`);
-
-      const fixPromptFile = `/tmp/fix-prompt-${i}-${Date.now()}.txt`;
-      fs.writeFileSync(fixPromptFile, `You are patching a website demo HTML file. Output ONLY a <style> block containing CSS overrides that fix the issues below. No explanation, no commentary, no HTML outside the <style> tag.
-
-Issues to fix:
-${fixInstructions}
-
-Current CSS custom properties (for reference):
-${(currentHtml.match(/:root\s*\{[\s\S]*?\}/)?.[0] || '').slice(0, 800)}`, 'utf-8');
-
-      const patchText = await claudeP(fixPromptFile);
-      fs.unlink(fixPromptFile, () => {});
-      // Inject the patch style block just before </head> (or before </body> as fallback)
-      if (patchText.includes('<style')) {
-        const insertBefore = currentHtml.includes('</head>') ? '</head>' : '</body>';
-        currentHtml = currentHtml.replace(insertBefore, `${patchText}\n${insertBefore}`);
-        console.log(`[qa] ${bizName}: CSS patch injected (${patchText.length} chars)`);
-      } else {
-        // Wrap raw CSS in style tags
-        const styleBlock = `<style>\n/* QA fix iteration ${i + 1} */\n${patchText}\n</style>`;
-        currentHtml = currentHtml.replace('</head>', `${styleBlock}\n</head>`);
-        console.log(`[qa] ${bizName}: CSS patch injected (wrapped, ${patchText.length} chars)`);
-      }
-
-    } catch (err) {
-      console.warn(`[qa] ${bizName}: iteration ${i + 1} error:`, (err as Error).message);
-      if (screenshotPath) fs.unlink(screenshotPath, () => {});
-      if (launchedBrowser) await launchedBrowser.close().catch(() => {});
-      break;
-    }
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${httpPort}/`, { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.evaluate(() => {
+      document.querySelectorAll<HTMLElement>('.reveal, .reveal-left, .reveal-right').forEach(el => el.classList.add('visible'));
+    });
+    await new Promise(r => setTimeout(r, 1000));
+    await page.screenshot({ path: outPath, fullPage: false, type: 'jpeg', quality: 75 });
+    await page.close();
+    console.log(`[qa] Screenshot saved to ${outPath} (${Math.round(require('fs').statSync(outPath).size / 1024)}KB)`);
+    return outPath;
+  } finally {
+    await browser.close();
+    server.close();
   }
-
-  console.log(`[qa] ${bizName}: QA loop complete (${maxIterations} iterations max)`);
-  return currentHtml;
 }

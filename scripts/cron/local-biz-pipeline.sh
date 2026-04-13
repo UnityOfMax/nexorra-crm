@@ -1,4 +1,11 @@
 #!/bin/bash
+# RETIRED 2026-04-08 — Sequential 3-phase pipeline replaced by petra-pipeline.sh
+# (5-7 parallel workers at 10:30 AM BST). This file is kept for reference.
+# The 11:30 AM BST cron slot for this script should be removed from crontab.
+echo "$(date) — local-biz-pipeline.sh is retired. Use petra-pipeline.sh instead."
+exit 0
+: <<'RETIRED'
+# Original script below — kept for reference only
 # Petra — Daily Local Business Website Demo Pipeline
 # Runs at 11:30 AM BST daily (after video pipeline ~11 AM)
 # Three phases: Scout -> Build -> Outreach

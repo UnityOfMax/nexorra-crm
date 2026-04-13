@@ -156,13 +156,14 @@ function statBar(biz: BizPageData): string {
   const yr = biz.yearsInBiz ? (new Date().getFullYear() - parseInt(biz.yearsInBiz)).toString() : '2015';
   const rating = biz.rating ? biz.rating.toFixed(1) : '4.8';
   const reviews = biz.reviews ? biz.reviews.toLocaleString() : '100+';
+  const city = biz.city && biz.state ? `${biz.city}, ${biz.state}` : biz.city || 'Local Favourite';
   return `
 <div class="stat-bar">
   <div class="stat-bar-inner">
     <div class="stat-item"><span class="stat-num">Est. ${yr}</span><span class="stat-lbl">Year Founded</span></div>
     <div class="stat-item"><span class="stat-num">${rating}★</span><span class="stat-lbl">Google Rating</span></div>
     <div class="stat-item"><span class="stat-num">${reviews}</span><span class="stat-lbl">Happy Guests</span></div>
-    <div class="stat-item"><span class="stat-num">Hickory &amp; Oak</span><span class="stat-lbl">Slow-Smoked</span></div>
+    <div class="stat-item"><span class="stat-num">${esc(city)}</span><span class="stat-lbl">Family Owned</span></div>
   </div>
 </div>`;
 }
@@ -174,7 +175,7 @@ function footerHtml(biz: BizPageData): string {
   <div class="footer-grid">
     <div>
       <div class="footer-brand">${esc(biz.name)}</div>
-      <p class="footer-tagline">Low &amp; slow over hickory. ${biz.city || ''}, ${biz.state || ''}.</p>
+      <p class="footer-tagline">Good food, good people. ${biz.city || ''}, ${biz.state || ''}.</p>
     </div>
     <div>
       <div class="footer-heading">Hours</div>
@@ -249,7 +250,7 @@ ${statBar(biz)}
 
 <!-- Menu Preview -->
 <section style="background:var(--smoke);padding:5.5rem 2rem">
-  <p class="section-tag">What We Smoke</p>
+  <p class="section-tag">What We Serve</p>
   <h2 class="section-title" style="color:var(--on-dark)">The Menu</h2>
   <div class="section-rule"><span class="section-rule-dot"></span></div>
   <div style="max-width:680px;margin:2.5rem auto 0">
@@ -402,7 +403,7 @@ ${nav(baseUrl, biz)}
   <img src="${p(1, biz)}" alt="Menu" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
   <div style="position:absolute;inset:0;background:rgba(20,16,10,0.82)"></div>
   <div style="position:relative">
-    <p class="section-tag">Pit-Fired Classics</p>
+    <p class="section-tag">What We Serve</p>
     <h1 style="font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(2.5rem,6vw,4.5rem);text-transform:uppercase;letter-spacing:0.06em;color:var(--on-dark)">The Menu</h1>
     <p style="color:var(--ash);margin-top:1rem;font-size:0.95rem">${esc(biz.heroSub)}</p>
   </div>
@@ -411,10 +412,10 @@ ${nav(baseUrl, biz)}
 <!-- Menu Content -->
 <section style="background:var(--smoke);padding:4rem 2rem 6rem">
   <div style="max-width:640px;margin:0 auto">
-    ${menuSection('Smoked Meats & Mains', mains)}
+    ${menuSection('Mains', mains)}
     ${menuSection('Desserts', desserts)}
     <div style="border-top:1px solid rgba(232,146,10,0.2);padding-top:2rem;text-align:center">
-      <p style="font-size:0.85rem;color:var(--ash);font-style:italic;margin-bottom:1.5rem">All smoked meats served with your choice of two sides.<br>Ask your server about today's specials.</p>
+      <p style="font-size:0.85rem;color:var(--ash);font-style:italic;margin-bottom:1.5rem">Prices and availability may vary. Ask your server about today's specials.</p>
       <a href="${baseUrl}/booking" class="btn-primary">Reserve a Table</a>
     </div>
   </div>
@@ -479,7 +480,7 @@ ${nav(baseUrl, biz)}
 <section style="background:var(--parch);padding:5rem 2rem">
   <div style="max-width:680px;margin:0 auto">
     <p style="font-size:1.08rem;line-height:1.85;color:var(--on-light);margin-bottom:2rem">${esc(biz.aboutText2)}</p>
-    <p style="font-size:1rem;line-height:1.8;color:rgba(42,31,18,0.75)">Every piece of meat that comes out of our pit carries the weight of years of practice. No timers, no shortcuts — just fire, patience, and the kind of commitment that turns a good smokehouse into a great one. When you sit down at one of our tables, that's what you're tasting.</p>
+    <p style="font-size:1rem;line-height:1.8;color:rgba(42,31,18,0.75)">Every dish that leaves our kitchen carries years of practice and genuine care. No shortcuts, no compromises — just real ingredients and real recipes made with the kind of love that turns a good meal into something people come back for.</p>
   </div>
 </section>
 

@@ -48,13 +48,18 @@ resolve_display() {
   unset WAYLAND_DISPLAY
   export XDG_RUNTIME_DIR="/run/user/1000"
 
-  if DISPLAY=":99" xdpyinfo >/dev/null 2>&1; then
-    export DISPLAY=":99"
-    export XAUTHORITY=""
-    return 0
-  fi
+  # Wait up to 60s for Xvfb :99 — at boot it may not be ready yet.
+  for _i in $(seq 1 12); do
+    if DISPLAY=":99" xdpyinfo >/dev/null 2>&1; then
+      export DISPLAY=":99"
+      export XAUTHORITY=""
+      return 0
+    fi
+    [ "$_i" -eq 1 ] && bash /home/max/crm/scripts/setup/start-xvfb.sh >/dev/null 2>&1 &
+    sleep 5
+  done
 
-  # Xvfb not running — fall back to XWayland :0.
+  # Xvfb failed to start after 60s — fall back to XWayland :0.
   # Wait up to 30s for XWayland auth file (@reboot: GNOME may not have initialised it yet)
   XAUTH_CANDIDATE=""
   for i in $(seq 1 6); do

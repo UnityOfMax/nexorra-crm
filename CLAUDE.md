@@ -116,7 +116,7 @@ These are completely separate systems with different agents, different feedback 
 | `/nexorra/cold-email-maintenance` | Cron 8 PM daily | Claude Haiku 4.5 | Nudge, ghosted detection, learning cycle |
 | `/nexorra/campaign-review` | Manual | Claude | Analyze campaign metrics |
 | `/nexorra/campaign-optimizer` | Cron 10 PM daily | Claude | Analyze Meta + funnel data → propose ad changes |
-| `/research/local-biz-scout` | Cron 11:30 AM daily | Claude Sonnet | Petra: local biz demo pipeline (Scout → Build → Outreach) |
+| `/research/local-biz-scout` | Cron 10:30 AM daily | Claude Sonnet | Petra: GMB demo pipeline — 5-7 parallel workers (Scout+Build+Outreach per worker, 300/day cap) |
 
 #### B. Client Sub-Account Operations
 | Command | Schedule | Model | Purpose |
@@ -161,8 +161,7 @@ Each agent maintains a learning file in `agents/memory/` (max 4KB, periodically 
 |------------|--------|-------|
 | 10:00 AM | `scripts/cron/lead-gen.sh` | Lead Gen (Jeff) |
 | 10:15 AM | `scripts/cron/meta-sync.sh` | Meta Ad Metrics Sync |
-| 10:30 AM | `scripts/cron/video-pipeline.sh` | Video Pipeline (Derek) |
-| 11:30 AM | `scripts/cron/local-biz-pipeline.sh` | Local Biz Demo Pipeline (Petra) |
+| 10:30 AM | `scripts/cron/petra-pipeline.sh` | GMB Demo Pipeline (Petra) — 5-7 workers, 300/day |
 | 12:00 PM | `scripts/cron/cold-email-upload.sh` | Cold Email Upload (Stacey) |
 | 2:00 PM | `scripts/cron/instagram-outreach.sh` | Instagram Outreach (Tara) |
 | 2:00 PM | `scripts/calling/start-calling.sh` | Calling Start (Cole) |

@@ -1,10 +1,10 @@
 # Marcus — Primer
-Last run: 2026-04-05 (nightly campaign optimizer)
+Last run: 2026-04-08 (nightly campaign optimizer)
 Status: idle
 
 ## Last Run Summary
 
-**Campaign Optimizer — 2026-04-05**
+**Campaign Optimizer — 2026-04-08**
 
 Ran full analysis cycle. Results:
 
@@ -15,17 +15,17 @@ Ran full analysis cycle. Results:
 
 ### What I Found
 - 116 client accounts total, none have `meta_ad_account_id` in campaign settings.
-- Meta ad metrics last 7 days: 0 records.
+- Meta ad metrics last 7 days: 0 records (only 1 historical record: Nexorra agency, 2026-02-14, CPL $21.26).
 - `funnel_events`: 0 records.
-- `optimizer_actions`: 0 pending (table empty).
+- `optimizer_actions`: 0 records (table empty).
 - New contacts in client sub-accounts last 7 days: 1 (likely test contact).
 - AI configs: 1 (Nexorra agency only), tone casual — no accounts qualify for AI tone update (need ≥5 leads).
 
 ### Memory
-- Appended 2026-04-05 entry to `agents/memory/funnel-insights.md`.
+- Appended 2026-04-08 entry to `agents/memory/funnel-insights.md`.
 
 ## Current State
-Idle. Thirteen consecutive identical runs (2026-03-24 through 2026-04-05) — system is healthy, waiting on client onboarding.
+Idle. Sixteen consecutive identical runs (2026-03-24 through 2026-04-08) — system is healthy, waiting on client onboarding.
 
 ## Next Steps
 - Nothing required until clients connect Meta ad accounts OR client SMS/email traffic starts.

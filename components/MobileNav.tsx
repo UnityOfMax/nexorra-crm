@@ -2,6 +2,7 @@
 
 import {
   LayoutDashboard, TrendingUp, Mail, Instagram, Target, Cpu,
+  Users, CalendarDays, MessageSquare,
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -28,11 +29,10 @@ const agencyTabs: TabItem[] = [
 
 const clientTabs: TabItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'pipelines', label: 'Opportunities', icon: TrendingUp },
-  { id: 'command-center', label: 'Command', icon: Cpu },
-  { id: 'leads', label: 'Leads', icon: Target },
-  { id: 'campaigns', label: 'Emails', icon: Mail },
-  { id: 'instagram-dms', label: 'Instagram', icon: Instagram },
+  { id: 'contacts', label: 'Contacts', icon: Users },
+  { id: 'pipelines', label: 'Pipeline', icon: TrendingUp },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'conversations', label: 'Messages', icon: MessageSquare },
 ];
 
 export default function MobileNav({ activeView, onViewChange, isAgencyUser, isViewingClient }: MobileNavProps) {

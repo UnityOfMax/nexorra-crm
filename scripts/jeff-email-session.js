@@ -619,7 +619,7 @@ async function scrapeCompass(page, city) {
               const full_name = item.name ? item.name.trim() : null;
               if (!full_name || full_name.length < 3) continue;
               const nameParts = full_name.split(/\s+/);
-              agents.push({ full_name, first_name: nameParts[0] || null, last_name: nameParts.slice(1).join(' ') || null, email, phone: item.telephone ? String(item.telephone) : null, profile_url: item.url || null, profile_picture_url: item.image ? (typeof item.image === 'string' ? item.image : (item.image.url || null)) : null });
+              agents.push({ full_name, first_name: nameParts[0] || null, last_name: nameParts.slice(1).join(' ') || null, email, phone: item.telephone ? String(item.telephone) : null, profile_url: (item.url && item.url !== 'null') ? item.url : null, profile_picture_url: item.image ? (typeof item.image === 'string' ? item.image : (item.image.url || null)) : null });
             }
           }
         } catch (e) {}

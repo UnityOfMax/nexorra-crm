@@ -26,12 +26,15 @@ check_and_restart() {
   fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port ${PORT} not responding — restarting..." >> "$LOG"
-  bash "$SCRIPT" $ARGS >> "$LOG" 2>&1
+  DISPLAY=:99 WAYLAND_DISPLAY="" DBUS_SESSION_BUS_ADDRESS="" bash "$SCRIPT" $ARGS >> "$LOG" 2>&1
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port ${PORT} restart complete." >> "$LOG"
 }
 
-check_and_restart 9222 scripts/chrome-launch.sh
-check_and_restart 9224 scripts/chrome-launch-video.sh "9224"
-check_and_restart 9225 scripts/chrome-launch-instagram.sh
-check_and_restart 9226 scripts/chrome-launch-video.sh "9226"
-check_and_restart 9227 scripts/chrome-launch-video.sh "9227"
+check_and_restart 9222 scripts/chrome-launch.sh                    # Jeff (lead-gen)
+check_and_restart 9225 scripts/chrome-launch-instagram.sh          # Tara (Instagram)
+check_and_restart 9232 scripts/chrome-launch-petra.sh "9232"       # Petra worker 1
+check_and_restart 9233 scripts/chrome-launch-petra.sh "9233"       # Petra worker 2
+check_and_restart 9234 scripts/chrome-launch-petra.sh "9234"       # Petra worker 3
+check_and_restart 9235 scripts/chrome-launch-petra.sh "9235"       # Petra worker 4
+check_and_restart 9236 scripts/chrome-launch-petra.sh "9236"       # Petra worker 5
+check_and_restart 9240 scripts/chrome-launch-openphone.sh          # OpenPhone SMS (port 9240)

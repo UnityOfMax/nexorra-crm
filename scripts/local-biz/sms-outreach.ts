@@ -13,7 +13,7 @@ import { resolve } from 'path';
 dotenv.config({ path: resolve(__dirname, '../../.env.local') });
 
 import { createClient } from '@supabase/supabase-js';
-import { sendSMS } from '../calling/dialer';
+import { sendSMSviaOpenPhone } from '../../lib/local-biz/openphone-cdp';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,7 +127,7 @@ async function main() {
       continue;
     }
 
-    const result = await sendSMS(lead.phone!, message);
+    const result = await sendSMSviaOpenPhone(lead.phone!, message);
 
     if (result.status === 'sent') {
       await supabaseAdmin
