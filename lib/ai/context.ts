@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import { generateText } from '@/lib/ai/daemon-client';
+import { generateWithOllama } from '@/lib/ai/ollama-client';
 
 export interface AIContext {
   summary: string;
@@ -88,9 +88,8 @@ export async function updateSummary(accountId: string, contactId: string): Promi
     .map(m => `[${m.type.toUpperCase()} ${m.direction === 'inbound' ? 'Lead' : 'Agent'}]: ${m.content}`)
     .join('\n');
 
-  const result = await generateText({
-    model: 'claude-haiku-4-5-20251001',
-    system: 'You summarize CRM conversations concisely for an AI sales agent.',
+  const result = await generateWithOllama({
+    system: 'You summarize CRM conversations concisely for an AI sales agent. Be brief and factual.',
     messages: [
       {
         role: 'user',
