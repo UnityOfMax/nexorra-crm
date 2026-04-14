@@ -165,7 +165,7 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
   },
   'omar': {
     promptFile: '.claude/commands/client/reply.md',
-    model: 'llama3.2:1b', maxTurns: 60,
+    model: 'claude-haiku-4-5', maxTurns: 60,
     department: 'client', role: 'agent', reportsTo: 'ava',
     displayName: 'Omar',
     skills: ['humanizer', 'stop-slop'],

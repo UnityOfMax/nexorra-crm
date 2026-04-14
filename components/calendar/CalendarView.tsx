@@ -254,7 +254,7 @@ function TimeGrid({
   }, []);
 
   return (
-    <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, position: 'relative' }}>
+    <div ref={scrollRef} style={{ overflowY: 'auto', flex: 1, position: 'relative', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
       <div style={{ display: 'flex', minHeight: TOTAL_HOURS * HOUR_HEIGHT }}>
         {/* Time labels */}
         <div style={{ width: 52, flexShrink: 0 }}>

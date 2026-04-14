@@ -14,7 +14,6 @@ body {
   overscroll-behavior: none;  /* prevents rubber-banding without position:fixed */
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  touch-action: pan-y;
 }
 
 /* Prevent rubber-banding / bounce scroll on iOS */
