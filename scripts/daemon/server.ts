@@ -315,37 +315,42 @@ const server = http.createServer(async (req, res) => {
 
       const { model, system, messages, maxTokens } = JSON.parse(rawBody);
 
-      // Format prompt: system instructions + conversation history
-      const promptParts: string[] = [];
-      if (system) {
-        promptParts.push(`<system>\n${system}\n</system>`);
-      }
+      // Build conversation prompt (no system — passed via --system-prompt flag)
+      const convParts: string[] = [];
       if (messages && messages.length > 0) {
         const conv = messages
           .map((m: any) => `${m.role === 'user' ? 'Human' : 'Assistant'}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
           .join('\n\n');
-        promptParts.push(conv);
+        convParts.push(conv);
       }
-      promptParts.push('\nRespond with only the next assistant message. No labels, no "Assistant:" prefix, no meta-commentary.');
-      const prompt = promptParts.join('\n\n');
+      convParts.push('\nRespond with only the next assistant message. No labels, no "Assistant:" prefix, no meta-commentary.');
+      const prompt = convParts.join('\n\n');
 
       // Map SDK model names to CLI shortnames
       let cliModel = 'haiku';
       if (model?.includes('sonnet')) cliModel = 'sonnet';
       else if (model?.includes('opus')) cliModel = 'opus';
 
+      // System prompt passed via flag — avoids embedding in user prompt text
+      // Run from /tmp to skip CLAUDE.md loading (saves ~5s per call)
+      const cliArgs = [
+        '-p', prompt,
+        '--model', cliModel,
+        '--max-turns', '1',
+        '--verbose',
+        '--output-format', 'stream-json',
+        '--dangerously-skip-permissions',
+      ];
+      if (system) {
+        cliArgs.push('--system-prompt', system);
+      }
+
       const { ANTHROPIC_API_KEY: _ak, ...cliEnv } = process.env;
 
       return new Promise<void>((resolve) => {
         let settled = false;
-        const child = spawn(CLAUDE_CLI, [
-          '-p', prompt,
-          '--model', cliModel,
-          '--max-turns', '1',
-          '--verbose',
-          '--output-format', 'stream-json',
-        ], {
-          cwd: CRM_ROOT,
+        const child = spawn(CLAUDE_CLI, cliArgs, {
+          cwd: '/tmp',   // skip CLAUDE.md: saves ~5s per generate call
           env: {
             ...cliEnv,
             PATH: `/home/max/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}`,
