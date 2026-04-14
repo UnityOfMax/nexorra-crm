@@ -42,3 +42,8 @@ nice -n 15 ionice -c 3 npx tsx scripts/local-biz/petra-pipeline.ts \
   --daily-cap "$DAILY_CAP"
 
 echo "$(date) — Petra pipeline complete."
+
+# ── Gmail direct-send outreach ────────────────────────────────────────────────
+echo "$(date) — Starting Gmail outreach..."
+npx tsx scripts/local-biz/gmail-outreach.ts
+echo "$(date) — Gmail outreach complete."
