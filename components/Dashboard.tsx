@@ -778,7 +778,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30">
+        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
           {/* Mobile account switcher */}
           {isAgencyUser && clientAccounts.length > 0 && (
             <div className="md:hidden mb-3">

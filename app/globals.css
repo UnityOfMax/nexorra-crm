@@ -17,6 +17,11 @@ html, body {
 @media (max-width: 767px) {
   html, body {
     position: fixed;
+    /* Use dvh so height matches the actual visual viewport on iOS PWA.
+       100vh on iOS includes the browser chrome height even in PWA mode,
+       causing a blank gap at the bottom equal to the status bar height. */
+    height: 100dvh;
+    width: 100dvw;
     inset: 0;
   }
   /* Hide scrollbars on mobile but keep scroll functional in content areas */
