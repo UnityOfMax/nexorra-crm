@@ -3,26 +3,29 @@
 @tailwind utilities;
 
 /* ─── PWA / Mobile Shell ─────────────────────────────────────────────────── */
-html, body {
+html {
+  height: 100%;
+  /* No position:fixed — it would make html a containing block for fixed
+     children (MobileNav), breaking their viewport-relative positioning. */
+}
+body {
   height: 100%;
   overflow: hidden;
-  overscroll-behavior: none;
+  overscroll-behavior: none;  /* prevents rubber-banding without position:fixed */
   -webkit-overflow-scrolling: touch;
-  position: fixed;
   width: 100%;
   touch-action: pan-y;
 }
 
 /* Prevent rubber-banding / bounce scroll on iOS */
 @media (max-width: 767px) {
-  html, body {
-    position: fixed;
-    /* Use dvh so height matches the actual visual viewport on iOS PWA.
-       100vh on iOS includes the browser chrome height even in PWA mode,
-       causing a blank gap at the bottom equal to the status bar height. */
+  html {
+    /* dvh = dynamic viewport height — excludes browser chrome on iOS.
+       On PWA this equals the full screen height. */
     height: 100dvh;
-    width: 100dvw;
-    inset: 0;
+  }
+  body {
+    height: 100%;
   }
   /* Hide scrollbars on mobile but keep scroll functional in content areas */
   .mobile-scroll {
