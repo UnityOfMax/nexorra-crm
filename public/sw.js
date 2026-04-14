@@ -69,11 +69,14 @@ self.addEventListener('push', (event) => {
     // Use defaults if payload is malformed
   }
 
+  // Use absolute URL — iOS ignores relative paths for push notification icons
+  const iconUrl = 'https://app.ainexorra.com/icons/icon-192.png';
+
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: iconUrl,
+      badge: iconUrl,
       tag: payload.tag,
       data: { url: payload.url },
       requireInteraction: false,

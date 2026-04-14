@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   title: 'Nexorra CRM',
   description: 'AI-powered CRM for real estate appointment setting',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
