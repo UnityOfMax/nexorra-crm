@@ -128,6 +128,8 @@ XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
   --disable-extensions \
   --disable-plugins \
   --disable-infobars \
+  --disable-blink-features=AutomationControlled \
+  --exclude-switches=enable-automation \
   "$@" >> "$LOG" 2>&1 &
 disown
 

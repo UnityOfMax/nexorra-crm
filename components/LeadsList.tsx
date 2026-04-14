@@ -63,7 +63,11 @@ export default function LeadsList() {
   const [category, setCategory] = useState<LeadCategory>('email');
   const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ email: 0, instagram: 0, calling: 0 });
   const [csvExporting, setCsvExporting] = useState(false);
-  const [csvCount, setCsvCount] = useState(150);
+
+  // Per-timezone export quantities
+  const [tzCounts, setTzCounts] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
+  const [tzAvail, setTzAvail] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
+  const [tzAvailLoaded, setTzAvailLoaded] = useState(false);
 
   // Filters
   const [filterPushed, setFilterPushed] = useState<'all' | 'true' | 'false'>('all');
@@ -125,21 +129,52 @@ export default function LeadsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
 
+  // Load available counts per timezone when switching to calling tab
+  useEffect(() => {
+    if (category !== 'calling' || tzAvailLoaded) return;
+    const load = async () => {
+      const res = await fetch('/api/leads/csv-export', { method: 'HEAD' });
+      if (res.ok) {
+        try {
+          const counts = JSON.parse(res.headers.get('X-TZ-Counts') || '{}');
+          setTzAvail(counts);
+          // Pre-fill quantities with available (capped at 200 each)
+          setTzCounts({
+            EST: Math.min(counts.EST || 0, 200),
+            CST: Math.min(counts.CST || 0, 200),
+            MST: Math.min(counts.MST || 0, 200),
+            PST: Math.min(counts.PST || 0, 200),
+          });
+        } catch { /* ignore */ }
+      }
+      setTzAvailLoaded(true);
+    };
+    load();
+  }, [category, tzAvailLoaded]);
+
   const handleCsvExport = async () => {
+    const total = Object.values(tzCounts).reduce((a, b) => a + b, 0);
+    if (total === 0) return;
     setCsvExporting(true);
     try {
-      const res = await fetch(`/api/leads/csv-export?count=${csvCount}`);
+      const params = new URLSearchParams();
+      for (const [tz, count] of Object.entries(tzCounts)) {
+        if (count > 0) params.set(tz, String(count));
+      }
+      const res = await fetch(`/api/leads/csv-export?${params}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = res.headers.get('content-disposition')?.split('filename=')[1] || 'calling-leads.csv';
+        const cd = res.headers.get('content-disposition') || '';
+        a.download = cd.match(/filename=([^\s;]+)/)?.[1] || 'calling-leads.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        fetchLeads(offset); // Refresh to show downloaded status
+        setTzAvailLoaded(false); // reload available counts after export
+        fetchLeads(offset);
       }
     } finally {
       setCsvExporting(false);
@@ -314,25 +349,46 @@ export default function LeadsList() {
         ))}
       </div>
 
-      {/* CSV Export (calling only) */}
+      {/* CSV Export (calling only) — per-timezone selector */}
       {category === 'calling' && (
-        <div className="flex items-center gap-2 mb-4">
-          <input
-            type="number"
-            value={csvCount}
-            onChange={e => setCsvCount(Math.max(1, Math.min(1000, Number(e.target.value) || 150)))}
-            className="w-16 px-2 py-2 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-            min={1}
-            max={1000}
-            title="Number of leads to export"
-          />
+        <div className="mb-5 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1c1c1e]">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" />
+              Export Calling Leads
+            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              Company field = today&apos;s date · {Object.values(tzCounts).reduce((a, b) => a + b, 0)} selected
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
+              <div key={tz} className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-between">
+                  <span>{tz}</span>
+                  <span className="text-gray-400 dark:text-gray-500">{tzAvail[tz] ?? '…'} avail</span>
+                </label>
+                <input
+                  type="number"
+                  value={tzCounts[tz]}
+                  min={0}
+                  max={tzAvail[tz] || 0}
+                  onChange={e => setTzCounts(prev => ({
+                    ...prev,
+                    [tz]: Math.max(0, Math.min(tzAvail[tz] || 0, Number(e.target.value) || 0)),
+                  }))}
+                  className="w-full px-2 py-1.5 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#2c2c2e] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+            ))}
+          </div>
           <button
             onClick={handleCsvExport}
-            disabled={csvExporting || categoryCounts.calling === 0}
+            disabled={csvExporting || Object.values(tzCounts).every(v => v === 0)}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
-            {csvExporting ? 'Exporting...' : 'Export CSV'}
+            {csvExporting ? 'Exporting…' : 'Export CSV'}
           </button>
         </div>
       )}
