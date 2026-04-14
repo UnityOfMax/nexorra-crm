@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle, getGoogleCalendarClient } from '@/lib/google-calendar/sync';
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
 import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
-import { sendPushToUser } from '@/lib/push/send-notification';
+import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 
 // POST /api/landing-pages/book-call
 export async function POST(request: NextRequest) {
@@ -216,8 +216,8 @@ ${answerSummary}`;
       });
     }
 
-    // ── Push notification to the resolved user (non-blocking) ─────────────────
-    sendPushToUser(createdByUserId, {
+    // ── Push notification to account owner (non-blocking, respects preferences) ─
+    sendPushToAccountOwnerIfEnabled(accountId, 'new_bookings', {
       title: '📅 Call Booked',
       body: `${contactName || 'A lead'} booked a call for ${slotDisplay}`,
       tag: 'booking',

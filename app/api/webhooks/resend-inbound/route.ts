@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
-import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -107,14 +106,6 @@ export async function POST(req: NextRequest) {
         channel: 'email',
       }).catch((err) => console.error('[resend-inbound] AI auto-respond error:', err));
     }
-
-    // Push notification to account owner for inbound email
-    sendPushToAccountOwnerIfEnabled(account.id, 'new_emails', {
-      title: '📧 New Email',
-      body: `${fromEmail}: ${(subject || '(no subject)').substring(0, 100)}`,
-      tag: 'inbound-email',
-      url: `/contacts/${contact.id}`,
-    }).catch(() => {});
 
     // Trigger client reply agent for any messages not handled by auto-mode
     triggerAgentRun('client-reply').catch(() => {});

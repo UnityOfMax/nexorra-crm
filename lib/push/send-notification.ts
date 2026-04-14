@@ -99,7 +99,7 @@ export async function sendPushToAccountOwner(
   await sendPushToUser(owner.user_id, payload);
 }
 
-export type NotificationType = 'new_leads' | 'new_texts' | 'new_emails' | 'no_bookings' | 'reports';
+export type NotificationType = 'new_leads' | 'new_texts' | 'new_emails' | 'new_bookings' | 'reports';
 
 /**
  * Sends a push notification only if the user has the notification type enabled.
