@@ -33,7 +33,9 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
       .then(async (r) => {
         if (!r.ok) { setNotFound(true); return; }
         const data = await r.json();
-        setContent(data.content);
+        // Defensive: if content came back double-serialised as a string, parse it.
+        const content = typeof data.content === 'string' ? JSON.parse(data.content) : data.content;
+        setContent(content);
         setAccountId(data.account_id);
       })
       .catch(() => setNotFound(true));

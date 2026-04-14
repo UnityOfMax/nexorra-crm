@@ -17,6 +17,11 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  // Normalise content: some records have it double-serialised as a JSON string.
+  if (typeof data.content === 'string') {
+    try { (data as any).content = JSON.parse(data.content as string); } catch { /* leave as-is */ }
+  }
+
   return NextResponse.json(data, {
     headers: {
       'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
