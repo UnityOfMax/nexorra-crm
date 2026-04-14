@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import { generateWithOllama } from '@/lib/ai/ollama-client';
+import { callKimi } from '@/lib/kimi/client';
 import { buildAIContext, updateSummary } from '@/lib/ai/context';
 import { loadReplyMemory, buildMemoryBlock } from '@/lib/ai/reply-memory';
 import { twilioClient } from '@/lib/twilio/client';
@@ -179,6 +179,8 @@ export async function generateAIResponse(
       ? `Lead form answers: ${Object.entries(contact.custom_fields as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(' | ')}`
       : '',
     summary ? `Conversation notes (compressed): ${summary}` : '',
+    // Inject account knowledge base (website info, FAQs, conversation learnings)
+    config.knowledge_base ? `## Account Knowledge Base\n${config.knowledge_base}` : '',
     upcomingSlots
       ? `This contact's booked call: ${upcomingSlots}`
       : '',
@@ -193,16 +195,18 @@ export async function generateAIResponse(
     'Respond with the message text only. No labels, no meta-commentary, no quotation marks.',
   ].filter(Boolean).join('\n\n');
 
-  // Generate via local Ollama (Llama 3.2 3B)
-  const aiResult = await generateWithOllama({
-    system: systemParts,
-    messages: conversationMessages.length > 0
-      ? conversationMessages
-      : [{ role: 'user' as const, content: 'Hello' }],
+  // Generate via Claude Haiku 4.5 (daemon bridge)
+  const kimiResult = await callKimi({
+    messages: [
+      { role: 'system', content: systemParts },
+      ...(conversationMessages.length > 0
+        ? conversationMessages
+        : [{ role: 'user' as const, content: 'Hello' }]),
+    ],
     maxTokens,
   });
 
-  const responseText = aiResult.text;
+  const responseText = kimiResult.reply;
 
   // Generate subject for email if needed
   let subject: string | undefined;
@@ -224,8 +228,8 @@ export async function generateAIResponse(
   return {
     response: responseText,
     subject,
-    model: process.env.OLLAMA_REPLY_MODEL || 'llama3.2:3b',
-    tokens_used: aiResult.usage.output,
+    model: 'claude-haiku-4-5-20251001',
+    tokens_used: kimiResult.tokensUsed.output,
   };
 }
 

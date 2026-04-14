@@ -58,9 +58,15 @@ export function loadReplyMemory(
 /**
  * Build the memory block injected into the system prompt.
  * Keeps it compact — only includes non-empty sections.
+ * Accepts optional accountKnowledge for local testing (in production
+ * this comes from ai_agent_configs.knowledge_base via generate-and-send).
  */
-export function buildMemoryBlock(ctx: ReplyMemoryContext): string {
+export function buildMemoryBlock(ctx: ReplyMemoryContext, accountKnowledge?: string): string {
   const parts: string[] = [];
+
+  if (accountKnowledge) {
+    parts.push(`## Account Knowledge Base\n${accountKnowledge}`);
+  }
 
   if (ctx.agentMemory) {
     parts.push(`## Reply Patterns\n${ctx.agentMemory}`);
@@ -71,4 +77,16 @@ export function buildMemoryBlock(ctx: ReplyMemoryContext): string {
   }
 
   return parts.join('\n\n') || '(No prior memory for this contact)';
+}
+
+/**
+ * Load the account-level knowledge base from Obsidian (local testing only).
+ * In production, this comes from ai_agent_configs.knowledge_base in Supabase.
+ */
+export function loadAccountKnowledge(accountName: string): string {
+  const filePath = path.join(OBSIDIAN_CLIENTS, `${accountName}.md`);
+  const content = readFile(filePath);
+  if (!content) return '';
+  // Strip frontmatter
+  return content.replace(/^---[\s\S]*?---\n?/, '').trim();
 }

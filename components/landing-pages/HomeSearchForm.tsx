@@ -276,14 +276,14 @@ export default function HomeSearchForm({
     <button
       onClick={onClick}
       className="re-form-btn"
-      style={{ width: '100%', textAlign: 'left', padding: '20px 22px', border: '2px solid rgba(255,255,255,0.08)', borderRadius: '16px', background: 'rgba(196,128,74,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all 0.15s', minHeight: '76px' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = accent; (e.currentTarget as HTMLElement).style.background = `${accent}20`; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.background = 'rgba(196,128,74,0.06)'; }}
+      style={{ width: '100%', textAlign: 'left', padding: '20px 22px', border: `1.5px solid rgba(37,99,235,0.14)`, borderRadius: '16px', background: 'rgba(37,99,235,0.03)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all 0.15s', minHeight: '76px' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = accent; (e.currentTarget as HTMLElement).style.background = `${accent}12`; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37,99,235,0.14)'; (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,235,0.03)'; }}
     >
       {emoji && <span style={{ fontSize: '1.6rem', lineHeight: 1, flexShrink: 0 }}>{emoji}</span>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        <span style={{ fontWeight: '600', fontSize: '1rem', color: '#f1f5f9' }}>{label}</span>
-        {sub && <span style={{ fontSize: '0.8rem', color: 'rgba(241,245,249,0.48)' }}>{sub}</span>}
+        <span style={{ fontWeight: '600', fontSize: '1rem', color: '#1E3A6E' }}>{label}</span>
+        {sub && <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{sub}</span>}
       </div>
     </button>
   );
@@ -292,20 +292,20 @@ export default function HomeSearchForm({
     <button
       onClick={onClick}
       className="re-form-btn"
-      style={{ padding: '24px 12px', border: '2px solid rgba(255,255,255,0.08)', borderRadius: '16px', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', transition: 'all 0.15s', minHeight: '96px', justifyContent: 'center' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = accent; (e.currentTarget as HTMLElement).style.background = `${accent}18`; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
+      style={{ padding: '24px 12px', border: `1.5px solid rgba(37,99,235,0.14)`, borderRadius: '16px', background: 'rgba(37,99,235,0.03)', cursor: 'pointer', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', transition: 'all 0.15s', minHeight: '96px', justifyContent: 'center' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = accent; (e.currentTarget as HTMLElement).style.background = `${accent}12`; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37,99,235,0.14)'; (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,235,0.03)'; }}
     >
       <span style={{ fontSize: '2rem', lineHeight: 1 }}>{emoji}</span>
-      <span style={{ fontWeight: '600', fontSize: '0.85rem', color: '#f1f5f9' }}>{label}</span>
+      <span style={{ fontWeight: '600', fontSize: '0.85rem', color: '#1E3A6E' }}>{label}</span>
     </button>
   );
 
   const inputSt: React.CSSProperties = {
-    width: '100%', padding: '16px 18px', border: '2px solid rgba(255,255,255,0.1)',
+    width: '100%', padding: '16px 18px', border: '1.5px solid #CBD5E1',
     borderRadius: '12px', fontSize: '1rem', boxSizing: 'border-box',
-    outline: 'none', fontFamily: 'inherit', color: '#f1f5f9',
-    background: 'rgba(255,255,255,0.06)',
+    outline: 'none', fontFamily: 'inherit', color: '#1E3A6E',
+    background: '#FFFFFF',
   };
 
   const isQuestion = QUESTION_STEPS.includes(step);
@@ -412,7 +412,7 @@ export default function HomeSearchForm({
               >
                 {submitting ? <Loader style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} /> : 'See Available Times →'}
               </button>
-              <p style={{ fontSize: '0.72rem', color: 'rgba(241,245,249,0.3)', textAlign: 'center' }}>No spam. Your information is kept private.</p>
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center' }}>No spam. Your information is kept private.</p>
             </div>
           </>
         );
@@ -435,12 +435,12 @@ export default function HomeSearchForm({
       case 'confirmed':
         return (
           <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <div style={{ width: '72px', height: '72px', background: `${accent}18`, border: `2px solid ${accent}44`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 24px' }}>📅</div>
-            <h2 style={{ fontSize: '1.7rem', fontWeight: '800', color: '#f1f5f9', marginBottom: '12px', letterSpacing: '-0.02em' }}>Call Confirmed!</h2>
-            <p style={{ color: 'rgba(241,245,249,0.65)', lineHeight: 1.65, marginBottom: '8px' }}>
-              Your call with <strong style={{ color: '#f1f5f9' }}>{agentName}</strong> is booked.
+            <div style={{ width: '72px', height: '72px', background: `${accent}12`, border: `2px solid ${accent}33`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 24px' }}>📅</div>
+            <h2 style={{ fontSize: '1.7rem', fontWeight: '800', color: '#1E3A6E', marginBottom: '12px', letterSpacing: '-0.02em' }}>Call Confirmed!</h2>
+            <p style={{ color: '#475569', lineHeight: 1.65, marginBottom: '8px' }}>
+              Your call with <strong style={{ color: '#1E3A6E' }}>{agentName}</strong> is booked.
             </p>
-            <p style={{ color: 'rgba(241,245,249,0.38)', fontSize: '0.875rem', marginBottom: '36px' }}>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '36px' }}>
               Keep an eye on your phone — we'll see you then!
             </p>
             <button onClick={onClose} style={ctaBtnStyle(accent)}>Done</button>
@@ -458,31 +458,31 @@ export default function HomeSearchForm({
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        style={{ background: '#1A0F0A', width: '100%', maxWidth: '520px', borderRadius: '28px 28px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+        style={{ background: '#FFFFFF', width: '100%', maxWidth: '520px', borderRadius: '28px 28px 0 0', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
         className="re-modal"
       >
         {/* Progress bar */}
         {isQuestion && (
-          <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }}>
+          <div style={{ height: '3px', background: 'rgba(37,99,235,0.08)', flexShrink: 0 }}>
             <div style={{ height: '100%', width: `${progressPct}%`, background: accent, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)', borderRadius: '0 3px 3px 0' }} />
           </div>
         )}
 
         {/* Header */}
-        <div style={{ padding: '18px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '18px 24px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(30,58,110,0.07)' }}>
           {showBack ? (
-            <button onClick={goBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(241,245,249,0.6)', padding: '8px 12px', borderRadius: '10px' }}>
+            <button onClick={goBack} style={{ background: 'rgba(37,99,235,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#475569', padding: '8px 12px', borderRadius: '10px' }}>
               <ArrowLeft style={{ width: 16, height: 16 }} />
               <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>Back</span>
             </button>
           ) : <div />}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isQuestion && (
-              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, padding: '4px 10px', borderRadius: '50px', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: accent, background: `${accent}12`, border: `1px solid ${accent}22`, padding: '4px 10px', borderRadius: '50px', letterSpacing: '0.05em' }}>
                 {progressPct}%
               </span>
             )}
-            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '10px', display: 'flex', color: 'rgba(241,245,249,0.7)' }}>
+            <button onClick={onClose} style={{ background: 'rgba(37,99,235,0.06)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '10px', display: 'flex', color: '#475569' }}>
               <X style={{ width: 18, height: 18 }} />
             </button>
           </div>
@@ -497,12 +497,11 @@ export default function HomeSearchForm({
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800&display=swap');
         * { -webkit-tap-highlight-color: transparent; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .re-form-overlay { background: rgba(0,0,0,0.75); backdrop-filter: blur(16px); }
+        .re-form-overlay { background: rgba(15,23,42,0.6); backdrop-filter: blur(16px); }
         .re-modal { font-family: 'DM Sans', system-ui, sans-serif; height: 100dvh; }
         .re-form-btn:active { transform: scale(0.97); }
-        .re-modal input::placeholder { color: rgba(241,245,249,0.3); }
-        .re-modal textarea::placeholder { color: rgba(241,245,249,0.3); }
-        .re-modal input, .re-modal textarea, .re-modal select { color-scheme: dark; }
+        .re-modal input::placeholder { color: #94a3b8; }
+        .re-modal textarea::placeholder { color: #94a3b8; }
         @media (max-width: 599px) {
           .re-form-overlay { align-items: flex-end !important; }
           .re-modal { border-radius: 28px 28px 0 0 !important; height: 100dvh !important; }
@@ -516,10 +515,10 @@ export default function HomeSearchForm({
   );
 }
 
-const headStyle: React.CSSProperties = { fontSize: 'clamp(1.3rem, 4vw, 1.6rem)', fontWeight: '800', color: '#f1f5f9', marginBottom: '8px', letterSpacing: '-0.02em', lineHeight: 1.2 };
-const subStyle: React.CSSProperties = { color: 'rgba(241,245,249,0.48)', fontSize: '0.875rem', marginBottom: '24px' };
+const headStyle: React.CSSProperties = { fontSize: 'clamp(1.3rem, 4vw, 1.6rem)', fontWeight: '800', color: '#1E3A6E', marginBottom: '8px', letterSpacing: '-0.02em', lineHeight: 1.2 };
+const subStyle: React.CSSProperties = { color: '#64748b', fontSize: '0.875rem', marginBottom: '24px' };
 const ctaBtnStyle = (accent: string): React.CSSProperties => ({
-  width: '100%', padding: '18px', background: accent, color: '#111827',
+  width: '100%', padding: '18px', background: accent, color: '#ffffff',
   border: 'none', borderRadius: '14px', fontWeight: '700', fontSize: '1.05rem',
   cursor: 'pointer', transition: 'opacity 0.15s', letterSpacing: '0.01em',
 });

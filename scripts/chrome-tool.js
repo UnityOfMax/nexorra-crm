@@ -42,6 +42,13 @@ const fastIdx = process.argv.indexOf('--fast');
 const FAST_MODE = fastIdx !== -1;
 if (fastIdx !== -1) process.argv.splice(fastIdx, 1);
 
+// --stealth: skip ALL evaluateOnNewDocument (removes the #1 Cloudflare Puppeteer fingerprint)
+// Use this for realtor.com / any Cloudflare-protected site.
+// --disable-blink-features=AutomationControlled on the Chrome launch already handles navigator.webdriver.
+const stealthIdx = process.argv.indexOf('--stealth');
+const STEALTH_MODE = stealthIdx !== -1;
+if (stealthIdx !== -1) process.argv.splice(stealthIdx, 1);
+
 const CDP_URL = `http://localhost:${CDP_PORT}`;
 
 async function connectToChrome() {
@@ -55,14 +62,12 @@ async function connectToChrome() {
   if (CONNECT_VW > 0 && CONNECT_VH > 0) {
     await page.setViewport({ width: CONNECT_VW, height: CONNECT_VH });
   }
-  // FAST_MODE (video pipeline): skip evaluateOnNewDocument entirely.
-  // Page.addScriptToEvaluateOnNewDocument is a well-known Puppeteer fingerprint that Cloudflare
-  // specifically checks for. In fast mode we navigate via xdotool so the browser starts clean —
-  // no CDP injection before any page load. --disable-blink-features=AutomationControlled on the
-  // Chrome launch flags already handles navigator.webdriver.
-  //
-  // In normal mode (Jeff scraping), keep the injection for sites that need it.
-  if (!FAST_MODE) {
+  // Skip evaluateOnNewDocument in FAST_MODE or STEALTH_MODE.
+  // Page.addScriptToEvaluateOnNewDocument is the #1 Cloudflare Puppeteer fingerprint —
+  // it runs before the page's own scripts and is trivially detected.
+  // With --disable-blink-features=AutomationControlled on the Chrome launch, navigator.webdriver
+  // is already undefined at the C++ level, so we don't need the JS override.
+  if (!FAST_MODE && !STEALTH_MODE) {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
@@ -235,24 +240,48 @@ async function handleCloudflare(page) {
 }
 
 /**
+ * Move the mouse in a natural arc across the page — helps pass bot checks
+ * that verify mouse movement exists before serving content.
+ */
+async function humanMouseWiggle(page) {
+  try {
+    const vp = page.viewport() || { width: 1280, height: 800 };
+    const cx = vp.width / 2;
+    const cy = vp.height / 2;
+    // A few natural-feeling moves: start bottom-left, arc to centre, drift right
+    const pts = [
+      { x: 80 + Math.random() * 100, y: cy + 150 + Math.random() * 80 },
+      { x: cx - 80 + Math.random() * 60, y: cy + 40 + Math.random() * 40 },
+      { x: cx + Math.random() * 120, y: cy - 30 + Math.random() * 60 },
+      { x: cx + 180 + Math.random() * 80, y: cy + 20 + Math.random() * 40 },
+    ];
+    for (const pt of pts) {
+      await page.mouse.move(pt.x, pt.y);
+      await randomDelay(80, 220);
+    }
+  } catch { /* viewport may not be set — ignore */ }
+}
+
+/**
  * Navigate with retry — handles timeouts by falling back to 'load' event.
  * Also auto-dismisses cookie banners and handles Cloudflare.
  */
 async function smartNavigate(page, url) {
-  // FAST_MODE (video pipeline): use 'load' event — fires when all resources are downloaded
-  // but doesn't wait for AJAX/WebSockets. Compass/ColdwellBanker have persistent connections
-  // that cause networkidle2 to always timeout at 30s.
-  // Normal mode (scraping): networkidle2 for more thorough load detection.
-  const waitEvent = FAST_MODE ? 'load' : 'networkidle2';
+  // STEALTH_MODE: use 'load' (not networkidle2) so Cloudflare challenge JS can complete
+  // without CDP interference. Also move mouse before and after to appear human.
+  // FAST_MODE (video pipeline): also 'load' — avoids timeout on long-lived connections.
+  // Normal mode: networkidle2 for more thorough load detection.
+  const waitEvent = (FAST_MODE || STEALTH_MODE) ? 'load' : 'networkidle2';
+
+  // Move mouse before navigation so the page loads with prior mouse activity in context
+  if (STEALTH_MODE) await humanMouseWiggle(page).catch(() => {});
+
   try {
     await page.goto(url, { waitUntil: waitEvent, timeout: 30000 });
   } catch (err) {
     if (err.message.includes('timeout')) {
-      // Page may have loaded but background requests are still running
-      // Check if we have content
       const hasContent = await page.evaluate(() => document.body?.innerText?.length > 100).catch(() => false);
       if (!hasContent) {
-        // Try with less strict wait
         try {
           await page.goto(url, { waitUntil: 'load', timeout: 20000 });
         } catch {
@@ -265,8 +294,16 @@ async function smartNavigate(page, url) {
   }
 
   // In fast mode (video pipeline), skip the humanising delay — saves 2-4s per navigate.
-  // In normal mode (scraping), keep the delay to appear more human.
-  if (!FAST_MODE) await randomDelay(2000, 4000);
+  if (!FAST_MODE) await randomDelay(STEALTH_MODE ? 1500 : 2000, STEALTH_MODE ? 3000 : 4000);
+
+  // After load: wiggle mouse again (proves mouse is present to bot detectors that check post-load)
+  if (STEALTH_MODE) {
+    await humanMouseWiggle(page).catch(() => {});
+    // Small scroll to prove it's a real browser
+    await page.evaluate(() => window.scrollBy(0, 120)).catch(() => {});
+    await randomDelay(400, 800);
+    await page.evaluate(() => window.scrollBy(0, -120)).catch(() => {});
+  }
 
   // Handle Cloudflare challenge
   const stillBlocked = await handleCloudflare(page);

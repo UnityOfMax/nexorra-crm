@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import { generateWithOllama } from '@/lib/ai/ollama-client';
+import { callKimi } from '@/lib/kimi/client';
 
 export interface AIContext {
   summary: string;
@@ -88,9 +88,9 @@ export async function updateSummary(accountId: string, contactId: string): Promi
     .map(m => `[${m.type.toUpperCase()} ${m.direction === 'inbound' ? 'Lead' : 'Agent'}]: ${m.content}`)
     .join('\n');
 
-  const result = await generateWithOllama({
-    system: 'You summarize CRM conversations concisely for an AI sales agent. Be brief and factual.',
+  const result = await callKimi({
     messages: [
+      { role: 'system', content: 'You summarize CRM conversations concisely for an AI sales agent. Be brief and factual.' },
       {
         role: 'user',
         content: `Summarize this conversation in 2-3 sentences. Focus on: what the lead is looking for, their timeline, any objections, and any commitments made.\n\n${transcript}`,
@@ -99,7 +99,7 @@ export async function updateSummary(accountId: string, contactId: string): Promi
     maxTokens: 200,
   });
 
-  const summary = result.text;
+  const summary = result.reply;
 
   if (!summary) return;
 

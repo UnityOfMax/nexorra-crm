@@ -198,83 +198,87 @@ async function processPendingMessages(accountIds: string[], _context: any): Prom
 
     const config = configData as AiAgentConfig;
 
-    for (const msg of messages) {
-      const message = msg as Message;
-      const msgPrefix = `[${message.type.toUpperCase()}: ${message.id.substring(0, 8)}...]`;
+    // Group messages by contact — generate ONE reply per contact, not per message
+    const byContact = new Map<string, Message[]>();
+    for (const msg of messages as Message[]) {
+      const bucket = byContact.get(msg.contact_id) || [];
+      bucket.push(msg);
+      byContact.set(msg.contact_id, bucket);
+    }
+
+    for (const [contactId, contactMsgs] of byContact) {
+      // Most recent inbound message in this group
+      const latestMsg = contactMsgs[contactMsgs.length - 1];
+      const contactPrefix = `[contact:${contactId.substring(0, 8)}]`;
+
+      // ── 15-second debounce ────────────────────────────────────────────────
+      // If the most recent inbound arrived less than 15s ago, skip — more
+      // messages may still be incoming. The next cron run will process them.
+      const elapsedMs = Date.now() - new Date(latestMsg.created_at).getTime();
+      if (elapsedMs < 15_000) {
+        console.log(`${contactPrefix} Debouncing — last message ${Math.round(elapsedMs / 1000)}s ago, waiting for more`);
+        continue;
+      }
 
       // Fetch contact details
       const { data: contactData } = await supabaseAdmin
         .from('contacts')
         .select('*')
-        .eq('id', message.contact_id)
+        .eq('id', contactId)
         .single();
 
       if (!contactData) {
-        console.log(`${msgPrefix} Contact not found, skipping`);
+        console.log(`${contactPrefix} Contact not found, skipping`);
         continue;
       }
 
       const contact = contactData as Contact;
 
-      // Skip if AI not enabled for this contact
       if (contact.ai_enabled === false) {
-        console.log(`${msgPrefix} AI disabled for this contact, skipping`);
+        console.log(`${contactPrefix} AI disabled for this contact, skipping`);
         continue;
       }
 
-      // Check channel is enabled
-      const channelEnabled = message.type === 'sms'
+      const channel = latestMsg.type;
+      const channelEnabled = channel === 'sms'
         ? config.channels?.sms !== false
         : config.channels?.email !== false;
 
       if (!channelEnabled) {
-        console.log(`${msgPrefix} ${message.type.toUpperCase()} not enabled for this account, skipping`);
+        console.log(`${contactPrefix} ${channel.toUpperCase()} not enabled for this account, skipping`);
         continue;
       }
 
       try {
-        console.log(`${msgPrefix} Generating and sending ${message.type} reply...`);
+        console.log(`${contactPrefix} Generating ${channel.toUpperCase()} reply for ${contactMsgs.length} message(s)...`);
 
-        // Call generateAndSendAI to orchestrate full flow:
-        // - Build conversation context
-        // - Generate reply via Claude Haiku 4.5 with prompt caching
-        // - Send via Twilio (SMS) or Resend (email)
-        // - Update lead score
-        // - Track funnel events
-        // - Mark message as is_ai_generated: true
         const result = await generateAndSendAI({
           accountId,
-          contactId: message.contact_id,
-          channel: message.type,
+          contactId,
+          channel,
           isFollowUp: false,
-          followUpCount: 0
+          followUpCount: 0,
         });
 
         if (result.success) {
-          if (message.type === 'sms') {
-            smsSent++;
-          } else {
-            emailSent++;
-          }
+          if (channel === 'sms') smsSent++; else emailSent++;
+          followUpsScheduled++;
+          console.log(`${contactPrefix} ✓ ${channel.toUpperCase()} reply sent`);
 
-          console.log(`${msgPrefix} ✓ ${message.type.toUpperCase()} reply sent`);
-          followUpsScheduled++; // generateAndSendAI already scheduled the follow-up
-
-          // Mark inbound message as processed (prevents re-processing on next run)
+          // Mark ALL pending messages for this contact as processed
+          const ids = contactMsgs.map(m => m.id);
           void supabaseAdmin
             .from('messages')
             .update({ is_ai_generated: false })
-            .eq('id', message.id);
+            .in('id', ids);
 
-          // Collect learning
-          learningsBuffer.push(`[SENT] ${accountName}: ${message.type}, contact: ${contact.name || 'unknown'}, msg: "${message.content.substring(0, 40)}..."`);
+          learningsBuffer.push(`[SENT] ${accountName}: ${channel}, contact: ${(contact as any).name || 'unknown'}, ${contactMsgs.length} msg(s)`);
           learningsCollected++;
         } else {
-          console.error(`${msgPrefix} Failed to send reply:`, result);
+          console.error(`${contactPrefix} Failed to send reply:`, result);
         }
-
       } catch (error) {
-        console.error(`${msgPrefix} Error processing message:`, error);
+        console.error(`${contactPrefix} Error processing contact:`, error);
       }
     }
   }

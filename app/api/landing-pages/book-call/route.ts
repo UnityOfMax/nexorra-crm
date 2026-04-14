@@ -4,6 +4,7 @@ import { syncActivityToGoogle, getGoogleCalendarClient } from '@/lib/google-cale
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
 import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
 import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
+import { recordBookingLearning } from '@/lib/ai/account-learner';
 
 // POST /api/landing-pages/book-call
 export async function POST(request: NextRequest) {
@@ -213,6 +214,13 @@ ${answerSummary}`;
     if (contactId) {
       triggerBookingCreated(accountId, contactId, activity.id, slotUtc, slotDisplay).catch(err => {
         console.error('[book-call] workflow trigger error:', err);
+      });
+    }
+
+    // ── Record conversation learning for this booking (non-blocking) ──────────
+    if (contactId) {
+      recordBookingLearning(accountId, contactId).catch(err => {
+        console.error('[book-call] booking learning error:', err);
       });
     }
 

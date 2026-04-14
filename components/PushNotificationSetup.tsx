@@ -56,7 +56,7 @@ export default function PushNotificationSetup({ accountId }: PushNotificationSet
 
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey).buffer as ArrayBuffer,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
 
         // 5. Send subscription to server

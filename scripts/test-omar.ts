@@ -19,8 +19,8 @@ import 'dotenv/config';
 require('dotenv').config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
-import { generateAIResponse } from '@/lib/ai/generate-and-send';
-import { warmModel } from '@/lib/ai/ollama-client';
+import { callKimi } from '@/lib/kimi/client';
+import { loadReplyMemory } from '@/lib/ai/reply-memory';
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -263,7 +263,7 @@ async function main() {
       await tgSend('❌ No sub-accounts found. Add a sub-account first or pass --account <slug>.');
       return;
     }
-    const { agentName, prompt: promptSnippet } = await ensureAiConfig(account.id, account.name);
+    await ensureAiConfig(account.id, account.name);
     const contactId = await ensureTestContact(account.id);
     session = {
       accountId: account.id,
@@ -273,13 +273,10 @@ async function main() {
     };
     await saveSession(session);
 
-    const model = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:1b';
     await tgSend(
       `🤖 Omar Test Session\n\n` +
       `Account: ${account.name}\n` +
-      `Agent persona: ${agentName}\n` +
-      `Prompt: "${promptSnippet}"\n` +
-      `Model: ${model}\n\n` +
+      `Model: claude-haiku-4-5\n\n` +
       `Send messages as a fake lead. Omar replies.\n` +
       `/reset — clear history  /history — last 5 messages`
     );
@@ -298,16 +295,87 @@ async function main() {
     );
   }
 
-  // Warm model so first reply isn't slow
-  process.stdout.write('Warming model... ');
-  await warmModel();
-  console.log('ready.');
+
+  // Always start with a clean slate — wipe any messages from previous sessions
+  // (in production, context comes from real conversation history)
+  await db.from('messages').delete()
+    .eq('account_id', session.accountId)
+    .eq('contact_id', session.contactId);
+  await db.from('ai_conversation_summaries').delete()
+    .eq('account_id', session.accountId)
+    .eq('contact_id', session.contactId);
+  console.log('Messages cleared — fresh lead context.');
 
   // Poll for messages
   console.log(`Polling Telegram for messages (account: ${session.accountName}, contact: ${session.contactId})...`);
   console.log('Press Ctrl+C to stop.\n');
 
   let offset = session.lastUpdateId + 1;
+
+  // ── 15-second debounce state ───────────────────────────────────────────────
+  // Messages accumulate in DB while the timer runs. When it fires, we load
+  // everything from DB (including all messages sent during the window) and
+  // generate one reply.
+  const DEBOUNCE_MS = 15_000;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let debounceIndicatorId = 0; // Telegram message showing the countdown
+
+  async function generateReply() {
+    debounceTimer = null;
+    const start = Date.now();
+
+    try {
+      // Load all messages since last outbound (the full pending window)
+      const { data: history } = await db
+        .from('messages')
+        .select('direction, content')
+        .eq('account_id', session.accountId)
+        .eq('contact_id', session.contactId)
+        .order('created_at', { ascending: false })
+        .limit(12);
+
+      const msgs = (history || []).reverse().map(m => ({
+        role: (m.direction === 'inbound' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.content as string,
+      }));
+
+      const memory = loadReplyMemory(null, null);
+
+      const systemPrompt = [
+        `You are Omar, an AI assistant qualifying inbound leads for a real estate business. You reply to SMS messages from potential clients.`,
+        `Rules:
+- Reply ONLY to what the lead has said. Never invent context, appointments, or details you weren't given.
+- Keep replies short (1-3 sentences max).
+- Never use filler openers like "Hey!", "Great!", "Absolutely!", or "My bad".
+- If they say hello, greet them and ask one simple open question.
+- If multiple messages arrived, address them together in one reply — do not send separate replies.
+- If they ask to book, ask for their availability.
+- If you can't answer something, say you'll find out.`,
+        `## Writing Style\n${memory.humanizerSkill}`,
+        memory.stopSlopSkill,
+        `Respond with the message text only. No labels, no meta-commentary.`,
+      ].filter(Boolean).join('\n\n');
+
+      const result = await callKimi({
+        messages: [{ role: 'system', content: systemPrompt }, ...msgs],
+        maxTokens: 150,
+        temperature: 0.7,
+      });
+
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      const reply = result.reply;
+
+      await saveMessage(session.accountId, session.contactId, 'outbound', reply);
+
+      const replyText = `🤖 Omar (claude-haiku-4-5 · ${elapsed}s)\n\n${reply}`;
+      await tgEdit(debounceIndicatorId, replyText).catch(() => tgSend(replyText));
+      console.log(`→ Omar (${elapsed}s): ${reply}\n`);
+    } catch (err: any) {
+      const errText = `❌ Error: ${err.message}`;
+      console.error('Reply error:', err.message);
+      await tgEdit(debounceIndicatorId, errText).catch(() => tgSend(errText));
+    }
+  }
 
   while (true) {
     const updates = await getUpdates(offset);
@@ -325,6 +393,7 @@ async function main() {
 
       // Built-in commands
       if (text === '/reset' || text === '/start') {
+        if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
         await resetTestContact(session.accountId, session.contactId);
         await clearSession();
         session.contactId = await ensureTestContact(session.accountId);
@@ -348,37 +417,21 @@ async function main() {
         continue;
       }
 
-      // Treat as inbound SMS from test lead
+      // Inbound message from test lead
       console.log(`← Lead: ${text}`);
-
-      // Save inbound message
       await saveMessage(session.accountId, session.contactId, 'inbound', text);
 
-      // Show "thinking" indicator
-      const thinkingId = await tgSend('⏳ Omar is thinking...');
-      const start = Date.now();
-
-      try {
-        const result = await generateAIResponse({
-          accountId: session.accountId,
-          contactId: session.contactId,
-          channel: 'sms',
-        });
-
-        const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-        const reply = result.response;
-
-        // Save outbound message
-        await saveMessage(session.accountId, session.contactId, 'outbound', reply);
-
-        const replyText = `🤖 Omar (${result.model} · ${elapsed}s)\n\n${reply}`;
-        await tgEdit(thinkingId, replyText).catch(() => tgSend(replyText));
-        console.log(`→ Omar (${elapsed}s): ${reply}\n`);
-      } catch (err: any) {
-        const errText = `❌ Error: ${err.message}`;
-        console.error('Reply error:', err.message);
-        await tgEdit(thinkingId, errText).catch(() => tgSend(errText));
+      // Reset debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        await tgEdit(debounceIndicatorId, `⏳ Got it — resetting timer (15s)…`).catch(() => {});
+        console.log('  ↺ Timer reset.');
+      } else {
+        // First message in this window — show the indicator
+        debounceIndicatorId = await tgSend(`⏳ Waiting 15s for more messages…`);
       }
+
+      debounceTimer = setTimeout(() => { generateReply(); }, DEBOUNCE_MS);
     }
 
     // Small pause before next poll

@@ -36,7 +36,9 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 }
 
 async function chromeTool(cmd: string): Promise<string> {
-  const { stdout } = await execAsync(`node scripts/chrome-tool.js ${cmd}`);
+  // --stealth: skips evaluateOnNewDocument (Cloudflare's #1 Puppeteer fingerprint)
+  // and adds mouse movements to appear human.
+  const { stdout } = await execAsync(`node scripts/chrome-tool.js --stealth ${cmd}`);
   return stdout.trim();
 }
 
@@ -172,9 +174,12 @@ async function scrapeRealtorCom(city: string, state: string): Promise<Lead[]> {
   const leads: Lead[] = [];
   const citySlug = city.replace(/\s+/g, '_').toLowerCase();
 
-  // Warmup: visit root first to establish cookies
+  // Warmup: land on Google first (establishes referrer + browsing context)
+  await chromeTool('navigate "https://www.google.com"');
+  await chromeTool('wait 2000');
+  // Then go to realtor.com root before hitting the agent search
   await chromeTool('navigate "https://www.realtor.com"');
-  await chromeTool('wait 3000');
+  await chromeTool('wait 3500');
 
   for (let page = 1; page <= 8; page++) {
     const url = `https://www.realtor.com/realestateagents/${citySlug}_${state}/pg-${page}`;

@@ -12,7 +12,7 @@
  */
 
 const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:1b';
+const DEFAULT_MODEL = process.env.OLLAMA_REPLY_MODEL || 'llama3.2:3b';
 const KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || '10m';
 const TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
 

@@ -23,11 +23,11 @@
 
 | Source | Country | Status | Notes |
 |--------|---------|--------|-------|
-| **realtor.com** | US | 🚫 BLOCKED | Cloudflare WAF blocks CDP automation (2026-04-13) — returns HTTP 403 "request could not be processed" |
-| **zillow.com** | US | 🚫 BLOCKED | Cloudflare WAF blocks CDP automation — same blocking as realtor.com |
-| **realtor.ca** | CA | 🚫 BLOCKED | Blocks CDP automation — requires different approach |
+| **realtor.com** | US | 🚫 BROKEN | Redirects to `kw.com` (Keller Williams). Structural change to their platform. No agent listings returned. |
+| **zillow.com** | US | ⚠️ PARTIAL | Loads OK, but shows **team-based listings** instead of individual agents. Extractable but complex; teams may not have direct phone numbers. |
+| **realtor.ca** | CA | 🚫 SPA | Loads blank (React SPA). Requires JS rendering or XHR interception to extract content. |
 
-**CRITICAL BLOCKER (2026-04-13):** All three sources are now protected by Cloudflare WAF that detects and blocks Chrome DevTools Protocol (CDP) automation. The blocking mechanism triggers on first page load with automated browser detection. Session 2026-04-13 yielded 0 leads across all sources.
+**CRITICAL BLOCKER (2026-04-14):** Infrastructure has changed since 2026-04-13. No source is currently in a workable state for calling lead scraping via standard Chrome CDP tool. All three require different approaches (HTTP client, proxy, custom adapters, or alternative sources).
 
 ---
 
@@ -82,6 +82,18 @@ Previous calling leads in DB: ~303 (from RE/MAX in earlier sessions). Those rema
 ---
 
 ## Session History
+
+**2026-04-14 Session (CURRENT):**
+- **Attempt**: Verify realtor.com/zillow.com/realtor.ca status with Chrome tool
+- **Findings**:
+  - **realtor.com**: Now redirects to `kw.com` (Keller Williams portal) — structural change, not WAF
+  - **zillow.com**: Loads OK but lists **teams** instead of individual agents — harder to extract
+  - **realtor.ca**: Loads but is SPA (blank body) — needs JS rendering/interception
+- **OpenCLI Status**: No existing adapters for these sources
+- **Status**: MISSION BLOCKED — Infrastructure has changed. Requires:
+  1. HTTP client + proxy rotation, OR
+  2. OpenCLI custom adapter development, OR
+  3. Alternative data sources (APIs, paid services)
 
 **2026-04-13 Session:**
 - **Attempt**: Scrape 1,000 calling leads from realtor.com (Houston, Dallas, Austin, Atlanta), zillow.com (Chicago, Phoenix, Los Angeles), realtor.ca (Toronto)
