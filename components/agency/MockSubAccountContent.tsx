@@ -202,9 +202,9 @@ function MockDashboard({ slug }: { slug: string }) {
     ? customersAllTime
     : Math.min(customersAllTime, Math.round(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1) * 2.8));
   const activeDeals = Math.round(stat.dealsPerMonth * 2.8); // always current
-  // Emails/texts: 2.4x / 1.4x contacts — accounts for multiple touchpoints per contact
+  // Emails/texts: 2.4x / 3.5x contacts — accounts for multiple touchpoints per contact
   const emailsSent  = Math.round(totalContacts * 2.4);
-  const textsSent   = Math.round(totalContacts * 1.4);
+  const textsSent   = Math.round(totalContacts * 3.5);
   const bookings    = timeframe === 'all'
     ? allTime!.totalBookings
     : Math.floor(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1));
