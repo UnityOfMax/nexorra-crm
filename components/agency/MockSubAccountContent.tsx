@@ -189,11 +189,6 @@ function MockDashboard({ slug }: { slug: string }) {
 
   const factor7d = 7 / 30;
 
-  // Monthly rates derived from all-time totals (guarantees period <= all-time)
-  const months = allTime!.months;
-  const emailsPerMonth = allTime!.totalEmails / months;
-  const textsPerMonth  = allTime!.totalTexts  / months;
-
   // Derived stats by timeframe
   const totalContacts = timeframe === 'all'
     ? allTime!.totalContacts
@@ -207,12 +202,9 @@ function MockDashboard({ slug }: { slug: string }) {
     ? customersAllTime
     : Math.min(customersAllTime, Math.round(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1) * 2.8));
   const activeDeals = Math.round(stat.dealsPerMonth * 2.8); // always current
-  const emailsSent  = timeframe === 'all'
-    ? allTime!.totalEmails
-    : Math.round(emailsPerMonth * (timeframe === '7d' ? factor7d : 1));
-  const textsSent   = timeframe === 'all'
-    ? allTime!.totalTexts
-    : Math.round(textsPerMonth * (timeframe === '7d' ? factor7d : 1));
+  // Emails/texts: 2.4x / 1.4x contacts — accounts for multiple touchpoints per contact
+  const emailsSent  = Math.round(totalContacts * 2.4);
+  const textsSent   = Math.round(totalContacts * 1.4);
   const bookings    = timeframe === 'all'
     ? allTime!.totalBookings
     : Math.floor(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1));
@@ -696,6 +688,106 @@ function MockPipeline({ slug }: { slug: string }) {
   );
 }
 
+// ── Contacts list view ───────────────────────────────────────────────────────
+function MockContacts({ slug }: { slug: string }) {
+  const contacts = useMemo(() => generateMockContacts(slug, 70), [slug]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<MockContactItem['stage'] | 'all'>('all');
+
+  const filtered = useMemo(() => {
+    return contacts.filter(c => {
+      const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
+      const matchFilter = filter === 'all' || c.stage === filter;
+      return matchSearch && matchFilter;
+    });
+  }, [contacts, search, filter]);
+
+  const stageMap: Record<string, { label: string; cls: string }> = {
+    new_lead:      { label: 'New Lead',   cls: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
+    scheduling:    { label: 'Scheduling', cls: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' },
+    offer:         { label: 'Offer',      cls: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' },
+    under_contract:{ label: 'Contracted', cls: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' },
+    post_close:    { label: 'Closed',     cls: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' },
+    inactive:      { label: 'Inactive',   cls: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' },
+  };
+
+  const stageCounts: Record<string, number> = { all: contacts.length };
+  for (const c of contacts) stageCounts[c.stage] = (stageCounts[c.stage] || 0) + 1;
+
+  const filterTabs: Array<{ key: MockContactItem['stage'] | 'all'; label: string }> = [
+    { key: 'all', label: `All (${stageCounts.all})` },
+    { key: 'new_lead', label: `New Leads (${stageCounts.new_lead || 0})` },
+    { key: 'scheduling', label: `Scheduling (${stageCounts.scheduling || 0})` },
+    { key: 'offer', label: `Offer (${stageCounts.offer || 0})` },
+    { key: 'under_contract', label: `Contracted (${stageCounts.under_contract || 0})` },
+    { key: 'post_close', label: `Closed (${stageCounts.post_close || 0})` },
+    { key: 'inactive', label: `Inactive (${stageCounts.inactive || 0})` },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contacts</h3>
+        <input
+          type="text"
+          placeholder="Search contacts..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-white/6 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500/40 w-52"
+        />
+      </div>
+
+      {/* Stage filter tabs */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {filterTabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setFilter(t.key)}
+            className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+              filter === t.key
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 dark:bg-white/6 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Contact grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {filtered.map(c => {
+          const { label, cls } = stageMap[c.stage] || stageMap.inactive;
+          const initials = c.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
+          return (
+            <div
+              key={c.id}
+              className="card flex items-start gap-3 cursor-default hover:shadow-md transition-shadow"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-primary-700 dark:text-primary-400">{initials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{c.name}</p>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">{c.lastTime}</span>
+                </div>
+                <span className={`mt-0.5 inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${cls}`}>{label}</span>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-1">{c.lastText}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">No contacts match your search.</div>
+      )}
+    </div>
+  );
+}
+
 // ── Stub for non-featured mock accounts on complex views ─────────────────────
 function StubView({ label }: { label: string }) {
   return (
@@ -714,6 +806,8 @@ export default function MockSubAccountContent({ slug, activeView }: Props) {
   const isFeatured = FEATURED_SLUGS.has(slug);
 
   switch (activeView) {
+    case 'contacts':
+      return <MockContacts slug={slug} />;
     case 'conversations':
       return isFeatured ? <MockConversations slug={slug} /> : <StubView label="Conversations" />;
     case 'calendar':
