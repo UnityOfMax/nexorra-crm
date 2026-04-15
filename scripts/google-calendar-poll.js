@@ -237,7 +237,7 @@ function email1Html(firstName, callTime) {
 <p>Before the call, go through the page below. It covers exactly how we work and what to expect so our time together is actually useful.</p>
 <p style="text-align:center;margin:28px 0">
   <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700;font-size:16px;display:inline-block">
-    View Your Pre-Call Page →
+    View the system →
   </a>
 </p>
 <p>Three quick steps on there:</p>
@@ -262,20 +262,17 @@ function email2Html(firstName, callTime) {
 <br>
 
 <p>One of our clients, Mary, over the last 2.5 years we've helped her close 61 deals, around $270,000 per year.</p>
-<br>
-<img src="${BASE}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+<img src="${BASE}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
 
 <br><br>
 
 <p>Or David, who started working with us 3 months ago and has already made nearly $30k in GCI.</p>
-<br>
-<img src="${BASE}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+<img src="${BASE}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
 
 <br><br>
 
 <p>And Susan who started around a year ago and has done an extra 2 deals per month every month since then.</p>
-<br>
-<img src="${BASE}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+<img src="${BASE}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
 
 <br>
 
@@ -291,7 +288,7 @@ function email3Html(firstName) {
 <p>If you haven't been through the pre-call page yet, worth doing before we speak:</p>
 <p style="text-align:center;margin:24px 0">
   <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block">
-    Pre-Call Page →
+    View the system →
   </a>
 </p>
 <p>Talk soon.</p>
