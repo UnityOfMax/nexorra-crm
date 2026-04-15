@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
       agentName,
       formAnswers,
       contactInfo, // optional: { first_name, last_name, email, phone } from confirmation step
+      pipeline_stage_id,
+      pipeline_id,
+      stage_name,
+      stage_probability,
     } = body;
 
     if (!accountId || !slotUtc) {
@@ -233,6 +237,47 @@ ${answerSummary}`;
     }).catch(err => {
       console.error('[book-call] push notification error:', err);
     });
+
+    // ── Move deal to Booked Appointment stage ────────────────────────────────
+    if (pipeline_stage_id && contactId) {
+      try {
+        const { data: existingDeal } = await supabaseAdmin
+          .from('deals')
+          .select('id, pipeline_stage_id')
+          .eq('account_id', accountId)
+          .eq('contact_id', contactId)
+          .eq('status', 'open')
+          .limit(1)
+          .maybeSingle();
+
+        if (existingDeal) {
+          await supabaseAdmin
+            .from('deals')
+            .update({
+              pipeline_stage_id,
+              stage:       stage_name       || undefined,
+              probability: stage_probability ?? undefined,
+              updated_at:  new Date().toISOString(),
+            })
+            .eq('id', existingDeal.id);
+        } else {
+          await supabaseAdmin
+            .from('deals')
+            .insert({
+              account_id:        accountId,
+              contact_id:        contactId,
+              pipeline_id:       pipeline_id || null,
+              pipeline_stage_id,
+              title:             `${contactName || 'Lead'} — Booking`,
+              stage:             stage_name       || null,
+              probability:       stage_probability ?? null,
+              status:            'open',
+            });
+        }
+      } catch (dealErr) {
+        console.error('[book-call] deal upsert error:', dealErr);
+      }
+    }
 
     return NextResponse.json({ success: true, activityId: activity.id });
   } catch (error: any) {

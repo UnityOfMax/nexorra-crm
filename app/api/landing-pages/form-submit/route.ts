@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
       fbc,
       fbp,
       event_id,
+      pipeline_stage_id,
+      pipeline_id,
+      stage_name,
+      stage_probability,
     } = body;
 
     if (!accountId || (!phone && !email)) {
@@ -159,6 +163,64 @@ export async function POST(request: NextRequest) {
         tag: 'new-lead',
         url: `/contacts/${contactId}`,
       }).catch((err) => console.error('[form-submit] push notification error:', err));
+    }
+
+    // ── Deal upsert (pipeline stage progression) ──────────────────────────────
+    if (pipeline_stage_id) {
+      try {
+        const contactName = [first_name, last_name].filter(Boolean).join(' ') || 'Lead';
+
+        // Find any existing open deal for this contact
+        const { data: existingDeal } = await supabaseAdmin
+          .from('deals')
+          .select('id, pipeline_stage_id')
+          .eq('account_id', accountId)
+          .eq('contact_id', contactId)
+          .eq('status', 'open')
+          .limit(1)
+          .maybeSingle();
+
+        if (existingDeal) {
+          // Only advance — never demote. Check positions first.
+          if (existingDeal.pipeline_stage_id !== pipeline_stage_id) {
+            const { data: stageRows } = await supabaseAdmin
+              .from('pipeline_stages')
+              .select('id, position')
+              .in('id', [existingDeal.pipeline_stage_id, pipeline_stage_id]);
+
+            const currentPos = stageRows?.find(s => s.id === existingDeal.pipeline_stage_id)?.position ?? -1;
+            const newPos     = stageRows?.find(s => s.id === pipeline_stage_id)?.position ?? -1;
+
+            if (newPos > currentPos) {
+              await supabaseAdmin
+                .from('deals')
+                .update({
+                  pipeline_stage_id,
+                  stage:       stage_name       || undefined,
+                  probability: stage_probability ?? undefined,
+                  updated_at:  new Date().toISOString(),
+                })
+                .eq('id', existingDeal.id);
+            }
+          }
+        } else {
+          // Create new deal at this stage
+          await supabaseAdmin
+            .from('deals')
+            .insert({
+              account_id:        accountId,
+              contact_id:        contactId,
+              pipeline_id:       pipeline_id || null,
+              pipeline_stage_id,
+              title:             `${contactName} — ${source || 'Landing Page'}`,
+              stage:             stage_name       || null,
+              probability:       stage_probability ?? null,
+              status:            'open',
+            });
+        }
+      } catch (dealErr) {
+        console.error('[form-submit] deal upsert error:', dealErr);
+      }
     }
 
     return NextResponse.json({ success: true, contactId });
