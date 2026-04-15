@@ -454,8 +454,8 @@ export function computeAllTimeStats(slug: string, startDate: string, dealsPerMon
     totalContacts: Math.round(totalBookings * 3.8),
     totalDeals,
     totalRevenue,
-    totalTexts: Math.round(textsPerMonth * months * (0.85 + rng() * 0.3)),
-    totalEmails: Math.round(emailsPerMonth * months * (0.85 + rng() * 0.3)),
+    totalTexts: Math.round(textsPerMonth * (0.88 + rng() * 0.24)),
+    totalEmails: Math.round(emailsPerMonth * (0.88 + rng() * 0.24)),
     totalBookings,
     totalClosings: totalDeals,
   };
