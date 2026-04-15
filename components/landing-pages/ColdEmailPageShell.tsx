@@ -15,7 +15,7 @@ export default function ColdEmailPageShell({ html }: { html: string }) {
         display: 'block',
       }}
       title="Landing Page"
-      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
     />
   );
 }
