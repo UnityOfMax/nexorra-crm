@@ -252,13 +252,24 @@ function email2Html(firstName, callTime) {
     weekday: 'long', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
   }) : 'tomorrow';
 
+  const BASE = 'https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/email-results';
+
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
 <p>Hi ${firstName},</p>
 <p>Just a reminder we're speaking <strong>${callDate}</strong>.</p>
-<p>A few of our clients' results below so you can see what's possible before we talk.</p>
-<p>{{EMAIL2_IMAGES_PLACEHOLDER}}</p>
-<p>See you then.</p>
-<p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
+<p>A few of our clients before we talk.</p>
+
+<p>One of our clients, Mary, over the last 2.5 years we've helped her close 61 deals, around $270,000 per year.</p>
+<img src="${BASE}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+
+<p>Or David, who started working with us 3 months ago and has already made nearly $30k in GCI.</p>
+<img src="${BASE}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+
+<p>And Susan who started around a year ago and has done an extra 2 deals per month every month since then.</p>
+<img src="${BASE}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+
+<p>See you soon,</p>
+<p style="margin-top:4px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
 </body></html>`;
 }
 
