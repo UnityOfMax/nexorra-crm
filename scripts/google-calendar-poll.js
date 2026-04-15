@@ -231,22 +231,18 @@ function email1Html(firstName, callTime) {
     hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
   }) : 'your scheduled time';
 
-  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e">
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
 <p>Hi ${firstName},</p>
-<p>Your discovery call is confirmed for <strong>${callDate}</strong>.</p>
-<p>Before we talk, take 3 minutes to go through the page below — it explains exactly how our system works and what to expect on the call:</p>
+<p>You're booked in for <strong>${callDate}</strong>.</p>
+<p>Before the call, go through the page below. It covers exactly how we work and what to expect so our time together is actually useful.</p>
 <p style="text-align:center;margin:28px 0">
   <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700;font-size:16px;display:inline-block">
     View Your Pre-Call Page →
   </a>
 </p>
-<p>Three steps on that page:</p>
-<ol style="line-height:1.8">
-  <li>Watch the short video — full explanation of how we work</li>
-  <li>Accept the calendar invite in your email (check spam if you haven't seen it)</li>
-  <li>Read through the FAQs and testimonials</li>
-</ol>
-<p>See you on the call.</p>
+<p>Three quick steps on there:</p>
+<p style="padding-left:16px">1. Watch the video<br>2. Accept the calendar invite (check spam if you haven't seen it)<br>3. Read through the FAQs and testimonials</p>
+<p>See you then.</p>
 <p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
 </body></html>`;
 }
@@ -256,32 +252,26 @@ function email2Html(firstName, callTime) {
     weekday: 'long', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
   }) : 'tomorrow';
 
-  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e">
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
 <p>Hi ${firstName},</p>
-<p>Quick reminder — we're speaking <strong>${callDate}</strong>.</p>
-<p>A few results from clients we're currently working with:</p>
-<ul style="line-height:2">
-  <li>Brandon H. — closed 3 extra transactions in his first full month (+$28k GCI)</li>
-  <li>Sarah P. — averaging 2.5 additional deals per month (+$80k last quarter)</li>
-  <li>Michael S. — 7 extra transactions in 90 days (+$68k GCI)</li>
-</ul>
-<p>These are real estate agents we work with across the US and Canada. On the call I'll show you exactly what we did for each of them and whether it applies to your market.</p>
+<p>Just a reminder we're speaking <strong>${callDate}</strong>.</p>
+<p>A few of our clients' results below so you can see what's possible before we talk.</p>
+<p>{{EMAIL2_IMAGES_PLACEHOLDER}}</p>
 <p>See you then.</p>
 <p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
 </body></html>`;
 }
 
 function email3Html(firstName) {
-  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e">
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
 <p>Hi ${firstName},</p>
-<p>We're speaking today — looking forward to it.</p>
-<p>If you haven't had a chance to go through the pre-call page yet:</p>
+<p>We're speaking today. Looking forward to it.</p>
+<p>If you haven't been through the pre-call page yet, worth doing before we speak:</p>
 <p style="text-align:center;margin:24px 0">
   <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block">
     Pre-Call Page →
   </a>
 </p>
-<p>The video on there is worth 3 minutes — it'll make our conversation much more useful.</p>
 <p>Talk soon.</p>
 <p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
 </body></html>`;

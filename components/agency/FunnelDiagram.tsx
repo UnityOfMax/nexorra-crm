@@ -62,7 +62,7 @@ export default function FunnelDiagram({ data, className = '' }: Props) {
                   </div>
                   <div className="h-1.5 w-full bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className={`h-full bg-gradient-to-r ${stage.color} rounded-full transition-all duration-500 mx-auto`}
+                      className={`h-full bg-gradient-to-r ${stage.color} rounded-full transition-all duration-500`}
                       style={{ width: `${Math.max(4, pct)}%` }}
                     />
                   </div>
