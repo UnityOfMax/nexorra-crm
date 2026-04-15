@@ -259,14 +259,25 @@ function email2Html(firstName, callTime) {
 <p>Just a reminder we're speaking <strong>${callDate}</strong>.</p>
 <p>A few of our clients before we talk.</p>
 
+<br>
+
 <p>One of our clients, Mary, over the last 2.5 years we've helped her close 61 deals, around $270,000 per year.</p>
-<img src="${BASE}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+<br>
+<img src="${BASE}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+
+<br><br>
 
 <p>Or David, who started working with us 3 months ago and has already made nearly $30k in GCI.</p>
-<img src="${BASE}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+<br>
+<img src="${BASE}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+
+<br><br>
 
 <p>And Susan who started around a year ago and has done an extra 2 deals per month every month since then.</p>
-<img src="${BASE}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0 20px" />
+<br>
+<img src="${BASE}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:8px 0" />
+
+<br>
 
 <p>See you soon,</p>
 <p style="margin-top:4px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
