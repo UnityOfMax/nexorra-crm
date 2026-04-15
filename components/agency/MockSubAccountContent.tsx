@@ -189,21 +189,30 @@ function MockDashboard({ slug }: { slug: string }) {
 
   const factor7d = 7 / 30;
 
+  // Monthly rates derived from all-time totals (guarantees period <= all-time)
+  const months = allTime!.months;
+  const emailsPerMonth = allTime!.totalEmails / months;
+  const textsPerMonth  = allTime!.totalTexts  / months;
+
   // Derived stats by timeframe
   const totalContacts = timeframe === 'all'
     ? allTime!.totalContacts
     : Math.round(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1) * 3.8);
-  const activeLeads = Math.round(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1) * 1.8);
+  const activeLeads = timeframe === 'all'
+    ? Math.round(allTime!.totalBookings * 1.8)
+    : Math.round(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1) * 1.8);
+  // Customers: cumulative — all-time is the ceiling; 30d/7d derive proportionally
+  const customersAllTime = Math.round(allTime!.totalDeals * 1.6);
   const customers   = timeframe === 'all'
-    ? Math.round(allTime!.totalDeals * 1.6)
-    : Math.round(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1) * 5.5);
+    ? customersAllTime
+    : Math.min(customersAllTime, Math.round(stat.dealsPerMonth * (timeframe === '7d' ? factor7d : 1) * 2.8));
   const activeDeals = Math.round(stat.dealsPerMonth * 2.8); // always current
   const emailsSent  = timeframe === 'all'
     ? allTime!.totalEmails
-    : Math.floor(stat.emailsTotal * (timeframe === '7d' ? factor7d : 1));
+    : Math.round(emailsPerMonth * (timeframe === '7d' ? factor7d : 1));
   const textsSent   = timeframe === 'all'
     ? allTime!.totalTexts
-    : Math.floor(stat.textsTotal * (timeframe === '7d' ? factor7d : 1));
+    : Math.round(textsPerMonth * (timeframe === '7d' ? factor7d : 1));
   const bookings    = timeframe === 'all'
     ? allTime!.totalBookings
     : Math.floor(stat.apptsPerMonth * (timeframe === '7d' ? factor7d : 1));
