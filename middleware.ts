@@ -34,33 +34,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Wildcard: *.ourlimitedoffer.com → resolve slug → /account/[accountSlug]/landing-pages/[pageId] ──
+  // ── Wildcard: *.ourlimitedoffer.com → /p/[slug] ──
+  // /questions path maps to a separate page with slug {subdomain}-questions
   if (host.endsWith(`.${LEGACY_BASE_DOMAIN}`)) {
     const subdomain = host.replace(`.${LEGACY_BASE_DOMAIN}`, '');
     if (subdomain && subdomain !== 'www') {
-      try {
-        const cacheKey = `slug:${subdomain}`;
-        let resolved = getCached(cacheKey);
-        if (!resolved) {
-          const apiUrl = `${INTERNAL_API_BASE}/api/landing-pages/by-slug?slug=${encodeURIComponent(subdomain)}`;
-          const res = await fetch(apiUrl, { cache: 'no-store' });
-          if (res.ok) {
-            resolved = await res.json();
-            setCache(cacheKey, resolved);
-          }
-        }
-        if (resolved) {
-          const { pageId, accountSlug } = resolved;
-          const url = request.nextUrl.clone();
-          url.pathname = `/account/${accountSlug}/landing-pages/${pageId}`;
-          const response = NextResponse.rewrite(url);
-          response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
-          response.headers.set('Pragma', 'no-cache');
-          return response;
-        }
-      } catch {
-        // Slug not found — fall through
-      }
+      const isQuestionsPath = pathname === '/questions' || pathname.startsWith('/questions/');
+      const lookupSlug = isQuestionsPath ? `${subdomain}-questions` : subdomain;
+      const url = request.nextUrl.clone();
+      url.pathname = `/p/${lookupSlug}`;
+      const response = NextResponse.rewrite(url);
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+      response.headers.set('Pragma', 'no-cache');
+      return response;
     }
     return NextResponse.next();
   }
