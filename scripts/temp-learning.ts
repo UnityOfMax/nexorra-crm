@@ -1,9 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { readFileSync } from "fs";
+import { join } from "path";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+function getClient(): Anthropic {
+  const now = Date.now();
+
+  // OAuth first (subscription auth — no API credits)
+  try {
+    const credsPath = join(process.env.HOME || '/home/max', '.claude', '.credentials.json');
+    const creds = JSON.parse(readFileSync(credsPath, 'utf-8'));
+    const oauth = creds.claudeAiOauth;
+    if (oauth?.accessToken && oauth.expiresAt > now) {
+      return new Anthropic({ apiKey: oauth.accessToken });
+    }
+  } catch {}
+
+  // Fallback: API key
+  if (process.env.ANTHROPIC_API_KEY) {
+    return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+
+  throw new Error('No Anthropic credentials found. Run Claude Code to refresh OAuth token.');
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +42,7 @@ async function analyzeConversation(conversationId: string, leadEmail: string, st
     .map((m) => `[${m.direction.toUpperCase()}] ${m.sender_name || "System"}: ${m.content}`)
     .join("\n\n");
 
+  const client = getClient();
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 150,

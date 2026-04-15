@@ -20,26 +20,28 @@ function getClient(): Anthropic {
   const now = Date.now();
   if (cachedClient && cachedExpiry > now + 300_000) return cachedClient;
 
-  // Try API key first
+  // OAuth first (subscription auth — no API credits)
+  const credsPath = join(process.env.HOME || '/home/max', '.claude', '.credentials.json');
+  if (existsSync(credsPath)) {
+    try {
+      const creds = JSON.parse(readFileSync(credsPath, 'utf-8'));
+      const oauth = creds.claudeAiOauth;
+      if (oauth?.accessToken && oauth.expiresAt > now) {
+        cachedClient = new Anthropic({ apiKey: oauth.accessToken });
+        cachedExpiry = oauth.expiresAt;
+        return cachedClient;
+      }
+    } catch {}
+  }
+
+  // Fallback: API key
   if (process.env.ANTHROPIC_API_KEY) {
     cachedClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     cachedExpiry = now + 3600_000;
     return cachedClient;
   }
 
-  // Read OAuth token
-  const credsPath = join(process.env.HOME || '/home/max', '.claude', '.credentials.json');
-  if (!existsSync(credsPath)) throw new Error('No credentials file found');
-
-  const creds = JSON.parse(readFileSync(credsPath, 'utf-8'));
-  const oauth = creds.claudeAiOauth;
-  if (!oauth?.accessToken || oauth.expiresAt <= now) {
-    throw new Error('OAuth token expired or missing');
-  }
-
-  cachedClient = new Anthropic({ apiKey: oauth.accessToken });
-  cachedExpiry = oauth.expiresAt;
-  return cachedClient;
+  throw new Error('No Anthropic credentials found');
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {

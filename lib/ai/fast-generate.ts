@@ -22,27 +22,25 @@ function getClient(): Anthropic {
     return cachedClient;
   }
 
-  // Option 1: ANTHROPIC_API_KEY env var (works on Vercel + locally)
-  if (process.env.ANTHROPIC_API_KEY) {
-    cachedClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    cachedTokenExpiry = now + 3600_000;
-    return cachedClient;
-  }
-
-  // Option 2: OAuth token from credentials file (local dev only)
+  // Option 1: OAuth token from credentials file (subscription auth — no API credits)
   try {
     const credsPath = join(process.env.HOME || '/home/max', '.claude', '.credentials.json');
     const creds = JSON.parse(readFileSync(credsPath, 'utf-8'));
     const oauth = creds.claudeAiOauth;
 
     if (oauth?.accessToken && oauth.expiresAt > now) {
-      cachedClient = new Anthropic({
-        apiKey: oauth.accessToken,
-      });
+      cachedClient = new Anthropic({ apiKey: oauth.accessToken });
       cachedTokenExpiry = oauth.expiresAt;
       return cachedClient;
     }
   } catch {}
+
+  // Option 2: ANTHROPIC_API_KEY env var (Vercel / explicit API billing)
+  if (process.env.ANTHROPIC_API_KEY) {
+    cachedClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    cachedTokenExpiry = now + 3600_000;
+    return cachedClient;
+  }
 
   throw new Error('No OAuth token or API key available for fast generation');
 }

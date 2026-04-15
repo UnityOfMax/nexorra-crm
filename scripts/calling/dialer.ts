@@ -36,19 +36,22 @@ export type DialResult =
 // ─── Anthropic client ────────────────────────────────────────────────────────
 
 function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (apiKey) return new Anthropic({ apiKey });
+  const now = Date.now();
 
+  // OAuth first (subscription auth — no API credits)
   try {
     const credsPath = join(process.env.HOME!, '.claude', '.credentials.json');
     const creds = JSON.parse(readFileSync(credsPath, 'utf-8'));
     const oauth = creds?.claudeAiOauth;
-    if (oauth?.accessToken && oauth.expiresAt > Date.now()) {
+    if (oauth?.accessToken && oauth.expiresAt > now) {
       return new Anthropic({ apiKey: oauth.accessToken });
     }
   } catch (_) {}
 
-  throw new Error('No Anthropic credentials found. Set ANTHROPIC_API_KEY in .env.local');
+  // Fallback: API key
+  if (process.env.ANTHROPIC_API_KEY) return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  throw new Error('No Anthropic credentials found');
 }
 
 // ─── Screenshot ──────────────────────────────────────────────────────────────
