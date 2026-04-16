@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000).toISOString();
 
   const results: Record<string, number> = {};
@@ -28,15 +27,9 @@ export async function GET(request: NextRequest) {
     .select('id');
   results.email_deleted = emailDeleted?.length ?? 0;
 
-  // 2. Calling leads: delete 1 hour after CSV download
-  const { data: callingDeleted } = await supabaseAdmin
-    .from('leads')
-    .delete()
-    .eq('lead_category', 'calling')
-    .not('csv_downloaded_at', 'is', null)
-    .lt('csv_downloaded_at', oneHourAgo)
-    .select('id');
-  results.calling_deleted = callingDeleted?.length ?? 0;
+  // 2. Calling leads: NOT deleted — csv_batch_id prevents re-export and
+  //    keeps Jeff's email-based dedup working
+  results.calling_deleted = 0;
 
   // 3. Instagram leads: delete 15 days after DM sent with no reply
   const { data: igDeleted } = await supabaseAdmin
