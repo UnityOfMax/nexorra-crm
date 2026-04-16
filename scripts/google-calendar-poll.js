@@ -195,7 +195,13 @@ function extractLeadInfo(event) {
 
   const email = lead?.email || null;
   const displayName = lead?.displayName || '';
-  const firstName = displayName.split(' ')[0] || 'there';
+  // Fallback: capitalise first part of email local-part (e.g. jane.smith@ → Jane)
+  let firstName = displayName.split(' ')[0];
+  if (!firstName && email) {
+    const local = email.split('@')[0].split(/[._-]/)[0];
+    firstName = local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  firstName = firstName || 'there';
   const callTime = event.start?.dateTime || event.start?.date;
 
   return { email, firstName, displayName, callTime, eventId: event.id, eventTitle: event.summary };
@@ -339,36 +345,33 @@ async function scheduleSequence(lead, recipientEmail, dryRun, resendConfig) {
   const now     = Date.now();
   const emailIds = {};
 
-  // Create Resend contact
-  if (!dryRun && resendConfig?.audienceId) {
+  // Create Resend contact + fire booking.confirmed → automation sends Email 1
+  const callDateDisplay = callMs ? new Date(callMs).toLocaleString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+  }) : 'your scheduled time';
+
+  if (dryRun) {
+    console.log(`  [DRY RUN] Would create contact + fire booking.confirmed → Email 1 → ${recipientEmail}`);
+    console.log(`    firstName=${lead.firstName}, callDate=${callDateDisplay}`);
+  } else if (resendConfig?.audienceId) {
     const lastName = lead.displayName?.split(' ').slice(1).join(' ') || '';
     const contactId = await createResendContact(resendConfig.audienceId, recipientEmail, lead.firstName, lastName);
-    if (contactId) {
-      console.log(`  Contact created in Resend: ${contactId}`);
-    } else {
-      console.log('  Contact already exists in Resend audience');
-    }
+    console.log(contactId ? `  Contact created: ${contactId}` : '  Contact already exists in audience');
 
-    // Fire booking.confirmed event (for future automation)
+    // Fire event — automation sends Email 1 with template variables
     await fireResendEvent('booking.confirmed', recipientEmail, {
       firstName: lead.firstName,
-      callTime: lead.callTime,
-      callDateDisplay: callMs ? new Date(callMs).toLocaleString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
-      }) : '',
+      callDate: callDateDisplay,
     });
-  }
-
-  // Email 1 — send immediately
-  if (dryRun) {
-    console.log(`  [DRY RUN] Email 1 → ${recipientEmail}`);
+    console.log(`  booking.confirmed fired → Email 1 automation triggered`);
   } else {
+    // Fallback: no Resend config — send directly
     emailIds.email1 = await sendEmail({
       to: recipientEmail,
       subject: "Here's everything before our call",
       html: email1Html(lead.firstName, lead.callTime),
     });
-    console.log(`  Email 1 scheduled → ${recipientEmail} (id: ${emailIds.email1})`);
+    console.log(`  Email 1 sent directly → ${recipientEmail} (id: ${emailIds.email1})`);
   }
 
   // Email 2 — 24h before call

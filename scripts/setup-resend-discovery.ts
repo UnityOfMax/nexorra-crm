@@ -1,9 +1,15 @@
 /**
- * One-time setup: creates the Resend audience + event schemas for the
- * discovery call email sequence. Run once:
- *   npx tsx scripts/setup-resend-discovery.ts
+ * One-time setup: creates Resend audience, event schemas, email templates,
+ * and automations for the discovery call email sequence.
  *
- * Saves config to agents/state/resend-discovery-config.json
+ * Run once:  npx tsx scripts/setup-resend-discovery.ts
+ *
+ * Architecture:
+ *  - Email 1 (immediate): booking.confirmed event → automation sends template
+ *  - Email 2 (24h before call): scheduled via Resend scheduledAt at booking time
+ *  - Email 3 (1h before call):  scheduled via Resend scheduledAt at booking time
+ *
+ * Saves IDs to: agents/state/resend-discovery-config.json
  */
 
 import { Resend } from 'resend';
@@ -16,47 +22,171 @@ dotenv.config({ path: '.env.local' });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const CONFIG_FILE = path.join(__dirname, '../agents/state/resend-discovery-config.json');
 
+const PRECALL_URL = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com'}/call-booked`;
+const BASE_IMG = 'https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/email-results';
+
+// ── Template HTML ─────────────────────────────────────────────────────────────
+// Variables: {{{firstName}}}, {{{callDate}}}, etc (Resend Handlebars syntax)
+
+const TEMPLATE_1_HTML = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
+<p>Hi {{{firstName}}},</p>
+<p>You're booked in for <strong>{{{callDate}}}</strong>.</p>
+<p>Before the call, go through the page below. It covers exactly how we work and what to expect so our time together is actually useful.</p>
+<p style="text-align:center;margin:28px 0">
+  <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:700;font-size:16px;display:inline-block">
+    View the system →
+  </a>
+</p>
+<p>Three quick steps on there:</p>
+<p style="padding-left:16px">1. Watch the video<br>2. Accept the calendar invite (check spam if you haven't seen it)<br>3. Read through the FAQs and testimonials</p>
+<p>See you then.</p>
+<p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
+</body></html>`;
+
+const TEMPLATE_2_HTML = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
+<p>Hi {{{firstName}}},</p>
+<p>Just a reminder we're speaking <strong>{{{callDay}}}</strong>.</p>
+<p>A few of our clients before we talk.</p>
+<br>
+<p>One of our clients, Mary, over the last 2.5 years we've helped her close 61 deals, around $270,000 per year.</p>
+<img src="${BASE_IMG}/mary.png" alt="Mary's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
+<br><br>
+<p>Or David, who started working with us 3 months ago and has already made nearly $30k in GCI.</p>
+<img src="${BASE_IMG}/david.png" alt="David's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
+<br><br>
+<p>And Susan who started around a year ago and has done an extra 2 deals per month every month since then.</p>
+<img src="${BASE_IMG}/susan.png" alt="Susan's results" style="width:100%;max-width:560px;border-radius:8px;margin:4px 0 0" />
+<br>
+<p>See you soon,</p>
+<p style="margin-top:4px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
+</body></html>`;
+
+const TEMPLATE_3_HTML = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0a0f1e;line-height:1.6">
+<p>Hi {{{firstName}}},</p>
+<p>We're speaking today. Looking forward to it.</p>
+<p>If you haven't been through the pre-call page yet, worth doing before we speak:</p>
+<p style="text-align:center;margin:24px 0">
+  <a href="${PRECALL_URL}" style="background:#1d6bf3;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block">
+    View the system →
+  </a>
+</p>
+<p>Talk soon.</p>
+<p style="margin-top:28px">Max<br><span style="color:#64748b;font-size:13px">Nexorra</span></p>
+</body></html>`;
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
 async function setup() {
+  // Load existing config if any (to avoid re-creating things)
+  let existing: any = {};
+  try { existing = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
+
   console.log('Setting up Resend for discovery call sequence...\n');
 
-  // 1. Create audience
-  console.log('Creating audience...');
-  const audience = await resend.audiences.create({ name: 'Discovery Calls' });
-  if (audience.error) throw new Error(`Audience error: ${audience.error.message}`);
-  const audienceId = audience.data!.id;
-  console.log(`  Audience created: ${audienceId}`);
+  // 1. Audience — reuse if already created
+  let audienceId = existing.audienceId;
+  if (audienceId) {
+    console.log(`Audience already set: ${audienceId}`);
+  } else {
+    const res = await resend.audiences.create({ name: 'Discovery Calls' });
+    if (res.error) throw new Error(`Audience: ${res.error.message}`);
+    audienceId = res.data!.id;
+    console.log(`Audience created: ${audienceId}`);
+  }
 
-  // 2. Create event schemas
-  const events = [
-    { name: 'booking.confirmed', schema: { firstName: 'string', callTime: 'string', callDateDisplay: 'string' } },
-    { name: 'call.reminder',     schema: { firstName: 'string', callTime: 'string', callDayDisplay: 'string' } },
-    { name: 'call.same_day',     schema: { firstName: 'string' } },
-  ];
+  // 2. Events
+  const eventNames = ['booking.confirmed', 'call.reminder', 'call.same_day'] as const;
+  const eventIds: Record<string, string> = existing.events || {};
 
-  const eventIds: Record<string, string> = {};
-  for (const ev of events) {
-    console.log(`Creating event: ${ev.name}...`);
-    const res = await resend.events.create({ name: ev.name, schema: ev.schema as any });
+  for (const name of eventNames) {
+    if (eventIds[name]) {
+      console.log(`Event ${name} already set: ${eventIds[name]}`);
+      continue;
+    }
+    const res = await resend.events.create({ name, schema: { firstName: 'string', callDate: 'string', callDay: 'string' } as any });
     if (res.error) {
-      // Event may already exist — that's fine
-      console.log(`  Already exists or error: ${res.error.message}`);
-      eventIds[ev.name] = ev.name; // use name as key
+      console.log(`Event ${name} error (may already exist): ${res.error.message}`);
+      eventIds[name] = name;
     } else {
-      eventIds[ev.name] = (res.data as any)?.id || ev.name;
-      console.log(`  Created: ${eventIds[ev.name]}`);
+      eventIds[name] = (res.data as any)?.id || name;
+      console.log(`Event ${name} created: ${eventIds[name]}`);
     }
   }
 
-  // 3. Save config
-  const config = { audienceId, events: eventIds };
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-  console.log(`\nConfig saved to ${CONFIG_FILE}`);
-  console.log(JSON.stringify(config, null, 2));
+  // 3. Templates
+  const templateDefs = [
+    {
+      key: 'email1', name: 'Discovery Call — Email 1 (Confirmation)',
+      html: TEMPLATE_1_HTML,
+      variables: [
+        { key: 'firstName', name: 'First Name', type: 'string', fallback: 'there' },
+        { key: 'callDate',  name: 'Call Date',  type: 'string', fallback: 'your scheduled time' },
+      ],
+    },
+    {
+      key: 'email2', name: 'Discovery Call — Email 2 (Reminder)',
+      html: TEMPLATE_2_HTML,
+      variables: [
+        { key: 'firstName', name: 'First Name', type: 'string', fallback: 'there' },
+        { key: 'callDay',   name: 'Call Day',   type: 'string', fallback: 'soon' },
+      ],
+    },
+    {
+      key: 'email3', name: 'Discovery Call — Email 3 (Same Day)',
+      html: TEMPLATE_3_HTML,
+      variables: [
+        { key: 'firstName', name: 'First Name', type: 'string', fallback: 'there' },
+      ],
+    },
+  ];
 
-  console.log('\nDone. Next: set RESEND_AUDIENCE_ID=' + audienceId + ' in .env.local');
-  console.log('\nNote: to use full Resend automations, create email templates in the');
-  console.log('Resend dashboard and create automations triggered by these events.');
-  console.log('Until then, the poll script schedules emails directly via Resend scheduledAt.');
+  const templateIds: Record<string, string> = existing.templates || {};
+
+  for (const def of templateDefs) {
+    if (templateIds[def.key]) {
+      console.log(`Template ${def.key} already set: ${templateIds[def.key]}`);
+      continue;
+    }
+    console.log(`Creating template ${def.key}...`);
+    const res = await (resend.templates.create({ name: def.name, html: def.html, variables: def.variables } as any).publish() as any);
+    if (res.error) throw new Error(`Template ${def.key}: ${res.error.message}`);
+    const id = res.data?.id || res.id;
+    if (!id) throw new Error(`Template ${def.key} created but no ID returned: ${JSON.stringify(res)}`);
+    templateIds[def.key] = id;
+    console.log(`  Template ${def.key} created: ${id}`);
+  }
+
+  // 4. Automations (Email 1 only — Emails 2 & 3 use scheduledAt for dynamic timing)
+  const automationIds: Record<string, string> = existing.automations || {};
+
+  if (!automationIds.email1) {
+    console.log('Creating Email 1 automation...');
+    const res = await resend.automations.create({
+      name: 'Discovery Call — Email 1 (Booking Confirmation)',
+      status: 'enabled',
+      steps: [
+        { key: 'start',  type: 'trigger',    config: { eventName: 'booking.confirmed' } },
+        { key: 'email1', type: 'send_email', config: { template: { id: templateIds.email1 } } },
+      ] as any,
+      connections: [{ from: 'start', to: 'email1' }],
+    } as any);
+    if (res.error) throw new Error(`Automation email1: ${res.error.message}`);
+    automationIds.email1 = (res.data as any)?.id;
+    console.log(`  Automation created: ${automationIds.email1}`);
+  } else {
+    console.log(`Automation email1 already set: ${automationIds.email1}`);
+  }
+
+  // 5. Save full config
+  const config = { audienceId, events: eventIds, templates: templateIds, automations: automationIds };
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+  console.log('\nConfig saved:');
+  console.log(JSON.stringify(config, null, 2));
+  console.log('\nAll done. The poll script will now:');
+  console.log('  - Create contacts in the Discovery Calls audience');
+  console.log('  - Fire booking.confirmed event → Email 1 sent via Resend automation');
+  console.log('  - Schedule Email 2 (24h before call) + Email 3 (1h before call) via scheduledAt');
 }
 
 setup().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
