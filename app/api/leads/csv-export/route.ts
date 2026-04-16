@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     .update({ csv_batch_id: batchId, csv_downloaded_at: new Date().toISOString() })
     .in('id', leadIds);
 
-  // Build CSV — Company = date-based batch ID (e.g. 20260414)
+  // Build CSV — Company = unique batch ID (e.g. 20260416-a3f2c1b0)
   const header = 'First Name,Last Name,Phone Number,Address,City,State,Zip Code,Country,Email,Company,Role,Website';
 
   const rows = allLeads.map(lead => [
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     '',
     csvEscape(lead.country || ''),
     csvEscape(lead.email || ''),
-    date,            // Company = YYYYMMDD batch date
+    batchId,         // Company = unique export batch ID
     'Real Estate Agent',
     csvEscape(lead.profile_url || ''),
   ].join(','));
