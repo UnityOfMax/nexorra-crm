@@ -156,25 +156,57 @@ async function setup() {
     console.log(`  Template ${def.key} created: ${id}`);
   }
 
-  // 4. Automations (Email 1 only — Emails 2 & 3 use scheduledAt for dynamic timing)
+  const FROM = 'Max at Nexorra <noreply@noreply.ainexorralinks.com>';
+
+  // 4. Automations — one per event, each fires immediately when event is received
+  //    Timing is controlled by WHEN the poll script fires each event:
+  //      booking.confirmed → immediate (on booking detection)
+  //      call.reminder     → fired by script at callTime - 24h
+  //      call.same_day     → fired by script at callTime - 1h
+  const automationDefs = [
+    {
+      key: 'email1',
+      name: 'Discovery Call — Email 1 (Booking Confirmation)',
+      eventName: 'booking.confirmed',
+      templateKey: 'email1',
+    },
+    {
+      key: 'email2',
+      name: 'Discovery Call — Email 2 (Day Before Reminder)',
+      eventName: 'call.reminder',
+      templateKey: 'email2',
+    },
+    {
+      key: 'email3',
+      name: 'Discovery Call — Email 3 (Same Day)',
+      eventName: 'call.same_day',
+      templateKey: 'email3',
+    },
+  ];
+
   const automationIds: Record<string, string> = existing.automations || {};
 
-  if (!automationIds.email1) {
-    console.log('Creating Email 1 automation...');
+  for (const def of automationDefs) {
+    if (automationIds[def.key]) {
+      console.log(`Automation ${def.key} already set: ${automationIds[def.key]}`);
+      continue;
+    }
+    console.log(`Creating automation ${def.key}...`);
     const res = await resend.automations.create({
-      name: 'Discovery Call — Email 1 (Booking Confirmation)',
+      name: def.name,
       status: 'enabled',
       steps: [
-        { key: 'start',  type: 'trigger',    config: { eventName: 'booking.confirmed' } },
-        { key: 'email1', type: 'send_email', config: { template: { id: templateIds.email1 } } },
+        { key: 'start', type: 'trigger',    config: { eventName: def.eventName } },
+        { key: 'send',  type: 'send_email', config: {
+          from: FROM,
+          template: { id: templateIds[def.templateKey] },
+        }},
       ] as any,
-      connections: [{ from: 'start', to: 'email1' }],
+      connections: [{ from: 'start', to: 'send' }],
     } as any);
-    if (res.error) throw new Error(`Automation email1: ${res.error.message}`);
-    automationIds.email1 = (res.data as any)?.id;
-    console.log(`  Automation created: ${automationIds.email1}`);
-  } else {
-    console.log(`Automation email1 already set: ${automationIds.email1}`);
+    if (res.error) throw new Error(`Automation ${def.key}: ${res.error.message}`);
+    automationIds[def.key] = (res.data as any)?.id;
+    console.log(`  Created: ${automationIds[def.key]}`);
   }
 
   // 5. Save full config
@@ -183,10 +215,10 @@ async function setup() {
 
   console.log('\nConfig saved:');
   console.log(JSON.stringify(config, null, 2));
-  console.log('\nAll done. The poll script will now:');
-  console.log('  - Create contacts in the Discovery Calls audience');
-  console.log('  - Fire booking.confirmed event → Email 1 sent via Resend automation');
-  console.log('  - Schedule Email 2 (24h before call) + Email 3 (1h before call) via scheduledAt');
+  console.log('\nAll done. 3 automations created:');
+  console.log('  1. booking.confirmed  → Email 1 (fired immediately on booking)');
+  console.log('  2. call.reminder      → Email 2 (fired by cron at callTime - 24h)');
+  console.log('  3. call.same_day      → Email 3 (fired by cron at callTime - 1h)');
 }
 
 setup().catch(e => { console.error('Fatal:', e.message); process.exit(1); });

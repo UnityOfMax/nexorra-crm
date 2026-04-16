@@ -339,107 +339,118 @@ function email3Html(firstName) {
 }
 
 // ── Book a new lead into the sequence ─────────────────────────────────────────
+// On booking: create contact + fire booking.confirmed (→ Email 1 automation).
+// Reminder times are stored in the queue; each cron run fires the right event when due.
 
-async function scheduleSequence(lead, recipientEmail, dryRun, resendConfig) {
-  const callMs  = lead.callTime ? new Date(lead.callTime).getTime() : null;
-  const now     = Date.now();
-  const emailIds = {};
+async function onNewBooking(lead, recipientEmail, dryRun, resendConfig) {
+  const callMs = lead.callTime ? new Date(lead.callTime).getTime() : null;
 
-  // Create Resend contact + fire booking.confirmed → automation sends Email 1
   const callDateDisplay = callMs ? new Date(callMs).toLocaleString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
   }) : 'your scheduled time';
 
+  const callDayDisplay = callMs ? new Date(callMs).toLocaleString('en-US', {
+    weekday: 'long', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+  }) : 'soon';
+
   if (dryRun) {
-    console.log(`  [DRY RUN] Would create contact + fire booking.confirmed → Email 1 → ${recipientEmail}`);
+    console.log(`  [DRY RUN] contact + booking.confirmed → Email 1 → ${recipientEmail}`);
     console.log(`    firstName=${lead.firstName}, callDate=${callDateDisplay}`);
-  } else if (resendConfig?.audienceId) {
+    if (callMs) {
+      console.log(`  [DRY RUN] call.reminder will fire at ${new Date(callMs - 24 * 60 * 60 * 1000).toISOString()}`);
+      console.log(`  [DRY RUN] call.same_day will fire at ${new Date(callMs - 60 * 60 * 1000).toISOString()}`);
+    }
+    return;
+  }
+
+  if (resendConfig?.audienceId) {
     const lastName = lead.displayName?.split(' ').slice(1).join(' ') || '';
     const contactId = await createResendContact(resendConfig.audienceId, recipientEmail, lead.firstName, lastName);
-    console.log(contactId ? `  Contact created: ${contactId}` : '  Contact already exists in audience');
+    console.log(contactId ? `  Contact created: ${contactId}` : '  Contact already exists');
 
-    // Fire event — automation sends Email 1 with template variables
     await fireResendEvent('booking.confirmed', recipientEmail, {
       firstName: lead.firstName,
       callDate: callDateDisplay,
+      callDay: callDayDisplay,
     });
-    console.log(`  booking.confirmed fired → Email 1 automation triggered`);
+    console.log(`  booking.confirmed fired → Email 1 sent by automation`);
   } else {
-    // Fallback: no Resend config — send directly
-    emailIds.email1 = await sendEmail({
+    // Fallback: no Resend config — send Email 1 directly
+    await sendEmail({
       to: recipientEmail,
       subject: "Here's everything before our call",
       html: email1Html(lead.firstName, lead.callTime),
     });
-    console.log(`  Email 1 sent directly → ${recipientEmail} (id: ${emailIds.email1})`);
+    console.log(`  Email 1 sent directly (no Resend config)`);
   }
+}
 
-  // Email 2 — 24h before call
-  if (callMs) {
-    const email2At = callMs - 24 * 60 * 60 * 1000;
-    if (email2At > now + 5 * 60 * 1000) {
-      // More than 5 min away — schedule it
-      const subject = `Reminder: we're speaking ${new Date(callMs).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
-      if (dryRun) {
-        console.log(`  [DRY RUN] Email 2 → ${recipientEmail} at ${new Date(email2At).toISOString()}`);
-      } else {
-        emailIds.email2 = await sendEmail({
-          to: recipientEmail,
-          subject,
-          html: email2Html(lead.firstName, lead.callTime),
-          scheduledAt: new Date(email2At).toISOString(),
-        });
-        console.log(`  Email 2 scheduled → ${recipientEmail} at ${new Date(email2At).toLocaleString()} (id: ${emailIds.email2})`);
+// ── Process timed reminders from queue ───────────────────────────────────────
+// Each cron run checks pending reminders and fires the event when the time comes.
+// Once fired, Resend's automation delivers the email — device doesn't need to stay on.
+
+async function processReminderQueue(queue, testMode, dryRun, resendConfig) {
+  const now = Date.now();
+  let changed = false;
+
+  for (const item of queue) {
+    if (!item.callTime || !item.email) continue;
+    const callMs = new Date(item.callTime).getTime();
+    const recipientEmail = testMode ? TEST_EMAIL : item.email;
+
+    const callDayDisplay = new Date(callMs).toLocaleString('en-US', {
+      weekday: 'long', hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+    });
+
+    // Email 2 — fire call.reminder event at callTime - 24h
+    if (!item.reminder2Fired) {
+      const fireAt = callMs - 24 * 60 * 60 * 1000;
+      if (now >= fireAt) {
+        if (dryRun) {
+          console.log(`  [DRY RUN] call.reminder → Email 2 → ${recipientEmail} (${item.email})`);
+        } else if (resendConfig?.audienceId) {
+          await fireResendEvent('call.reminder', recipientEmail, {
+            firstName: item.firstName,
+            callDay: callDayDisplay,
+          });
+          console.log(`  call.reminder fired → Email 2 for ${item.email}`);
+        } else {
+          await sendEmail({
+            to: recipientEmail,
+            subject: `Reminder: we're speaking ${new Date(callMs).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`,
+            html: email2Html(item.firstName, item.callTime),
+          });
+          console.log(`  Email 2 sent directly for ${item.email}`);
+        }
+        if (!dryRun) { item.reminder2Fired = true; changed = true; }
       }
-    } else if (email2At > now) {
-      // Less than 5 min — send now
-      if (dryRun) {
-        console.log(`  [DRY RUN] Email 2 → ${recipientEmail} (sending immediately, call is soon)`);
-      } else {
-        emailIds.email2 = await sendEmail({
-          to: recipientEmail,
-          subject: `Reminder: we're speaking ${new Date(callMs).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`,
-          html: email2Html(lead.firstName, lead.callTime),
-        });
-        console.log(`  Email 2 sent immediately → ${recipientEmail} (call is soon)`);
+    }
+
+    // Email 3 — fire call.same_day event at callTime - 1h
+    if (!item.reminder3Fired) {
+      const fireAt = callMs - 60 * 60 * 1000;
+      if (now >= fireAt) {
+        if (dryRun) {
+          console.log(`  [DRY RUN] call.same_day → Email 3 → ${recipientEmail} (${item.email})`);
+        } else if (resendConfig?.audienceId) {
+          await fireResendEvent('call.same_day', recipientEmail, {
+            firstName: item.firstName,
+          });
+          console.log(`  call.same_day fired → Email 3 for ${item.email}`);
+        } else {
+          await sendEmail({
+            to: recipientEmail,
+            subject: 'Speaking today',
+            html: email3Html(item.firstName),
+          });
+          console.log(`  Email 3 sent directly for ${item.email}`);
+        }
+        if (!dryRun) { item.reminder3Fired = true; changed = true; }
       }
-    } else {
-      console.log(`  Email 2 skipped — call is less than 24h away and window passed`);
     }
   }
 
-  // Email 3 — 1h before call
-  if (callMs) {
-    const email3At = callMs - 60 * 60 * 1000;
-    if (email3At > now + 5 * 60 * 1000) {
-      if (dryRun) {
-        console.log(`  [DRY RUN] Email 3 → ${recipientEmail} at ${new Date(email3At).toISOString()}`);
-      } else {
-        emailIds.email3 = await sendEmail({
-          to: recipientEmail,
-          subject: 'Speaking today',
-          html: email3Html(lead.firstName),
-          scheduledAt: new Date(email3At).toISOString(),
-        });
-        console.log(`  Email 3 scheduled → ${recipientEmail} at ${new Date(email3At).toLocaleString()} (id: ${emailIds.email3})`);
-      }
-    } else if (email3At > now) {
-      if (dryRun) {
-        console.log(`  [DRY RUN] Email 3 → ${recipientEmail} (sending immediately)`);
-      } else {
-        emailIds.email3 = await sendEmail({
-          to: recipientEmail,
-          subject: 'Speaking today',
-          html: email3Html(lead.firstName),
-        });
-        console.log(`  Email 3 sent immediately → ${recipientEmail}`);
-      }
-    } else {
-      console.log(`  Email 3 skipped — already past 1h before call`);
-    }
-  }
-
-  return emailIds;
+  return changed;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -490,18 +501,19 @@ async function main() {
     if (TEST_MODE) console.log(`  Sending to test address: ${TEST_EMAIL}`);
 
     try {
-      const emailIds = await scheduleSequence(lead, recipientEmail, DRY_RUN, resendConfig);
+      await onNewBooking(lead, recipientEmail, DRY_RUN, resendConfig);
 
-      // Only save to queue if we actually sent (not dry-run)
+      // Save to queue (tracks reminder firing state for Email 2 + 3)
       if (!DRY_RUN) {
         if (!state.queue) state.queue = [];
         state.queue.push({
-          eventId:    lead.eventId,
-          email:      lead.email,
-          firstName:  lead.firstName,
-          callTime:   lead.callTime,
-          processedAt: new Date().toISOString(),
-          resendEmailIds: emailIds,
+          eventId:        lead.eventId,
+          email:          lead.email,
+          firstName:      lead.firstName,
+          callTime:       lead.callTime,
+          processedAt:    new Date().toISOString(),
+          reminder2Fired: false,
+          reminder3Fired: false,
         });
         changed = true;
       }
@@ -510,7 +522,11 @@ async function main() {
     }
   }
 
-  // 4. Prune queue entries older than 14 days past call time
+  // 4. Process timed reminders (Email 2 + 3) for existing queue entries
+  const reminderChanged = await processReminderQueue(state.queue || [], TEST_MODE, DRY_RUN, resendConfig);
+  if (reminderChanged) changed = true;
+
+  // 5. Prune queue entries older than 14 days past call time
   if (state.queue) {
     const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const before = state.queue.length;
