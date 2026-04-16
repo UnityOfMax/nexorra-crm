@@ -361,6 +361,9 @@ export default function LeadsList() {
               Company field = today&apos;s date · {Object.values(tzCounts).reduce((a, b) => a + b, 0)} selected
             </span>
           </div>
+          <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">
+            Leads sorted by alphabetical order in Openphone so export each timezone one at a time.
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
               <div key={tz} className="flex flex-col gap-1">
