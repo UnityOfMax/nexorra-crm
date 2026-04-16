@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const { data: page } = await supabaseAdmin
     .from('landing_pages')
