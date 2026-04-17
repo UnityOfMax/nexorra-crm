@@ -8,6 +8,7 @@ set -euo pipefail
 
 PORT=9222
 DEBUG_PROFILE="/home/max/.config/chrome-debug"
+MAIN_PROFILE="/home/max/.config/google-chrome/Default"
 LOG="/home/max/crm/logs/chrome-debug.log"
 ERROR_LOCK="/tmp/chrome-error-sent-${PORT}"
 
@@ -43,23 +44,10 @@ mkdir -p "$DEBUG_PROFILE" "$(dirname "$LOG")"
 echo "[$(date)] Launching Chrome debug instance on port ${PORT}..." | tee -a "$LOG"
 
 resolve_display() {
-  # PREFERRED: Xvfb on :99 — completely independent of physical display, GNOME, Mutter, XWayland.
-  # Chrome on :99 cannot crash from screen lock, idle, blank, or wake events.
+  # PREFERRED: real display :0 (XWayland) — user can see Chrome and solve CAPTCHAs manually.
   unset WAYLAND_DISPLAY
   export XDG_RUNTIME_DIR="/run/user/1000"
 
-  # Wait up to 60s for Xvfb :99 — at boot it may not be ready yet.
-  for _i in $(seq 1 12); do
-    if DISPLAY=":99" xdpyinfo >/dev/null 2>&1; then
-      export DISPLAY=":99"
-      export XAUTHORITY=""
-      return 0
-    fi
-    [ "$_i" -eq 1 ] && bash /home/max/crm/scripts/setup/start-xvfb.sh >/dev/null 2>&1 &
-    sleep 5
-  done
-
-  # Xvfb failed to start after 60s — fall back to XWayland :0.
   # Wait up to 30s for XWayland auth file (@reboot: GNOME may not have initialised it yet)
   XAUTH_CANDIDATE=""
   for i in $(seq 1 6); do
@@ -89,6 +77,13 @@ resolve_display() {
     return 0
   fi
 
+  # Last resort: Xvfb :99
+  if DISPLAY=":99" xdpyinfo >/dev/null 2>&1; then
+    export DISPLAY=":99"
+    export XAUTHORITY=""
+    return 0
+  fi
+
   return 1
 }
 
@@ -107,29 +102,31 @@ done
 
 echo "[$(date)] Using DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY" | tee -a "$LOG"
 
-# Launch Chrome — X11 forced at both env and flag level
-# --disable-gpu: eliminates Chrome's GPU process entirely (confirmed root cause of
-# Intel i915/EGL crash that kills Mutter on screen lock → blank screen requiring hard reboot).
-# Chrome falls back to CPU/software rendering — fully functional for scraping.
+# Full profile sync from Max's real Chrome — copies cookies, session, extensions,
+# and preferences so the debug instance has the same fingerprint as his real browser.
+mkdir -p "${DEBUG_PROFILE}/Default"
+for ITEM in Cookies "Local State" Preferences "Secure Preferences" "Web Data" "Visited Links"; do
+  SRC="${MAIN_PROFILE}/${ITEM}"
+  DST="${DEBUG_PROFILE}/Default/${ITEM}"
+  [ -f "$SRC" ] && cp "$SRC" "$DST" 2>/dev/null && echo "[$(date)] Synced ${ITEM}" | tee -a "$LOG" || true
+done
+for DIR in "Local Storage" "Session Storage" "Extension State" "Extension Rules" "Local Extension Settings" Extensions; do
+  SRC="${MAIN_PROFILE}/${DIR}"
+  DST="${DEBUG_PROFILE}/Default/${DIR}"
+  [ -d "$SRC" ] && cp -r "$SRC" "$DST" 2>/dev/null && echo "[$(date)] Synced ${DIR}/" | tee -a "$LOG" || true
+done
+# Sync top-level Local State (browser-level, not profile-level)
+[ -f "/home/max/.config/google-chrome/Local State" ] && \
+  cp "/home/max/.config/google-chrome/Local State" "${DEBUG_PROFILE}/Local State" 2>/dev/null || true
+
+# Launch Chrome with minimal flags — as close to a real user browser as possible.
+# Only add flags needed for remote debugging and automation detection suppression.
 XDG_RUNTIME_DIR=/run/user/1000 "$CHROME" \
   --remote-debugging-port=${PORT} \
   --remote-debugging-address=127.0.0.1 \
   --user-data-dir="$DEBUG_PROFILE" \
   --no-first-run \
   --ozone-platform=x11 \
-  --disable-gpu \
-  --disable-gpu-sandbox \
-  --disable-background-timer-throttling \
-  --disable-backgrounding-occluded-windows \
-  --disable-renderer-backgrounding \
-  --disable-dev-shm-usage \
-  --js-flags="--max-old-space-size=512" \
-  --memory-pressure-off \
-  --disable-extensions \
-  --disable-plugins \
-  --disable-infobars \
-  --disable-blink-features=AutomationControlled \
-  --exclude-switches=enable-automation \
   "$@" >> "$LOG" 2>&1 &
 disown
 

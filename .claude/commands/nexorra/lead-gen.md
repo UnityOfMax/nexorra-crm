@@ -400,6 +400,23 @@ For each city:
 
 3. Paginate until 0 results or 30 calling leads per city.
 
+#### Step P2b — realtor.com: Additional Calling Leads (try after Century 21)
+
+**Use Max's real Chrome profile cookies (now synced on launch) — warm up realtor.com before scraping.**
+
+For each city:
+1. Warm up (always do this first for realtor.com):
+   ```bash
+   node scripts/chrome-tool.js navigate "https://www.realtor.com"
+   node scripts/chrome-tool.js wait 6000
+   node scripts/chrome-tool.js navigate "https://www.realtor.com/realestateagents/{city}_{st}/pg-1"
+   node scripts/chrome-tool.js scroll-all
+   node scripts/chrome-tool.js agents realtor
+   ```
+2. If it redirects to kw.com → mark `rate_limited` and skip (platform redirect, not a block). Move on.
+3. If it loads correctly, extract agents with phones: POST with `"lead_category": "calling"`, `"source_brokerage": "realtor_com"`.
+4. Max 25 calling leads per city, wait 10-20s between pages.
+
 #### Step P3 — Google/Instagram Search (bonus handles, if under 350 total)
 If total Instagram leads collected is still under 350:
 

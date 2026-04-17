@@ -42,63 +42,47 @@ export default function LandingPageRenderer({
     switch (block.type) {
 
       case 're_hero': {
-        const accent = block.data.accentColor || styles.primaryColor || '#2563EB';
-        const bg = block.data.bgColor || '#FFFFFF';
+        const accent = block.data.accentColor || styles.primaryColor || '#C47A3B';
         return (
           <div key={block.id} className={`${wrapperClass} re-font`} onClick={handleClick}
-            style={{ backgroundColor: bg, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(56px,8vh,88px) 24px', position: 'relative', overflow: 'hidden' }}>
-            {/* Soft blue gradient backdrop */}
-            <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${accent}10 0%, transparent 70%)`, pointerEvents: 'none' }} />
-
-            <div style={{ maxWidth: '560px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-              {/* Photo */}
-              {block.data.profileImageUrl ? (
-                <div style={{ position: 'relative', marginBottom: '28px' }}>
-                  <div style={{ position: 'absolute', inset: '-4px', borderRadius: '50%', background: `linear-gradient(135deg, ${accent}, ${accent}66)`, opacity: 0.8 }} />
-                  <img src={block.data.profileImageUrl} alt={block.data.agentName}
-                    style={{ width: 'clamp(120px,22vw,152px)', height: 'clamp(120px,22vw,152px)', borderRadius: '50%', objectFit: 'cover', objectPosition: 'top', border: '3px solid #fff', display: 'block', position: 'relative', zIndex: 1, boxShadow: `0 12px 40px ${accent}28` }} />
-                </div>
-              ) : null}
-
-              {/* Badge */}
-              {block.data.title && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: `${accent}12`, border: `1px solid ${accent}33`, color: accent, fontWeight: '600', letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '0.63rem', marginBottom: '16px', padding: '5px 14px', borderRadius: '50px' }}>
-                  {block.data.title}
-                </div>
-              )}
-
-              {/* Name */}
-              <h1 style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 'clamp(2.4rem,7vw,3.6rem)', fontWeight: '400', color: '#1E3A6E', lineHeight: 1.08, letterSpacing: '-0.01em', marginBottom: '8px' }}>
+            style={{ backgroundColor: '#F9F7F4', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            {/* Full-bleed editorial photo */}
+            {block.data.profileImageUrl ? (
+              <div style={{ position: 'relative', height: '62vh', minHeight: '380px', overflow: 'hidden', flexShrink: 0 }}>
+                <img src={block.data.profileImageUrl} alt={block.data.agentName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(26,33,48,0.55) 100%)' }} />
+                {block.data.title && (
+                  <div style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(249,247,244,0.93)', backdropFilter: 'blur(6px)', color: accent, fontWeight: '700', letterSpacing: '0.14em', textTransform: 'uppercase', fontSize: '0.58rem', padding: '5px 11px', borderRadius: '2px' }}>
+                    {block.data.title}
+                  </div>
+                )}
+              </div>
+            ) : null}
+            {/* Content below photo */}
+            <div style={{ flex: 1, padding: 'clamp(28px,5vw,48px) clamp(22px,5vw,44px)', display: 'flex', flexDirection: 'column' }}>
+              <h1 className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 'clamp(3rem,9vw,5.5rem)', fontWeight: '300', color: '#1A2130', lineHeight: 0.95, letterSpacing: '-0.01em', marginBottom: '12px' }}>
                 {block.data.agentName || 'Your Agent'}
               </h1>
-
-              {/* Corp */}
               {block.data.corporationText && (
-                <p style={{ fontSize: '0.82rem', color: `${accent}bb`, fontWeight: '600', letterSpacing: '0.06em', marginBottom: '20px' }}>
+                <p style={{ fontSize: '0.68rem', color: accent, fontWeight: '700', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '18px' }}>
                   {block.data.corporationText}
                 </p>
               )}
-
-              {/* Rule */}
-              <div style={{ width: '40px', height: '2px', background: `${accent}66`, borderRadius: '1px', marginBottom: '20px' }} />
-
-              {/* Subtitle */}
-              <p style={{ fontSize: 'clamp(1rem,2.5vw,1.12rem)', color: '#475569', lineHeight: 1.75, marginBottom: '36px', fontWeight: '400' }}
+              <div style={{ width: '44px', height: '1px', background: `${accent}99`, marginBottom: '18px' }} />
+              <p style={{ fontSize: 'clamp(0.92rem,2.2vw,1rem)', color: '#5A6478', lineHeight: 1.82, marginBottom: '28px', maxWidth: '480px' }}
                 dangerouslySetInnerHTML={{ __html: block.data.subtitle || '' }} />
-
-              {/* CTA */}
               <button
                 className="re-hero-cta"
                 onClick={isPreview ? undefined : (onCtaClick || undefined)}
-                style={{ padding: '16px 44px', background: accent, color: '#fff', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: '1rem', cursor: isPreview ? 'default' : 'pointer', boxShadow: `0 8px 28px ${accent}44`, letterSpacing: '0.01em', transition: 'transform 0.15s, box-shadow 0.15s', fontFamily: 'inherit' }}
-                onMouseEnter={e => { if (!isPreview) { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 36px ${accent}60`; } }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 28px ${accent}44`; }}
+                style={{ padding: '15px 32px', background: '#1A2130', color: '#F9F7F4', border: 'none', borderRadius: '2px', fontWeight: '600', fontSize: '0.75rem', cursor: isPreview ? 'default' : 'pointer', letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'inherit', alignSelf: 'flex-start', transition: 'background 0.15s' }}
+                onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.background = accent; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#1A2130'; }}
               >
-                {block.data.ctaText || 'Schedule a Consultation'}
+                {block.data.ctaText || 'Get a Free Home List'}
               </button>
-
               {block.data.ctaSubtext && (
-                <p style={{ color: '#94a3b8', fontSize: '0.72rem', fontWeight: '500', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '12px' }}>
+                <p style={{ color: '#9CA3AF', fontSize: '0.68rem', fontWeight: '500', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '10px' }}>
                   {block.data.ctaSubtext}
                 </p>
               )}
@@ -108,7 +92,7 @@ export default function LandingPageRenderer({
       }
 
       case 're_about': {
-        const accent = block.data.accentColor || styles.primaryColor || '#2563EB';
+        const accent = block.data.accentColor || styles.primaryColor || '#C47A3B';
         const statsItems: { value: string; label: string }[] = block.data.stats?.length
           ? block.data.stats
           : [
@@ -117,36 +101,25 @@ export default function LandingPageRenderer({
             ];
         return (
           <div key={block.id} className={`${wrapperClass} re-font`} onClick={handleClick}
-            style={{ backgroundColor: '#F0F6FF', padding: 'clamp(72px,10vw,100px) clamp(20px,4vw,32px)' }}>
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-              {/* Section header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '56px' }}>
-                <div style={{ flex: 1, height: '1px', background: `${accent}33` }} />
-                <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: '0.62rem', whiteSpace: 'nowrap' }}>About</p>
-                <div style={{ flex: 1, height: '1px', background: `${accent}33` }} />
-              </div>
+            style={{ backgroundColor: '#F9F7F4', padding: 'clamp(64px,10vw,96px) clamp(22px,5vw,44px)' }}>
+            <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+              {/* Section label */}
+              <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: '0.58rem', marginBottom: '20px' }}>About</p>
 
               <div className="re-about-layout" style={{ display: 'flex', gap: 'clamp(40px,6vw,80px)', alignItems: 'flex-start' }}>
-                {/* Photo */}
-                <div className="re-about-photo" style={{ flex: '0 0 280px' }}>
-                  {block.data.agentPhotoUrl ? (
-                    <img src={block.data.agentPhotoUrl} alt="Agent"
-                      style={{ width: '100%', height: '360px', objectFit: 'cover', objectPosition: 'top', borderRadius: '16px', display: 'block', boxShadow: `0 20px 60px ${accent}22`, border: `1px solid ${accent}22` }} />
-                  ) : null}
-                </div>
-                {/* Text */}
+                {/* No photo panel — single column, clean editorial */}
                 <div style={{ flex: '1 1 0', minWidth: 0 }}>
-                  <h2 className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: '400', color: '#1E3A6E', marginBottom: '24px', lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+                  <h2 className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 'clamp(2rem,5vw,3.2rem)', fontWeight: '300', color: '#1A2130', marginBottom: '24px', lineHeight: 1.08, letterSpacing: '-0.01em' }}>
                     {block.data.heading || 'Your Trusted Real Estate Partner'}
                   </h2>
-                  <p style={{ color: '#475569', lineHeight: 1.88, marginBottom: '40px', fontSize: '1rem', whiteSpace: 'pre-line' }}>{block.data.bio}</p>
+                  <p style={{ color: '#5A6478', lineHeight: 1.92, marginBottom: '40px', fontSize: '1rem', whiteSpace: 'pre-line' }}>{block.data.bio}</p>
 
                   {statsItems.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0', marginBottom: '36px', borderTop: `1px solid ${accent}22`, borderBottom: `1px solid ${accent}22` }}>
+                    <div style={{ display: 'flex', gap: '0', marginBottom: '36px', borderTop: '1px solid rgba(26,33,48,0.1)', borderBottom: '1px solid rgba(26,33,48,0.1)' }}>
                       {statsItems.map((stat, i) => (
-                        <div key={i} style={{ flex: 1, padding: '20px 0', borderRight: i < statsItems.length - 1 ? `1px solid ${accent}22` : 'none', paddingLeft: i === 0 ? 0 : '24px', paddingRight: i === statsItems.length - 1 ? 0 : '24px' }}>
-                          <div className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: '400', color: accent, lineHeight: 1, letterSpacing: '-0.01em' }}>{stat.value}</div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '500', marginTop: '6px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{stat.label}</div>
+                        <div key={i} style={{ flex: 1, padding: '20px 0', borderRight: i < statsItems.length - 1 ? '1px solid rgba(26,33,48,0.1)' : 'none', paddingLeft: i === 0 ? 0 : '24px', paddingRight: i === statsItems.length - 1 ? 0 : '24px' }}>
+                          <div className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: '300', color: accent, lineHeight: 1, letterSpacing: '-0.01em' }}>{stat.value}</div>
+                          <div style={{ fontSize: '0.65rem', color: '#8A95A3', fontWeight: '600', marginTop: '6px', letterSpacing: '0.1em', textTransform: 'uppercase', fontVariant: 'small-caps' }}>{stat.label}</div>
                         </div>
                       ))}
                     </div>
@@ -155,7 +128,7 @@ export default function LandingPageRenderer({
                   {block.data.specialties?.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {block.data.specialties.map((s: string) => (
-                        <span key={s} style={{ padding: '5px 14px', background: `${accent}12`, border: `1px solid ${accent}33`, color: accent, borderRadius: '6px', fontWeight: '600', fontSize: '0.78rem', letterSpacing: '0.02em' }}>{s}</span>
+                        <span key={s} style={{ padding: '5px 14px', background: 'transparent', border: '1px solid rgba(26,33,48,0.2)', color: '#1A2130', borderRadius: '2px', fontWeight: '500', fontSize: '0.78rem', letterSpacing: '0.04em' }}>{s}</span>
                       ))}
                     </div>
                   )}
@@ -167,22 +140,20 @@ export default function LandingPageRenderer({
       }
 
       case 're_reviews': {
-        const accent = block.data.accentColor || styles.primaryColor || '#2563EB';
+        const accent = block.data.accentColor || styles.primaryColor || '#C47A3B';
         const reviews = block.data.reviews || [];
         const doubled = [...reviews, ...reviews];
         const cardW = 340;
         const cardGap = 20;
         return (
           <div key={block.id} className={`${wrapperClass} re-font`} onClick={handleClick}
-            style={{ backgroundColor: '#FFFFFF', padding: 'clamp(72px,10vw,100px) 0', overflow: 'hidden' }}>
+            style={{ backgroundColor: '#1A2130', padding: 'clamp(72px,10vw,96px) 0', overflow: 'hidden' }}>
             {/* Header */}
-            <div style={{ maxWidth: '800px', margin: '0 auto 52px', paddingLeft: '24px', paddingRight: '24px', textAlign: 'center' }}>
-              <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: '0.62rem', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                <span style={{ flex: 1, height: '1px', background: `${accent}33`, display: 'inline-block', maxWidth: '60px' }} />
+            <div style={{ maxWidth: '800px', margin: '0 auto 52px', paddingLeft: '24px', paddingRight: '24px', textAlign: 'left' }}>
+              <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: '0.58rem', marginBottom: '16px' }}>
                 Client Stories
-                <span style={{ flex: 1, height: '1px', background: `${accent}33`, display: 'inline-block', maxWidth: '60px' }} />
               </p>
-              <h2 className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: '400', color: '#1E3A6E', lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+              <h2 className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: '300', color: '#FAFAF8', lineHeight: 1.08, letterSpacing: '-0.01em' }}>
                 {block.data.heading || 'What My Clients Say'}
               </h2>
             </div>
@@ -195,22 +166,22 @@ export default function LandingPageRenderer({
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.animationPlayState = 'running'; }}
               >
                 {doubled.map((review: any, i: number) => (
-                  <div key={i} style={{ background: '#F8FAFF', borderRadius: '16px', padding: '32px', border: `1px solid ${accent}18`, borderLeft: `3px solid ${accent}`, width: `${cardW}px`, flexShrink: 0, boxShadow: `0 4px 24px ${accent}0a` }}>
+                  <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '2px', padding: '32px', border: '1px solid rgba(255,255,255,0.1)', borderLeft: `3px solid ${accent}`, width: `${cardW}px`, flexShrink: 0 }}>
                     <div style={{ marginBottom: '12px', display: 'flex', gap: '2px' }}>
                       {Array.from({ length: review.rating || 5 }).map((_, si) => (
-                        <span key={si} style={{ color: '#F59E0B', fontSize: '0.78rem' }}>★</span>
+                        <span key={si} style={{ color: '#D4A574', fontSize: '0.78rem' }}>★</span>
                       ))}
                     </div>
-                    <p className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', color: '#1E3A6E', lineHeight: 1.7, fontStyle: 'italic', marginBottom: '24px', fontSize: '1.05rem' }}>
+                    <p className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', color: 'rgba(250,250,248,0.88)', lineHeight: 1.75, fontStyle: 'italic', marginBottom: '24px', fontSize: '1rem' }}>
                       &ldquo;{review.text}&rdquo;
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `${accent}12`, border: `1px solid ${accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: '700', color: accent, flexShrink: 0 }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '2px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: '700', color: accent, flexShrink: 0 }}>
                         {(review.author || 'A')[0]}
                       </div>
                       <div>
-                        <p style={{ fontWeight: '600', color: '#1E3A6E', fontSize: '0.82rem', letterSpacing: '0.03em' }}>{review.author}</p>
-                        {review.location && <p style={{ color: '#94a3b8', fontSize: '0.72rem', letterSpacing: '0.04em' }}>{review.location}</p>}
+                        <p style={{ fontWeight: '600', color: '#FAFAF8', fontSize: '0.8rem', letterSpacing: '0.03em' }}>{review.author}</p>
+                        {review.location && <p style={{ color: 'rgba(250,250,248,0.4)', fontSize: '0.72rem', letterSpacing: '0.04em' }}>{review.location}</p>}
                       </div>
                     </div>
                   </div>
@@ -221,9 +192,9 @@ export default function LandingPageRenderer({
             <div style={{ textAlign: 'center', paddingLeft: '24px', paddingRight: '24px' }}>
               <button
                 onClick={isPreview ? undefined : (onCtaClick || undefined)}
-                style={{ padding: '16px 44px', background: accent, color: '#fff', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: '0.95rem', cursor: isPreview ? 'default' : 'pointer', boxShadow: `0 8px 28px ${accent}44`, transition: 'transform 0.15s', letterSpacing: '0.02em', fontFamily: 'inherit' }}
-                onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                style={{ padding: '15px 40px', background: accent, color: '#1A2130', border: 'none', borderRadius: '2px', fontWeight: '700', fontSize: '0.72rem', cursor: isPreview ? 'default' : 'pointer', letterSpacing: '0.14em', textTransform: 'uppercase', fontVariant: 'small-caps', fontFamily: 'inherit', transition: 'opacity 0.15s' }}
+                onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.opacity = '0.85'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
               >
                 {block.data.ctaText || 'Work With Katie'}
               </button>
@@ -318,50 +289,49 @@ export default function LandingPageRenderer({
       }
 
       case 're_location': {
-        const accent = block.data.accentColor || styles.primaryColor || '#2563EB';
+        const accent = block.data.accentColor || styles.primaryColor || '#C47A3B';
         return (
           <div key={block.id} className={`${wrapperClass} re-font`} onClick={handleClick}
-            style={{ backgroundColor: '#F0F6FF', padding: 'clamp(72px,10vw,100px) clamp(20px,4vw,32px)' }}>
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            style={{ backgroundColor: '#EDE8E1', padding: 'clamp(64px,10vw,96px) clamp(22px,5vw,44px)' }}>
+            <div style={{ maxWidth: '900px', margin: '0 auto' }}>
               {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '56px' }}>
-                <div style={{ flex: 1, height: '1px', background: `${accent}33` }} />
-                <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.2em', fontSize: '0.62rem', whiteSpace: 'nowrap' }}>Contact</p>
-                <div style={{ flex: 1, height: '1px', background: `${accent}33` }} />
-              </div>
-              <h2 className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 'clamp(1.8rem,4vw,2.8rem)', fontWeight: '400', color: '#1E3A6E', textAlign: 'center', marginBottom: '52px', lineHeight: 1.1, letterSpacing: '-0.01em' }}>
-                {block.data.heading || "Let's Talk"}
+              <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.22em', fontSize: '0.58rem', marginBottom: '16px' }}>Contact</p>
+              <h2 className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: 'clamp(2rem,5vw,3.2rem)', fontWeight: '300', color: '#1A2130', marginBottom: '52px', lineHeight: 1.08, letterSpacing: '-0.01em' }}>
+                {block.data.heading || "Let's Connect"}
               </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', alignItems: 'stretch' }}>
                 {block.data.mapEmbedUrl && (
-                  <div style={{ flex: '1 1 280px', minHeight: '320px', borderRadius: '16px', overflow: 'hidden', boxShadow: `0 20px 60px ${accent}18`, border: `1px solid ${accent}18` }}>
+                  <div style={{ flex: '1 1 280px', minHeight: '320px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(26,33,48,0.12)' }}>
                     <iframe src={block.data.mapEmbedUrl} width="100%" height="100%" style={{ border: 'none', display: 'block', minHeight: '320px' }} loading="lazy" allowFullScreen />
                   </div>
                 )}
                 <div style={{ flex: '1 1 220px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '28px' }}>
                   {block.data.address && (
                     <div>
-                      <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.6rem', marginBottom: '8px' }}>Office</p>
-                      <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{block.data.address}</p>
+                      <p style={{ color: accent, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.58rem', marginBottom: '8px', fontVariant: 'small-caps' }}>Office</p>
+                      <p style={{ color: '#1A2130', fontSize: '0.95rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{block.data.address}</p>
                     </div>
                   )}
                   {block.data.phone && (
                     <div>
-                      <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.6rem', marginBottom: '8px' }}>Phone</p>
-                      <a href={`tel:${block.data.phone}`} style={{ color: '#1E3A6E', fontWeight: '600', textDecoration: 'none', fontSize: '1.1rem', letterSpacing: '0.02em' }}>{block.data.phone}</a>
+                      <p style={{ color: accent, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.58rem', marginBottom: '8px', fontVariant: 'small-caps' }}>Phone</p>
+                      <a href={`tel:${block.data.phone}`} style={{ color: '#1A2130', fontWeight: '600', textDecoration: 'none', fontSize: '1.1rem', letterSpacing: '0.02em' }}>{block.data.phone}</a>
                     </div>
                   )}
                   {block.data.email && (
                     <div>
-                      <p style={{ color: accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.6rem', marginBottom: '8px' }}>Email</p>
-                      <a href={`mailto:${block.data.email}`} style={{ color: '#1E3A6E', fontWeight: '500', textDecoration: 'none', fontSize: '0.95rem' }}>{block.data.email}</a>
+                      <p style={{ color: accent, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.58rem', marginBottom: '8px', fontVariant: 'small-caps' }}>Email</p>
+                      <a href={`mailto:${block.data.email}`} style={{ color: '#1A2130', fontWeight: '500', textDecoration: 'none', fontSize: '0.95rem' }}>{block.data.email}</a>
                     </div>
                   )}
                   <div style={{ paddingTop: '8px' }}>
                     <button
                       onClick={isPreview ? undefined : (onCtaClick || undefined)}
-                      style={{ padding: '15px 32px', background: accent, color: '#fff', border: 'none', borderRadius: '50px', fontWeight: '700', fontSize: '0.92rem', cursor: isPreview ? 'default' : 'pointer', letterSpacing: '0.02em', fontFamily: 'inherit', boxShadow: `0 8px 24px ${accent}44` }}>
-                      Book a Free Call
+                      style={{ padding: '15px 32px', background: '#1A2130', color: '#F9F7F4', border: 'none', borderRadius: '2px', fontWeight: '600', fontSize: '0.72rem', cursor: isPreview ? 'default' : 'pointer', letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'inherit', transition: 'background 0.15s' }}
+                      onMouseEnter={e => { if (!isPreview) (e.currentTarget as HTMLElement).style.background = accent; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#1A2130'; }}
+                    >
+                      {block.data.ctaText || 'Book a Free Call'}
                     </button>
                   </div>
                 </div>
@@ -372,27 +342,28 @@ export default function LandingPageRenderer({
       }
 
       case 're_footer': {
-        const accent = block.data.accentColor || styles.primaryColor || '#2563EB';
+        const accent = block.data.accentColor || styles.primaryColor || '#C47A3B';
+        const brokerageColor = accent === '#C47A3B' ? '#D4A574' : accent;
         return (
           <div key={block.id} className={`${wrapperClass} re-font`} onClick={handleClick}
-            style={{ backgroundColor: '#1E3A5F', padding: '56px 24px 44px', textAlign: 'center', borderTop: `1px solid rgba(255,255,255,0.08)` }}>
+            style={{ backgroundColor: '#1A2130', padding: '52px 24px 40px', textAlign: 'center' }}>
             <div style={{ maxWidth: '560px', margin: '0 auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: accent, display: 'inline-block', opacity: 0.8 }} />
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                <span style={{ width: '5px', height: '5px', borderRadius: '0', background: accent, display: 'inline-block' }} />
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
               </div>
-              <p className="re-serif" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontWeight: '400', fontSize: '1.5rem', marginBottom: '6px', color: '#FFFFFF', letterSpacing: '-0.01em' }}>{block.data.agentName}</p>
-              <p style={{ color: `${accent === '#2563EB' ? '#93C5FD' : accent}`, fontSize: '0.8rem', marginBottom: '4px', fontWeight: '500', letterSpacing: '0.04em' }}>{block.data.brokerage}</p>
+              <p className="re-serif" style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontWeight: '300', fontSize: '1.6rem', marginBottom: '8px', color: '#FAFAF8', letterSpacing: '-0.01em' }}>{block.data.agentName}</p>
+              <p style={{ color: brokerageColor, fontSize: '0.72rem', marginBottom: '4px', fontWeight: '600', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{block.data.brokerage}</p>
               {block.data.corporationText && (
-                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginBottom: '28px', letterSpacing: '0.04em' }}>{block.data.corporationText}</p>
+                <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: '0.72rem', marginBottom: '28px', letterSpacing: '0.04em' }}>{block.data.corporationText}</p>
               )}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '28px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                {block.data.phone && <a href={`tel:${block.data.phone}`} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.84rem' }}>{block.data.phone}</a>}
-                {block.data.email && <a href={`mailto:${block.data.email}`} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.84rem' }}>{block.data.email}</a>}
+                {block.data.phone && <a href={`tel:${block.data.phone}`} style={{ color: 'rgba(255,255,255,0.38)', textDecoration: 'none', fontSize: '0.8rem' }}>{block.data.phone}</a>}
+                {block.data.email && <a href={`mailto:${block.data.email}`} style={{ color: 'rgba(255,255,255,0.38)', textDecoration: 'none', fontSize: '0.8rem' }}>{block.data.email}</a>}
               </div>
-              {block.data.license && <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.68rem', marginBottom: '10px', letterSpacing: '0.04em' }}>{block.data.license}</p>}
-              <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.65rem' }}>© {new Date().getFullYear()} {block.data.agentName}. All rights reserved.</p>
+              {block.data.license && <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: '0.68rem', marginBottom: '10px', letterSpacing: '0.04em' }}>{block.data.license}</p>}
+              <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: '0.65rem' }}>© {new Date().getFullYear()} {block.data.agentName}. All rights reserved.</p>
             </div>
           </div>
         );
@@ -528,16 +499,12 @@ export default function LandingPageRenderer({
 
   const globalStyles = (
     <style dangerouslySetInnerHTML={{ __html: `
-      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
       @keyframes re-scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-      @keyframes re-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
       .re-font { font-family: 'DM Sans', system-ui, sans-serif !important; }
-      .re-serif { font-family: 'DM Serif Display', Georgia, serif !important; }
+      .re-serif { font-family: 'Cormorant Garamond', Georgia, serif !important; }
       @media (max-width: 700px) {
-        .re-hero-card { flex-direction: column !important; }
-        .re-hero-photo-side { flex: 0 0 280px !important; min-height: 280px !important; max-height: 360px !important; }
-        .re-hero-photo-side img { min-height: 280px !important; max-height: 360px !important; object-position: top !important; }
-        .re-hero-cta { width: 100% !important; }
+        .re-hero-cta { width: 100% !important; text-align: center !important; }
         .re-about-layout { flex-direction: column !important; }
         .re-about-photo { display: none !important; }
       }

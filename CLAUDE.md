@@ -1,5 +1,52 @@
 # Nexorra CRM — Project Instructions
 
+---
+
+## Team Routing — MANDATORY IN EVERY SESSION
+
+**These rules apply at all times, in every session, without exception.**
+
+### Design work → Design Team
+Any task involving a new website, landing page, UI component, redesign, visual refresh, or frontend appearance **MUST** use the full design team stack before writing a single line of code:
+
+1. **Invoke `frontend-design` skill** — distinctive, production-grade UI. No generic SaaS templates.
+2. **Use `mcp__design-inspiration__*` tools** — browse Awwwards, Dribbble, Godly for real inspiration first.
+3. **Use `mcp__21st-magic__*` tools** — component builder, refiner, and inspiration for React/HTML components.
+4. **Use `stop-slop` skill** — validate all copy before it goes into any page.
+
+Triggers: "build a page", "redesign", "new landing page", "make the UI", "update the website", "change the layout", "new component", anything visual.
+
+### Engineering work → Engineering Team
+Any backend, API, database, or significant frontend logic task **MUST** involve the appropriate specialists:
+
+| Task | Agent/Skill |
+|------|------------|
+| API routes, DB, integrations | `engineering:backend` or `dev:backend` |
+| React components, UI logic | `engineering:frontend` or `dev:frontend` |
+| After any code change | `engineering:reviewer` or `dev:review` |
+| Architecture decisions | `engineering:architect` |
+| Testing/validation | `engineering:test` or `dev:test` |
+
+Triggers: new API route, database migration, integration with a third-party service, refactor, new script, any non-trivial code change.
+
+### Marketing/copy work → Marketing Team
+| Task | Agent/Skill |
+|------|------------|
+| Email copy, ad copy, landing page text | `marketing:copywriter` (Vera) |
+| Cold email strategy | `research:cold-email-research` |
+| Campaign review | `nexorra:campaign-review` |
+
+### Research → Research Team
+| Task | Agent/Skill |
+|------|------------|
+| Lead research, market research | `research:market-research` (Derek) |
+| Local biz pipeline | `research:local-biz-scout` (Petra) |
+
+### Rule: Never build a UI without design inspiration first
+If you are about to write HTML/CSS/TSX for any user-facing page without having first pulled real design inspiration via `mcp__design-inspiration__*` or `mcp__21st-magic__*`, **stop and do that first**. The result of skipping this step is a generic, low-quality UI. This rule has no exceptions.
+
+---
+
 ## Overview
 
 Nexorra is an AI-powered appointment-setting agency for real estate agents in the US and Canada.
