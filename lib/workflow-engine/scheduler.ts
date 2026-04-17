@@ -70,14 +70,17 @@ export async function scheduleDelayedExecution(
   }
 
   // Insert delayed job into database
+  // payload stores extra fields not in base schema (workflow_id, account_id, node_id, context)
   const { error } = await supabaseAdmin.from('workflow_delayed_jobs').insert({
-    workflow_execution_id: workflowExecutionId,
-    workflow_id: workflowId,
-    account_id: accountId,
-    node_id: nodeId,
+    execution_id: workflowExecutionId,
     scheduled_at: scheduledAt.toISOString(),
-    context: context,
     status: 'pending',
+    payload: {
+      workflow_id: workflowId,
+      account_id: accountId,
+      node_id: nodeId,
+      context,
+    },
   });
 
   if (error) {
@@ -115,18 +118,20 @@ export async function processDelayedJobs(): Promise<number> {
           .eq('id', job.id);
 
         // Resume workflow execution from this node
+        // Extra fields are stored in payload (workflow_id, account_id, node_id, context)
+        const p = (job.payload || {}) as Record<string, any>;
         const { resumeWorkflowExecution } = await import('./executor');
         await resumeWorkflowExecution(
-          job.workflow_execution_id,
-          job.workflow_id,
-          job.node_id,
-          job.context
+          job.execution_id,
+          p.workflow_id,
+          p.node_id,
+          p.context
         );
 
         // Mark as completed
         await supabaseAdmin
           .from('workflow_delayed_jobs')
-          .update({ status: 'completed', processed_at: new Date().toISOString() })
+          .update({ status: 'completed' })
           .eq('id', job.id);
       } catch (error) {
         console.error(`Error processing delayed job ${job.id}:`, error);
@@ -136,8 +141,7 @@ export async function processDelayedJobs(): Promise<number> {
           .from('workflow_delayed_jobs')
           .update({
             status: 'failed',
-            error: error instanceof Error ? error.message : 'Unknown error',
-            processed_at: new Date().toISOString(),
+            error_message: error instanceof Error ? error.message : 'Unknown error',
           })
           .eq('id', job.id);
       }

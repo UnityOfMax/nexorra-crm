@@ -25,10 +25,11 @@ export async function stopContactWorkflows(
     const executionIds = executions.map(e => e.id);
 
     // Cancel all pending delayed jobs for these executions
+    // 'failed' is used since the constraint doesn't include 'cancelled'
     await supabaseAdmin
       .from('workflow_delayed_jobs')
-      .update({ status: 'cancelled' })
-      .in('workflow_execution_id', executionIds)
+      .update({ status: 'failed', error_message: 'Stopped by contact reply or stage advancement' })
+      .in('execution_id', executionIds)
       .eq('status', 'pending');
 
     // Mark executions as completed (stopped by reply/advancement)

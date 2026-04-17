@@ -56,8 +56,9 @@ export async function executeWorkflow(
       .insert({
         workflow_id: workflowId,
         account_id: accountId,
-        trigger_type: triggerType,
-        trigger_data: triggerData,
+        contact_id: triggerData.contactId || null,
+        deal_id: triggerData.dealId || null,
+        trigger_data: { ...triggerData, trigger_type: triggerType },
         status: 'running',
         started_at: new Date().toISOString(),
       })
@@ -65,6 +66,7 @@ export async function executeWorkflow(
       .single();
 
     if (execError || !execution) {
+      console.error('[executor] execution insert error:', execError);
       throw new Error('Failed to create execution record');
     }
 
@@ -114,7 +116,7 @@ export async function executeWorkflow(
         .from('workflow_executions')
         .update({
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error_message: error instanceof Error ? error.message : 'Unknown error',
           completed_at: new Date().toISOString(),
         })
         .eq('id', execution.id);
@@ -165,15 +167,19 @@ async function executeWorkflowNodes(
 
     console.log(`Executing node ${nodeId} (${stepType})`);
 
-    // Create step execution record
+    // Create step execution record (best-effort — step logging doesn't block execution)
+    // Map internal node stepTypes to DB-allowed step_type values
+    const dbStepType = stepType === 'delay' ? 'wait_delay'
+      : stepType === 'trigger' ? 'webhook'  // closest allowed proxy
+      : stepType;
     const { data: stepExecution } = await supabaseAdmin
       .from('workflow_step_executions')
       .insert({
-        workflow_execution_id: executionId,
+        execution_id: executionId,
         step_id: nodeId,
-        step_type: stepType,
+        step_type: dbStepType,
+        step_config: data?.config || {},
         status: 'running',
-        started_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -210,8 +216,7 @@ async function executeWorkflowNodes(
             .from('workflow_step_executions')
             .update({
               status: 'completed',
-              output: result.data,
-              completed_at: new Date().toISOString(),
+              result: result.data || {},
             })
             .eq('id', stepExecution?.id);
 
@@ -237,8 +242,7 @@ async function executeWorkflowNodes(
           .from('workflow_step_executions')
           .update({
             status: 'completed',
-            output: { scheduled: true },
-            completed_at: new Date().toISOString(),
+            result: { scheduled: true },
           })
           .eq('id', stepExecution?.id);
 
@@ -261,8 +265,7 @@ async function executeWorkflowNodes(
           .from('workflow_step_executions')
           .update({
             status: 'failed',
-            error: result.error,
-            completed_at: new Date().toISOString(),
+            error_message: result.error,
           })
           .eq('id', stepExecution?.id);
 
@@ -274,8 +277,7 @@ async function executeWorkflowNodes(
         .from('workflow_step_executions')
         .update({
           status: 'completed',
-          output: result.data,
-          completed_at: new Date().toISOString(),
+          result: result.data || {},
         })
         .eq('id', stepExecution?.id);
 
@@ -293,8 +295,7 @@ async function executeWorkflowNodes(
         .from('workflow_step_executions')
         .update({
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          completed_at: new Date().toISOString(),
+          error_message: error instanceof Error ? error.message : 'Unknown error',
         })
         .eq('id', stepExecution?.id);
 
