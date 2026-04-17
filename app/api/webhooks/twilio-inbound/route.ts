@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { stopAutomation } from '@/lib/automations/enrollment';
 import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
+import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
@@ -57,7 +58,35 @@ export async function POST(req: NextRequest) {
           status: 'received',
         });
       }
-      // Trigger client reply agent to handle this inbound SMS
+      // Auto-respond via AI for accounts with auto mode + SMS enabled
+      for (const c of contacts) {
+        const { data: aiConfig } = await supabaseAdmin
+          .from('ai_agent_configs')
+          .select('enabled, mode, channels')
+          .eq('account_id', c.account_id)
+          .single();
+
+        const { data: contact } = await supabaseAdmin
+          .from('contacts')
+          .select('ai_enabled')
+          .eq('id', c.id)
+          .single();
+
+        if (
+          aiConfig?.enabled &&
+          aiConfig?.mode === 'auto' &&
+          aiConfig?.channels?.sms &&
+          contact?.ai_enabled !== false
+        ) {
+          generateAndSendAI({
+            accountId: c.account_id,
+            contactId: c.id,
+            channel: 'sms',
+          }).catch(err => console.error('[twilio-inbound] AI auto-respond error:', err));
+        }
+      }
+
+      // Trigger client reply agent for any messages not handled by auto-mode
       triggerAgentRun('client-reply').catch(() => {});
     }
   }
