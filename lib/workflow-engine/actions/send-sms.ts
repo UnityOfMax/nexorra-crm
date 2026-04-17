@@ -1,6 +1,8 @@
 import { WorkflowContext, ExecutionResult } from '../types';
 import { replaceVariables } from '../conditions';
-import { fetchWithRetry } from '@/lib/utils/retry';
+import { twilioClient } from '@/lib/twilio/client';
+import { supabaseAdmin } from '@/lib/supabase';
+import { normalizePhone } from '@/lib/utils/phone';
 
 export async function sendSMSAction(
   context: WorkflowContext,
@@ -10,59 +12,59 @@ export async function sendSMSAction(
     const { message } = config;
 
     if (!message) {
-      return {
-        success: false,
-        error: 'SMS message is required',
-      };
+      return { success: false, error: 'SMS message is required' };
     }
 
-    // Get contact phone from context
     const contactPhone = context.variables.contact?.phone;
     if (!contactPhone) {
-      return {
-        success: false,
-        error: 'No contact phone available',
-      };
+      return { success: false, error: 'No contact phone available' };
     }
 
-    // Replace variables in message
+    if (!twilioClient) {
+      return { success: false, error: 'Twilio not configured' };
+    }
+
     const processedMessage = replaceVariables(message, context);
 
-    // Call the SMS API (with retry + 15s timeout)
-    const response = await fetchWithRetry(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/sms/send`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: context.accountId,
-          to: contactPhone,
-          message: processedMessage,
-          contactId: context.contactId,
-        }),
-      }
-    );
+    // Get account's Twilio phone number
+    const { data: account } = await supabaseAdmin
+      .from('accounts')
+      .select('settings')
+      .eq('id', context.accountId)
+      .single();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return {
-        success: false,
-        error: errorData.error || 'Failed to send SMS',
-      };
+    const fromPhone = account?.settings?.twilio_phone_number;
+    if (!fromPhone) {
+      return { success: false, error: 'No Twilio phone number configured for this account' };
     }
 
-    const result = await response.json();
+    const normalizedTo = normalizePhone(contactPhone);
+
+    const twilioMessage = await twilioClient.messages.create({
+      body: processedMessage,
+      from: fromPhone,
+      to: normalizedTo,
+    });
+
+    // Log to messages table
+    void supabaseAdmin.from('messages').insert({
+      account_id: context.accountId,
+      contact_id: context.contactId || null,
+      direction: 'outbound',
+      type: 'sms',
+      content: processedMessage,
+      from_address: fromPhone,
+      to_address: normalizedTo,
+      status: twilioMessage.status,
+      external_id: twilioMessage.sid,
+    });
 
     return {
       success: true,
-      data: {
-        smsId: result.sid,
-        to: contactPhone,
-        message: processedMessage,
-      },
+      data: { smsId: twilioMessage.sid, to: normalizedTo, message: processedMessage },
     };
   } catch (error) {
-    console.error('Error in sendSMSAction:', error);
+    console.error('[workflow/send-sms] Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error sending SMS',
