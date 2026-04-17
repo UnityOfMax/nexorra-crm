@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enrollNewLead } from '@/lib/automations/enrollment';
-import { triggerContactCreated } from '@/lib/workflow-engine/triggers';
+import { triggerContactCreated, triggerDealStageChanged } from '@/lib/workflow-engine/triggers';
+import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 import { normalizePhone, phoneVariants } from '@/lib/utils/phone';
 import { sendCapiEvent } from '@/lib/meta/capi';
@@ -201,6 +202,17 @@ export async function POST(request: NextRequest) {
                   updated_at:  new Date().toISOString(),
                 })
                 .eq('id', existingDeal.id);
+              // Stop lower-stage workflows, then fire stage-changed workflow
+              stopContactWorkflows(accountId, contactId).catch(err =>
+                console.error('[form-submit] stop-workflows error:', err)
+              );
+              triggerDealStageChanged(
+                accountId,
+                existingDeal.id,
+                contactId,
+                existingDeal.pipeline_stage_id,
+                pipeline_stage_id,
+              ).catch(err => console.error('[form-submit] workflow trigger error:', err));
             }
           }
         } else {
@@ -217,6 +229,14 @@ export async function POST(request: NextRequest) {
               probability:       stage_probability ?? null,
               status:            'open',
             });
+          // Fire stage-changed workflow for new deals too
+          triggerDealStageChanged(
+            accountId,
+            'new',
+            contactId,
+            '',
+            pipeline_stage_id,
+          ).catch(err => console.error('[form-submit] workflow trigger error:', err));
         }
       } catch (dealErr) {
         console.error('[form-submit] deal upsert error:', dealErr);

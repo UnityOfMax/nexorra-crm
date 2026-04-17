@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
+import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -77,6 +78,11 @@ export async function POST(req: NextRequest) {
       status: 'received',
       metadata: { subject },
     });
+
+    // Stop any running workflow sequences (they replied)
+    stopContactWorkflows(account.id, contact.id).catch(err =>
+      console.error('[resend-inbound] stop-workflows error:', err)
+    );
 
     // Cancel any pending email follow-up (they replied)
     await supabaseAdmin

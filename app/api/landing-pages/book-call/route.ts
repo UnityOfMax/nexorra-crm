@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { syncActivityToGoogle, getGoogleCalendarClient } from '@/lib/google-calendar/sync';
 import { enrollBookingReminders } from '@/lib/automations/enrollment';
-import { triggerBookingCreated } from '@/lib/workflow-engine/triggers';
+import { triggerBookingCreated, triggerDealStageChanged } from '@/lib/workflow-engine/triggers';
+import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { sendPushToAccountOwnerIfEnabled } from '@/lib/push/send-notification';
 import { recordBookingLearning } from '@/lib/ai/account-learner';
 
@@ -216,6 +217,10 @@ ${answerSummary}`;
 
     // ── Trigger custom workflows for booking_created (non-blocking) ────────────
     if (contactId) {
+      // Stop any Hot Lead / New Lead workflows still running for this contact
+      stopContactWorkflows(accountId, contactId).catch(err => {
+        console.error('[book-call] stop-workflows error:', err);
+      });
       triggerBookingCreated(accountId, contactId, activity.id, slotUtc, slotDisplay).catch(err => {
         console.error('[book-call] workflow trigger error:', err);
       });
@@ -260,8 +265,16 @@ ${answerSummary}`;
               updated_at:  new Date().toISOString(),
             })
             .eq('id', existingDeal.id);
+          // Fire deal_stage_changed workflow (e.g. Booked Appointment confirmation)
+          triggerDealStageChanged(
+            accountId,
+            existingDeal.id,
+            contactId,
+            existingDeal.pipeline_stage_id || '',
+            pipeline_stage_id,
+          ).catch(err => console.error('[book-call] workflow trigger error:', err));
         } else {
-          await supabaseAdmin
+          const { data: newDeal } = await supabaseAdmin
             .from('deals')
             .insert({
               account_id:        accountId,
@@ -272,7 +285,19 @@ ${answerSummary}`;
               stage:             stage_name       || null,
               probability:       stage_probability ?? null,
               status:            'open',
-            });
+            })
+            .select('id')
+            .single();
+          // Fire deal_stage_changed workflow for new deal
+          if (newDeal) {
+            triggerDealStageChanged(
+              accountId,
+              newDeal.id,
+              contactId,
+              '',
+              pipeline_stage_id,
+            ).catch(err => console.error('[book-call] workflow trigger error:', err));
+          }
         }
       } catch (dealErr) {
         console.error('[book-call] deal upsert error:', dealErr);

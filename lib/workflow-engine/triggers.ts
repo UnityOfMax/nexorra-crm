@@ -12,7 +12,7 @@ export async function triggerWorkflows(
     // Find all active workflows with this trigger type
     const { data: workflows, error } = await supabaseAdmin
       .from('workflows')
-      .select('id, name, trigger_type')
+      .select('id, name, trigger_type, trigger_config')
       .eq('account_id', accountId)
       .eq('trigger_type', triggerType)
       .eq('is_active', true);
@@ -27,10 +27,23 @@ export async function triggerWorkflows(
       return;
     }
 
-    console.log(`Found ${workflows.length} workflows to trigger`);
+    // Filter by trigger_config constraints (stage_id, contact_source)
+    const matchingWorkflows = workflows.filter(w => {
+      const cfg = (w.trigger_config as any) || {};
+      if (cfg.stage_id && triggerData.newStageId !== cfg.stage_id) return false;
+      if (cfg.contact_source && triggerData.contactSource !== cfg.contact_source) return false;
+      return true;
+    });
+
+    if (matchingWorkflows.length === 0) {
+      console.log(`No workflows matched trigger_config for: ${triggerType}`);
+      return;
+    }
+
+    console.log(`Found ${matchingWorkflows.length} workflows to trigger`);
 
     // Execute each workflow (in parallel for better performance)
-    const executions = workflows.map((workflow) =>
+    const executions = matchingWorkflows.map((workflow) =>
       executeWorkflow(workflow.id, accountId, triggerType, triggerData).catch((error) => {
         console.error(`Error executing workflow ${workflow.id}:`, error);
         return null;

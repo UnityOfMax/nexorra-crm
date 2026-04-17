@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { normalizePhone } from '@/lib/utils/phone';
+import { triggerDealStageChanged } from '@/lib/workflow-engine/triggers';
 
 export const dynamic = 'force-dynamic';
 
@@ -225,6 +226,14 @@ async function processLead({
           status:            'open',
         });
       console.log(`[fb-leads] Created New Lead deal for ${contactId}`);
+      // Trigger New Lead workflow (non-blocking)
+      triggerDealStageChanged(
+        account.id,
+        'new',
+        contactId,
+        '',
+        account.new_lead_stage_id,
+      ).catch(err => console.error('[fb-leads] workflow trigger error:', err));
     }
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { stopAutomation } from '@/lib/automations/enrollment';
+import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import twilio from 'twilio';
 
@@ -39,9 +40,10 @@ export async function POST(req: NextRequest) {
       .limit(10);
 
     if (contacts && contacts.length > 0) {
-      await Promise.allSettled(
-        contacts.map(c => stopAutomation(c.account_id, c.id))
-      );
+      await Promise.allSettled([
+        ...contacts.map(c => stopAutomation(c.account_id, c.id)),
+        ...contacts.map(c => stopContactWorkflows(c.account_id, c.id)),
+      ]);
       // Save inbound SMS to messages table for each matched contact
       for (const c of contacts) {
         void supabaseAdmin.from('messages').insert({
