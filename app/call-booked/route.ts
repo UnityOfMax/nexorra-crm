@@ -1,14 +1,28 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { unstable_noStore as noStore } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const { data: page } = await supabaseAdmin
-    .from('landing_pages')
-    .select('content, published')
-    .eq('slug', 'nexorra-call-booked')
-    .single();
+  noStore();
+
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/landing_pages?slug=eq.nexorra-call-booked&select=content,published`,
+    {
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+    }
+  );
+
+  const rows: Array<{ content: any; published: boolean }> = await res.json();
+  const page = rows[0];
 
   if (!page || !page.published) {
     return new NextResponse('Not found', { status: 404 });
