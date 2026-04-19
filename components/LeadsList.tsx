@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Target, RefreshCw, Filter, ChevronLeft, ChevronRight, ExternalLink, Check, Clock, Globe, Trash2, X, Pencil, CheckSquare, Square, MinusSquare, Instagram, Download, Phone } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -53,38 +52,33 @@ const BROKERAGES: Record<string, string> = {
 const TIMEZONES = ['EST', 'CST', 'MST', 'PST'];
 const PAGE_SIZE = 100;
 
+const TZ_COLORS: Record<string, string> = {
+  EST: 'var(--blue)',
+  CST: 'var(--green)',
+  MST: 'var(--amber)',
+  PST: 'var(--violet)',
+};
+
 export default function LeadsList() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
-
-  // Category tabs
   const [category, setCategory] = useState<LeadCategory>('email');
   const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ email: 0, instagram: 0, calling: 0 });
   const [csvExporting, setCsvExporting] = useState(false);
-
-  // Per-timezone export quantities
   const [tzCounts, setTzCounts] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
   const [tzAvail, setTzAvail] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
   const [tzAvailLoaded, setTzAvailLoaded] = useState(false);
-
-  // Filters
   const [filterPushed, setFilterPushed] = useState<'all' | 'true' | 'false'>('all');
   const [filterTimezone, setFilterTimezone] = useState('');
   const [filterBrokerage, setFilterBrokerage] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
-
-  // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
-
-  // Edit modal
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState<Partial<Lead>>({});
   const [saving, setSaving] = useState(false);
-
-  // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const fetchLeads = useCallback(async (off = offset) => {
@@ -94,7 +88,6 @@ export default function LeadsList() {
     if (filterTimezone) params.set('timezone', filterTimezone);
     if (filterBrokerage) params.set('brokerage', filterBrokerage);
     if (filterCountry) params.set('country', filterCountry);
-
     try {
       const res = await fetch(`/api/leads?${params}`);
       if (res.ok) {
@@ -103,12 +96,9 @@ export default function LeadsList() {
         setTotal(json.total || 0);
         setCategoryCounts(prev => ({ ...prev, [category]: json.total || 0 }));
       }
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [offset, category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
 
-  // Fetch counts for all categories on mount
   useEffect(() => {
     const fetchCounts = async () => {
       for (const cat of ['email', 'instagram', 'calling'] as LeadCategory[]) {
@@ -123,13 +113,10 @@ export default function LeadsList() {
   }, []);
 
   useEffect(() => {
-    setOffset(0);
-    setSelectedIds(new Set());
-    fetchLeads(0);
+    setOffset(0); setSelectedIds(new Set()); fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
 
-  // Load available counts per timezone when switching to calling tab
   useEffect(() => {
     if (category !== 'calling' || tzAvailLoaded) return;
     const load = async () => {
@@ -138,29 +125,24 @@ export default function LeadsList() {
         try {
           const counts = JSON.parse(res.headers.get('X-TZ-Counts') || '{}');
           setTzAvail(counts);
-          // Pre-fill quantities with available (capped at 200 each)
-          setTzCounts({
-            EST: Math.min(counts.EST || 0, 200),
-            CST: Math.min(counts.CST || 0, 200),
-            MST: Math.min(counts.MST || 0, 200),
-            PST: Math.min(counts.PST || 0, 200),
-          });
-        } catch { /* ignore */ }
+          setTzCounts({ EST: Math.min(counts.EST || 0, 200), CST: Math.min(counts.CST || 0, 200), MST: Math.min(counts.MST || 0, 200), PST: Math.min(counts.PST || 0, 200) });
+        } catch {}
       }
       setTzAvailLoaded(true);
     };
     load();
   }, [category, tzAvailLoaded]);
 
+  useEffect(() => { fetchLeads(offset); setSelectedIds(new Set()); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offset]);
+
   const handleCsvExport = async () => {
-    const total = Object.values(tzCounts).reduce((a, b) => a + b, 0);
-    if (total === 0) return;
+    const tot = Object.values(tzCounts).reduce((a, b) => a + b, 0);
+    if (tot === 0) return;
     setCsvExporting(true);
     try {
       const params = new URLSearchParams();
-      for (const [tz, count] of Object.entries(tzCounts)) {
-        if (count > 0) params.set(tz, String(count));
-      }
+      for (const [tz, count] of Object.entries(tzCounts)) { if (count > 0) params.set(tz, String(count)); }
       const res = await fetch(`/api/leads/csv-export?${params}`);
       if (res.ok) {
         const blob = await res.blob();
@@ -169,583 +151,288 @@ export default function LeadsList() {
         a.href = url;
         const cd = res.headers.get('content-disposition') || '';
         a.download = cd.match(/filename=([^\s;]+)/)?.[1] || 'calling-leads.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        setTzAvailLoaded(false); // reload available counts after export
-        fetchLeads(offset);
+        setTzAvailLoaded(false); fetchLeads(offset);
       }
-    } finally {
-      setCsvExporting(false);
-    }
+    } finally { setCsvExporting(false); }
   };
-
-  useEffect(() => {
-    fetchLeads(offset);
-    setSelectedIds(new Set());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offset]);
 
   const handleMarkPushed = async (lead: Lead) => {
-    const res = await fetch(`/api/leads?id=${lead.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pushed_to_instantly: true }),
-    });
-    if (res.ok) {
-      setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, pushed_to_instantly: true } : l));
-    }
+    const res = await fetch(`/api/leads?id=${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pushed_to_instantly: true }) });
+    if (res.ok) setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, pushed_to_instantly: true } : l));
   };
 
-  // Selection handlers
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleSelectAll = () => setSelectedIds(selectedIds.size === leads.length ? new Set() : new Set(leads.map(l => l.id)));
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === leads.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(leads.map(l => l.id)));
-    }
-  };
-
-  // Single delete
   const handleDelete = async (id: string) => {
     const res = await fetch(`/api/leads?id=${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setLeads(prev => prev.filter(l => l.id !== id));
-      setTotal(prev => prev - 1);
-      setDeleteConfirm(null);
-      selectedIds.delete(id);
-      setSelectedIds(new Set(selectedIds));
-    }
+    if (res.ok) { setLeads(prev => prev.filter(l => l.id !== id)); setTotal(prev => prev - 1); setDeleteConfirm(null); selectedIds.delete(id); setSelectedIds(new Set(selectedIds)); }
   };
 
-  // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
     try {
-      const res = await fetch('/api/leads', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds) }),
-      });
-      if (res.ok) {
-        setLeads(prev => prev.filter(l => !selectedIds.has(l.id)));
-        setTotal(prev => prev - selectedIds.size);
-        setSelectedIds(new Set());
-      }
-    } finally {
-      setBulkDeleting(false);
-    }
+      const res = await fetch('/api/leads', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: Array.from(selectedIds) }) });
+      if (res.ok) { setLeads(prev => prev.filter(l => !selectedIds.has(l.id))); setTotal(prev => prev - selectedIds.size); setSelectedIds(new Set()); }
+    } finally { setBulkDeleting(false); }
   };
 
-  // Edit handlers
-  const openEdit = (lead: Lead) => {
-    setEditingLead(lead);
-    setEditForm({
-      full_name: lead.full_name,
-      first_name: lead.first_name,
-      last_name: lead.last_name,
-      email: lead.email,
-      phone: lead.phone,
-      city: lead.city,
-      state_province: lead.state_province,
-      source_brokerage: lead.source_brokerage,
-      profile_url: lead.profile_url,
-    });
-  };
-
+  const openEdit = (lead: Lead) => { setEditingLead(lead); setEditForm({ full_name: lead.full_name, first_name: lead.first_name, last_name: lead.last_name, email: lead.email, phone: lead.phone, city: lead.city, state_province: lead.state_province, source_brokerage: lead.source_brokerage, profile_url: lead.profile_url }); };
   const handleSaveEdit = async () => {
     if (!editingLead) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/leads?id=${editingLead.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        const { lead } = await res.json();
-        setLeads(prev => prev.map(l => l.id === editingLead.id ? lead : l));
-        setEditingLead(null);
-      }
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch(`/api/leads?id=${editingLead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
+      if (res.ok) { const { lead } = await res.json(); setLeads(prev => prev.map(l => l.id === editingLead.id ? lead : l)); setEditingLead(null); }
+    } finally { setSaving(false); }
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
-
-  const timezoneColor: Record<string, string> = {
-    EST: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    CST: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    MST: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    PST: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  };
-
   const allSelected = leads.length > 0 && selectedIds.size === leads.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < leads.length;
+
+  const catTabs = [
+    { key: 'email' as LeadCategory, label: 'Email leads' },
+    { key: 'instagram' as LeadCategory, label: 'Instagram leads' },
+    { key: 'calling' as LeadCategory, label: 'Calling leads' },
+  ];
+
+  const kpis = {
+    email: [
+      { l: 'Email leads', v: categoryCounts.email.toLocaleString(), d: 'Jeff-scraped brokerages' },
+      { l: 'Hot (pushed)', v: leads.filter(l => l.pushed_to_instantly).length.toString(), d: 'of current page' },
+      { l: 'Not pushed', v: leads.filter(l => !l.pushed_to_instantly).length.toString(), d: 'pending upload' },
+      { l: 'Brokerages', v: Array.from(new Set(leads.map(l => l.source_brokerage))).length.toString(), d: 'unique sources' },
+    ],
+    instagram: [
+      { l: 'Instagram leads', v: categoryCounts.instagram.toLocaleString(), d: 'with @handle' },
+      { l: 'DMs sent', v: leads.filter(l => l.instagram_dm_sent).length.toString(), d: 'of current page' },
+      { l: 'Replied', v: leads.filter(l => l.instagram_status === 'replied').length.toString(), d: 'this page' },
+      { l: 'Booked', v: leads.filter(l => l.instagram_status === 'booked').length.toString(), d: 'this page' },
+    ],
+    calling: [
+      { l: 'Calling leads', v: categoryCounts.calling.toLocaleString(), d: 'with phone numbers' },
+      { l: 'EST available', v: (tzAvail.EST || 0).toString(), d: 'not yet exported' },
+      { l: 'CST available', v: (tzAvail.CST || 0).toString(), d: 'not yet exported' },
+      { l: 'PST + MST', v: ((tzAvail.PST || 0) + (tzAvail.MST || 0)).toString(), d: 'not yet exported' },
+    ],
+  }[category];
 
   return (
-    <div>
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
-            <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Scraped Leads</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {total.toLocaleString()} total · Jeff-scraped brokerage leads
-            </p>
-          </div>
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1600, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>Leads</h1>
+          <div style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>Inbound leads across email, Instagram, and calling.</div>
         </div>
-        <button
-          onClick={() => fetchLeads(offset)}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 rounded-xl transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => fetchLeads(offset)} style={{ padding: '8px 14px', fontSize: 13, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: loading ? 'spin 1s linear infinite' : undefined }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+          <button onClick={handleBulkDelete} disabled={selectedIds.size === 0 || bulkDeleting} style={{ padding: '8px 14px', fontSize: 13, borderRadius: 8, border: 'none', background: selectedIds.size > 0 ? 'var(--rose)' : 'var(--paper-3)', color: selectedIds.size > 0 ? 'white' : 'var(--ink-3)', cursor: selectedIds.size > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {bulkDeleting ? 'Deleting…' : selectedIds.size > 0 ? `Delete ${selectedIds.size}` : 'Delete selected'}
+          </button>
+        </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-[#2c2c2e] rounded-xl w-full md:w-fit">
-        {([
-          { key: 'email' as LeadCategory, label: 'Email', icon: Target },
-          { key: 'instagram' as LeadCategory, label: 'Instagram', icon: Instagram },
-          { key: 'calling' as LeadCategory, label: 'Calling', icon: Phone },
-        ]).map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setCategory(tab.key)}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-2 md:px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              category === tab.key
-                ? 'bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">{tab.label}</span>
-            <span className={`flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-              category === tab.key
-                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-            }`}>
-              {categoryCounts[tab.key].toLocaleString()}
+      {/* Source Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 18, padding: 4, background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 10, overflowX: 'auto' }}>
+        {catTabs.map(t => (
+          <button key={t.key} onClick={() => setCategory(t.key)} style={{
+            flex: '1 1 auto', padding: '8px 14px', borderRadius: 7, fontSize: 13,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: category === t.key ? 'var(--paper)' : 'transparent',
+            color: category === t.key ? 'var(--ink)' : 'var(--ink-3)',
+            border: category === t.key ? '1px solid var(--line)' : '1px solid transparent',
+            fontWeight: category === t.key ? 500 : 400, whiteSpace: 'nowrap', minWidth: 130, cursor: 'pointer',
+          }}>
+            {t.label}
+            <span style={{ fontSize: 11, fontFamily: 'Geist Mono, monospace', color: category === t.key ? 'var(--blue)' : 'var(--ink-4)', fontWeight: 500 }}>
+              {categoryCounts[t.key].toLocaleString()}
             </span>
           </button>
         ))}
       </div>
 
-      {/* CSV Export (calling only) — per-timezone selector */}
-      {category === 'calling' && (
-        <div className="mb-5 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1c1c1e]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-              <Download className="w-3.5 h-3.5" />
-              Export Calling Leads
-            </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              Company field = today&apos;s date · {Object.values(tzCounts).reduce((a, b) => a + b, 0)} selected
-            </span>
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Geist Mono, monospace' }}>{k.l}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', marginTop: 6, color: 'var(--ink)' }}>{k.v}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{k.d}</div>
           </div>
-          <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">
-            Leads sorted by alphabetical order in Openphone so export each timezone one at a time.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        ))}
+      </div>
+
+      {/* CSV Export (calling only) */}
+      {category === 'calling' && (
+        <div style={{ marginBottom: 18, padding: 16, borderRadius: 10, border: '1px solid var(--line)', background: 'var(--paper-2)' }}>
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', marginBottom: 12 }}>Export Calling Leads by Timezone</div>
+          <div style={{ fontSize: 12, color: 'var(--amber)', marginBottom: 10 }}>Leads sorted alphabetically in OpenPhone — export each timezone separately.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
             {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
-              <div key={tz} className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-between">
-                  <span>{tz}</span>
-                  <span className="text-gray-400 dark:text-gray-500">{tzAvail[tz] ?? '…'} avail</span>
-                </label>
-                <input
-                  type="number"
-                  value={tzCounts[tz]}
-                  min={0}
-                  max={tzAvail[tz] || 0}
-                  onChange={e => setTzCounts(prev => ({
-                    ...prev,
-                    [tz]: Math.max(0, Math.min(tzAvail[tz] || 0, Number(e.target.value) || 0)),
-                  }))}
-                  className="w-full px-2 py-1.5 text-sm text-center border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#2c2c2e] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              <div key={tz}>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: TZ_COLORS[tz], fontWeight: 600 }}>{tz}</span>
+                  <span>{tzAvail[tz] ?? '…'} avail</span>
+                </div>
+                <input type="number" value={tzCounts[tz]} min={0} max={tzAvail[tz] || 0}
+                  onChange={e => setTzCounts(prev => ({ ...prev, [tz]: Math.max(0, Math.min(tzAvail[tz] || 0, Number(e.target.value) || 0)) }))}
+                  style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--paper)', color: 'var(--ink)', outline: 'none', textAlign: 'center' }}
                 />
               </div>
             ))}
           </div>
-          <button
-            onClick={handleCsvExport}
-            disabled={csvExporting || Object.values(tzCounts).every(v => v === 0)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            {csvExporting ? 'Exporting…' : 'Export CSV'}
+          <button onClick={handleCsvExport} disabled={csvExporting || Object.values(tzCounts).every(v => v === 0)}
+            style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer', opacity: csvExporting || Object.values(tzCounts).every(v => v === 0) ? 0.5 : 1 }}>
+            {csvExporting ? 'Exporting…' : `Export ${Object.values(tzCounts).reduce((a, b) => a + b, 0)} leads`}
           </button>
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-500 dark:text-gray-400">Filter:</span>
-        </div>
-
-        <select
-          value={filterPushed}
-          onChange={e => setFilterPushed(e.target.value as 'all' | 'true' | 'false')}
-          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-        >
-          <option value="all">All Status</option>
-          <option value="false">Not Pushed</option>
-          <option value="true">Pushed to Instantly</option>
-        </select>
-
-        <select
-          value={filterTimezone}
-          onChange={e => setFilterTimezone(e.target.value)}
-          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-        >
-          <option value="">All Timezones</option>
-          {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-        </select>
-
-        <select
-          value={filterBrokerage}
-          onChange={e => setFilterBrokerage(e.target.value)}
-          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-        >
-          <option value="">All Brokerages</option>
-          {Object.entries(BROKERAGES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-
-        <select
-          value={filterCountry}
-          onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm pl-3 pr-8 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-700 dark:text-gray-300"
-        >
-          <option value="">US + CA</option>
-          <option value="US">United States</option>
-          <option value="CA">Canada</option>
-        </select>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>Filter:</span>
+        {[
+          { value: filterPushed, onChange: (v: string) => setFilterPushed(v as any), options: [['all', 'All Status'], ['false', 'Not Pushed'], ['true', 'Pushed']] },
+          { value: filterTimezone, onChange: setFilterTimezone, options: [['', 'All TZ'], ...TIMEZONES.map(t => [t, t])] },
+          { value: filterBrokerage, onChange: setFilterBrokerage, options: [['', 'All Brokerages'], ...Object.entries(BROKERAGES).map(([k, v]) => [k, v])] },
+          { value: filterCountry, onChange: setFilterCountry, options: [['', 'US + CA'], ['US', 'United States'], ['CA', 'Canada']] },
+        ].map((f, i) => (
+          <select key={i} value={f.value} onChange={e => f.onChange(e.target.value)}
+            style={{ fontSize: 12.5, padding: '6px 10px', borderRadius: 7, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none', cursor: 'pointer' }}>
+            {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        ))}
       </div>
 
-      {/* Bulk action bar */}
+      {/* Selection bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl">
-          <span className="text-sm font-medium text-red-700 dark:text-red-300">
-            {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''} selected
-          </span>
-          <button
-            onClick={handleBulkDelete}
-            disabled={bulkDeleting}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size}`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, padding: '10px 14px', borderRadius: 8, background: 'oklch(95% 0.015 25 / 0.15)', border: '1px solid var(--rose)' }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--rose)' }}>{selectedIds.size} selected</span>
+          <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '5px 12px', fontSize: 12, fontWeight: 500, borderRadius: 6, border: 'none', background: 'var(--rose)', color: 'white', cursor: 'pointer' }}>
+            {bulkDeleting ? 'Deleting…' : 'Delete selected'}
           </button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-red-600 dark:text-red-400 hover:underline"
-          >
-            Clear selection
-          </button>
+          <button onClick={() => setSelectedIds(new Set())} style={{ fontSize: 12, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
         </div>
       )}
 
       {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, minWidth: 900 }}>
             <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/80 dark:bg-white/3">
-                <th className="px-3 py-3 w-10">
-                  <button onClick={toggleSelectAll} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    {allSelected ? (
-                      <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                    ) : someSelected ? (
-                      <MinusSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                    ) : (
-                      <Square className="w-4 h-4" />
-                    )}
-                  </button>
+              <tr style={{ background: 'var(--paper-2)', borderBottom: '1px solid var(--line)' }}>
+                <th style={{ padding: '10px 12px', width: 36 }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Agent</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Contact</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Location</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">TZ</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Brokerage</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Instagram</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Scraped</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400 text-right hidden md:table-cell">Actions</th>
+                {['Lead', 'Contact', 'Location', 'TZ', 'Brokerage', 'Age', 'Status', ''].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Geist Mono, monospace' }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={10} className="py-16 text-center text-gray-400 dark:text-gray-500">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                    Loading leads…
-                  </td>
-                </tr>
+                <tr><td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)' }}>Loading leads…</td></tr>
               ) : leads.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="py-16 text-center text-gray-400 dark:text-gray-500">
-                    <Target className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">No leads yet</p>
-                    <p className="text-xs mt-1">Jeff will populate this once he starts scraping</p>
+                <tr><td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: 'var(--ink-3)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>No leads yet</div>
+                  <div style={{ fontSize: 12 }}>Jeff will populate this once he starts scraping</div>
+                </td></tr>
+              ) : leads.map((lead, i) => (
+                <tr key={lead.id} style={{ borderBottom: i < leads.length - 1 ? '1px solid var(--line)' : 'none', background: selectedIds.has(lead.id) ? 'oklch(96% 0.01 258 / 0.3)' : lead.csv_downloaded_at ? 'oklch(96% 0.01 30 / 0.15)' : 'transparent', cursor: 'pointer' }}
+                  onMouseEnter={e => { if (!selectedIds.has(lead.id)) (e.currentTarget as HTMLElement).style.background = 'var(--paper-2)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = selectedIds.has(lead.id) ? 'oklch(96% 0.01 258 / 0.3)' : lead.csv_downloaded_at ? 'oklch(96% 0.01 30 / 0.15)' : 'transparent'; }}>
+                  <td style={{ padding: '10px 12px' }}>
+                    <input type="checkbox" checked={selectedIds.has(lead.id)} onChange={() => toggleSelect(lead.id)} style={{ cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ fontWeight: 500, color: 'var(--ink)' }}>{lead.full_name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{lead.country}</div>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{lead.email || lead.phone || '—'}</div>
+                    {lead.email && lead.phone && <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{lead.phone}</div>}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ color: 'var(--ink-2)' }}>{lead.city}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{lead.state_province}</div>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {lead.timezone ? (
+                      <span style={{ padding: '2px 7px', borderRadius: 5, fontSize: 11.5, fontWeight: 600, fontFamily: 'Geist Mono, monospace', background: `${TZ_COLORS[lead.timezone]}20`, color: TZ_COLORS[lead.timezone] }}>{lead.timezone}</span>
+                    ) : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 12.5, color: 'var(--ink-2)' }}>
+                    {BROKERAGES[lead.source_brokerage] || lead.source_brokerage}
+                  </td>
+                  <td style={{ padding: '10px 14px', fontFamily: 'Geist Mono, monospace', fontSize: 12, color: 'var(--ink-3)' }}>
+                    {new Date(lead.scraped_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {category === 'email' ? (
+                      lead.pushed_to_instantly
+                        ? <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 500 }}>Pushed</span>
+                        : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Pending</span>
+                    ) : category === 'calling' ? (
+                      lead.csv_downloaded_at
+                        ? <span style={{ fontSize: 12, color: 'var(--rose)', fontWeight: 500 }}>Downloaded</span>
+                        : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Ready</span>
+                    ) : (
+                      lead.instagram_dm_sent
+                        ? <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 11.5, background: lead.instagram_status === 'replied' ? 'var(--green)20' : 'var(--paper-3)', color: lead.instagram_status === 'replied' ? 'var(--green)' : 'var(--ink-3)' }}>{lead.instagram_status === 'dm_sent' ? "DM'd" : lead.instagram_status}</span>
+                        : <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Not DM'd</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                      {lead.profile_url && (
+                        <a href={lead.profile_url} target="_blank" rel="noopener noreferrer" style={{ padding: 5, borderRadius: 6, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                      )}
+                      <button onClick={() => openEdit(lead)} style={{ padding: 5, borderRadius: 6, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      {deleteConfirm === lead.id ? (
+                        <>
+                          <button onClick={() => handleDelete(lead.id)} style={{ padding: '3px 8px', fontSize: 11.5, fontWeight: 500, borderRadius: 5, border: 'none', background: 'var(--rose)', color: 'white', cursor: 'pointer' }}>Confirm</button>
+                          <button onClick={() => setDeleteConfirm(null)} style={{ padding: 5, borderRadius: 6, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => setDeleteConfirm(lead.id)} style={{ padding: 5, borderRadius: 6, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                      )}
+                      {category === 'email' && !lead.pushed_to_instantly && (
+                        <button onClick={() => handleMarkPushed(lead)} style={{ padding: '3px 8px', fontSize: 11.5, fontWeight: 500, borderRadius: 5, border: '1px solid var(--blue)', background: 'transparent', color: 'var(--blue)', cursor: 'pointer' }}>Push</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                leads.map(lead => (
-                  <tr
-                    key={lead.id}
-                    className={`border-b border-gray-50 dark:border-gray-700/30 hover:bg-gray-50/60 dark:hover:bg-white/3 transition-colors ${
-                      selectedIds.has(lead.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' :
-                      lead.csv_downloaded_at ? 'bg-red-50/50 dark:bg-red-900/10' : ''
-                    }`}
-                  >
-                    {/* Checkbox */}
-                    <td className="px-3 py-3">
-                      <button onClick={() => toggleSelect(lead.id)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        {selectedIds.has(lead.id) ? (
-                          <CheckSquare className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
-                      </button>
-                    </td>
-
-                    {/* Agent */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        {lead.profile_picture_url ? (
-                          <img
-                            src={lead.profile_picture_url}
-                            alt={lead.full_name}
-                            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                              {lead.full_name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px]">{lead.full_name}</p>
-                          <span className="text-xs text-gray-400">{lead.country}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Contact */}
-                    <td className="px-4 py-3">
-                      <div className="space-y-0.5 min-w-0">
-                        {lead.email && (
-                          <p className="text-gray-700 dark:text-gray-300 text-xs truncate max-w-[180px]">{lead.email}</p>
-                        )}
-                        {lead.phone && (
-                          <p className="text-gray-500 dark:text-gray-400 text-xs truncate">{lead.phone}</p>
-                        )}
-                        {!lead.email && !lead.phone && (
-                          <p className="text-gray-300 dark:text-gray-500 text-xs italic">No contact info</p>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Location */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="text-gray-700 dark:text-gray-300">{lead.city}</p>
-                      <p className="text-xs text-gray-400">{lead.state_province}</p>
-                    </td>
-
-                    {/* Timezone */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {lead.timezone ? (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${timezoneColor[lead.timezone] || 'bg-gray-100 text-gray-600'}`}>
-                          {lead.timezone}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 dark:text-gray-500 text-xs">—</span>
-                      )}
-                    </td>
-
-                    {/* Brokerage */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-gray-700 dark:text-gray-300 text-xs">
-                        {BROKERAGES[lead.source_brokerage] || lead.source_brokerage}
-                      </span>
-                    </td>
-
-                    {/* Instagram */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {lead.instagram_handle ? (
-                        <div className="flex items-center gap-1.5">
-                          <Instagram className="w-3.5 h-3.5 text-pink-500" />
-                          <span className="text-xs text-gray-700 dark:text-gray-300">@{lead.instagram_handle}</span>
-                          {lead.instagram_dm_sent && (
-                            <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              lead.instagram_status === 'replied' || lead.instagram_status === 'engaged'
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                : lead.instagram_status === 'booked'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                : 'bg-gray-100 text-gray-600 dark:bg-white/8 dark:text-gray-400'
-                            }`}>
-                              {lead.instagram_status === 'dm_sent' ? 'DM\'d' : lead.instagram_status}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
-                      )}
-                    </td>
-
-                    {/* Scraped at */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <Clock className="w-3 h-3" />
-                        {new Date(lead.scraped_at).toLocaleDateString()}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      {category === 'email' ? (
-                        lead.pushed_to_instantly ? (
-                          <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-                            <Check className="w-3.5 h-3.5" />
-                            Pushed
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">Pending</span>
-                        )
-                      ) : category === 'calling' ? (
-                        lead.csv_downloaded_at ? (
-                          <span className="flex items-center gap-1 text-xs font-medium text-red-500 dark:text-red-400">
-                            <Download className="w-3.5 h-3.5" />
-                            Downloaded
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">Ready</span>
-                        )
-                      ) : (
-                        lead.instagram_dm_sent ? (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                            lead.instagram_status === 'replied' || lead.instagram_status === 'engaged'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                              : lead.instagram_status === 'booked'
-                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                              : 'bg-gray-100 text-gray-600 dark:bg-white/8 dark:text-gray-400'
-                          }`}>
-                            {lead.instagram_status === 'dm_sent' ? 'DM\'d' : lead.instagram_status}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">Not DM&apos;d</span>
-                        )
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="flex items-center gap-1 justify-end">
-                        {lead.profile_url && (
-                          <a
-                            href={lead.profile_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
-                            title="View profile"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => openEdit(lead)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                          title="Edit lead"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        {deleteConfirm === lead.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleDelete(lead.id)}
-                              className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(null)}
-                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirm(lead.id)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                            title="Delete lead"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {!lead.pushed_to_instantly && (
-                          <button
-                            onClick={() => handleMarkPushed(lead)}
-                            className="px-2 py-1 text-xs font-medium rounded-lg bg-primary-500/10 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400 hover:bg-primary-500/20 transition-colors whitespace-nowrap"
-                            title="Mark as pushed to Instantly"
-                          >
-                            Push
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                disabled={offset === 0}
-                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-                disabled={offset + PAGE_SIZE >= total}
-                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>{offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}
+                style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: offset === 0 ? 'not-allowed' : 'pointer', opacity: offset === 0 ? 0.4 : 1 }}>‹</button>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', padding: '0 8px' }}>{currentPage} / {totalPages}</span>
+              <button onClick={() => setOffset(offset + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= total}
+                style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: offset + PAGE_SIZE >= total ? 'not-allowed' : 'pointer', opacity: offset + PAGE_SIZE >= total ? 0.4 : 1 }}>›</button>
             </div>
           </div>
         )}
@@ -753,120 +440,39 @@ export default function LeadsList() {
 
       {/* Edit Modal */}
       {editingLead && (
-        <div className="modal-overlay">
-          <div className="modal-content w-full max-w-lg mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Lead</h3>
-              <button
-                onClick={() => setEditingLead(null)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8"
-              >
-                <X className="w-5 h-5" />
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--paper)', borderRadius: 16, width: '100%', maxWidth: 480, margin: 16, overflow: 'hidden', border: '1px solid var(--line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Edit Lead</div>
+              <button onClick={() => setEditingLead(null)} style={{ padding: 4, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">First Name</label>
-                  <input
-                    value={editForm.first_name || ''}
-                    onChange={e => setEditForm(prev => ({ ...prev, first_name: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  />
+            <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {[
+                { label: 'Full name', key: 'full_name' as keyof Lead, type: 'text' },
+                { label: 'Email', key: 'email' as keyof Lead, type: 'email' },
+                { label: 'Phone', key: 'phone' as keyof Lead, type: 'tel' },
+                { label: 'City', key: 'city' as keyof Lead, type: 'text' },
+                { label: 'State/Province', key: 'state_province' as keyof Lead, type: 'text' },
+                { label: 'Profile URL', key: 'profile_url' as keyof Lead, type: 'url' },
+              ].map(f => (
+                <div key={f.key} style={{ gridColumn: f.key === 'profile_url' ? '1 / -1' : undefined }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{f.label}</div>
+                  <input type={f.type} value={(editForm[f.key] as string) || ''} onChange={e => setEditForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Last Name</label>
-                  <input
-                    value={editForm.last_name || ''}
-                    onChange={e => setEditForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Full Name</label>
-                <input
-                  value={editForm.full_name || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
-                <input
-                  value={editForm.email || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value || null }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  placeholder="null if not available"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Phone</label>
-                <input
-                  value={editForm.phone || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value || null }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  placeholder="null if not available"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">City</label>
-                  <input
-                    value={editForm.city || ''}
-                    onChange={e => setEditForm(prev => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">State/Province</label>
-                  <input
-                    value={editForm.state_province || ''}
-                    onChange={e => setEditForm(prev => ({ ...prev, state_province: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Profile URL</label>
-                <input
-                  value={editForm.profile_url || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, profile_url: e.target.value || null }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Brokerage</label>
-                <select
-                  value={editForm.source_brokerage || ''}
-                  onChange={e => setEditForm(prev => ({ ...prev, source_brokerage: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100"
-                >
-                  {Object.entries(BROKERAGES).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
+              ))}
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-white/3">
-              <button
-                onClick={() => setEditingLead(null)}
-                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 24px', borderTop: '1px solid var(--line)' }}>
+              <button onClick={() => setEditingLead(null)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleSaveEdit} disabled={saving} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save changes'}</button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -392,6 +392,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           <ContactsList
             contacts={contacts}
             accountId={currentAccount?.id || ''}
+            accountName={currentAccount?.name || ''}
             onRefresh={loadContacts}
             onContactClick={(contactId) => {
               setSelectedContactId(contactId);

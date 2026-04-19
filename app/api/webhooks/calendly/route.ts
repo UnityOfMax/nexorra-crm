@@ -170,20 +170,65 @@ export async function POST(request: NextRequest) {
     const AGENCY_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
     ;(async () => {
       try {
-        const { data: pipeline } = await supabaseAdmin
+        // Find or auto-create the default pipeline
+        let { data: pipeline } = await supabaseAdmin
           .from('pipelines')
           .select('id')
           .eq('account_id', AGENCY_ID)
           .eq('is_default', true)
           .maybeSingle();
+
+        if (!pipeline) {
+          // upsert is idempotent — concurrent requests hitting this won't create duplicates
+          const { data: newPipeline } = await supabaseAdmin
+            .from('pipelines')
+            .upsert({
+              account_id: AGENCY_ID,
+              name: 'Sales Pipeline',
+              type: 'sales',
+              is_default: true,
+              position: 0,
+            }, { onConflict: 'account_id,name', ignoreDuplicates: false })
+            .select('id')
+            .maybeSingle();
+          // Re-fetch if upsert returned nothing (was a no-op conflict)
+          if (!newPipeline) {
+            const { data: existing } = await supabaseAdmin
+              .from('pipelines').select('id').eq('account_id', AGENCY_ID).eq('name', 'Sales Pipeline').maybeSingle();
+            pipeline = existing;
+          } else {
+            pipeline = newPipeline;
+          }
+        }
         if (!pipeline) return;
 
-        const { data: stage } = await supabaseAdmin
+        // Find or auto-create the "Booked Appointment" stage
+        let { data: stage } = await supabaseAdmin
           .from('pipeline_stages')
           .select('id')
           .eq('pipeline_id', pipeline.id)
           .eq('name', 'Booked Appointment')
           .maybeSingle();
+
+        if (!stage) {
+          const defaultStages = [
+            { name: 'New Lead',           color: '#3b82f6', position: 0, probability: 10,  is_won: false, is_closed: false },
+            { name: 'Contacted',          color: '#8b5cf6', position: 1, probability: 20,  is_won: false, is_closed: false },
+            { name: 'Booked Appointment', color: '#f59e0b', position: 2, probability: 50,  is_won: false, is_closed: false },
+            { name: 'Proposal Sent',      color: '#ec4899', position: 3, probability: 70,  is_won: false, is_closed: false },
+            { name: 'Closed Won',         color: '#10b981', position: 4, probability: 100, is_won: true,  is_closed: true  },
+            { name: 'Closed Lost',        color: '#ef4444', position: 5, probability: 0,   is_won: false, is_closed: true  },
+          ];
+          // upsert on (pipeline_id, position) — the actual unique constraint in schema
+          await supabaseAdmin.from('pipeline_stages').upsert(
+            defaultStages.map(st => ({ pipeline_id: pipeline!.id, ...st })),
+            { onConflict: 'pipeline_id,position', ignoreDuplicates: true }
+          );
+          const { data: foundStage } = await supabaseAdmin
+            .from('pipeline_stages').select('id')
+            .eq('pipeline_id', pipeline.id).eq('name', 'Booked Appointment').maybeSingle();
+          stage = foundStage;
+        }
         if (!stage) return;
 
         const { data: contact } = await supabaseAdmin
@@ -261,6 +306,7 @@ export async function POST(request: NextRequest) {
       }
     })();
 
+    console.log(`[calendly] invitee.created processed: ${inviteeEmail} | event: ${eventUri ?? 'unknown'} | ts: ${new Date().toISOString()}`);
     return NextResponse.json({ ok: true, matched: true });
   } catch (err) {
     console.error('Calendly webhook error:', err);

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, ArrowLeft, Settings } from 'lucide-react';
 import { Pipeline, PipelineStage } from '@/types';
 import CreatePipelineModal from './CreatePipelineModal';
 import PipelineBoard from './PipelineBoard';
@@ -11,6 +10,13 @@ interface PipelineManagerProps {
   accountId: string;
 }
 
+const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
+  sales:   { bg: 'oklch(94% 0.05 258 / 0.3)', color: 'var(--blue)' },
+  hiring:  { bg: 'oklch(94% 0.05 160 / 0.3)', color: 'var(--green)' },
+  support: { bg: 'oklch(94% 0.05 300 / 0.3)', color: 'var(--violet)' },
+  custom:  { bg: 'var(--paper-3)',             color: 'var(--ink-2)' },
+};
+
 export default function PipelineManager({ accountId }: PipelineManagerProps) {
   const [pipelines, setPipelines] = useState<(Pipeline & { pipeline_stages: PipelineStage[] })[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<(Pipeline & { pipeline_stages: PipelineStage[] }) | null>(null);
@@ -19,9 +25,7 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
   const [boardRefreshKey, setBoardRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPipelines();
-  }, [accountId]);
+  useEffect(() => { loadPipelines(); }, [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPipelines = async () => {
     setLoading(true);
@@ -30,8 +34,6 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
       const data = await response.json();
       if (data.pipelines) {
         setPipelines(data.pipelines);
-
-        // Auto-select default pipeline or first pipeline
         if (!selectedPipeline && data.pipelines.length > 0) {
           const defaultPipeline = data.pipelines.find((p: Pipeline) => p.is_default) || data.pipelines[0];
           setSelectedPipeline(defaultPipeline);
@@ -44,103 +46,60 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
     }
   };
 
-  const handleCreateSuccess = () => {
-    loadPipelines();
-    setShowCreateModal(false);
-  };
+  const handleCreateSuccess = () => { loadPipelines(); setShowCreateModal(false); };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading pipelines...</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, color: 'var(--ink-3)', fontSize: 14 }}>
+        Loading pipelines…
       </div>
     );
   }
 
-  // If viewing a specific pipeline, show the board
+  // Board view
   if (selectedPipeline) {
+    const tc = TYPE_COLORS[selectedPipeline.type] || TYPE_COLORS.custom;
     return (
-      <div className="h-full flex flex-col">
-        {/* Header with back button */}
-        <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between md:mb-6">
-          {/* Left: back + name */}
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setSelectedPipeline(null)}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px 32px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => setSelectedPipeline(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">{selectedPipeline.name}</h2>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
-                  selectedPipeline.type === 'sales' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                  selectedPipeline.type === 'hiring' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                  selectedPipeline.type === 'support' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-                  'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300'
-                }`}>
-                  {selectedPipeline.type}
-                </span>
-                {selectedPipeline.is_default && (
-                  <span className="px-2 py-0.5 bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 text-xs font-medium rounded-full flex-shrink-0">
-                    Default
-                  </span>
-                )}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>{selectedPipeline.name}</h1>
+                <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 11.5, fontWeight: 500, background: tc.bg, color: tc.color }}>{selectedPipeline.type}</span>
+                {selectedPipeline.is_default && <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 11.5, fontWeight: 500, background: 'oklch(94% 0.05 258 / 0.3)', color: 'var(--blue)' }}>Default</span>}
               </div>
-              {selectedPipeline.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">{selectedPipeline.description}</p>
-              )}
+              {selectedPipeline.description && <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{selectedPipeline.description}</div>}
             </div>
           </div>
 
-          {/* Right: actions */}
-          <div className="flex items-center gap-2 flex-shrink-0 overflow-x-auto">
-            {/* Pipeline Selector */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {pipelines.length > 1 && (
-              <select
-                value={selectedPipeline.id}
-                onChange={(e) => {
-                  const pipeline = pipelines.find(p => p.id === e.target.value);
-                  if (pipeline) setSelectedPipeline(pipeline);
-                }}
-                className="input text-sm pl-3 pr-8 py-1.5 max-w-[140px]"
-              >
-                {pipelines.map(pipeline => (
-                  <option key={pipeline.id} value={pipeline.id}>
-                    {pipeline.name}
-                  </option>
-                ))}
+              <select value={selectedPipeline.id} onChange={e => { const p = pipelines.find(pl => pl.id === e.target.value); if (p) setSelectedPipeline(p); }}
+                style={{ padding: '7px 10px', fontSize: 13, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none', cursor: 'pointer' }}>
+                {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
-
-            <button className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors flex-shrink-0">
-              <Settings className="w-5 h-5" />
+            <button style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M21 12h-2M17.66 17.66l-1.41-1.41M12 21v-2M4.34 17.66l1.41-1.41M3 12H1M6.34 6.34L4.93 4.93M12 3V1"/></svg>
             </button>
-
-            <button
-              onClick={() => setShowAddOpportunity(true)}
-              className="btn btn-primary flex items-center gap-2 whitespace-nowrap flex-shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Add </span>Opportunity
+            <button onClick={() => setShowAddOpportunity(true)} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Opportunity
             </button>
           </div>
         </div>
 
-        {/* Kanban Board */}
-        <div className="flex-1 overflow-hidden">
+        <div style={{ flex: 1, overflow: 'hidden' }}>
           <PipelineBoard pipeline={selectedPipeline} accountId={accountId} refreshKey={boardRefreshKey} />
         </div>
 
         {showAddOpportunity && (
-          <AddOpportunityModal
-            accountId={accountId}
-            pipelineId={selectedPipeline.id}
-            stages={selectedPipeline.pipeline_stages}
-            onClose={() => setShowAddOpportunity(false)}
-            onSuccess={() => { setShowAddOpportunity(false); setBoardRefreshKey(k => k + 1); }}
-          />
+          <AddOpportunityModal accountId={accountId} pipelineId={selectedPipeline.id} stages={selectedPipeline.pipeline_stages}
+            onClose={() => setShowAddOpportunity(false)} onSuccess={() => { setShowAddOpportunity(false); setBoardRefreshKey(k => k + 1); }} />
         )}
       </div>
     );
@@ -148,104 +107,59 @@ export default function PipelineManager({ accountId }: PipelineManagerProps) {
 
   // Pipeline selection view
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Opportunities</h2>
-          <p className="text-gray-600 mt-1">Manage your pipelines and opportunities</p>
+          <h1 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>Pipelines</h1>
+          <div style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>Manage deal pipelines and track opportunities</div>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
+        <button onClick={() => setShowCreateModal(true)} style={{ padding: '9px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Create Pipeline
         </button>
       </div>
 
       {pipelines.length === 0 ? (
-        <div className="card text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <Plus className="w-16 h-16 mx-auto" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No pipelines yet</h3>
-          <p className="text-gray-600 mb-6">
-            Create your first pipeline to start tracking opportunities.
-          </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary"
-          >
+        <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 14, padding: 48, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◫</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>No pipelines yet</div>
+          <div style={{ fontSize: 13.5, color: 'var(--ink-3)', marginBottom: 20 }}>Create your first pipeline to start tracking opportunities.</div>
+          <button onClick={() => setShowCreateModal(true)} style={{ padding: '9px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer' }}>
             Create Your First Pipeline
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pipelines.map((pipeline) => (
-            <div
-              key={pipeline.id}
-              onClick={() => setSelectedPipeline(pipeline)}
-              className="card hover:shadow-lg transition-shadow cursor-pointer"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{pipeline.name}</h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  pipeline.type === 'sales' ? 'bg-blue-100 text-blue-700' :
-                  pipeline.type === 'hiring' ? 'bg-green-100 text-green-700' :
-                  pipeline.type === 'support' ? 'bg-purple-100 text-purple-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {pipeline.type}
-                </span>
-              </div>
-
-              {pipeline.description && (
-                <p className="text-sm text-gray-600 mb-4">{pipeline.description}</p>
-              )}
-
-              {/* Stage Count */}
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">
-                  {pipeline.pipeline_stages?.length || 0} stages
-                </span>
-                {pipeline.is_default && (
-                  <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded">
-                    Default
-                  </span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {pipelines.map(pipeline => {
+            const tc = TYPE_COLORS[pipeline.type] || TYPE_COLORS.custom;
+            const sorted = [...(pipeline.pipeline_stages || [])].sort((a, b) => a.position - b.position);
+            return (
+              <div key={pipeline.id} onClick={() => setSelectedPipeline(pipeline)} style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, padding: 18, cursor: 'pointer', transition: 'all 120ms' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{pipeline.name}</div>
+                  <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 11.5, fontWeight: 500, background: tc.bg, color: tc.color }}>{pipeline.type}</span>
+                </div>
+                {pipeline.description && <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 12 }}>{pipeline.description}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-3)', marginBottom: 10 }}>
+                  <span>{sorted.length} stages</span>
+                  {pipeline.is_default && <span style={{ padding: '1px 7px', borderRadius: 4, fontSize: 11, fontWeight: 500, background: 'oklch(94% 0.05 258 / 0.3)', color: 'var(--blue)' }}>Default</span>}
+                </div>
+                {sorted.length > 0 && (
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {sorted.slice(0, 6).map(stage => (
+                      <div key={stage.id} title={stage.name} style={{ height: 5, flex: 1, borderRadius: 3, background: stage.color || 'var(--line-2)' }} />
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {/* Stage Preview */}
-              {pipeline.pipeline_stages && pipeline.pipeline_stages.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex gap-1">
-                    {pipeline.pipeline_stages
-                      .sort((a, b) => a.position - b.position)
-                      .slice(0, 5)
-                      .map(stage => (
-                        <div
-                          key={stage.id}
-                          className="h-2 flex-1 rounded-full"
-                          style={{ backgroundColor: stage.color }}
-                          title={stage.name}
-                        />
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Create Pipeline Modal */}
-      {showCreateModal && (
-        <CreatePipelineModal
-          accountId={accountId}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
+      {showCreateModal && <CreatePipelineModal accountId={accountId} onClose={() => setShowCreateModal(false)} onSuccess={handleCreateSuccess} />}
     </div>
   );
 }

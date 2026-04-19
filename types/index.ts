@@ -94,6 +94,9 @@ export interface Contact {
   tags?: string[];
   custom_fields?: Record<string, any>;
   ai_enabled?: boolean;
+  lead_score?: number;
+  funnel_stage?: string;
+  last_intent?: string;
   created_at: string;
   updated_at: string;
 }

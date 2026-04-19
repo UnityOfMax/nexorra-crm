@@ -1,14 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Activity,
-  TrendingUp,
-  Network,
-  CircleDot,
-  CircleOff,
-  ListTodo,
-} from 'lucide-react';
 import { AGENT_DEFINITIONS } from '@/lib/agents/definitions';
 import type { AgentConfig, TabKey } from './types';
 import CompanyLayout from './tabs/CompanyLayout';
@@ -17,16 +9,19 @@ import ClockedOut from './tabs/ClockedOut';
 import TasksTab from './tabs/TasksTab';
 
 // ─── Tab Definitions ───
-const TABS: Array<{ key: TabKey; label: string; icon: typeof Activity }> = [
-  { key: 'layout', label: 'Company Layout', icon: Network },
-  { key: 'clocked-in', label: 'Clocked In', icon: CircleDot },
-  { key: 'clocked-out', label: 'Clocked Out', icon: CircleOff },
-  { key: 'tasks', label: 'Tasks', icon: ListTodo },
+const TABS: Array<{ key: TabKey; label: string }> = [
+  { key: 'layout', label: 'Company Layout' },
+  { key: 'clocked-in', label: 'Clocked In' },
+  { key: 'clocked-out', label: 'Clocked Out' },
+  { key: 'tasks', label: 'Tasks' },
 ];
 
 // ─── Usage Bar ───
 function UsageBar() {
-  const [usage, setUsage] = useState<any>({ window: 0, windowLimit: 2000000, daily: 0, dailyLimit: 5000000, windowRunCount: 0, dailyRunCount: 0 });
+  const [usage, setUsage] = useState<any>({
+    window: 0, windowLimit: 2000000, daily: 0, dailyLimit: 5000000,
+    windowRunCount: 0, dailyRunCount: 0,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -42,24 +37,70 @@ function UsageBar() {
 
   const windowPct = Math.min(100, Math.round((usage.window / Math.max(1, usage.windowLimit)) * 100));
   const dailyPct = Math.min(100, Math.round((usage.daily / Math.max(1, usage.dailyLimit)) * 100));
-  const barColor = (pct: number) => pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-amber-500' : 'bg-emerald-500';
-  const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n);
+
+  const barColor = (pct: number) =>
+    pct > 80 ? 'var(--rose)' : pct > 60 ? 'var(--amber)' : 'var(--green)';
+
+  const fmt = (n: number) =>
+    n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` :
+    n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n);
 
   return (
-    <div className="hidden sm:flex items-center gap-4 text-xs">
-      <div className="flex items-center gap-2">
-        <span className="text-gray-500 dark:text-gray-400">5h window</span>
-        <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${barColor(windowPct)}`} style={{ width: `${Math.max(windowPct, usage.windowRunCount > 0 ? 3 : 0)}%` }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+      {/* 5h window */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, color: 'var(--ink-4)', fontVariantNumeric: 'tabular-nums' }}>
+          5h window
+        </span>
+        <div style={{ width: 80, height: 4, background: 'var(--line)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            background: barColor(windowPct),
+            width: `${Math.max(windowPct, usage.windowRunCount > 0 ? 3 : 0)}%`,
+            transition: 'width 0.4s ease',
+          }} />
         </div>
-        <span className="text-gray-600 dark:text-gray-300 font-mono">{fmt(usage.window)} ({usage.windowRunCount || 0} runs)</span>
+        <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'monospace' }}>
+          {fmt(usage.window)} ({usage.windowRunCount || 0} runs)
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-gray-500 dark:text-gray-400">Today</span>
-        <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${barColor(dailyPct)}`} style={{ width: `${Math.max(dailyPct, usage.dailyRunCount > 0 ? 3 : 0)}%` }} />
+      {/* Today */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, color: 'var(--ink-4)', fontVariantNumeric: 'tabular-nums' }}>
+          Today
+        </span>
+        <div style={{ width: 64, height: 4, background: 'var(--line)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            background: barColor(dailyPct),
+            width: `${Math.max(dailyPct, usage.dailyRunCount > 0 ? 3 : 0)}%`,
+            transition: 'width 0.4s ease',
+          }} />
         </div>
-        <span className="text-gray-600 dark:text-gray-300 font-mono">{fmt(usage.daily)} ({usage.dailyRunCount || 0} runs)</span>
+        <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'monospace' }}>
+          {fmt(usage.daily)} ({usage.dailyRunCount || 0} runs)
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── KPI Card ───
+function KpiCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div style={{
+      background: 'var(--paper)',
+      border: '1px solid var(--line)',
+      borderRadius: 12,
+      padding: '16px 20px',
+      flex: '1 1 0',
+      minWidth: 120,
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: accent || 'var(--ink)', lineHeight: 1 }}>
+        {value}
       </div>
     </div>
   );
@@ -70,6 +111,9 @@ export default function CommandCenterV2() {
   const [activeTab, setActiveTab] = useState<TabKey>('layout');
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<any>({
+    daily: 0, dailyLimit: 5000000, dailyRunCount: 0,
+  });
 
   // Fetch agents
   const fetchAgents = useCallback(async () => {
@@ -82,6 +126,19 @@ export default function CommandCenterV2() {
     } catch {} finally {
       setLoading(false);
     }
+  }, []);
+
+  // Fetch usage for KPI cards
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/usage/stats');
+        if (res.ok) setUsage(await res.json());
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
   }, []);
 
   const hasRunning = agents.some(a => a.latest_run?.status === 'running');
@@ -118,71 +175,116 @@ export default function CommandCenterV2() {
 
   const totalAgents = Object.keys(AGENT_DEFINITIONS).length;
 
+  const successRuns = agents.filter(a => a.latest_run?.status === 'completed').length;
+  const completedRuns = agents.filter(a => a.latest_run?.status === 'completed' || a.latest_run?.status === 'failed').length;
+  const successRate = completedRuns > 0 ? Math.round((successRuns / completedRuns) * 100) : 100;
+
+  const fmtTokens = (n: number) =>
+    n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` :
+    n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n);
+
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#1c1c1e] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
-      {/* Top Bar: Stats + Usage */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-[#0d0d0e] border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Active</span>
-            <span className={`text-xs font-bold ${runningCount > 0 ? 'text-green-500' : 'text-gray-400'}`}>
-              {runningCount}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Today</span>
-            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{todayRuns}</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Agents</span>
-            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{totalAgents}</span>
-          </div>
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'var(--paper)', borderRadius: 12,
+      border: '1px solid var(--line)', overflow: 'hidden',
+    }}>
+      {/* ── Header ── */}
+      <div style={{
+        padding: '24px 28px 0',
+        background: 'var(--paper-2)',
+        borderBottom: '1px solid var(--line)',
+      }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0, lineHeight: 1.2 }}>
+          Command Center
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--ink-4)', margin: '4px 0 20px' }}>
+          Orchestrate AI agents across the delivery stack.
+        </p>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+          <KpiCard
+            label="Active agents"
+            value={`${runningCount} active`}
+            accent={runningCount > 0 ? 'var(--green)' : 'var(--ink-3)'}
+          />
+          <KpiCard
+            label="Runs today"
+            value={String(usage.dailyRunCount || todayRuns)}
+          />
+          <KpiCard
+            label="Token usage"
+            value={fmtTokens(usage.daily || 0)}
+          />
+          <KpiCard
+            label="Success rate"
+            value={`${successRate}%`}
+            accent={successRate >= 90 ? 'var(--green)' : successRate >= 70 ? 'var(--amber)' : 'var(--rose)'}
+          />
         </div>
-        <UsageBar />
+
+        {/* Tab Switcher */}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.key;
+            const badge = tab.key === 'clocked-in' ? runningCount : null;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 99,
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  border: isActive ? '1px solid var(--ink)' : '1px solid transparent',
+                  background: isActive ? 'var(--ink)' : 'transparent',
+                  color: isActive ? 'var(--paper)' : 'var(--ink-3)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tab.label}
+                {badge != null && badge > 0 && (
+                  <span style={{
+                    background: 'var(--green)',
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: 99,
+                    padding: '1px 5px',
+                    minWidth: 16,
+                    textAlign: 'center',
+                  }}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Usage Bar */}
+        <div style={{ padding: '10px 0 14px' }}>
+          <UsageBar />
+        </div>
       </div>
 
-      {/* Tab Switcher: pill-style */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1c1c1e] overflow-x-auto mobile-scroll">
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.key;
-          const Icon = tab.icon;
-          const badge = tab.key === 'clocked-in' ? runningCount : null;
-
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-white/4'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-              {badge != null && badge > 0 && (
-                <span className={`min-w-[16px] h-4 rounded-full text-[10px] font-bold flex items-center justify-center px-1 ${
-                  isActive
-                    ? 'bg-green-500 text-white dark:bg-green-500 dark:text-white'
-                    : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                }`}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tab Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      {/* ── Tab Content ── */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
-              <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading agents...</span>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--ink-4)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+                </path>
+              </svg>
+              <span style={{ fontSize: 13 }}>Loading agents...</span>
             </div>
           </div>
         ) : (
