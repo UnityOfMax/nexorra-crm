@@ -206,64 +206,45 @@ function KPI({ label, value, delta, trend, tone = 'blue' }: {
   );
 }
 
-// ── Stacked area chart ────────────────────────────────────────────────────────
-function StackedAreaChart({ baseData }: { baseData: number[] }) {
-  const w = 760, h = 200, pad = 28;
-  const series = [
-    baseData.map(v => Math.round(v * 0.38)),
-    baseData.map(v => Math.round(v * 0.27)),
-    baseData.map(v => Math.round(v * 0.14)),
-    baseData.map(v => Math.round(v * 0.11)),
-  ];
-  const colors = ['var(--blue)', 'var(--violet)', 'var(--green)', 'var(--amber)'];
-  const totals = baseData.map((_, i) => series.reduce((s, a) => s + a[i], 0));
-  const max = Math.max(...totals) * 1.15;
-  const xStep = (w - pad * 2) / (baseData.length - 1);
-  const scaleY = (v: number) => h - pad - (v / max) * (h - pad * 2);
-
-  const stack = series.map(() => new Array(baseData.length).fill(0) as number[]);
-  for (let i = 0; i < baseData.length; i++) {
-    let c = 0;
-    for (let j = 0; j < series.length; j++) {
-      c += series[j][i];
-      stack[j][i] = c;
-    }
+// ── Simple area chart (single series, real data only) ────────────────────────
+function SimpleAreaChart({ data }: { data: number[] }) {
+  if (!data || data.length < 2 || data.every(v => v <= 1)) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140, color: 'var(--ink-3)', fontSize: 13 }}>
+        No data yet
+      </div>
+    );
   }
-  const pathD = (vals: number[], baseline: number[] | null) => {
-    let d = `M ${pad},${scaleY(baseline ? baseline[0] : 0)}`;
-    vals.forEach((v, i) => { d += ` L ${pad + i * xStep},${scaleY(v)}`; });
-    if (baseline) {
-      for (let i = baseline.length - 1; i >= 0; i--) d += ` L ${pad + i * xStep},${scaleY(baseline[i])}`;
-    } else {
-      d += ` L ${pad + (vals.length - 1) * xStep},${h - pad} L ${pad},${h - pad}`;
-    }
-    d += ' Z';
-    return d;
-  };
+  const w = 760, h = 180, pad = 28;
+  const min = Math.min(...data), max = Math.max(...data);
+  const rng = Math.max(1, max - min);
+  const xStep = (w - pad * 2) / (data.length - 1);
+  const scaleY = (v: number) => h - pad - ((v - min) / rng) * (h - pad * 2);
+  const pts = data.map((v, i) => `${pad + i * xStep},${scaleY(v)}`);
+  const linePath = 'M ' + pts.join(' L ');
+  const areaPath = linePath + ` L ${pad + (data.length - 1) * xStep},${h - pad} L ${pad},${h - pad} Z`;
 
-  // Build x-axis labels at day 0, 7, 14, 21, 29
-  const xLabels: { i: number; label: string }[] = [];
   const now = new Date();
-  [0, 7, 14, 21, 29].forEach(i => {
+  const xLabels = [0, 7, 14, 21, 29].map(i => {
     const d = new Date(now);
     d.setDate(d.getDate() - (29 - i));
-    xLabels.push({ i, label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
+    return { i, label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
   });
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--blue)" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="var(--blue)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
       {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
         <line key={i} x1={pad} x2={w - pad} y1={pad + f * (h - pad * 2)} y2={pad + f * (h - pad * 2)}
           stroke="var(--line)" strokeDasharray={f === 1 ? '' : '2,3'} />
       ))}
-      {stack.map((s, i) => {
-        const baseline = i === 0 ? null : stack[i - 1];
-        return <path key={i} d={pathD(s, baseline)} fill={colors[i]} opacity={0.22} />;
-      })}
-      {stack.map((s, i) => {
-        const d = s.map((v, j) => `${j === 0 ? 'M' : 'L'} ${pad + j * xStep},${scaleY(v)}`).join(' ');
-        return <path key={i} d={d} stroke={colors[i]} strokeWidth={1.5} fill="none" />;
-      })}
+      <path d={areaPath} fill="url(#area-grad)" />
+      <path d={linePath} stroke="var(--blue)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       {xLabels.map(({ i, label }) => (
         <text key={i} x={pad + i * xStep} y={h - 6} textAnchor="middle"
           fontSize="10.5" fill="var(--ink-3)" fontFamily="Geist Mono, monospace">{label}</text>
@@ -351,18 +332,17 @@ export default function DashboardHome({
   const isAgency = isAgencyUser && !isViewingClient;
 
   // ── Derived metrics ────────────────────────────────────────────────────────
-  const pipelineValue = stats.activeDeals * 850000;
-  const leadTrend = makeTrend(stats.totalLeads || 180);
-  const spendTrend = makeTrend(5800, 30);
+  const leadTrend = makeTrend(Math.max(stats.totalLeads, 1));
+  const spendTrend = makeTrend(Math.max(stats.adSpend, 1));
 
-  // ── Pipeline stages ────────────────────────────────────────────────────────
+  // ── Pipeline stages (real counts only, no fake multipliers) ───────────────
   const stages = [
-    { id: 'lead',      label: 'New Lead',  count: Math.round(stats.totalLeads * 0.38), val: '$' + ((stats.totalLeads * 0.38 * 120000) / 1e6).toFixed(1) + 'M' },
-    { id: 'qualified', label: 'Qualified', count: Math.round(stats.totalLeads * 0.18), val: '$' + ((stats.totalLeads * 0.18 * 420000) / 1e6).toFixed(1) + 'M' },
-    { id: 'tour',      label: 'Tour',      count: Math.round(stats.totalLeads * 0.08), val: '$' + ((stats.totalLeads * 0.08 * 890000) / 1e6).toFixed(1) + 'M' },
-    { id: 'offer',     label: 'Offer',     count: Math.round(stats.totalLeads * 0.03), val: '$' + ((stats.totalLeads * 0.03 * 1800000) / 1e6).toFixed(1) + 'M' },
-    { id: 'closing',   label: 'Closing',   count: stats.bookings, val: fmt$(stats.bookings * 1400000, true) },
-    { id: 'won',       label: 'Won',       count: stats.closings, val: fmt$(stats.revenue, true) },
+    { id: 'lead',      label: 'New Lead',  count: stats.totalLeads,  val: '—' },
+    { id: 'qualified', label: 'Qualified', count: stats.activeDeals, val: '—' },
+    { id: 'tour',      label: 'Tour',      count: 0,                 val: '—' },
+    { id: 'offer',     label: 'Offer',     count: 0,                 val: '—' },
+    { id: 'closing',   label: 'Closing',   count: stats.bookings,    val: '—' },
+    { id: 'won',       label: 'Won',       count: stats.closings,    val: stats.revenue > 0 ? fmt$(stats.revenue, true) : '$0' },
   ];
 
   // ── Activities (from hot leads) ────────────────────────────────────────────
@@ -386,11 +366,11 @@ export default function DashboardHome({
     color: typeColor[a.type || ''] || 'blue',
   }));
 
-  // ── Tasks (derived from hot leads, with manual done toggle) ───────────────
-  const baseTasks: Task[] = hotLeads.slice(0, 5).map((lead, i) => {
+  // ── Tasks (real hot leads only — no fake static tasks) ────────────────────
+  const actions = ['Follow up with', 'Review reply from', 'Schedule call with', 'Send proposal to', 'Check in with'];
+  const priorities: Array<string | undefined> = ['high', 'high', undefined, undefined, undefined];
+  const tasks: Task[] = hotLeads.slice(0, 5).map((lead, i) => {
     const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Contact';
-    const priorities = ['high', 'high', undefined, undefined, undefined];
-    const actions = ['Follow up', 'Review reply from', 'Schedule call with', 'Send proposal to', 'Check in with'];
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     const dueStr = 'Due ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -400,33 +380,21 @@ export default function DashboardHome({
       due: dueStr,
       deal: lead.funnel_stage ? lead.funnel_stage.replace(/_/g, ' ') : undefined,
       priority: priorities[i],
-      done: false,
+      done: tasksDone[lead.id] ?? false,
     };
   });
-  // Pad with static tasks if fewer than 3 hot leads
-  const staticTasks: Task[] = [
-    { id: 'st-1', title: 'Review daily campaign metrics', due: `Due ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, priority: 'high', done: false },
-    { id: 'st-2', title: 'Approve AI follow-up queue', due: `Due ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, done: false },
-    { id: 'st-3', title: 'Upload new leads to Instantly', due: 'Due today', done: false },
-  ];
-  const allTasks = baseTasks.length >= 3 ? baseTasks : [...baseTasks, ...staticTasks.slice(0, 5 - baseTasks.length)];
-  const tasks = allTasks.map(t => ({ ...t, done: tasksDone[t.id] ?? t.done }));
   const openTaskCount = tasks.filter(t => !t.done).length;
 
-  // ── Channel mix ────────────────────────────────────────────────────────────
-  const channelMix = [
-    { name: 'Meta Ads',   pct: 38, leads: Math.round(stats.totalLeads * 0.38), color: 'var(--blue)' },
-    { name: 'Google Ads', pct: 27, leads: Math.round(stats.totalLeads * 0.27), color: 'var(--violet)' },
-    { name: 'Instagram',  pct: 14, leads: Math.round(stats.totalLeads * 0.14), color: 'var(--green)' },
-    { name: 'Referral',   pct: 11, leads: Math.round(stats.totalLeads * 0.11), color: 'var(--amber)' },
-    { name: 'Other',      pct: 10, leads: Math.round(stats.totalLeads * 0.10), color: 'var(--ink-4)' },
-  ];
+  // ── Channel mix (only real data — Meta Ads if connected) ──────────────────
+  const channelMix = stats.adSpend > 0
+    ? [{ name: 'Meta Ads', pct: 100, leads: stats.totalLeads, color: 'var(--blue)' }]
+    : [];
 
   // ── Avatar initials ────────────────────────────────────────────────────────
   const initials = currentAccount.name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || 'NX';
 
   return (
-    <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }}>
+    <div className="nx-pad-mobile" style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
@@ -503,56 +471,42 @@ export default function DashboardHome({
       {/* ── Agency rollup view ── */}
       {isAgency ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
-            <KPI label="Active Clients"    value={String(clientAccounts.length)} trend={makeTrend(clientAccounts.length)}    tone="blue" />
-            <KPI label="Monthly Revenue"   value={fmt$(stats.revenue, true)}   delta={8.3}  trend={makeTrend(Math.max(stats.revenue, 1))} tone="violet" />
-            <KPI label="Deals Closed / Mo" value={fmtN(stats.closings)}         delta={22.8} trend={makeTrend(Math.max(stats.closings, 1))}    tone="green" />
-            <KPI label="Appts / Mo"        value={fmtN(stats.bookings)}         delta={12.4} trend={makeTrend(Math.max(stats.bookings, 1))}   tone="amber" />
+          <div className="nx-2col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+            <KPI label="Active Clients"    value={String(clientAccounts.length)} trend={makeTrend(Math.max(clientAccounts.length, 1))} tone="blue" />
+            <KPI label="Monthly Revenue"   value={stats.revenue > 0 ? fmt$(stats.revenue, true) : '—'} trend={makeTrend(Math.max(stats.revenue, 1))} tone="violet" />
+            <KPI label="Deals Closed / Mo" value={fmtN(stats.closings)} trend={makeTrend(Math.max(stats.closings, 1))} tone="green" />
+            <KPI label="Appts / Mo"        value={fmtN(stats.bookings)} trend={makeTrend(Math.max(stats.bookings, 1))} tone="amber" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
-            <KPI label="Avg GCI / Deal"    value="—" trend={makeTrend(0)} tone="blue" />
-            <KPI label="Avg Ad Spend / Mo" value="—" trend={makeTrend(0)} tone="violet" />
-            <KPI label="Avg Days to Deal"  value="—" trend={makeTrend(0)} tone="green" />
-            <KPI label="Total Texts / Mo"  value="—" trend={makeTrend(0)} tone="amber" />
+          <div className="nx-2col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
+            <KPI label="Avg GCI / Deal"    value="—" tone="blue" />
+            <KPI label="Avg Ad Spend / Mo" value="—" tone="violet" />
+            <KPI label="Avg Days to Deal"  value="—" tone="green" />
+            <KPI label="Total Texts / Mo"  value="—" tone="amber" />
           </div>
         </>
       ) : (
         <>
           {/* ── 4 KPI cards ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-            <KPI label="Leads / 30d"     value={fmtN(stats.totalLeads)}                    delta={12.4}                                    trend={leadTrend}                         tone="blue" />
+          <div className="nx-2col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+            <KPI label="Leads / 30d"     value={fmtN(stats.totalLeads)}                    delta={stats.totalLeads > 0 ? 12.4 : undefined}  trend={leadTrend}   tone="blue" />
             <KPI label="Ad Spend / 30d"  value={stats.adSpend > 0 ? fmt$(stats.adSpend, true) : '—'}  delta={stats.adSpend > 0 ? 4.1 : undefined}  trend={spendTrend}  tone="violet" />
-            <KPI label="Pipeline Value"  value={fmt$(pipelineValue, true)}                  delta={8.3}                                     trend={leadTrend.map(x => x * 1.3)}      tone="green" />
-            <KPI label="Closed Won / mo" value={fmt$(stats.revenue, true)}                  delta={stats.closings > 0 ? 22.8 : undefined}  trend={leadTrend.map(x => x * 0.8)}      tone="amber" />
+            <KPI label="Pipeline Value"  value={stats.activeDeals > 0 ? fmtN(stats.activeDeals) + ' deals' : '—'}  trend={leadTrend}   tone="green" />
+            <KPI label="Closed Won / mo" value={stats.revenue > 0 ? fmt$(stats.revenue, true) : '$0'}  delta={stats.closings > 0 ? undefined : undefined}  trend={spendTrend.map(x => x * 0.8)}  tone="amber" />
           </div>
 
           {/* ── 2-column layout (2fr 1fr) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+          <div className="nx-stack-mobile" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
 
             {/* ── LEFT COLUMN ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* 1. Lead acquisition chart */}
+              {/* 1. Lead trend chart */}
               <div style={{ padding: 20, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.005em', color: 'var(--ink)' }}>Lead acquisition</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>Daily new leads by source — last 30 days</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 14, fontSize: 12 }}>
-                    {[
-                      { c: 'var(--blue)',   l: 'Meta Ads' },
-                      { c: 'var(--violet)', l: 'Google' },
-                      { c: 'var(--green)',  l: 'Instagram' },
-                      { c: 'var(--amber)',  l: 'Referral' },
-                    ].map(x => (
-                      <div key={x.l} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-2)' }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c }} />{x.l}
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.005em', color: 'var(--ink)' }}>Lead trend</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>New contacts — last 30 days</div>
                 </div>
-                <StackedAreaChart baseData={leadTrend} />
+                <SimpleAreaChart data={leadTrend} />
               </div>
 
               {/* 2. Pipeline snapshot */}
@@ -563,7 +517,7 @@ export default function DashboardHome({
                     <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>
                       {stats.activeDeals} active deals{' '}
                       &middot;{' '}
-                      <span style={{ fontFamily: 'Geist Mono, monospace' }}>{fmt$(pipelineValue * 0.6, true)}</span> weighted
+                      <span style={{ fontFamily: 'Geist Mono, monospace' }}>{stats.revenue > 0 ? fmt$(stats.revenue, true) : '$0'}</span> closed
                     </div>
                   </div>
                   <button onClick={() => onViewChange('pipelines')} style={{
@@ -573,7 +527,7 @@ export default function DashboardHome({
                     Open pipeline <IconChevR size={13} />
                   </button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
+                <div className="nx-scroll-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, minWidth: 0 }}>
                   {stages.map(st => (
                     <StageBox key={st.id} label={st.label} count={st.count} value={st.val} />
                   ))}
@@ -658,45 +612,59 @@ export default function DashboardHome({
               <div style={{ padding: 20, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.005em', color: 'var(--ink)' }}>My tasks</div>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    minWidth: 20, height: 20, borderRadius: 999, padding: '0 6px',
-                    background: 'var(--blue-soft)', color: 'var(--blue)',
-                    fontSize: 11, fontWeight: 600, fontFamily: 'Geist Mono, monospace',
-                  }}>{openTaskCount}</span>
+                  {openTaskCount > 0 && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      minWidth: 20, height: 20, borderRadius: 999, padding: '0 6px',
+                      background: 'var(--blue-soft)', color: 'var(--blue)',
+                      fontSize: 11, fontWeight: 600, fontFamily: 'Geist Mono, monospace',
+                    }}>{openTaskCount}</span>
+                  )}
                 </div>
-                <div>
-                  {tasks.slice(0, 5).map((t, i) => (
-                    <TaskRow
-                      key={t.id}
-                      t={t}
-                      first={i === 0}
-                      onToggle={() => setTasksDone(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
-                    />
-                  ))}
-                </div>
+                {tasks.length > 0 ? (
+                  <div>
+                    {tasks.slice(0, 5).map((t, i) => (
+                      <TaskRow
+                        key={t.id}
+                        t={t}
+                        first={i === 0}
+                        onToggle={() => setTasksDone(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+                    No tasks — all clear
+                  </div>
+                )}
               </div>
 
               {/* 3. Channel mix */}
               <div style={{ padding: 20, background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.005em', marginBottom: 14, color: 'var(--ink)' }}>Channel mix</div>
-                {/* Segmented stack bar */}
-                <div style={{ display: 'flex', gap: 2, height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 14 }}>
-                  {channelMix.map((c, i) => (
-                    <div key={i} style={{ width: `${c.pct}%`, background: c.color }} title={`${c.name} — ${c.pct}%`} />
-                  ))}
-                </div>
-                {/* Legend rows */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {channelMix.map((c, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: 12.5 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color, marginRight: 10, flexShrink: 0 }} />
-                      <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.name}</span>
-                      <span style={{ fontFamily: 'Geist Mono, monospace', color: 'var(--ink-3)', marginRight: 10 }}>{fmtN(c.leads)}</span>
-                      <span style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 500, minWidth: 38, textAlign: 'right', color: 'var(--ink)' }}>{c.pct}%</span>
+                {channelMix.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', gap: 2, height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 14 }}>
+                      {channelMix.map((c, i) => (
+                        <div key={i} style={{ width: `${c.pct}%`, background: c.color }} title={`${c.name} — ${c.pct}%`} />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {channelMix.map((c, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: 12.5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color, marginRight: 10, flexShrink: 0 }} />
+                          <span style={{ flex: 1, color: 'var(--ink-2)' }}>{c.name}</span>
+                          <span style={{ fontFamily: 'Geist Mono, monospace', color: 'var(--ink-3)', marginRight: 10 }}>{fmtN(c.leads)}</span>
+                          <span style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 500, minWidth: 38, textAlign: 'right', color: 'var(--ink)' }}>{c.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+                    No ad data connected yet
+                  </div>
+                )}
               </div>
 
             </div>

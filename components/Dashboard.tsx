@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-browser';
 import { Account, Contact } from '@/types';
-import Sidebar, { MobileBottomNav } from './Sidebar';
+import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import SubAccountsView from './agency/SubAccountsView';
 import SubaccountsOverview from './agency/SubaccountsOverview';
@@ -606,21 +606,12 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           onMenu={() => setMobileNavOpen(v => !v)}
         />
 
-        <main style={{ flex: 1, overflowY: 'auto', color: 'var(--ink)', paddingBottom: isMobile ? 70 : 0 }}>
+        <main style={{ flex: 1, overflowY: 'auto', color: 'var(--ink)' }}>
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>
         </main>
       </div>
-
-      {/* Mobile bottom nav */}
-      {isMobile && (
-        <MobileBottomNav
-          activeView={activeView}
-          onViewChange={setActiveView}
-          isAgencyAccount={isAgencyUser && !isViewingClient}
-        />
-      )}
     </div>
   );
 }
