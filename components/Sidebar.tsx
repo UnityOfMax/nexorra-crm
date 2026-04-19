@@ -375,12 +375,6 @@ const CLIENT_CRM = [
   { id: 'calendar',      label: 'Calendar',      icon: <IcoCalendar /> },
   { id: 'pipelines',     label: 'Opportunities', icon: <IcoPipeline /> },
 ];
-const CLIENT_TOOLS = [
-  { id: 'workflows', label: 'Workflows',     icon: <IcoZap /> },
-  { id: 'pages',     label: 'Landing Pages', icon: <IcoFile /> },
-  { id: 'analytics', label: 'Analytics',     icon: <IcoChart /> },
-  { id: 'ai-agent',  label: 'AI Agent',      icon: <IcoBot />, badge: { label: 'NEW', tone: 'violet' } },
-];
 
 // ── Sidebar props ──────────────────────────────────────────────────────────
 export interface SidebarProps {
@@ -473,10 +467,7 @@ export default function Sidebar({
             <NavSection label="Agency" items={AGENCY_SECTION} activeView={activeView} onViewChange={onViewChange} collapsed={collapsed} />
           </>
         ) : (
-          <>
-            <NavSection label="CRM" items={CLIENT_CRM} activeView={activeView} onViewChange={onViewChange} collapsed={collapsed} />
-            <NavSection label="Tools" items={CLIENT_TOOLS} activeView={activeView} onViewChange={onViewChange} collapsed={collapsed} />
-          </>
+          <NavSection label="CRM" items={CLIENT_CRM} activeView={activeView} onViewChange={onViewChange} collapsed={collapsed} />
         )}
       </nav>
 

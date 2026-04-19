@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-browser';
 import { Account, Contact } from '@/types';
-import Sidebar from './Sidebar';
+import Sidebar, { MobileBottomNav } from './Sidebar';
 import TopBar from './TopBar';
 import SubAccountsView from './agency/SubAccountsView';
 import SubaccountsOverview from './agency/SubaccountsOverview';
@@ -89,7 +89,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   const [todayActivities, setTodayActivities] = useState<Array<{
     id: string; title: string; type: string | null; scheduled_at: string | null; description: string | null;
   }>>([]);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 900 : false
+  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Track whether initial URL state has been restored (prevent overwriting URL on first load)
   const urlRestoredRef = useRef(false);
@@ -310,85 +312,49 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   const loadStats = async () => {
     if (!currentAccount) return;
 
-    // Use admin-backed API for the same RLS bypass reason as loadContacts
-    const contactsRes = await fetch(`/api/contacts?accountId=${currentAccount.id}`);
-    const contactsJson = contactsRes.ok ? await contactsRes.json() : {};
-    const contactsData: { id: string; status: string }[] = contactsJson.contacts || [];
-
-    const totalLeads = contactsData?.filter(c => c.status === 'lead').length || 0;
-
-    const { data: dealsData } = await supabase
-      .from('deals')
-      .select('status')
-      .eq('account_id', currentAccount.id)
-      .eq('status', 'open');
-
-    // New stats: emails sent, texts sent, bookings, closings, revenue
-    const { count: emailsSent } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('account_id', currentAccount.id)
-      .eq('type', 'email')
-      .eq('direction', 'outbound');
-
-    const { count: textsSent } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('account_id', currentAccount.id)
-      .eq('type', 'sms')
-      .eq('direction', 'outbound');
-
-    const { count: bookingsCount } = await supabase
-      .from('activities')
-      .select('*', { count: 'exact', head: true })
-      .eq('account_id', currentAccount.id)
-      .eq('type', 'meeting');
-
-    const { data: wonDeals } = await supabase
-      .from('deals')
-      .select('value')
-      .eq('account_id', currentAccount.id)
-      .eq('status', 'won');
-
-    const closingsCount = wonDeals?.length || 0;
-    const totalRevenue = wonDeals?.reduce((sum, d) => sum + (d.value || 0), 0) || 0;
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const { data: metaRows } = await supabase
-      .from('meta_ad_metrics')
-      .select('spend')
-      .eq('account_id', currentAccount.id)
-      .gte('date', thirtyDaysAgo.toISOString().slice(0, 10));
-    const adSpend = metaRows?.reduce((s, r) => s + (r.spend || 0), 0) || 0;
-
-    // Fetch today's activities for the schedule card (real data, no placeholders)
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const { data: todayActivitiesData } = await supabase
-      .from('activities')
-      .select('id, title, type, scheduled_at, description')
-      .eq('account_id', currentAccount.id)
-      .gte('scheduled_at', todayStart.toISOString())
-      .lte('scheduled_at', todayEnd.toISOString())
-      .order('scheduled_at', { ascending: true })
-      .limit(10);
-    setTodayActivities(todayActivitiesData || []);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    if (contactsData) {
-      setStats({
-        totalContacts: contactsData.length,
-        totalLeads: totalLeads,
-        totalCustomers: contactsData.filter((c) => c.status === 'customer').length,
-        activeDeals: dealsData?.length || 0,
-        emailsSent: emailsSent || 0,
-        textsSent: textsSent || 0,
-        bookings: bookingsCount || 0,
-        closings: closingsCount,
-        revenue: totalRevenue,
-        adSpend,
-      });
-    }
+    const [
+      contactsJson,
+      { data: dealsData },
+      { count: emailsSent },
+      { count: textsSent },
+      { count: bookingsCount },
+      { data: wonDeals },
+      { data: metaRows },
+      { data: todayActivitiesData },
+    ] = await Promise.all([
+      fetch(`/api/contacts?accountId=${currentAccount.id}`).then(r => r.ok ? r.json() : {}),
+      supabase.from('deals').select('status').eq('account_id', currentAccount.id).eq('status', 'open'),
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('account_id', currentAccount.id).eq('type', 'email').eq('direction', 'outbound'),
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('account_id', currentAccount.id).eq('type', 'sms').eq('direction', 'outbound'),
+      supabase.from('activities').select('*', { count: 'exact', head: true }).eq('account_id', currentAccount.id).eq('type', 'meeting'),
+      supabase.from('deals').select('value').eq('account_id', currentAccount.id).eq('status', 'won'),
+      supabase.from('meta_ad_metrics').select('spend').eq('account_id', currentAccount.id).gte('date', thirtyDaysAgo.toISOString().slice(0, 10)),
+      supabase.from('activities').select('id, title, type, scheduled_at, description').eq('account_id', currentAccount.id).gte('scheduled_at', todayStart.toISOString()).lte('scheduled_at', todayEnd.toISOString()).order('scheduled_at', { ascending: true }).limit(10),
+    ]);
+
+    const contactsData: { id: string; status: string }[] = contactsJson.contacts || [];
+    const closingsCount = wonDeals?.length || 0;
+    const totalRevenue = wonDeals?.reduce((sum, d) => sum + (d.value || 0), 0) || 0;
+    const adSpend = metaRows?.reduce((s, r) => s + (r.spend || 0), 0) || 0;
+
+    setTodayActivities(todayActivitiesData || []);
+    setStats({
+      totalContacts: contactsData.length,
+      totalLeads: contactsData.filter(c => c.status === 'lead').length,
+      totalCustomers: contactsData.filter(c => c.status === 'customer').length,
+      activeDeals: dealsData?.length || 0,
+      emailsSent: emailsSent || 0,
+      textsSent: textsSent || 0,
+      bookings: bookingsCount || 0,
+      closings: closingsCount,
+      revenue: totalRevenue,
+      adSpend,
+    });
   };
 
   const handleSignOut = async () => {
@@ -584,8 +550,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     <div data-nx-mobile={isMobile ? 'true' : 'false'} style={{ display: 'flex', height: '100dvh', background: 'var(--paper)', position: 'relative', overflow: 'hidden' }}>
       {currentAccount && <PushNotificationSetup accountId={currentAccount.id} />}
 
-      {/* Desktop sidebar — hidden on mobile via nx-hide-mobile */}
-      <div className="nx-hide-mobile" style={{ display: 'contents' }}>
+      {/* Desktop sidebar — only rendered on desktop */}
+      {!isMobile && (
         <Sidebar
           activeView={activeView}
           onViewChange={setActiveView}
@@ -599,7 +565,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           collapsed={sidebarCollapsed}
           onCollapsedChange={handleSidebarCollapse}
         />
-      </div>
+      )}
 
       {/* Mobile overlay backdrop */}
       {mobileNavOpen && (
@@ -640,13 +606,21 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           onMenu={() => setMobileNavOpen(v => !v)}
         />
 
-        <main style={{ flex: 1, overflowY: 'auto', color: 'var(--ink)' }}>
+        <main style={{ flex: 1, overflowY: 'auto', color: 'var(--ink)', paddingBottom: isMobile ? 70 : 0 }}>
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>
         </main>
       </div>
 
+      {/* Mobile bottom nav */}
+      {isMobile && (
+        <MobileBottomNav
+          activeView={activeView}
+          onViewChange={setActiveView}
+          isAgencyAccount={isAgencyUser && !isViewingClient}
+        />
+      )}
     </div>
   );
 }

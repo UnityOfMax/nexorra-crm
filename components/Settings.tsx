@@ -480,8 +480,8 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         </div>
       )}
 
-      {/* Twilio */}
-      <div style={S.integrationCard}>
+      {/* Twilio — agency only */}
+      {isAgencyUser && <div style={S.integrationCard}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'color-mix(in srgb, var(--rose) 12%, var(--paper-2))', border: '1px solid color-mix(in srgb, var(--rose) 20%, var(--line))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--rose)' }}>
@@ -506,7 +506,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
               </div>
             </div>
           )}
-      </div>
+      </div>}
     </div>
   );
 
@@ -572,8 +572,8 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
           </div>
         )}
         <div style={S.divider} />
-        {/* Telegram alerts */}
-        <div>
+        {/* Telegram alerts — agency only */}
+        {isAgencyUser && <div>
           <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Telegram Alerts</p>
           <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--ink-3)' }}>Get Telegram notifications when hot leads reply</p>
           <label style={S.label}>Chat ID</label>
@@ -600,7 +600,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
               {alertsSaved ? 'Saved!' : 'Save Notifications'}
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     );
   };
@@ -634,7 +634,9 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 28 }} className="nx-settings-layout">
           {/* Left nav */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {NAV_SECTIONS.map(sec => (
+            {NAV_SECTIONS.filter(sec =>
+              isAgencyUser || ['general', 'preferences', 'integrations', 'notifications'].includes(sec.id)
+            ).map(sec => (
               <button key={sec.id} onClick={() => setActiveSection(sec.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none',
                 background: activeSection === sec.id ? 'var(--paper-3)' : 'transparent',

@@ -114,12 +114,9 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to move deal');
-      }
-
-      // Reload deals to get updated data
-      await loadDeals();
+      if (!response.ok) throw new Error('Failed to move deal');
+      // Update deals array to match the optimistic UI (skip full reload)
+      setDeals(prev => prev.map(d => d.id === dealId ? { ...d, pipeline_stage_id: destStageId } : d));
     } catch (error) {
       console.error('Error moving deal:', error);
       // Revert optimistic update on error
