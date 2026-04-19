@@ -579,8 +579,8 @@ export default function AIAgent({ accountId }: AIAgentProps) {
       {activeTab === 'kb' && (<>
         <div className="card">
           <div className="mb-4">
-            <h3 className="font-semibold text-gray-900">Knowledge Base</h3>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Knowledge Base</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Facts the AI always has access to — markets, commissions, FAQs, objection handling.
             </p>
           </div>
@@ -602,7 +602,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
         <div className="card">
           <button
             onClick={() => setKbLearningsOpen(v => !v)}
-            className="w-full flex items-center justify-between text-sm font-medium text-gray-700"
+            className="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300"
           >
             <span className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-primary-500" />
@@ -612,7 +612,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
             {kbLearningsOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
           </button>
           {kbLearningsOpen && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/10">
               <p className="text-xs text-gray-400 italic">
                 Learnings from past conversations will appear here automatically as the AI processes replies.
               </p>

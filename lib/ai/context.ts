@@ -13,6 +13,25 @@ export interface AIContext {
   availableSlots: string;   // account's open slots to offer
 }
 
+// Build a Date representing `hour:00:00` in the given timezone on the same
+// calendar day as `baseDate`. Works correctly on Vercel (server = UTC).
+function slotInTimezone(baseDate: Date, hour: number, timezone: string): Date {
+  // Get the calendar date in the target timezone
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: timezone,
+  }).formatToParts(baseDate);
+  const y = parts.find(p => p.type === 'year')!.value;
+  const mo = parts.find(p => p.type === 'month')!.value;
+  const d = parts.find(p => p.type === 'day')!.value;
+  // Parse the target local datetime as UTC-naive, then apply the TZ offset
+  const naiveMs = Date.parse(`${y}-${mo}-${d}T${String(hour).padStart(2, '0')}:00:00Z`);
+  const naiveDate = new Date(naiveMs);
+  // Offset = UTC interpretation of the local-in-TZ time minus UTC-naive parse
+  const asUTC = new Date(naiveDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const asTZ  = new Date(naiveDate.toLocaleString('en-US', { timeZone: timezone }));
+  return new Date(naiveMs + (asUTC.getTime() - asTZ.getTime()));
+}
+
 function computeAvailableSlots(
   existingMeetings: Array<{ due_date: string }>,
   timezone: string,
@@ -21,16 +40,17 @@ function computeAvailableSlots(
   const busyMs = existingMeetings.map(m => new Date(m.due_date).getTime());
   const slots: string[] = [];
   const now = new Date();
+  const dowFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: timezone });
 
   for (let dayOffset = 0; dayOffset <= 14 && slots.length < maxSlots; dayOffset++) {
     const day = new Date(now);
-    day.setDate(day.getDate() + dayOffset);
-    const dow = day.getDay();
-    if (dow === 0 || dow === 6) continue; // skip weekends
+    day.setUTCDate(day.getUTCDate() + dayOffset);
+    // Weekend check in account timezone
+    const dow = dowFmt.format(day);
+    if (dow === 'Sat' || dow === 'Sun') continue;
 
     for (const hour of [9, 10, 11, 13, 14, 15]) {
-      const slot = new Date(day);
-      slot.setHours(hour, 0, 0, 0);
+      const slot = slotInTimezone(day, hour, timezone);
 
       // Must be at least 2 hours from now
       if (slot.getTime() < now.getTime() + 2 * 60 * 60 * 1000) continue;

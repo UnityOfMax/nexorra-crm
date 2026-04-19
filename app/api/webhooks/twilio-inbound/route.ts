@@ -43,65 +43,65 @@ export async function POST(req: NextRequest) {
       .limit(10);
 
     if (contacts && contacts.length > 0) {
-      // Classify intent once for the message body
-      const intent = await classifyIntent(body);
+      // Run all processing in background — TwiML must return within Twilio's timeout
+      Promise.resolve().then(async () => {
+        const intent = await classifyIntent(body);
 
-      await Promise.allSettled([
-        ...contacts.map(c => stopAutomation(c.account_id, c.id)),
-        ...contacts.map(c => stopContactWorkflows(c.account_id, c.id)),
-      ]);
-      // Save inbound SMS to messages table for each matched contact
-      for (const c of contacts) {
-        void supabaseAdmin.from('messages').insert({
-          account_id: c.account_id,
-          contact_id: c.id,
-          direction: 'inbound',
-          type: 'sms',
-          content: body,
-          from_address: from,
-          to_address: toPhone,
-          status: 'received',
-          metadata: { intent },
-        });
-        // Fire hot lead alert if intent + score warrant it
-        maybeSendLeadAlert({
-          accountId: c.account_id,
-          contactId: c.id,
-          channel: 'sms',
-          messageContent: body,
-          intent,
-        }).catch(err => console.error('[twilio-inbound] lead-alert error:', err));
-      }
-      // Auto-respond via AI for accounts with auto mode + SMS enabled
-      for (const c of contacts) {
-        const { data: aiConfig } = await supabaseAdmin
-          .from('ai_agent_configs')
-          .select('enabled, mode, channels')
-          .eq('account_id', c.account_id)
-          .single();
+        await Promise.allSettled([
+          ...contacts.map(c => stopAutomation(c.account_id, c.id)),
+          ...contacts.map(c => stopContactWorkflows(c.account_id, c.id)),
+        ]);
 
-        const { data: contact } = await supabaseAdmin
-          .from('contacts')
-          .select('ai_enabled')
-          .eq('id', c.id)
-          .single();
-
-        if (
-          aiConfig?.enabled &&
-          aiConfig?.mode === 'auto' &&
-          aiConfig?.channels?.sms &&
-          contact?.ai_enabled !== false
-        ) {
-          generateAndSendAI({
+        for (const c of contacts) {
+          void supabaseAdmin.from('messages').insert({
+            account_id: c.account_id,
+            contact_id: c.id,
+            direction: 'inbound',
+            type: 'sms',
+            content: body,
+            from_address: from,
+            to_address: toPhone,
+            status: 'received',
+            metadata: { intent },
+          });
+          maybeSendLeadAlert({
             accountId: c.account_id,
             contactId: c.id,
             channel: 'sms',
-          }).catch(err => console.error('[twilio-inbound] AI auto-respond error:', err));
+            messageContent: body,
+            intent,
+          }).catch(err => console.error('[twilio-inbound] lead-alert error:', err));
         }
-      }
 
-      // Trigger client reply agent for any messages not handled by auto-mode
-      triggerAgentRun('client-reply').catch(() => {});
+        for (const c of contacts) {
+          const { data: aiConfig } = await supabaseAdmin
+            .from('ai_agent_configs')
+            .select('enabled, mode, channels')
+            .eq('account_id', c.account_id)
+            .single();
+
+          const { data: contact } = await supabaseAdmin
+            .from('contacts')
+            .select('ai_enabled')
+            .eq('id', c.id)
+            .single();
+
+          if (
+            aiConfig?.enabled &&
+            aiConfig?.mode === 'auto' &&
+            aiConfig?.channels?.sms &&
+            contact?.ai_enabled !== false
+          ) {
+            generateAndSendAI({
+              accountId: c.account_id,
+              contactId: c.id,
+              channel: 'sms',
+            }).catch(err => console.error('[twilio-inbound] AI auto-respond error:', err));
+          }
+        }
+
+        triggerAgentRun('client-reply').catch(() => {});
+      }).catch(err => console.error('[twilio-inbound] background processing error:', err));
     }
   }
 
