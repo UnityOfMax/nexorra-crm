@@ -5,6 +5,7 @@ import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { classifyIntent } from '@/lib/ai/intent-classifier';
 import { maybeSendLeadAlert } from '@/lib/ai/lead-alert';
+import { triggerInboundMessage } from '@/lib/workflow-engine/triggers';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     const intent = await classifyIntent(text || '');
 
     // Save inbound message
-    await supabaseAdmin.from('messages').insert({
+    const { data: savedMsg } = await supabaseAdmin.from('messages').insert({
       account_id: account.id,
       contact_id: contact.id,
       direction: 'inbound',
@@ -82,7 +83,13 @@ export async function POST(req: NextRequest) {
       to_address: toEmail,
       status: 'received',
       metadata: { subject, intent },
-    });
+    }).select('id').single();
+
+    // Fire intent-based workflow trigger
+    if (savedMsg?.id) {
+      triggerInboundMessage(account.id, contact.id, intent, 'email', savedMsg.id)
+        .catch(err => console.error('[resend-inbound] intent workflow trigger error:', err));
+    }
 
     // Fire hot lead alert if intent + score warrant it
     maybeSendLeadAlert({

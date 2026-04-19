@@ -1,5 +1,5 @@
 #!/bin/bash
-# Auto-sleep at 2 AM, wake at 9:50 AM UK time.
+# Auto-sleep at 2 AM, wake at 9:00 AM UK time.
 # Uses rtcwake to set hardware alarm — no user interaction needed.
 # Crontab: 0 2 * * * /home/max/crm/scripts/setup/sleep-schedule.sh
 
@@ -33,8 +33,8 @@ if [ "$RUNNING" != "0" ]; then
   sleep 300
 fi
 
-# Calculate wake time: 9:50 AM today (same calendar day — script runs at 2 AM)
-WAKE_AT=$(date -d "today 09:50" +%s)
+# Calculate wake time: 9:00 AM today (same calendar day — script runs at 2 AM)
+WAKE_AT=$(date -d "today 09:00" +%s)
 echo "$(date): Going to sleep. Wake at $(date -d @$WAKE_AT '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
 
 # Suspend to RAM — RTC hardware alarm wakes the machine

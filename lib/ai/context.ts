@@ -13,6 +13,8 @@ export interface AIContext {
   upcomingSlots: string;    // contact's booked calls
   availableSlots: string;   // account's open slots to offer
   lastInboundIntent?: string;
+  fbc?: string;             // Meta click ID (?fbclid= param)
+  fbp?: string;             // Meta browser pixel ID
 }
 
 // Build a Date representing `hour:00:00` in the given timezone on the same
@@ -86,7 +88,7 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
   const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
   const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-  const [summaryResult, messagesResult, calendarResult, accountResult, accountMeetingsResult] = await Promise.all([
+  const [summaryResult, messagesResult, calendarResult, accountResult, accountMeetingsResult, contactMetaResult] = await Promise.all([
     supabaseAdmin
       .from('ai_conversation_summaries')
       .select('summary')
@@ -125,6 +127,12 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
       .eq('completed', false)
       .gte('due_date', now.toISOString())
       .lte('due_date', fourteenDaysOut.toISOString()),
+    // Meta attribution fields
+    supabaseAdmin
+      .from('contacts')
+      .select('fbc, fbp')
+      .eq('id', contactId)
+      .maybeSingle(),
   ]);
 
   const summary = summaryResult.data?.summary ?? '';
@@ -149,7 +157,10 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
     ? computeAvailableSlots(accountMeetingsResult.data ?? [], timezone)
     : '';
 
-  return { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent };
+  const fbc = contactMetaResult.data?.fbc ?? undefined;
+  const fbp = contactMetaResult.data?.fbp ?? undefined;
+
+  return { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent, fbc, fbp };
 }
 
 /**

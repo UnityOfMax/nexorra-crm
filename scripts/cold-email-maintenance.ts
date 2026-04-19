@@ -262,17 +262,16 @@ async function learningCycle() {
       }
     }
 
-    // Record to Mulch
+    // Record to Mulch (using proper locked write)
     try {
-      const { appendFileSync } = require('fs');
-      const entry = JSON.stringify({
-        agent: 'lionel', domain: 'cold-email',
+      const mulchClient = require(require('path').join(process.cwd(), 'lib/mulch/client'));
+      void mulchClient.record({
+        agent: 'lionel',
+        domain: 'cold-email',
         content: learning,
         tags: [outcome.status, classification],
         classification: 'tactical',
-        timestamp: new Date().toISOString(),
       });
-      appendFileSync('.mulch/learnings.jsonl', entry + '\n');
     } catch {}
 
     // Mark as learned

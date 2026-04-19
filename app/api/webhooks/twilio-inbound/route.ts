@@ -6,6 +6,7 @@ import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { classifyIntent } from '@/lib/ai/intent-classifier';
 import { maybeSendLeadAlert } from '@/lib/ai/lead-alert';
+import { triggerInboundMessage } from '@/lib/workflow-engine/triggers';
 import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         ]);
 
         for (const c of contacts) {
-          void supabaseAdmin.from('messages').insert({
+          const { data: savedMsg } = await supabaseAdmin.from('messages').insert({
             account_id: c.account_id,
             contact_id: c.id,
             direction: 'inbound',
@@ -63,7 +64,11 @@ export async function POST(req: NextRequest) {
             to_address: toPhone,
             status: 'received',
             metadata: { intent },
-          });
+          }).select('id').single();
+          if (savedMsg?.id) {
+            triggerInboundMessage(c.account_id, c.id, intent, 'sms', savedMsg.id)
+              .catch(err => console.error('[twilio-inbound] intent workflow trigger error:', err));
+          }
           maybeSendLeadAlert({
             accountId: c.account_id,
             contactId: c.id,

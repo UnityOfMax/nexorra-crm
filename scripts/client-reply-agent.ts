@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
+import mulch from '@/lib/mulch/client';
 
 // Create Supabase admin client directly (avoid lib/supabase.ts initialization issues)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -138,6 +139,13 @@ async function loadContext(): Promise<{ defaultPrompt: string; learnings: string
     }
   } catch (e) {
     console.warn('[WARN] Could not read learnings');
+  }
+
+  // Augment with Mulch learnings (cross-run compounding memory)
+  const mulchContext = await mulch.loadAgentContext('client-reply');
+  if (mulchContext) {
+    console.log(`[CONTEXT] Loaded Mulch learnings for client-reply`);
+    learnings = learnings ? `${learnings}\n\n--- MULCH LEARNINGS ---\n${mulchContext}` : mulchContext;
   }
 
   return { defaultPrompt, learnings };
@@ -272,7 +280,18 @@ async function processPendingMessages(accountIds: string[], _context: any): Prom
             .update({ is_ai_generated: false })
             .in('id', ids);
 
-          learningsBuffer.push(`[SENT] ${accountName}: ${channel}, contact: ${(contact as any).name || 'unknown'}, ${contactMsgs.length} msg(s)`);
+          const intent = latestMsg.metadata?.intent || 'neutral';
+          const leadScore = (contactData as any).lead_score ?? 0;
+          const funnelStage = (contactData as any).funnel_stage || 'lead';
+          learningsBuffer.push(`[SENT] ${accountName}: ${channel}, contact: ${(contact as any).name || 'unknown'}, intent: ${intent}, score: ${leadScore}, funnel: ${funnelStage}`);
+          // Write outcome to Mulch for cross-agent learning
+          void mulch.record({
+            agent: 'client-reply',
+            domain: 'client-reply',
+            content: `Reply sent via ${channel}. Intent: ${intent}. Lead score: ${leadScore}. Funnel stage: ${funnelStage}. Account: ${accountName}.`,
+            classification: 'observational',
+            tags: [intent, funnelStage, channel, 'reply-sent'],
+          });
           learningsCollected++;
         } else {
           console.error(`${contactPrefix} Failed to send reply:`, result);

@@ -5,6 +5,7 @@ import { loadReplyMemory, buildMemoryBlock } from '@/lib/ai/reply-memory';
 import { twilioClient } from '@/lib/twilio/client';
 import { resendClient } from '@/lib/resend/client';
 import { updateLeadScore } from '@/lib/ai/lead-scoring';
+import mulch from '@/lib/mulch/client';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ interface GenerateAIResponseResult {
   subject?: string;
   model: string;
   tokens_used: number;
+  lastInboundIntent?: string;
 }
 
 interface SendSMSParams {
@@ -137,8 +139,8 @@ export async function generateAIResponse(
     .eq('id', accountId)
     .maybeSingle();
 
-  // Build memory-efficient context: rolling summary + last 5 messages + calendar slots + last intent
-  const { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent } = await buildAIContext(accountId, contactId);
+  // Build memory-efficient context: rolling summary + last 5 messages + calendar slots + last intent + meta attribution
+  const { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent, fbc, fbp } = await buildAIContext(accountId, contactId);
 
   // Load local memory: agent patterns + Obsidian contact note + skills
   const memoryCtx = loadReplyMemory(contact.first_name ?? null, contact.last_name ?? null);
@@ -186,6 +188,9 @@ export async function generateAIResponse(
     })(),
     lastInboundIntent && lastInboundIntent !== 'neutral'
       ? `Last message intent: ${lastInboundIntent} — factor this into your reply tone and next step.`
+      : '',
+    (fbc || fbp)
+      ? `Meta attribution: this contact arrived via a Meta ad (${fbc ? 'click tracked' : 'pixel match'}). Treat as warm, not cold outreach — they already engaged with an ad before reaching out.`
       : '',
     // Form answers (from landing page lead capture) compressed into one line
     contact.custom_fields && Object.keys(contact.custom_fields as Record<string, string>).length > 0
@@ -244,6 +249,7 @@ export async function generateAIResponse(
     subject,
     model: 'claude-haiku-4-5-20251001',
     tokens_used: kimiResult.tokensUsed.output,
+    lastInboundIntent,
   };
 }
 
@@ -451,7 +457,7 @@ export async function generateAndSendAI(
   }
 
   // Step 1: Generate AI response
-  const { response: aiMessage, subject } = await generateAIResponse({
+  const { response: aiMessage, subject, lastInboundIntent } = await generateAIResponse({
     accountId,
     contactId,
     channel,
@@ -569,6 +575,15 @@ export async function generateAndSendAI(
     .eq('funnel_stage', 'lead');
 
   updateLeadScore(contactId).catch(() => {});
+
+  // Write outcome to Mulch for cross-agent learning (non-blocking)
+  void mulch.record({
+    agent: 'client-reply',
+    domain: 'client-reply',
+    content: `AI reply sent via ${channel}. Intent: ${lastInboundIntent || 'neutral'}. Lead score: ${contact.lead_score ?? 0}. Funnel: ${contact.funnel_stage || 'lead'}. Follow-up: ${isFollowUp ? `#${(followUpCount ?? 0) + 1}` : 'initial'}.`,
+    classification: 'observational',
+    tags: [lastInboundIntent || 'neutral', contact.funnel_stage || 'lead', channel, 'reply-sent'],
+  }).catch(() => {});
 
   return {
     success: true,

@@ -15,6 +15,9 @@ export interface OptimizerAction {
   rejected: boolean;
   applied_at?: string;
   created_at: string;
+  confidence?: number;
+  impact_estimate?: number;
+  tier?: string;
 }
 
 interface OptimizerFeedProps {
@@ -81,10 +84,22 @@ export default function OptimizerFeed({ actions, onApprove, onReject, isLoading 
         const colorClass = ACTION_COLORS[action.action_type] || 'text-slate-400 bg-slate-500/10 ring-slate-500/20';
         const isExpanded = expanded === action.id;
 
+        const tier = action.tier || 'review';
+        const confidence = action.confidence;
+        const confidenceBadge = confidence !== undefined
+          ? confidence >= 85
+            ? 'text-emerald-400 bg-emerald-500/10 ring-emerald-500/20'
+            : confidence >= 60
+              ? 'text-amber-400 bg-amber-500/10 ring-amber-500/20'
+              : 'text-slate-400 bg-slate-500/10 ring-slate-500/20'
+          : null;
+
+        const showApproveReject = isPending && tier === 'review' && (onApprove || onReject);
+
         return (
           <div
             key={action.id}
-            className="rounded-lg bg-white/[0.04] ring-1 ring-white/10 overflow-hidden"
+            className={`rounded-lg ring-1 ring-white/10 overflow-hidden ${tier === 'hold' ? 'opacity-60' : 'bg-white/[0.04]'}`}
           >
             <div
               className="flex items-start gap-3 p-3 cursor-pointer"
@@ -95,7 +110,8 @@ export default function OptimizerFeed({ actions, onApprove, onReject, isLoading 
                 {action.applied && <Check className="w-4 h-4 text-emerald-400" />}
                 {action.rejected && <X className="w-4 h-4 text-red-400" />}
                 {action.approved && !action.applied && <Clock className="w-4 h-4 text-amber-400 animate-pulse" />}
-                {isPending && <Clock className="w-4 h-4 text-[var(--analytics-muted)]" />}
+                {isPending && tier === 'auto' && <Check className="w-4 h-4 text-sky-400 animate-pulse" />}
+                {isPending && tier !== 'auto' && <Clock className="w-4 h-4 text-[var(--analytics-muted)]" />}
               </div>
 
               {/* Content */}
@@ -104,6 +120,24 @@ export default function OptimizerFeed({ actions, onApprove, onReject, isLoading 
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${colorClass}`}>
                     {ACTION_LABELS[action.action_type] || action.action_type}
                   </span>
+                  {tier === 'auto' && isPending && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full ring-1 text-sky-400 bg-sky-500/10 ring-sky-500/20">
+                      Auto-executing
+                    </span>
+                  )}
+                  {tier === 'hold' && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full ring-1 text-slate-400 bg-slate-500/10 ring-slate-500/20">
+                      Informational
+                    </span>
+                  )}
+                  {confidenceBadge && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ring-1 ${confidenceBadge}`}>
+                      {confidence}% conf
+                    </span>
+                  )}
+                  {action.impact_estimate !== undefined && action.impact_estimate > 0 && (
+                    <span className="text-xs text-emerald-400/80">+{action.impact_estimate}% est.</span>
+                  )}
                   {action.target_name && (
                     <span className="text-xs text-white/70 truncate">{action.target_name}</span>
                   )}
@@ -140,8 +174,8 @@ export default function OptimizerFeed({ actions, onApprove, onReject, isLoading 
                   )}
                 </div>
 
-                {/* Approve / reject buttons for pending actions */}
-                {isPending && (onApprove || onReject) && (
+                {/* Approve / reject buttons — only for review-tier pending actions */}
+                {showApproveReject && (
                   <div className="flex gap-2 mt-3">
                     {onApprove && (
                       <button

@@ -101,3 +101,13 @@ export async function triggerBookingCreated(
 ): Promise<void> {
   await triggerWorkflows(accountId, 'booking_created', { contactId, activityId, slotUtc, slotDisplay });
 }
+
+export async function triggerInboundMessage(
+  accountId: string,
+  contactId: string,
+  intent: string,
+  channel: 'sms' | 'email',
+  messageId: string,
+): Promise<void> {
+  await triggerWorkflows(accountId, 'inbound_message', { contactId, intent, channel, messageId });
+}

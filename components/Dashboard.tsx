@@ -5,10 +5,12 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-browser';
 import { Account, Contact } from '@/types';
 import Sidebar from './Sidebar';
-import ClientSidebar from './client/ClientSidebar';
+import TopBar from './TopBar';
 import SubAccountsView from './agency/SubAccountsView';
+import SubaccountsOverview from './agency/SubaccountsOverview';
 import ContactsList from './ContactsList';
-import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign, Settings as SettingsIcon, Flame } from 'lucide-react';
+import { Building2 } from 'lucide-react';
+import DashboardHome from './DashboardHome';
 import Settings from './Settings';
 import Conversations from './Conversations';
 import PipelineManager from './pipelines/PipelineManager';
@@ -20,7 +22,6 @@ import LeadsList from './LeadsList';
 import StaceyConversations from './StaceyConversations';
 import CommandCenterV2 from './command-center/CommandCenterV2';
 import AnalyticsDashboard from './analytics/AnalyticsDashboard';
-import AgencyOverview from './analytics/AgencyOverview';
 import InstagramDMs from './InstagramDMs';
 import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
@@ -29,9 +30,7 @@ import ErrorBoundary from './ErrorBoundary';
 import MobileNav from './MobileNav';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import MockSubAccountContent from './agency/MockSubAccountContent';
-import FunnelDiagram from './agency/FunnelDiagram';
 import { SHUFFLED_STATS } from '@/lib/data/client-stats';
-import { computeFunnelFromStats } from '@/lib/data/mock-subaccounts';
 
 // Mock accounts built from CLIENT_STATS in shuffled (random) order
 const MOCK_CLIENT_ACCOUNTS: Account[] = SHUFFLED_STATS.map(stat => ({
@@ -73,6 +72,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     revenue: 0,
   });
   const [activeView, setActiveView] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('nx.sidebar') === 'collapsed'; } catch { return false; }
+  });
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
   const [hotLeads, setHotLeads] = useState<Array<{
     id: string;
@@ -86,6 +88,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }>>([]);
   // Track whether initial URL state has been restored (prevent overwriting URL on first load)
   const urlRestoredRef = useRef(false);
+
+  const handleSidebarCollapse = (v: boolean) => {
+    setSidebarCollapsed(v);
+    try { localStorage.setItem('nx.sidebar', v ? 'collapsed' : 'expanded'); } catch {}
+  };
 
   useEffect(() => {
     loadAccounts();
@@ -185,7 +192,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
           setAgencyAccount(firstAccount);
           // If no subaccount to restore, mark as ready now; loadClientAccounts handles it otherwise
           if ((!effectiveId && !effectiveSlug) || urlAccount) {
-            setActiveView(initialView || 'dashboard');
+            setActiveView(initialView || 'sub-accounts');
             urlRestoredRef.current = true;
           }
         } else {
@@ -268,7 +275,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
     if (selectedAccount.account_type === 'agency') {
       setIsViewingClient(false);
-      setActiveView('dashboard');
+      setActiveView('sub-accounts');
       window.history.pushState(null, '', '/');
     } else {
       setIsViewingClient(true);
@@ -367,10 +374,12 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       case 'sub-accounts':
         if (isAgencyUser && agencyAccount) {
           return (
-            <SubAccountsView
-              agencyId={agencyAccount.id}
+            <SubaccountsOverview
+              agencyAccount={agencyAccount}
               userId={user.id}
-              onRefreshClientAccounts={loadClientAccounts}
+              clientAccounts={clientAccounts}
+              onEnterClient={(id) => handleAccountSwitch(id)}
+              onRefreshClients={loadClientAccounts}
             />
           );
         }
@@ -496,342 +505,32 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
 
         // Unified dashboard
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Dashboard Overview</h2>
-
-            {/* Viewing sub-account banner */}
-            {isViewingClient && isAgencyUser && (
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg flex items-center gap-3">
-                <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                    Viewing: {currentAccount?.name}
-                  </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-400">
-                    You are managing this sub-account as an agency owner
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    if (agencyAccount) {
-                      setCurrentAccount(agencyAccount);
-                      setIsViewingClient(false);
-                      setActiveView('dashboard');
-                    }
-                  }}
-                  className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 font-medium"
-                >
-                  Back to Agency
-                </button>
-              </div>
-            )}
-
-            {/* Sub-accounts summary — only on agency account */}
-            {isAgencyUser && !isViewingClient && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Sub-Accounts</p>
-                      <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{clientAccounts.length}</p>
-                    </div>
-                    <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-                      <Building2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
-                      <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
-                        {clientAccounts.reduce((sum: number, c: any) => sum + (c.members?.[0]?.count || 0), 0)}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                      <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card cursor-pointer transition-shadow duration-150" onClick={() => setActiveView('sub-accounts')}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Manage Accounts</p>
-                      <p className="text-sm font-medium text-primary-600 dark:text-primary-400 mt-2">View Sub-Accounts →</p>
-                    </div>
-                    <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
-                      <Building2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Agency stats override */}
-            {isAgencyUser && !isViewingClient ? (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  {[
-                    { label: 'Active Clients', value: '119', icon: Users, color: 'bg-indigo-100 dark:bg-indigo-900/30', iconColor: 'text-indigo-600 dark:text-indigo-400' },
-                    { label: 'Monthly Revenue', value: '$270,000', icon: DollarSign, color: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-                    { label: 'Deals Closed / Mo', value: '238', icon: Award, color: 'bg-amber-100 dark:bg-amber-900/30', iconColor: 'text-amber-600 dark:text-amber-400' },
-                    { label: 'Appts / Mo', value: '2,850', icon: CalendarCheck, color: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400' },
-                  ].map(s => (
-                    <div key={s.label} className="card min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
-                          <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{s.value}</p>
-                        </div>
-                        <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
-                          <s.icon className={`w-5 h-5 md:w-6 md:h-6 ${s.iconColor}`} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                  {[
-                    { label: 'Avg GCI / Deal', value: '$12,500', icon: TrendingUp, color: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400' },
-                    { label: 'Avg Ad Spend / Mo', value: '$58,548', icon: Mail, color: 'bg-pink-100 dark:bg-pink-900/30', iconColor: 'text-pink-600 dark:text-pink-400' },
-                    { label: 'Avg Days to Deal', value: '54d', icon: Phone, color: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
-                    { label: 'Total Texts / Mo', value: '14,200', icon: MessageSquare, color: 'bg-cyan-100 dark:bg-cyan-900/30', iconColor: 'text-cyan-600 dark:text-cyan-400' },
-                  ].map(s => (
-                    <div key={s.label} className="card min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{s.label}</p>
-                          <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{s.value}</p>
-                        </div>
-                        <div className={`p-2 md:p-3 ${s.color} rounded-xl flex-shrink-0`}>
-                          <s.icon className={`w-4 h-4 md:w-5 md:h-5 ${s.iconColor}`} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-            {/* Stats cards */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Total Contacts</p>
-                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalContacts}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex-shrink-0">
-                    <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-600 dark:text-primary-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Leads</p>
-                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalLeads}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Customers</p>
-                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.totalCustomers}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
-                    <Mail className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Active Deals</p>
-                    <p className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.activeDeals}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex-shrink-0">
-                    <Phone className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Extended stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8">
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Emails Sent</p>
-                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.emailsSent}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex-shrink-0">
-                    <Mail className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Texts Sent</p>
-                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.textsSent}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl flex-shrink-0">
-                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Bookings</p>
-                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.bookings}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex-shrink-0">
-                    <CalendarCheck className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Closings</p>
-                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{stats.closings}</p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex-shrink-0">
-                    <Award className="w-4 h-4 md:w-5 md:h-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="card min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">Revenue</p>
-                    <p className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
-                      ${stats.revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-2 md:p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex-shrink-0">
-                    <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Hot Leads widget — client accounts only */}
-            {(!isAgencyUser || isViewingClient) && hotLeads.length > 0 && (
-              <div className="card mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-                      <Flame className="w-5 h-5 text-orange-500 dark:text-orange-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">Hot Leads</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">High score or recent intent signal</p>
-                    </div>
-                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
-                      {hotLeads.length}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setActiveView('contacts')}
-                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
-                  >
-                    View all →
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {hotLeads.map(lead => {
-                    const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown';
-                    const score = lead.lead_score ?? 0;
-                    const scoreColor = score >= 80
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
-                    const intentLabels: Record<string, string> = {
-                      booking_signal: 'Booking signal',
-                      interested: 'Interested',
-                      objection: 'Objection',
-                      qualifying: 'Qualifying',
-                    };
-                    const intentColors: Record<string, string> = {
-                      booking_signal: 'text-green-600 dark:text-green-400',
-                      interested: 'text-blue-600 dark:text-blue-400',
-                      objection: 'text-amber-600 dark:text-amber-400',
-                      qualifying: 'text-gray-500 dark:text-gray-400',
-                    };
-                    const relTime = lead.last_message_at ? (() => {
-                      const diff = Date.now() - new Date(lead.last_message_at).getTime();
-                      const hours = Math.floor(diff / (60 * 60 * 1000));
-                      if (hours < 1) return 'just now';
-                      if (hours < 24) return `${hours}h ago`;
-                      return `${Math.floor(hours / 24)}d ago`;
-                    })() : null;
-                    return (
-                      <div
-                        key={lead.id}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => { setSelectedContactId(lead.id); setActiveView('conversations'); }}
-                      >
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                          {name[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
-                            <span className={`inline-flex items-center text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${scoreColor}`}>
-                              {score}
-                            </span>
-                            {lead.last_intent && intentLabels[lead.last_intent] && (
-                              <span className={`text-[11px] font-medium ${intentColors[lead.last_intent] ?? 'text-gray-400'}`}>
-                                · {intentLabels[lead.last_intent]}
-                              </span>
-                            )}
-                          </div>
-                          {lead.last_message_preview && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                              {lead.last_message_preview}
-                            </p>
-                          )}
-                        </div>
-                        {relTime && (
-                          <span className="text-[11px] text-gray-400 dark:text-gray-500 flex-shrink-0">{relTime}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Funnel diagram — shown for real sub-accounts (not agency overview) */}
-            {(!isAgencyUser || isViewingClient) && (
-              <FunnelDiagram data={computeFunnelFromStats(stats.closings, stats.bookings)} />
-            )}
-              </>
-            )}
-
-          </div>
+          <DashboardHome
+            user={user}
+            currentAccount={currentAccount!}
+            agencyAccount={agencyAccount}
+            clientAccounts={clientAccounts}
+            isAgencyUser={isAgencyUser}
+            isViewingClient={isViewingClient}
+            stats={stats}
+            hotLeads={hotLeads}
+            onViewChange={setActiveView}
+            onSelectContact={setSelectedContactId}
+            onNavigateBack={() => {
+              if (agencyAccount) {
+                setCurrentAccount(agencyAccount);
+                setIsViewingClient(false);
+                setActiveView('dashboard');
+              }
+            }}
+          />
         );
     }
   };
 
   if (!currentAccount) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#1c1c1e]">
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}>
         <div className="card max-w-md text-center">
           <div className="mb-4">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
@@ -854,88 +553,29 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }
 
   return (
-    <div className="flex h-[100dvh] bg-[#f5f5f7] dark:bg-[#1c1c1e]">
+    <div style={{ display: 'flex', height: '100dvh', background: 'var(--paper)' }}>
       {currentAccount && <PushNotificationSetup accountId={currentAccount.id} />}
-      {isAgencyUser ? (
-        <Sidebar
-          activeView={activeView}
-          onViewChange={setActiveView}
-          onSignOut={handleSignOut}
+      <Sidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onSignOut={handleSignOut}
+        currentAccount={currentAccount!}
+        accounts={accounts}
+        clientAccounts={clientAccounts}
+        onAccountSwitch={handleAccountSwitch}
+        isViewingClient={isViewingClient}
+        userRole={userRole}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={handleSidebarCollapse}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <TopBar
           currentAccount={currentAccount!}
-          accounts={accounts}
-          clientAccounts={clientAccounts}
-          onAccountSwitch={handleAccountSwitch}
-          isViewingClient={isViewingClient}
-          userRole={userRole}
-        />
-      ) : (
-        <ClientSidebar
           activeView={activeView}
-          onViewChange={setActiveView}
-          onSignOut={handleSignOut}
-          accountName={currentAccount?.name}
         />
-      )}
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Header */}
-        <header className="bg-white/80 dark:bg-[#1c1c1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 px-4 md:px-6 py-4 sticky top-0 z-30" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-          {/* Mobile account switcher */}
-          {isAgencyUser && clientAccounts.length > 0 && (
-            <div className="md:hidden mb-3">
-              <AccountSwitcherDropdown
-                currentAccount={currentAccount!}
-                accounts={accounts}
-                clientAccounts={clientAccounts}
-                onAccountSwitch={handleAccountSwitch}
-                onSignOut={handleSignOut}
-              />
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
-                {activeView === 'dashboard' ? 'Dashboard' :
-                 activeView === 'sub-accounts' ? 'Sub-Accounts' :
-                 activeView === 'pipelines' ? 'Opportunities' :
-                 activeView === 'pages' ? 'Landing Pages' :
-                 activeView === 'leads' ? 'Leads' :
-                 activeView === 'campaigns' ? 'Email Campaigns' :
-                 activeView === 'command-center' ? 'Command Center' :
-                 activeView === 'analytics' ? 'Analytics' :
-                 activeView === 'instagram-dms' ? 'Instagram' :
-                 activeView === 'agency-analytics' ? 'Agency Analytics' :
-                 activeView === 'settings' ? 'Settings' :
-                 activeView.charAt(0).toUpperCase() + activeView.slice(1)}
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 truncate">
-                {isViewingClient && isAgencyUser ? (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{currentAccount.name}</span>
-                    <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">Owner View</span>
-                  </span>
-                ) : (
-                  currentAccount.name
-                )}
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveView('settings')}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                activeView === 'settings'
-                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/4 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-              aria-label="Settings"
-            >
-              <SettingsIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
-
-        {/* pb-16 on mobile so content isn't hidden behind the bottom nav bar */}
-        <main className="flex-1 overflow-y-auto mobile-scroll main-content p-4 md:p-6 pb-20 md:pb-6 dark:text-gray-100">
+        <main className="flex-1 overflow-y-auto mobile-scroll main-content pb-20 md:pb-6" style={{ color: 'var(--ink)' }}>
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>

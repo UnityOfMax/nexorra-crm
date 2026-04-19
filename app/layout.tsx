@@ -7,6 +7,7 @@ import ThemeProvider from '@/components/ThemeProvider';
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
+
 export const metadata: Metadata = {
   title: 'Nexorra CRM',
   description: 'AI-powered CRM for real estate appointment setting',
@@ -42,6 +43,12 @@ export default function RootLayout({
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+        />
       </head>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} ${dmSans.className}`}>
         <ThemeProvider>

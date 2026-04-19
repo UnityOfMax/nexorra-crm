@@ -353,6 +353,20 @@ export function recordSync(entry: Omit<MulchEntry, 'id' | 'timestamp'>): void {
   } catch { /* silent fail */ }
 }
 
+/**
+ * Load the most relevant learnings for an agent at startup.
+ * Returns a formatted string ready to inject into a prompt.
+ */
+export async function loadAgentContext(agentId: string, limit = 10): Promise<string> {
+  try {
+    const entries = await getByAgent(agentId, limit);
+    if (!entries.length) return '';
+    return entries.map(e => `[${e.domain}] ${e.content}`).join('\n');
+  } catch {
+    return '';
+  }
+}
+
 // Default export for convenient import
-const mulch = { record, query, getByAgent, getByDomain, querySync, recordSync };
+const mulch = { record, query, getByAgent, getByDomain, querySync, recordSync, loadAgentContext };
 export default mulch;

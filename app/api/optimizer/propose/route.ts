@@ -27,13 +27,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { account_id, action_type, target_id, target_name, reason, before_state, after_state } = body;
+  const { account_id, action_type, target_id, target_name, reason, before_state, after_state, confidence, impact_estimate } = body;
 
   if (!account_id || !action_type || !reason) {
     return NextResponse.json(
       { error: 'account_id, action_type, and reason are required' },
       { status: 400 }
     );
+  }
+
+  // Auto-derive tier from confidence + impact if not provided
+  const resolvedConfidence: number = typeof confidence === 'number' ? Math.min(100, Math.max(0, confidence)) : 50;
+  const resolvedImpact: number = typeof impact_estimate === 'number' ? impact_estimate : 0;
+  let tier: string;
+  if (resolvedConfidence >= 85 && resolvedImpact <= 20) {
+    tier = 'auto';
+  } else if (resolvedConfidence >= 60) {
+    tier = 'review';
+  } else {
+    tier = 'hold';
   }
 
   // Idempotency check: skip if identical pending action exists
@@ -61,6 +73,9 @@ export async function POST(request: NextRequest) {
       reason,
       before_state: before_state || null,
       after_state: after_state || null,
+      confidence: resolvedConfidence,
+      impact_estimate: resolvedImpact,
+      tier,
       applied: false,
       approved: false,
       rejected: false,

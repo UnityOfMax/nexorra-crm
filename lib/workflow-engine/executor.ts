@@ -380,6 +380,11 @@ async function loadContextVariables(
 ): Promise<Record<string, any>> {
   const variables: Record<string, any> = { ...triggerData };
 
+  // Expose intent directly as a top-level variable for condition matching
+  if (triggerData.intent) {
+    variables.intent = triggerData.intent;
+  }
+
   // Load contact if available
   if (triggerData.contactId) {
     const { data: contact } = await supabaseAdmin

@@ -72,7 +72,27 @@ Response: { stages, totalLeads, totalBookings, bookingRate }
 
 ## Step 4: Propose Actions (INSERT into optimizer_actions)
 
-For each flagged adset, call:
+For each flagged adset, compute a **confidence score (0–100)** and **impact estimate (%)** before proposing.
+
+**Confidence scoring guide:**
+- Start at 50
+- +20 if signal persists for ≥ 5 days (not just a 1-day spike)
+- +15 if ≥ 5 leads in the sample (sufficient volume)
+- +10 if the same adset showed this pattern last week too
+- -15 if sample is < 3 leads (low volume — could be noise)
+- -10 if the pattern appeared for < 2 days
+
+**Impact estimate (%):**
+- `pause_adset`: estimated % CPL improvement across portfolio if paused (e.g. 8% if it's 15% of spend at 2x CPL)
+- `increase_budget`: estimated % lead volume increase (e.g. 20% if budget increases 20% on high-performer)
+- `creative_refresh`: typically 5–15% — use 10 as default
+
+**Tier auto-assignment:**
+- `confidence >= 85` AND `impact_estimate <= 20` → tier = `auto` (executes immediately via cron)
+- `confidence >= 60` → tier = `review` (shown in UI, requires approval)
+- `confidence < 60` → tier = `hold` (informational only, greyed out)
+
+Call:
 ```
 POST $CRM_BASE_URL/api/optimizer/propose
 Headers: Authorization: Bearer $CRON_SECRET
@@ -81,9 +101,11 @@ Body: {
   action_type: "pause_adset" | "increase_budget" | "creative_refresh",
   target_id: adset_id,
   target_name: adset_name,
-  reason: "CPL $82 (2.4x avg $34), booking rate 8% in last 7 days",
+  reason: "CPL $82 (2.4x avg $34), booking rate 8% in last 7 days. Confidence: 87/100 (5-day signal, 8 leads). Estimated impact: 12% CPL reduction.",
   before_state: { status: "ACTIVE", daily_budget: 3000 },
-  after_state: { status: "PAUSED" }  // or { daily_budget: 3600 } for +20%
+  after_state: { status: "PAUSED" },  // or { daily_budget: 3600 } for +20%
+  confidence: 87,
+  impact_estimate: 12
 }
 ```
 
