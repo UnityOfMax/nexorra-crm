@@ -28,6 +28,7 @@ export const DEPARTMENTS = {
   delivery:    { label: 'Service Delivery',        color: '#f59e0b', icon: '📊' },
   engineering: { label: 'Engineering',             color: '#6366f1', icon: '⚙️' },
   experiments: { label: 'Experiments & Innovation', color: '#ef4444', icon: '🧪' },
+  council:     { label: 'The Council',             color: '#d97706', icon: '⚖️' },
 } as const;
 
 export type DepartmentKey = keyof typeof DEPARTMENTS;
@@ -275,6 +276,57 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
     department: 'engineering', role: 'agent', reportsTo: 'barny',
     displayName: 'Zara',
     skills: ['verification-quality'],
+    schedule: 'Manual',
+  },
+
+  // ─── The Council ────────────────────────────────────────────────────────────
+  'chairman': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 10,
+    department: 'council', role: 'head',
+    displayName: 'The Chairman',
+    schedule: 'Manual · /council [question]',
+  },
+  'strategist': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Strategist',
+    schedule: 'Manual',
+  },
+  'skeptic': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Skeptic',
+    schedule: 'Manual',
+  },
+  'creative': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Creative',
+    schedule: 'Manual',
+  },
+  'analyst': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Analyst',
+    schedule: 'Manual',
+  },
+  'operator': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Operator',
+    schedule: 'Manual',
+  },
+  'buyer': {
+    promptFile: '.claude/commands/council/deliberate.md',
+    model: 'sonnet', maxTurns: 5,
+    department: 'council', role: 'agent', reportsTo: 'chairman',
+    displayName: 'The Buyer',
     schedule: 'Manual',
   },
 

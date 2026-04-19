@@ -223,7 +223,7 @@ export default function CompanyLayout({ agents }: { agents: AgentConfig[] }) {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
 
   // Group departments
-  const deptOrder: DepartmentKey[] = ['executive', 'research', 'marketing', 'client', 'delivery', 'engineering', 'experiments'];
+  const deptOrder: DepartmentKey[] = ['executive', 'research', 'marketing', 'client', 'delivery', 'engineering', 'experiments', 'council'];
 
   // Lena is the executive head
   const lenaId = 'lena';
