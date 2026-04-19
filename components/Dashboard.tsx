@@ -27,7 +27,6 @@ import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
-import MobileNav from './MobileNav';
 import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import MockSubAccountContent from './agency/MockSubAccountContent';
 import { SHUFFLED_STATS } from '@/lib/data/client-stats';
@@ -70,6 +69,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     bookings: 0,
     closings: 0,
     revenue: 0,
+    adSpend: 0,
   });
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -86,6 +86,8 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     last_message_at: string | null;
     last_message_preview: string | null;
   }>>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Track whether initial URL state has been restored (prevent overwriting URL on first load)
   const urlRestoredRef = useRef(false);
 
@@ -93,6 +95,17 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     setSidebarCollapsed(v);
     try { localStorage.setItem('nx.sidebar', v ? 'collapsed' : 'expanded'); } catch {}
   };
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 900);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [activeView]);
 
   useEffect(() => {
     loadAccounts();
@@ -109,7 +122,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     } else if (currentAccount && isMockId(currentAccount.id)) {
       setContacts([]);
       setHotLeads([]);
-      setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0 });
+      setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0, adSpend: 0 });
     }
   }, [currentAccount]);
 
@@ -299,20 +312,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     const contactsJson = contactsRes.ok ? await contactsRes.json() : {};
     const contactsData: { id: string; status: string }[] = contactsJson.contacts || [];
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const { data: recentMessages } = await supabase
-      .from('messages')
-      .select('contact_id')
-      .eq('account_id', currentAccount.id)
-      .gte('created_at', sevenDaysAgo.toISOString());
-
-    const activeContactIds = new Set(recentMessages?.map(m => m.contact_id) || []);
-
-    const activeLeads = contactsData?.filter(c =>
-      c.status === 'lead' && activeContactIds.has(c.id)
-    ).length || 0;
+    const totalLeads = contactsData?.filter(c => c.status === 'lead').length || 0;
 
     const { data: dealsData } = await supabase
       .from('deals')
@@ -350,10 +350,19 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     const closingsCount = wonDeals?.length || 0;
     const totalRevenue = wonDeals?.reduce((sum, d) => sum + (d.value || 0), 0) || 0;
 
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data: metaRows } = await supabase
+      .from('meta_ad_metrics')
+      .select('spend')
+      .eq('account_id', currentAccount.id)
+      .gte('date', thirtyDaysAgo.toISOString().slice(0, 10));
+    const adSpend = metaRows?.reduce((s, r) => s + (r.spend || 0), 0) || 0;
+
     if (contactsData) {
       setStats({
         totalContacts: contactsData.length,
-        totalLeads: activeLeads,
+        totalLeads: totalLeads,
         totalCustomers: contactsData.filter((c) => c.status === 'customer').length,
         activeDeals: dealsData?.length || 0,
         emailsSent: emailsSent || 0,
@@ -361,6 +370,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
         bookings: bookingsCount || 0,
         closings: closingsCount,
         revenue: totalRevenue,
+        adSpend,
       });
     }
   };
@@ -554,42 +564,72 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   }
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', background: 'var(--paper)' }}>
+    <div data-nx-mobile={isMobile ? 'true' : 'false'} style={{ display: 'flex', height: '100dvh', background: 'var(--paper)', position: 'relative', overflow: 'hidden' }}>
       {currentAccount && <PushNotificationSetup accountId={currentAccount.id} />}
-      <Sidebar
-        activeView={activeView}
-        onViewChange={setActiveView}
-        onSignOut={handleSignOut}
-        currentAccount={currentAccount!}
-        accounts={accounts}
-        clientAccounts={clientAccounts}
-        onAccountSwitch={handleAccountSwitch}
-        isViewingClient={isViewingClient}
-        userRole={userRole}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={handleSidebarCollapse}
-      />
+
+      {/* Desktop sidebar — hidden on mobile via nx-hide-mobile */}
+      <div className="nx-hide-mobile" style={{ display: 'contents' }}>
+        <Sidebar
+          activeView={activeView}
+          onViewChange={setActiveView}
+          onSignOut={handleSignOut}
+          currentAccount={currentAccount!}
+          accounts={accounts}
+          clientAccounts={clientAccounts}
+          onAccountSwitch={handleAccountSwitch}
+          isViewingClient={isViewingClient}
+          userRole={userRole}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={handleSidebarCollapse}
+        />
+      </div>
+
+      {/* Mobile overlay backdrop */}
+      {mobileNavOpen && (
+        <div onClick={() => setMobileNavOpen(false)} style={{
+          position: 'fixed', inset: 0,
+          background: 'oklch(18% 0.012 260 / 0.5)',
+          backdropFilter: 'blur(2px)', zIndex: 100,
+        }} />
+      )}
+
+      {/* Mobile slide-in sidebar */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, zIndex: 101,
+        transform: mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 220ms cubic-bezier(0.2,0.8,0.2,1)',
+        display: isMobile ? 'block' : 'none',
+      }}>
+        <Sidebar
+          activeView={activeView}
+          onViewChange={(v) => { setActiveView(v); setMobileNavOpen(false); }}
+          onSignOut={handleSignOut}
+          currentAccount={currentAccount!}
+          accounts={accounts}
+          clientAccounts={clientAccounts}
+          onAccountSwitch={(id) => { handleAccountSwitch(id); setMobileNavOpen(false); }}
+          isViewingClient={isViewingClient}
+          userRole={userRole}
+          collapsed={false}
+          onCollapsedChange={() => {}}
+        />
+      </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <TopBar
           currentAccount={currentAccount!}
           activeView={activeView}
+          isMobile={isMobile}
+          onMenu={() => setMobileNavOpen(v => !v)}
         />
 
-        <main className="flex-1 overflow-y-auto mobile-scroll main-content pb-20 md:pb-6" style={{ color: 'var(--ink)' }}>
+        <main style={{ flex: 1, overflowY: 'auto', color: 'var(--ink)' }}>
           <ErrorBoundary key={activeView} label={activeView}>
             {renderContent()}
           </ErrorBoundary>
         </main>
       </div>
 
-      {/* Mobile bottom tab navigation */}
-      <MobileNav
-        activeView={activeView}
-        onViewChange={setActiveView}
-        isAgencyUser={isAgencyUser}
-        isViewingClient={isViewingClient}
-      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ interface Stats {
   bookings: number;
   closings: number;
   revenue: number;
+  adSpend: number;
 }
 
 interface HotLead {
@@ -414,7 +415,7 @@ export default function DashboardHome({
   const initials = currentAccount.name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || 'NX';
 
   return (
-    <div style={{ padding: '24px 32px 48px', maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
@@ -509,7 +510,7 @@ export default function DashboardHome({
           {/* ── 4 KPI cards ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
             <KPI label="Leads / 30d"     value={fmtN(stats.totalLeads)}                    delta={12.4}                                    trend={leadTrend}                         tone="blue" />
-            <KPI label="Ad Spend / 30d"  value={fmt$(stats.emailsSent * 2 + 8000, true)}   delta={4.1}                                     trend={spendTrend}                        tone="violet" />
+            <KPI label="Ad Spend / 30d"  value={stats.adSpend > 0 ? fmt$(stats.adSpend, true) : '—'}  delta={stats.adSpend > 0 ? 4.1 : undefined}  trend={spendTrend}  tone="violet" />
             <KPI label="Pipeline Value"  value={fmt$(pipelineValue, true)}                  delta={8.3}                                     trend={leadTrend.map(x => x * 1.3)}      tone="green" />
             <KPI label="Closed Won / mo" value={fmt$(stats.revenue, true)}                  delta={stats.closings > 0 ? 22.8 : undefined}  trend={leadTrend.map(x => x * 0.8)}      tone="amber" />
           </div>
