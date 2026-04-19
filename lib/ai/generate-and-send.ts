@@ -419,6 +419,23 @@ export async function generateAndSendAI(
     throw new Error('accountId, contactId, and channel required');
   }
 
+  // Deduplication: skip if an outbound message was sent to this contact in the last 5 minutes
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: recentOutbound } = await supabaseAdmin
+    .from('messages')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('contact_id', contactId)
+    .eq('direction', 'outbound')
+    .eq('type', channel === 'sms' ? 'sms' : 'email')
+    .gte('created_at', fiveMinutesAgo)
+    .limit(1);
+
+  if (recentOutbound && recentOutbound.length > 0) {
+    console.log(`[generateAndSendAI] Skipping — outbound ${channel} sent to ${contactId} within last 5 min`);
+    return { success: false, message: 'Skipped: duplicate within 5 minutes', channel };
+  }
+
   // Step 1: Generate AI response
   const { response: aiMessage, subject } = await generateAIResponse({
     accountId,
