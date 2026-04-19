@@ -1,35 +1,38 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import dynamic from 'next/dynamic';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-browser';
 import { Account, Contact } from '@/types';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
-import SubAccountsView from './agency/SubAccountsView';
 import SubaccountsOverview from './agency/SubaccountsOverview';
 import ContactsList from './ContactsList';
 import { Building2 } from 'lucide-react';
 import DashboardHome from './DashboardHome';
 import Settings from './Settings';
-import Conversations from './Conversations';
-import PipelineManager from './pipelines/PipelineManager';
-import WorkflowList from './workflows/WorkflowList';
-import CalendarView from './calendar/CalendarView';
-import LandingPageList from './landing-pages/LandingPageList';
-import AIAgent from './AIAgent';
-import LeadsList from './LeadsList';
-import StaceyConversations from './StaceyConversations';
-import CommandCenterV2 from './command-center/CommandCenterV2';
-import AnalyticsDashboard from './analytics/AnalyticsDashboard';
-import InstagramDMs from './InstagramDMs';
-import ClientDataTable from './agency/ClientDataTable';
 import type { UserRole } from '@/types/agency';
 import PushNotificationSetup from './PushNotificationSetup';
 import ErrorBoundary from './ErrorBoundary';
-import AccountSwitcherDropdown from './AccountSwitcherDropdown';
 import MockSubAccountContent from './agency/MockSubAccountContent';
 import { SHUFFLED_STATS } from '@/lib/data/client-stats';
+
+// Heavy views loaded on demand — reduces initial JS bundle
+const Conversations = dynamic(() => import('./Conversations'), { ssr: false });
+const PipelineManager = dynamic(() => import('./pipelines/PipelineManager'), { ssr: false });
+const CalendarView = dynamic(() => import('./calendar/CalendarView'), { ssr: false });
+const WorkflowList = dynamic(() => import('./workflows/WorkflowList'), { ssr: false });
+const LandingPageList = dynamic(() => import('./landing-pages/LandingPageList'), { ssr: false });
+const AIAgent = dynamic(() => import('./AIAgent'), { ssr: false });
+const LeadsList = dynamic(() => import('./LeadsList'), { ssr: false });
+const StaceyConversations = dynamic(() => import('./StaceyConversations'), { ssr: false });
+const CommandCenterV2 = dynamic(() => import('./command-center/CommandCenterV2'), { ssr: false });
+const AnalyticsDashboard = dynamic(() => import('./analytics/AnalyticsDashboard'), { ssr: false });
+const InstagramDMs = dynamic(() => import('./InstagramDMs'), { ssr: false });
+const ClientDataTable = dynamic(() => import('./agency/ClientDataTable'), { ssr: false });
+const SubAccountsView = dynamic(() => import('./agency/SubAccountsView'), { ssr: false });
+const AccountSwitcherDropdown = dynamic(() => import('./AccountSwitcherDropdown'), { ssr: false });
 
 // Mock accounts built from CLIENT_STATS in shuffled (random) order
 const MOCK_CLIENT_ACCOUNTS: Account[] = SHUFFLED_STATS.map(stat => ({

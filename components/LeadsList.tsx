@@ -355,7 +355,7 @@ export default function LeadsList() {
         <div style={{ marginBottom: 18, padding: '18px 20px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper-2)' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Export Calling Leads by Timezone</div>
           <div style={{ fontSize: 12, color: 'var(--amber)', marginBottom: 14, ...MONO }}>Leads sorted alphabetically in OpenPhone — export each timezone separately.</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }} className="nx-2col-mobile">
             {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
               <div key={tz}>
                 <div style={{ fontSize: 11, ...MONO, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase-browser';
 
 const GLOBAL_STYLES = `
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @media (max-width: 767px) {
+  @media (max-width: 900px) {
     .ig-root-grid { grid-template-columns: 1fr !important; }
     .ig-left-col { display: none; }
     .ig-left-col.ig-left-visible { display: flex !important; }
@@ -17,7 +17,7 @@ const GLOBAL_STYLES = `
     .cold-list-col { display: none !important; }
     .cold-list-col.cold-list-visible { display: flex !important; }
   }
-  @media (min-width: 768px) {
+  @media (min-width: 901px) {
     .ig-left-col { display: flex !important; }
     .ig-back-btn { display: none !important; }
     .cold-list-col { display: flex !important; }

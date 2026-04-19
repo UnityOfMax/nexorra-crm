@@ -342,7 +342,7 @@ export default function StaceyConversations() {
 
       {/* Campaigns table */}
       {campaigns.length > 0 && (
-        <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
+        <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', marginBottom: 24 }} className="nx-scroll-mobile">
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 90px 80px 80px 80px 80px 80px', gap: 0, borderBottom: '1px solid var(--line)', background: 'var(--paper-3)' }}>
             {['Campaign', 'Status', 'Sent', 'Opens', 'Replies', 'Positive', 'Booked'].map(h => (
               <div key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 500, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', ...MONO }}>

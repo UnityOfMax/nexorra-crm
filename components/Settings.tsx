@@ -621,7 +621,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
   return (
     <>
-      <div style={{ padding: '24px 32px 48px', maxWidth: 1280, margin: '0 auto' }}>
+      <div style={{ padding: '24px 32px 48px', maxWidth: 1280, margin: '0 auto' }} className="nx-pad-mobile">
         {/* Page header */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-3)', marginBottom: 8, fontFamily: 'Geist Mono, monospace' }}>
@@ -660,10 +660,12 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
 
       <style>{`
         @keyframes nxSpin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
+        @media (max-width: 900px) {
           .nx-settings-layout { grid-template-columns: 1fr !important; }
-          .nx-settings-layout > div:first-child { flex-direction: row !important; flex-wrap: wrap; }
+          .nx-settings-layout > div:first-child { flex-direction: row !important; flex-wrap: wrap; gap: 4px !important; }
         }
+        [data-nx-mobile="true"] .nx-settings-layout { grid-template-columns: 1fr !important; }
+        [data-nx-mobile="true"] .nx-settings-layout > div:first-child { flex-direction: row !important; flex-wrap: wrap; gap: 4px !important; }
       `}</style>
     </>
   );
