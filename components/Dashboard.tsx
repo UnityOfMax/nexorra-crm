@@ -86,6 +86,9 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     last_message_at: string | null;
     last_message_preview: string | null;
   }>>([]);
+  const [todayActivities, setTodayActivities] = useState<Array<{
+    id: string; title: string; type: string | null; scheduled_at: string | null; description: string | null;
+  }>>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Track whether initial URL state has been restored (prevent overwriting URL on first load)
@@ -359,6 +362,19 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       .gte('date', thirtyDaysAgo.toISOString().slice(0, 10));
     const adSpend = metaRows?.reduce((s, r) => s + (r.spend || 0), 0) || 0;
 
+    // Fetch today's activities for the schedule card (real data, no placeholders)
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const { data: todayActivitiesData } = await supabase
+      .from('activities')
+      .select('id, title, type, scheduled_at, description')
+      .eq('account_id', currentAccount.id)
+      .gte('scheduled_at', todayStart.toISOString())
+      .lte('scheduled_at', todayEnd.toISOString())
+      .order('scheduled_at', { ascending: true })
+      .limit(10);
+    setTodayActivities(todayActivitiesData || []);
+
     if (contactsData) {
       setStats({
         totalContacts: contactsData.length,
@@ -525,6 +541,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
             isViewingClient={isViewingClient}
             stats={stats}
             hotLeads={hotLeads}
+            todayActivities={todayActivities}
             onViewChange={setActiveView}
             onSelectContact={setSelectedContactId}
             onNavigateBack={() => {

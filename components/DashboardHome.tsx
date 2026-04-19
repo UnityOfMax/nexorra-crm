@@ -27,6 +27,14 @@ interface HotLead {
   last_message_preview: string | null;
 }
 
+interface TodayActivity {
+  id: string;
+  title: string;
+  type: string | null;
+  scheduled_at: string | null;
+  description: string | null;
+}
+
 interface DashboardHomeProps {
   user: { id: string; email?: string; user_metadata?: Record<string, string> };
   currentAccount: Account;
@@ -36,6 +44,7 @@ interface DashboardHomeProps {
   isViewingClient: boolean;
   stats: Stats;
   hotLeads: HotLead[];
+  todayActivities?: TodayActivity[];
   onViewChange: (view: string) => void;
   onSelectContact?: (id: string) => void;
   onNavigateBack: () => void;
@@ -324,7 +333,7 @@ function TaskRow({ t, first, onToggle }: { t: Task; first: boolean; onToggle: ()
 // ── Main component ────────────────────────────────────────────────────────────
 export default function DashboardHome({
   user, currentAccount, agencyAccount, clientAccounts,
-  isAgencyUser, isViewingClient, stats, hotLeads,
+  isAgencyUser, isViewingClient, stats, hotLeads, todayActivities = [],
   onViewChange, onSelectContact, onNavigateBack,
 }: DashboardHomeProps) {
   const [selectedRange, setSelectedRange] = useState(1); // index 0=7d 1=30d 2=90d 3=YTD
@@ -367,13 +376,15 @@ export default function DashboardHome({
     when: relTime(lead.last_message_at) || '—',
   }));
 
-  // ── Today's schedule ───────────────────────────────────────────────────────
-  const todayEvents = [
-    { title: 'Lead follow-up queue', time: '09:00', color: 'blue' },
-    { title: 'AI pipeline review', time: '11:00', color: 'violet' },
-    { title: `${stats.bookings} bookings scheduled`, time: '14:00', color: 'green' },
-    { title: 'Campaign performance check', time: '16:00', color: 'amber' },
-  ];
+  // ── Today's schedule (real DB activities, no placeholders) ────────────────
+  const typeColor: Record<string, string> = {
+    meeting: 'blue', call: 'violet', task: 'green', email: 'amber', note: 'rose',
+  };
+  const todayEvents = todayActivities.map(a => ({
+    title: a.title,
+    time: a.scheduled_at ? new Date(a.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+    color: typeColor[a.type || ''] || 'blue',
+  }));
 
   // ── Tasks (derived from hot leads, with manual done toggle) ───────────────
   const baseTasks: Task[] = hotLeads.slice(0, 5).map((lead, i) => {
@@ -493,16 +504,16 @@ export default function DashboardHome({
       {isAgency ? (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
-            <KPI label="Active Clients"    value={String(clientAccounts.length || 119)} trend={makeTrend(119)}    tone="blue" />
+            <KPI label="Active Clients"    value={String(clientAccounts.length)} trend={makeTrend(clientAccounts.length)}    tone="blue" />
             <KPI label="Monthly Revenue"   value={fmt$(stats.revenue, true)}   delta={8.3}  trend={makeTrend(Math.max(stats.revenue, 1))} tone="violet" />
             <KPI label="Deals Closed / Mo" value={fmtN(stats.closings)}         delta={22.8} trend={makeTrend(Math.max(stats.closings, 1))}    tone="green" />
             <KPI label="Appts / Mo"        value={fmtN(stats.bookings)}         delta={12.4} trend={makeTrend(Math.max(stats.bookings, 1))}   tone="amber" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
-            <KPI label="Avg GCI / Deal"    value="$12,500"  trend={makeTrend(12500)} tone="blue" />
-            <KPI label="Avg Ad Spend / Mo" value="$58,548"  trend={makeTrend(58548)} tone="violet" />
-            <KPI label="Avg Days to Deal"  value="54d"      trend={makeTrend(54)}    tone="green" />
-            <KPI label="Total Texts / Mo"  value="14,200"   trend={makeTrend(14200)} tone="amber" />
+            <KPI label="Avg GCI / Deal"    value="—" trend={makeTrend(0)} tone="blue" />
+            <KPI label="Avg Ad Spend / Mo" value="—" trend={makeTrend(0)} tone="violet" />
+            <KPI label="Avg Days to Deal"  value="—" trend={makeTrend(0)} tone="green" />
+            <KPI label="Total Texts / Mo"  value="—" trend={makeTrend(0)} tone="amber" />
           </div>
         </>
       ) : (
