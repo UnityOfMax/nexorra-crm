@@ -4,6 +4,8 @@ import { stopAutomation } from '@/lib/automations/enrollment';
 import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
+import { classifyIntent } from '@/lib/ai/intent-classifier';
+import { maybeSendLeadAlert } from '@/lib/ai/lead-alert';
 import twilio from 'twilio';
 
 // Twilio sends form-encoded POST with From, Body, etc.
@@ -41,6 +43,9 @@ export async function POST(req: NextRequest) {
       .limit(10);
 
     if (contacts && contacts.length > 0) {
+      // Classify intent once for the message body
+      const intent = await classifyIntent(body);
+
       await Promise.allSettled([
         ...contacts.map(c => stopAutomation(c.account_id, c.id)),
         ...contacts.map(c => stopContactWorkflows(c.account_id, c.id)),
@@ -56,7 +61,16 @@ export async function POST(req: NextRequest) {
           from_address: from,
           to_address: toPhone,
           status: 'received',
+          metadata: { intent },
         });
+        // Fire hot lead alert if intent + score warrant it
+        maybeSendLeadAlert({
+          accountId: c.account_id,
+          contactId: c.id,
+          channel: 'sms',
+          messageContent: body,
+          intent,
+        }).catch(err => console.error('[twilio-inbound] lead-alert error:', err));
       }
       // Auto-respond via AI for accounts with auto mode + SMS enabled
       for (const c of contacts) {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Account, NotificationPreferences } from '@/types';
 import type { UserRole } from '@/types/agency';
-import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Save, Phone, Mail, Globe, Loader, RefreshCw, Calendar, CheckCircle, Facebook, User, Bell, Palette, Moon, Sun, Terminal, Copy, ExternalLink, ArrowLeft, ChevronRight, BellRing, SendHorizonal } from 'lucide-react';
 import FacebookAccountSelector from './integrations/FacebookAccountSelector';
 
 // ── Section definitions with role-based visibility ──────────────────
@@ -21,6 +21,7 @@ const SETTINGS_SECTIONS: SectionDef[] = [
   { id: 'email', label: 'Email Service', icon: Mail, roles: ['agency_owner', 'agency_admin', 'client_owner'] },
   { id: 'integrations', label: 'Integrations', icon: Calendar, roles: ['agency_owner', 'agency_admin', 'client_owner'] },
   { id: 'branding', label: 'Branding', icon: Globe, roles: ['agency_owner', 'agency_admin'], hideForSubAccounts: true },
+  { id: 'alerts', label: 'Alerts', icon: BellRing, roles: ['agency_owner', 'agency_admin', 'client_owner', 'client_admin'] },
   { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['agency_owner', 'agency_admin', 'client_owner', 'client_admin', 'client_user'] },
   { id: 'appearance', label: 'Appearance', icon: Palette, roles: ['agency_owner', 'agency_admin', 'client_owner', 'client_admin', 'client_user'] },
 ];
@@ -47,6 +48,14 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
   const [message, setMessage] = useState('');
   const [twilioNumbers, setTwilioNumbers] = useState<TwilioNumber[]>([]);
   const [facebookIntegration, setFacebookIntegration] = useState<any>(null);
+
+  // Alert settings (Telegram hot lead alerts)
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [hotLeadThreshold, setHotLeadThreshold] = useState(40);
+  const [alertsSaving, setAlertsSaving] = useState(false);
+  const [alertsSaved, setAlertsSaved] = useState(false);
+  const [testingTelegram, setTestingTelegram] = useState(false);
+  const [testTelegramResult, setTestTelegramResult] = useState('');
 
   // Account / Custom Fields
   const [locationSaving, setLocationSaving] = useState(false);
@@ -114,6 +123,8 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
         });
       }
       setTimezone(account.settings.timezone || '');
+      setTelegramChatId(account.settings.telegram_chat_id || '');
+      setHotLeadThreshold(account.settings.hot_lead_threshold ?? 40);
     }
     loadTwilioNumbers();
     loadFacebookIntegration();
@@ -318,6 +329,42 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     localStorage.setItem('theme', value);
     setAppearanceSaved(true);
     setTimeout(() => setAppearanceSaved(false), 2000);
+  };
+
+  const handleSaveAlerts = async () => {
+    setAlertsSaving(true);
+    setAlertsSaved(false);
+    try {
+      await saveAccountSettings({
+        telegram_chat_id: telegramChatId || undefined,
+        hot_lead_threshold: hotLeadThreshold,
+      });
+      setAlertsSaved(true);
+      setTimeout(() => setAlertsSaved(false), 2000);
+      onUpdate();
+    } catch (error: any) {
+      setMessage('Error: ' + error.message);
+    } finally {
+      setAlertsSaving(false);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    if (!telegramChatId) return;
+    setTestingTelegram(true);
+    setTestTelegramResult('');
+    try {
+      const res = await fetch('/api/telegram/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: telegramChatId }),
+      });
+      setTestTelegramResult(res.ok ? 'Message sent!' : 'Failed — check the Chat ID');
+    } catch {
+      setTestTelegramResult('Failed to send');
+    } finally {
+      setTestingTelegram(false);
+    }
   };
 
   // ── Section renderers ─────────────────────────────────────────────
@@ -626,6 +673,75 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
     </div>
   );
 
+  const renderAlerts = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Alerts</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Get Telegram notifications when hot leads reply</p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telegram Chat ID</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              className="input flex-1"
+              placeholder="e.g. -1001234567890"
+            />
+            <button
+              onClick={handleTestTelegram}
+              disabled={testingTelegram || !telegramChatId}
+              className="btn btn-secondary flex items-center gap-1.5 text-sm whitespace-nowrap"
+            >
+              {testingTelegram ? <Loader className="w-4 h-4 animate-spin" /> : <SendHorizonal className="w-4 h-4" />}
+              Test
+            </button>
+          </div>
+          {testTelegramResult && (
+            <p className={`text-xs mt-1.5 ${testTelegramResult.includes('sent') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {testTelegramResult}
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">
+            Start a chat with @userinfobot to find your Chat ID. For group alerts, add the bot and use the group ID.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            Hot lead score threshold — <span className="text-primary-600 dark:text-primary-400 font-semibold">{hotLeadThreshold}</span>
+          </label>
+          <div className="flex gap-3">
+            {[40, 60, 80].map(val => (
+              <button
+                key={val}
+                onClick={() => setHotLeadThreshold(val)}
+                className={`flex-1 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  hotLeadThreshold === val
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                    : 'border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'
+                }`}
+              >
+                {val}+
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Alert fires when a lead&apos;s score meets this threshold. Booking signals and high-intent replies always alert regardless.
+          </p>
+        </div>
+
+        <button onClick={handleSaveAlerts} disabled={alertsSaving} className="btn btn-primary flex items-center gap-2">
+          {alertsSaving ? <Loader className="w-4 h-4 animate-spin" /> : alertsSaved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+          {alertsSaved ? 'Saved!' : 'Save Alerts'}
+        </button>
+      </div>
+    </div>
+  );
+
   const renderNotifications = () => {
     const NOTIF_OPTIONS: { key: keyof NotificationPreferences; label: string; description: string }[] = [
       { key: 'new_leads', label: 'New Leads', description: 'Get notified when a new lead comes in' },
@@ -715,6 +831,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
       case 'email': return renderEmailService();
       case 'integrations': return renderIntegrations();
       case 'branding': return renderBranding();
+      case 'alerts': return renderAlerts();
       case 'notifications': return renderNotifications();
       case 'appearance': return renderAppearance();
       default: return null;
@@ -731,6 +848,7 @@ export default function Settings({ account, onUpdate, isAgencyUser = false, user
       case 'email': return renderEmailService();
       case 'integrations': return renderIntegrations();
       case 'branding': return renderBranding();
+      case 'alerts': return renderAlerts();
       case 'notifications': return renderNotifications();
       case 'appearance': return renderAppearance();
       default: return null;

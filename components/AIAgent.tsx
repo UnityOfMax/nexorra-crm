@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, MessageSquare, Mail, Zap, Save, ToggleLeft, ToggleRight, Info, FlaskConical, Settings } from 'lucide-react';
+import { Bot, MessageSquare, Mail, Zap, Save, ToggleLeft, ToggleRight, Info, FlaskConical, Settings, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import AITestChat from './ai/AITestChat';
 
 interface AIAgentProps {
@@ -24,6 +24,8 @@ interface AIConfig {
   email_agent_represents: string;
   email_system_prompt: string;
   email_max_tokens: number;
+  // Knowledge base
+  knowledge_base: string;
 }
 
 const DEFAULT_CONFIG: AIConfig = {
@@ -40,6 +42,7 @@ const DEFAULT_CONFIG: AIConfig = {
   email_agent_represents: '',
   email_system_prompt: '',
   email_max_tokens: 500,
+  knowledge_base: '',
 };
 
 // Test preset: "Dan" — SMS assistant for Ben (Florida realtor)
@@ -157,7 +160,22 @@ KEY REMINDERS:
 - Keep it human. Keep it real. Keep it moving.`,
 };
 
-type Tab = 'general' | 'sms' | 'email' | 'test';
+const KB_TEMPLATE = `## Markets I Serve
+[Markets and areas where you operate]
+
+## My Commission Structure
+[How your commission works — buyer side, seller side, typical rates]
+
+## Common Objections & How I Handle Them
+[e.g. "I already have an agent" → ...]
+
+## About Me
+[Brief bio: years of experience, specialties, what makes you different]
+
+## Frequently Asked Questions
+[Questions leads commonly ask and your answers]`;
+
+type Tab = 'general' | 'sms' | 'email' | 'test' | 'kb';
 
 export default function AIAgent({ accountId }: AIAgentProps) {
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
@@ -166,6 +184,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [testChannel, setTestChannel] = useState<'sms' | 'email'>('sms');
+  const [kbLearningsOpen, setKbLearningsOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/ai/config?accountId=${accountId}`)
@@ -213,7 +232,7 @@ export default function AIAgent({ accountId }: AIAgentProps) {
 
   const inputClass = 'input text-sm';
   const tabClass = (t: Tab) =>
-    `flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+    `flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
       activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
     }`;
 
@@ -247,6 +266,10 @@ export default function AIAgent({ accountId }: AIAgentProps) {
         <button onClick={() => setActiveTab('test')} className={tabClass('test')}>
           <FlaskConical className="w-4 h-4" />
           Test Chat
+        </button>
+        <button onClick={() => setActiveTab('kb')} className={tabClass('kb')}>
+          <BookOpen className="w-4 h-4" />
+          Knowledge Base
         </button>
       </div>
 
@@ -551,6 +574,52 @@ export default function AIAgent({ accountId }: AIAgentProps) {
           />
         </div>
       )}
+
+      {/* ── KNOWLEDGE BASE TAB ── */}
+      {activeTab === 'kb' && (<>
+        <div className="card">
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900">Knowledge Base</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Facts the AI always has access to — markets, commissions, FAQs, objection handling.
+            </p>
+          </div>
+          <textarea
+            rows={20}
+            className={`${inputClass} resize-y w-full`}
+            placeholder={KB_TEMPLATE}
+            value={config.knowledge_base || ''}
+            onChange={e => set('knowledge_base', e.target.value)}
+            onFocus={() => {
+              if (!config.knowledge_base) set('knowledge_base', KB_TEMPLATE);
+            }}
+          />
+          <p className="text-xs text-gray-400 mt-2">
+            Use plain text or Markdown. This is injected into every AI prompt so keep it factual and concise.
+          </p>
+        </div>
+
+        <div className="card">
+          <button
+            onClick={() => setKbLearningsOpen(v => !v)}
+            className="w-full flex items-center justify-between text-sm font-medium text-gray-700"
+          >
+            <span className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary-500" />
+              Conversation Learnings
+              <span className="text-xs font-normal text-gray-400">(auto-accumulated)</span>
+            </span>
+            {kbLearningsOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+          </button>
+          {kbLearningsOpen && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-400 italic">
+                Learnings from past conversations will appear here automatically as the AI processes replies.
+              </p>
+            </div>
+          )}
+        </div>
+      </>)}
 
       {/* Save button — shown on all non-test tabs */}
       {activeTab !== 'test' && (

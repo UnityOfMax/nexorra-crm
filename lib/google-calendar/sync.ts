@@ -1,7 +1,31 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendPushToAccountOwner } from '@/lib/push/send-notification';
 import { GoogleCalendarSettings } from './types';
+
+async function disableGoogleCalendarOnAuthFailure(accountId: string, currentSettings: any): Promise<void> {
+  console.error('[google-calendar] Auth failure — disabling for account:', accountId);
+  try {
+    await supabaseAdmin
+      .from('accounts')
+      .update({
+        settings: {
+          ...currentSettings,
+          google_calendar: { ...currentSettings?.google_calendar, enabled: false },
+        },
+      })
+      .eq('id', accountId);
+    await sendPushToAccountOwner(accountId, {
+      title: 'Google Calendar Disconnected',
+      body: 'Your Google Calendar connection expired. Please reconnect in Settings.',
+      tag: 'gcal-auth',
+      url: '/settings',
+    });
+  } catch (err) {
+    console.error('[google-calendar] Failed to disable on auth failure:', err);
+  }
+}
 
 /**
  * Get an authenticated Google Calendar client for an account
@@ -38,10 +62,36 @@ export async function getGoogleCalendarClient(accountId: string) {
       expiry_date: new Date(gcal.token_expiry).getTime()
     });
 
-    // Auto-refresh tokens when they expire
+    // Proactively refresh if token expires within 5 minutes
+    const expiryMs = gcal.token_expiry ? new Date(gcal.token_expiry).getTime() : 0;
+    if (expiryMs < Date.now() + 5 * 60 * 1000) {
+      try {
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        if (credentials.access_token) {
+          const newExpiry = credentials.expiry_date
+            ? new Date(credentials.expiry_date).toISOString()
+            : gcal.token_expiry;
+          await supabaseAdmin
+            .from('accounts')
+            .update({
+              settings: {
+                ...account.settings,
+                google_calendar: { ...gcal, access_token: credentials.access_token, token_expiry: newExpiry },
+              },
+            })
+            .eq('id', accountId);
+          oauth2Client.setCredentials(credentials);
+        }
+      } catch (refreshError: any) {
+        console.error('[google-calendar] Token refresh failed:', refreshError.message);
+        await disableGoogleCalendarOnAuthFailure(accountId, account.settings);
+        return null;
+      }
+    }
+
+    // Keep token store in sync on background refreshes
     oauth2Client.on('tokens', async (tokens) => {
       if (tokens.access_token) {
-        console.log('Refreshing Google Calendar tokens for account:', accountId);
         await supabaseAdmin
           .from('accounts')
           .update({
@@ -50,9 +100,9 @@ export async function getGoogleCalendarClient(accountId: string) {
               google_calendar: {
                 ...gcal,
                 access_token: tokens.access_token,
-                token_expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : gcal.token_expiry
-              }
-            }
+                token_expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : gcal.token_expiry,
+              },
+            },
           })
           .eq('id', accountId);
       }

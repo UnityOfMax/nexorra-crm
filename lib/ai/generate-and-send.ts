@@ -137,8 +137,8 @@ export async function generateAIResponse(
     .eq('id', accountId)
     .maybeSingle();
 
-  // Build memory-efficient context: rolling summary + last 5 messages + contact calendar slots
-  const { summary, recentMessages, upcomingSlots } = await buildAIContext(accountId, contactId);
+  // Build memory-efficient context: rolling summary + last 5 messages + calendar slots
+  const { summary, recentMessages, upcomingSlots, availableSlots } = await buildAIContext(accountId, contactId);
 
   // Load local memory: agent patterns + Obsidian contact note + skills
   const memoryCtx = loadReplyMemory(contact.first_name ?? null, contact.last_name ?? null);
@@ -173,17 +173,28 @@ export async function generateAIResponse(
     config.business_context ? `Business context: ${config.business_context}` : '',
     accountRow?.name ? `Account/business name: ${accountRow.name}` : '',
     // Compact contact snapshot
-    `Contact: ${[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'} | Phone: ${contact.phone || 'N/A'} | Email: ${contact.email || 'N/A'} | Status: ${contact.status}`,
+    `Contact: ${[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'} | Phone: ${contact.phone || 'N/A'} | Email: ${contact.email || 'N/A'} | Status: ${contact.status}${contact.company ? ` | Company: ${contact.company}` : ''}`,
+    // Lead intelligence — score, stage, source, tags
+    `Lead intelligence: score=${contact.lead_score ?? 0}/100 | stage=${contact.funnel_stage || 'lead'} | source=${contact.source || 'unknown'}${Array.isArray(contact.tags) && contact.tags.length > 0 ? ` | tags: ${contact.tags.join(', ')}` : ''}`,
+    // Score-based tone guide (warmth only — NOT outreach frequency)
+    (() => {
+      const score = contact.lead_score ?? 0;
+      if (score <= 30) return 'Tone: warm and curious, no pressure, ask one open question to understand intent.';
+      if (score <= 60) return 'Tone: engaged, qualify timeline and situation, move naturally toward next step.';
+      if (score <= 80) return 'Tone: hot lead — be direct and specific, suggest a concrete next step.';
+      return 'Tone: ready-to-act lead — prioritise clarity and speed, remove all friction.';
+    })(),
     // Form answers (from landing page lead capture) compressed into one line
-    contact.custom_fields && Object.keys(contact.custom_fields).length > 0
+    contact.custom_fields && Object.keys(contact.custom_fields as Record<string, string>).length > 0
       ? `Lead form answers: ${Object.entries(contact.custom_fields as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(' | ')}`
       : '',
     summary ? `Conversation notes (compressed): ${summary}` : '',
     // Inject account knowledge base (website info, FAQs, conversation learnings)
     config.knowledge_base ? `## Account Knowledge Base\n${config.knowledge_base}` : '',
-    upcomingSlots
-      ? `This contact's booked call: ${upcomingSlots}`
-      : '',
+    upcomingSlots ? `This contact's booked call: ${upcomingSlots}` : '',
+    availableSlots
+      ? `Your available times to offer: ${availableSlots}. Suggest 2 specific options when scheduling.`
+      : 'Calendar not connected — do not suggest specific meeting times, use open-ended availability.',
     channel === 'sms' ? 'Keep it under 160 characters when possible. One idea per message. No filler greetings.' : '',
     channel === 'email' ? 'Include a greeting (first name + comma) and a natural one-line sign-off. No walls of text.' : '',
     isFollowUp

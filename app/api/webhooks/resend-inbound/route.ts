@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
+import { classifyIntent } from '@/lib/ai/intent-classifier';
+import { maybeSendLeadAlert } from '@/lib/ai/lead-alert';
 
 // POST /api/webhooks/resend-inbound
 // Receives inbound emails from Resend's inbound email routing.
@@ -66,6 +68,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
+    // Classify intent once for the email body
+    const intent = await classifyIntent(text || '');
+
     // Save inbound message
     await supabaseAdmin.from('messages').insert({
       account_id: account.id,
@@ -76,8 +81,17 @@ export async function POST(req: NextRequest) {
       from_address: fromEmail,
       to_address: toEmail,
       status: 'received',
-      metadata: { subject },
+      metadata: { subject, intent },
     });
+
+    // Fire hot lead alert if intent + score warrant it
+    maybeSendLeadAlert({
+      accountId: account.id,
+      contactId: contact.id,
+      channel: 'email',
+      messageContent: text || '',
+      intent,
+    }).catch(err => console.error('[resend-inbound] lead-alert error:', err));
 
     // Stop any running workflow sequences (they replied)
     stopContactWorkflows(account.id, contact.id).catch(err =>
