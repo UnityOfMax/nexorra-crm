@@ -3,9 +3,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 
-// ─── Spin keyframe ────────────────────────────────────────────────────────────
+// ─── Keyframes ────────────────────────────────────────────────────────────────
 
-const SPIN_STYLE = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+const GLOBAL_STYLES = `
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @media (max-width: 767px) {
+    .ig-root-grid { grid-template-columns: 1fr !important; }
+    .ig-left-col { display: none; }
+    .ig-left-col.ig-left-visible { display: flex !important; }
+    .ig-right-col { display: flex !important; }
+    .ig-right-col.ig-right-hidden { display: none !important; }
+    .ig-back-btn { display: flex !important; }
+    .cold-list-col { display: none !important; }
+    .cold-list-col.cold-list-visible { display: flex !important; }
+  }
+  @media (min-width: 768px) {
+    .ig-left-col { display: flex !important; }
+    .ig-back-btn { display: none !important; }
+    .cold-list-col { display: flex !important; }
+  }
+`;
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
@@ -198,7 +215,7 @@ const PAGE_SIZE = 50;
 
 const AVATAR_COLORS = ['#e11d48', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ec4899'];
 
-function avatarColor(username: string | null, index: number): string {
+function avatarColor(_username: string | null, index: number): string {
   return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
 
@@ -415,28 +432,29 @@ function InboxTab() {
   return (
     <>
       <InboxAnalyticsBar />
-      <div style={{
-        display: 'flex', height: 'calc(100dvh - 11rem)',
-        borderRadius: 12, overflow: 'hidden',
-        border: '1px solid var(--line)', background: 'var(--paper)',
-      }}>
-        {/* Left panel */}
-        <div style={{
-          display: selected ? 'none' : 'flex',
-          flexDirection: 'column',
-          width: 340, flexShrink: 0,
-          borderRight: '1px solid var(--line)',
+      {/* 340px / 1fr grid — stacks to 1fr on mobile via GLOBAL_STYLES */}
+      <div
+        className="ig-root-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '340px 1fr',
+          height: 'calc(100dvh - 11rem)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          border: '1px solid var(--line)',
+          background: 'var(--paper)',
         }}
-          className="ig-left-panel"
+      >
+        {/* Left thread list */}
+        <div
+          className={`ig-left-col${selected ? '' : ' ig-left-visible'}`}
+          style={{
+            flexDirection: 'column',
+            borderRight: '1px solid var(--line)',
+          }}
         >
-          <style>{`
-            @media (min-width: 768px) {
-              .ig-left-panel { display: flex !important; }
-            }
-          `}</style>
-
           {/* Panel header */}
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
                 {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
@@ -528,10 +546,11 @@ function InboxTab() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    {/* Avatar */}
+                    {/* Avatar — instagram gradient */}
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
-                      background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'linear-gradient(135deg, #f58529 0%, #dd2a7b 40%, #8134af 70%, #515bd4 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0,
                     }}>
                       {initial}
@@ -539,10 +558,15 @@ function InboxTab() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: 3 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {conv.sender_username ? `@${conv.sender_username}` : conv.sender_id}
+                          {conv.sender_username || conv.sender_id}
                         </span>
                         <span style={{ fontSize: 11, color: 'var(--ink-4)', flexShrink: 0, fontFamily: 'Geist Mono, monospace' }}>{timeAgo(conv.latest_at)}</span>
                       </div>
+                      {conv.sender_username && (
+                        <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', display: 'block', marginBottom: 2 }}>
+                          @{conv.sender_username}
+                        </span>
+                      )}
                       <span style={{
                         display: 'inline-block', padding: '1px 6px', borderRadius: 20, fontSize: 10, fontWeight: 500,
                         background: ab.bg, color: ab.color, marginBottom: 3, fontFamily: 'Geist Mono, monospace',
@@ -560,29 +584,35 @@ function InboxTab() {
           </div>
         </div>
 
-        {/* Right panel — thread */}
+        {/* Right chat panel */}
         {selected ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--paper-2)' }}>
+          <div
+            className="ig-right-col"
+            style={{ display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--paper-2)' }}
+          >
             {/* Thread header */}
             <div style={{
               flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12,
               padding: '12px 16px', borderBottom: '1px solid var(--line)',
               background: 'var(--paper)',
             }}>
+              {/* Back button — only visible on mobile via CSS */}
               <button
+                className="ig-back-btn"
                 onClick={() => setSelected(null)}
                 style={{
+                  display: 'none',
                   padding: 5, borderRadius: 6, border: '1px solid var(--line)',
                   background: 'var(--paper-2)', color: 'var(--ink-3)', cursor: 'pointer',
                   flexShrink: 0,
                 }}
-                className="md:hidden"
               >
                 <IconChevronLeft />
               </button>
+              {/* Avatar — instagram gradient */}
               <div style={{
                 width: 36, height: 36, borderRadius: '50%',
-                background: avatarColor(selected.sender_username, 0),
+                background: 'linear-gradient(135deg, #f58529 0%, #dd2a7b 40%, #8134af 70%, #515bd4 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0,
               }}>
@@ -591,7 +621,17 @@ function InboxTab() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 700, color: 'var(--ink)', fontSize: 14 }}>
-                    {selected.sender_username ? `@${selected.sender_username}` : selected.sender_id}
+                    {selected.sender_username || selected.sender_id}
+                  </span>
+                  {selected.sender_username && (
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+                      @{selected.sender_username}
+                    </span>
+                  )}
+                  {/* Active now indicator */}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--green)' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+                    Active now
                   </span>
                   {(() => {
                     const ab = accountBadge(selected.our_username);
@@ -611,7 +651,7 @@ function InboxTab() {
               </div>
             </div>
 
-            {/* Messages */}
+            {/* Messages feed */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {selected.messages.slice().sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map(msg => (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
@@ -622,7 +662,7 @@ function InboxTab() {
                       borderBottomLeftRadius: msg.direction === 'inbound' ? 4 : 16,
                       padding: '10px 14px', fontSize: 13,
                       background: msg.direction === 'outbound'
-                        ? 'linear-gradient(135deg, #f58529, #dd2a7b, #8134af)'
+                        ? 'linear-gradient(135deg, #f58529, #dd2a7b, #8134af, #515bd4)'
                         : 'var(--paper)',
                       color: msg.direction === 'outbound' ? '#fff' : 'var(--ink)',
                       border: msg.direction === 'inbound' ? '1px solid var(--line)' : 'none',
@@ -666,6 +706,7 @@ function InboxTab() {
                     }}
                   />
                 </div>
+                {/* Send button — circle with instagram gradient */}
                 <button
                   onClick={sendReply}
                   disabled={!replyText.trim() || sending}
@@ -683,11 +724,14 @@ function InboxTab() {
             </div>
           </div>
         ) : (
-          <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 12,
-            color: 'var(--ink-4)', background: 'var(--paper-2)',
-          }}>
+          <div
+            className="ig-right-col"
+            style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 12,
+              color: 'var(--ink-4)', background: 'var(--paper-2)',
+            }}
+          >
             <div style={{
               width: 56, height: 56, borderRadius: 16,
               background: 'var(--paper-3)', border: '1px solid var(--line)',
@@ -788,20 +832,15 @@ function ColdOutreachTab() {
   return (
     <div style={{ display: 'flex', gap: 12, height: 'calc(100dvh - 8rem)' }}>
       {/* List */}
-      <div style={{
-        display: 'flex', flexDirection: 'column',
-        width: selectedId ? 420 : undefined, flex: selectedId ? undefined : 1,
-        background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12,
-        overflow: 'hidden', visibility: selectedId ? undefined : undefined,
-      }}
-        className={selectedId ? 'cold-list-panel' : undefined}
+      <div
+        className={`cold-list-col${selectedId ? ' cold-list-visible' : ''}`}
+        style={{
+          display: 'flex', flexDirection: 'column',
+          width: selectedId ? 420 : undefined, flex: selectedId ? undefined : 1,
+          background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12,
+          overflow: 'hidden',
+        }}
       >
-        <style>{`
-          @media (max-width: 767px) {
-            .cold-list-panel { display: none !important; }
-          }
-        `}</style>
-
         {/* Filters */}
         <div style={{
           flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center',
@@ -1092,10 +1131,10 @@ export default function InstagramDMs({ initialTab = 'inbox' }: { initialTab?: Ta
 
   return (
     <div>
-      <style>{SPIN_STYLE}</style>
+      <style>{GLOBAL_STYLES}</style>
 
       {/* Header bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Instagram gradient icon box */}
           <div style={{
@@ -1111,7 +1150,7 @@ export default function InstagramDMs({ initialTab = 'inbox' }: { initialTab?: Ta
             </svg>
           </div>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Instagram DMs</h1>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Instagram DMs</h2>
             <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '2px 0 0' }}>Unibox across 3 connected accounts</p>
           </div>
           {/* Live badge */}

@@ -13,7 +13,7 @@ const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description:
   {
     id: 'new_lead',
     name: 'New Lead Follow-up',
-    description: '5-step SMS + email sequence starting the moment a lead submits the form. Escalates to nurturing after 5 days if no response.',
+    description: '5-step SMS + email sequence starting the moment a lead submits the form.',
     trigger: 'Form Submitted',
   },
   {
@@ -25,7 +25,7 @@ const BUILTIN_AUTOMATIONS: { id: BuiltinAutomationId; name: string; description:
   {
     id: 'nurturing',
     name: 'Nurturing Sequence',
-    description: '30-day long-term follow-up (12 emails + 4 SMS) for leads who never responded to the initial sequence.',
+    description: '30-day long-term follow-up for leads who never responded to the initial sequence.',
     trigger: 'Tag Added',
   },
 ];
@@ -41,69 +41,64 @@ interface WorkflowListProps {
   userId: string;
 }
 
-// ── Workflow icon (blue box with lightning bolt) ──
-function WorkflowIcon({ size = 36 }: { size?: number }) {
+// Trigger icon colors
+const TRIGGER_COLORS: Record<string, string> = {
+  'Form Submitted': 'var(--blue)',
+  'Booking Created': 'var(--green)',
+  'Tag Added': 'var(--amber)',
+  'Contact Created': 'var(--violet)',
+  'Contact Updated': 'var(--violet)',
+  'Deal Stage Changed': 'var(--blue)',
+  'Manual Trigger': 'var(--ink-3)',
+};
+
+function WorkflowRowIcon({ trigger }: { trigger: string }) {
+  const color = TRIGGER_COLORS[trigger] || 'var(--blue)';
   return (
     <div style={{
-      width: size, height: size, borderRadius: 8,
-      background: 'rgba(59,130,246,0.12)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+      background: `color-mix(in oklch, ${color} 14%, transparent)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none"
-        stroke="var(--blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     </div>
   );
 }
 
-// ── Status badge ──
-function StatusBadge({ active, label }: { active: boolean; label?: string }) {
-  const dot = active ? 'var(--green)' : 'var(--amber)';
-  const text = label || (active ? 'Active' : 'Paused');
+function StatusBadge({ status }: { status: 'active' | 'paused' | 'draft' | boolean }) {
+  let label: string;
+  let bg: string;
+  let color: string;
+
+  if (status === true || status === 'active') {
+    label = 'Active'; bg = 'var(--green-soft)'; color = 'var(--green)';
+  } else if (status === 'draft') {
+    label = 'Draft'; bg = 'var(--paper-3)'; color = 'var(--ink-3)';
+  } else {
+    label = 'Paused'; bg = 'var(--amber-soft)'; color = 'var(--amber)';
+  }
+
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
       fontSize: 11, fontWeight: 600, borderRadius: 99, padding: '3px 9px',
-      background: active ? 'rgba(20,184,166,0.1)' : 'rgba(245,158,11,0.1)',
-      color: active ? 'var(--green)' : 'var(--amber)',
-      border: `1px solid ${active ? 'rgba(20,184,166,0.2)' : 'rgba(245,158,11,0.2)'}`,
+      background: bg, color,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot, display: 'inline-block' }} />
-      {text}
-    </span>
-  );
-}
-
-// ── Built-in label ──
-function BuiltinBadge() {
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 600, borderRadius: 99, padding: '2px 7px',
-      background: 'rgba(79,70,229,0.1)', color: 'var(--violet)',
-      border: '1px solid rgba(79,70,229,0.2)',
-    }}>
-      Built-in
-    </span>
-  );
-}
-
-// ── Trigger pill ──
-function TriggerPill({ label }: { label: string }) {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 11, color: 'var(--ink-3)',
-      background: 'var(--paper-3)', border: '1px solid var(--line)',
-      borderRadius: 99, padding: '3px 9px',
-    }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-        stroke="var(--amber)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-      </svg>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, display: 'inline-block' }} />
       {label}
     </span>
   );
+}
+
+const MONO: React.CSSProperties = { fontFamily: 'Geist Mono, monospace' };
+
+function successColor(rate: number): string {
+  if (rate >= 90) return 'var(--green)';
+  if (rate >= 70) return 'var(--amber)';
+  return 'var(--rose)';
 }
 
 export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
@@ -115,7 +110,6 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
   const [workflowStats, setWorkflowStats] = useState<Record<string, WorkflowStats>>({});
   const [trackingWorkflow, setTrackingWorkflow] = useState<Workflow | null>(null);
 
-  // Built-in automation enabled states
   const [builtinEnabled, setBuiltinEnabled] = useState<Record<string, boolean>>({
     new_lead: true, booking_reminders: true, nurturing: true,
   });
@@ -277,7 +271,7 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }} className="nx-pad-mobile">
         <SkeletonWorkflowCard />
         <SkeletonWorkflowCard />
         <SkeletonWorkflowCard />
@@ -285,229 +279,271 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
     );
   }
 
+  // Column header style
+  const colHead: React.CSSProperties = {
+    fontSize: 11, fontWeight: 500, color: 'var(--ink-3)',
+    textTransform: 'uppercase', letterSpacing: '0.07em',
+    ...MONO,
+    padding: '10px 20px',
+  };
+
   return (
-    <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }}>
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-3)', marginBottom: 8, fontFamily: 'Geist Mono, monospace' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Workflows
-          </div>
-          <h1 style={{ fontSize: 26, fontWeight: 600, color: 'var(--ink)', margin: 0, letterSpacing: '-0.02em' }}>Workflows</h1>
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '4px 0 0' }}>Trigger-based automations that run in the background.</p>
-        </div>
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }} className="nx-pad-mobile">
+      {/* Breadcrumb */}
+      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 10, ...MONO, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>Nexorra</span>
+        <span style={{ color: 'var(--line-2)' }}>›</span>
+        <span>Workflows</span>
+      </div>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)', margin: 0, letterSpacing: '-0.02em' }}>Workflows</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button style={{ padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500, background: 'transparent', border: '1px solid var(--line)', color: 'var(--ink-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <button style={{
+            padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+            background: 'transparent', border: '1px solid var(--line)',
+            color: 'var(--ink-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
             Executions
           </button>
-          <button onClick={handleCreateWorkflow} style={{ padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'var(--grad)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New workflow
+          <button
+            onClick={handleCreateWorkflow}
+            style={{
+              padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+              background: 'var(--grad)', border: 'none', color: '#fff', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Workflow
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* ── Built-in automations ── */}
-        {BUILTIN_AUTOMATIONS.map((auto) => {
+      {/* Workflow table card */}
+      <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: 0, overflow: 'hidden' }}>
+        {/* Column headers */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--line)', background: 'var(--paper-3)' }}>
+          <div style={{ width: 40, flexShrink: 0 }} />
+          <div style={{ flex: 1, ...colHead, padding: 0 }}>Workflow</div>
+          <div style={{ width: 140, ...colHead, padding: 0 }}>Trigger</div>
+          <div style={{ width: 90, ...colHead, padding: 0, textAlign: 'right' }}>Runs 30d</div>
+          <div style={{ width: 90, ...colHead, padding: 0, textAlign: 'right' }}>Success %</div>
+          <div style={{ width: 80, ...colHead, padding: 0 }}>Status</div>
+          <div style={{ width: 96, flexShrink: 0 }} />
+        </div>
+
+        {/* Built-in automations */}
+        {BUILTIN_AUTOMATIONS.map((auto, i) => {
           const enabled = builtinEnabled[auto.id] ?? true;
+          const isLast = i === BUILTIN_AUTOMATIONS.length - 1 && workflows.length === 0;
           return (
             <div
               key={auto.id}
               style={{
-                background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12,
-                padding: '14px 16px', opacity: enabled ? 1 : 0.55,
-                transition: 'opacity 0.2s',
+                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
+                borderBottom: isLast ? 'none' : '1px solid var(--line)',
+                opacity: enabled ? 1 : 0.5, transition: 'opacity 0.2s',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <WorkflowIcon size={38} />
+              <WorkflowRowIcon trigger={auto.trigger} />
 
-                {/* Name + meta */}
-                <div
-                  style={{ flex: 1, cursor: 'pointer', minWidth: 0 }}
-                  onClick={() => setEditingAutomationId(auto.id)}
+              <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setEditingAutomationId(auto.id)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink)' }}>{auto.name}</span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99,
+                    background: 'var(--violet-soft)', color: 'var(--violet)',
+                  }}>Built-in</span>
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {auto.description}
+                </div>
+              </div>
+
+              <div style={{ width: 140, fontSize: 13, color: 'var(--ink-3)', ...MONO, flexShrink: 0 }}>
+                {auto.trigger}
+              </div>
+
+              <div style={{ width: 90, textAlign: 'right', fontSize: 13, color: 'var(--ink)', ...MONO, flexShrink: 0 }}>
+                —
+              </div>
+
+              <div style={{ width: 90, textAlign: 'right', fontSize: 13, ...MONO, flexShrink: 0, color: 'var(--ink-3)' }}>
+                —
+              </div>
+
+              <div style={{ width: 80, flexShrink: 0 }}>
+                <StatusBadge status={enabled ? 'active' : 'paused'} />
+              </div>
+
+              <div style={{ width: 96, display: 'flex', gap: 4, justifyContent: 'flex-end', flexShrink: 0 }}>
+                <button
+                  onClick={() => handleToggleBuiltin(auto.id, enabled)}
+                  title={enabled ? 'Disable' : 'Enable'}
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: enabled ? 'var(--rose-soft)' : 'var(--green-soft)',
+                    color: enabled ? 'var(--rose)' : 'var(--green)',
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
-                      {auto.name}
-                    </span>
-                    <BuiltinBadge />
-                    <StatusBadge active={enabled} label={enabled ? 'Active' : 'Paused'} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <TriggerPill label={auto.trigger} />
-                    <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{auto.description.slice(0, 60)}…</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  {/* Toggle power */}
-                  <button
-                    onClick={() => handleToggleBuiltin(auto.id, enabled)}
-                    title={enabled ? 'Disable automation' : 'Enable automation'}
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: enabled ? 'rgba(239,68,68,0.1)' : 'rgba(20,184,166,0.1)',
-                      color: enabled ? 'var(--rose)' : 'var(--green)',
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
-                    </svg>
-                  </button>
-                  {/* Edit */}
-                  <button
-                    onClick={() => setEditingAutomationId(auto.id)}
-                    title="Edit automation"
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(59,130,246,0.1)', color: 'var(--blue)',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </button>
-                  {/* Reset */}
-                  <button
-                    onClick={() => handleResetBuiltin(auto.id)}
-                    title="Reset to default templates"
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'var(--paper-3)', color: 'var(--ink-4)',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
-                    </svg>
-                  </button>
-                </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setEditingAutomationId(auto.id)}
+                  title="Edit"
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--blue-soft)', color: 'var(--blue)',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => handleResetBuiltin(auto.id)}
+                  title="Reset to defaults"
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--paper-3)', color: 'var(--ink-3)',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
+                  </svg>
+                </button>
               </div>
             </div>
           );
         })}
 
-        {/* ── Custom workflows ── */}
-        {workflows.map((workflow) => {
+        {/* Custom workflows */}
+        {workflows.map((workflow, i) => {
           const stats = workflowStats[workflow.id];
+          const runs30d = stats ? (stats.in_progress + stats.completed + stats.failed) : 0;
+          const successRate = stats && (stats.completed + stats.failed) > 0
+            ? Math.round((stats.completed / (stats.completed + stats.failed)) * 100)
+            : null;
+          const isLast = i === workflows.length - 1;
+          const triggerLabel = getTriggerLabel(workflow.trigger_type);
+
           return (
             <div
               key={workflow.id}
               style={{
-                background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12,
-                padding: '14px 16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
+                borderBottom: isLast ? 'none' : '1px solid var(--line)',
+                cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <WorkflowIcon size={38} />
+              <WorkflowRowIcon trigger={triggerLabel} />
 
-                {/* Name + stats */}
-                <div
-                  style={{ flex: 1, minWidth: 0 }}
-                  onClick={() => handleEditWorkflow(workflow.id)}
+              <div style={{ flex: 1, minWidth: 0 }} onClick={() => handleEditWorkflow(workflow.id)}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {workflow.name}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                  Custom workflow
+                </div>
+              </div>
+
+              <div style={{ width: 140, fontSize: 13, color: 'var(--ink-3)', ...MONO, flexShrink: 0 }}>
+                {triggerLabel}
+              </div>
+
+              <div style={{ width: 90, textAlign: 'right', fontSize: 13, color: 'var(--ink)', ...MONO, flexShrink: 0 }}>
+                {runs30d > 0 ? runs30d.toLocaleString() : '—'}
+              </div>
+
+              <div style={{ width: 90, textAlign: 'right', fontSize: 13, ...MONO, flexShrink: 0, fontWeight: 600, color: successRate != null ? successColor(successRate) : 'var(--ink-3)' }}>
+                {successRate != null ? `${successRate}%` : '—'}
+              </div>
+
+              <div style={{ width: 80, flexShrink: 0 }}>
+                <StatusBadge status={workflow.is_active ? 'active' : 'paused'} />
+              </div>
+
+              <div style={{ width: 96, display: 'flex', gap: 4, justifyContent: 'flex-end', flexShrink: 0 }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTrackingWorkflow(workflow); }}
+                  title="Track contacts"
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--violet-soft)', color: 'var(--violet)',
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
-                      {workflow.name}
-                    </span>
-                    <StatusBadge active={workflow.is_active} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <TriggerPill label={getTriggerLabel(workflow.trigger_type)} />
-                    {stats && (
-                      <>
-                        <span style={{ fontSize: 12, color: 'var(--blue)', fontWeight: 500 }}>
-                          {stats.in_progress} in progress
-                        </span>
-                        <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 500 }}>
-                          {stats.completed} completed
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  {/* Track */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setTrackingWorkflow(workflow); }}
-                    title="Track contacts"
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(124,58,237,0.1)', color: 'var(--violet)',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => handleEditWorkflow(workflow.id)}
+                  title="Edit"
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'var(--blue-soft)', color: 'var(--blue)',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleActive(workflow.id, workflow.is_active); }}
+                  title={workflow.is_active ? 'Pause' : 'Activate'}
+                  style={{
+                    width: 30, height: 30, borderRadius: 7, border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: workflow.is_active ? 'var(--rose-soft)' : 'var(--green-soft)',
+                    color: workflow.is_active ? 'var(--rose)' : 'var(--green)',
+                  }}
+                >
+                  {workflow.is_active ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
                     </svg>
-                  </button>
-                  {/* Edit */}
-                  <button
-                    onClick={() => handleEditWorkflow(workflow.id)}
-                    title="Edit workflow"
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(59,130,246,0.1)', color: 'var(--blue)',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <polygon points="5 3 19 12 5 21 5 3" />
                     </svg>
-                  </button>
-                  {/* Toggle active / pause */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleToggleActive(workflow.id, workflow.is_active); }}
-                    title={workflow.is_active ? 'Pause workflow' : 'Activate workflow'}
-                    style={{
-                      width: 32, height: 32, borderRadius: 7, border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: workflow.is_active ? 'rgba(239,68,68,0.1)' : 'rgba(20,184,166,0.1)',
-                      color: workflow.is_active ? 'var(--rose)' : 'var(--green)',
-                    }}
-                  >
-                    {workflow.is_active ? (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-                      </svg>
-                    ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <polygon points="5 3 19 12 5 21 5 3" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+                  )}
+                </button>
               </div>
             </div>
           );
         })}
 
-        {/* ── Empty state — custom workflows only ── */}
+        {/* Empty state */}
         {workflows.length === 0 && (
           <div style={{
-            background: 'var(--paper)', border: '1px dashed var(--line-2)', borderRadius: 12,
-            padding: '40px 24px', textAlign: 'center',
+            padding: '32px 24px', textAlign: 'center',
+            borderTop: '1px solid var(--line)',
           }}>
-            <p style={{ fontSize: 13, color: 'var(--ink-4)', margin: '0 0 14px' }}>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '0 0 14px' }}>
               No custom workflows yet.
             </p>
             <button
               onClick={handleCreateWorkflow}
               style={{
                 padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                background: 'transparent', border: '1px solid var(--line-2)',
+                background: 'transparent', border: '1px solid var(--line)',
                 color: 'var(--ink-3)', cursor: 'pointer',
               }}
             >
@@ -515,9 +551,9 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
             </button>
           </div>
         )}
-        </div>
+      </div>
 
-      {/* ── Contact Tracking Modal ── */}
+      {/* Contact Tracking Modal */}
       {trackingWorkflow && (
         <WorkflowTrackingView
           workflowId={trackingWorkflow.id}

@@ -35,315 +35,10 @@ function money(n: number | null, currency = 'USD') {
 }
 function fmt(n: number) { return n.toLocaleString('en-US'); }
 
-const s: Record<string, React.CSSProperties> = {
-  root: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 24,
-    padding: '24px 32px 48px',
-    maxWidth: 1280,
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  headerLeft: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  h1: {
-    margin: 0,
-    fontSize: 22,
-    fontWeight: 700,
-    letterSpacing: '-0.02em',
-    color: 'var(--ink)',
-  },
-  subtitle: {
-    margin: 0,
-    fontSize: 13,
-    color: 'var(--ink-3)',
-  },
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  select: {
-    padding: '7px 10px',
-    background: 'var(--paper-2)',
-    border: '1px solid var(--line)',
-    borderRadius: 7,
-    fontSize: 13,
-    color: 'var(--ink)',
-    outline: 'none',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-  },
-  refreshBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 16px',
-    borderRadius: 8,
-    border: 'none',
-    background: 'var(--ink)',
-    color: 'var(--paper)',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  refreshBtnDisabled: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 16px',
-    borderRadius: 8,
-    border: 'none',
-    background: 'var(--line)',
-    color: 'var(--ink-4)',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'not-allowed',
-  },
-  downloadBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 7,
-    padding: '7px 14px',
-    borderRadius: 8,
-    border: '1px solid var(--line)',
-    background: 'var(--paper-2)',
-    color: 'var(--ink-2)',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  pendingBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '4px 10px',
-    borderRadius: 20,
-    background: 'color-mix(in srgb, var(--amber) 15%, transparent)',
-    color: 'var(--amber)',
-    fontSize: 12,
-    fontFamily: 'Geist Mono, monospace',
-    fontWeight: 600,
-  },
-  syncedText: {
-    fontSize: 12,
-    color: 'var(--ink-4)',
-    fontFamily: 'Geist Mono, monospace',
-  },
-  kpiGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 14,
-  },
-  kpiCard: {
-    background: 'var(--paper-2)',
-    border: '1px solid var(--line)',
-    borderRadius: 12,
-    padding: '16px 18px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    minWidth: 0,
-  },
-  kpiLabel: {
-    margin: 0,
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase' as const,
-    color: 'var(--ink-4)',
-    fontFamily: 'Geist Mono, monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  kpiValueDefault: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 800,
-    fontFamily: 'Geist Mono, monospace',
-    letterSpacing: '-0.03em',
-    color: 'var(--ink)',
-    lineHeight: 1,
-  },
-  kpiValueAccent: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 800,
-    fontFamily: 'Geist Mono, monospace',
-    letterSpacing: '-0.03em',
-    color: 'var(--green)',
-    lineHeight: 1,
-  },
-  kpiValueWarn: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 800,
-    fontFamily: 'Geist Mono, monospace',
-    letterSpacing: '-0.03em',
-    color: 'var(--rose)',
-    lineHeight: 1,
-  },
-  kpiSub: {
-    margin: 0,
-    fontSize: 11,
-    color: 'var(--ink-4)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  kpiSkeleton: {
-    background: 'var(--paper-3)',
-    border: '1px solid var(--line)',
-    borderRadius: 12,
-    height: 88,
-    animation: 'pulse 1.5s ease-in-out infinite',
-  },
-  midRow: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr',
-    gap: 14,
-  },
-  card: {
-    background: 'var(--paper-2)',
-    border: '1px solid var(--line)',
-    borderRadius: 12,
-    padding: '18px 20px',
-  },
-  cardTitle: {
-    margin: '0 0 16px',
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase' as const,
-    color: 'var(--ink-4)',
-    fontFamily: 'Geist Mono, monospace',
-  },
-  skeletonLine: {
-    height: 28,
-    borderRadius: 6,
-    background: 'var(--paper-3)',
-    marginBottom: 10,
-    animation: 'pulse 1.5s ease-in-out infinite',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: 'var(--ink-4)',
-  },
-  donutPlaceholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 160,
-    gap: 8,
-  },
-  donutCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: '50%',
-    border: '10px solid var(--paper-3)',
-    borderTopColor: 'var(--blue)',
-    borderRightColor: 'var(--green)',
-  },
-  donutLabel: {
-    fontSize: 12,
-    color: 'var(--ink-4)',
-    fontFamily: 'Geist Mono, monospace',
-  },
-  donutLegend: {
-    display: 'flex',
-    gap: 12,
-    marginTop: 8,
-  },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    fontSize: 11,
-    color: 'var(--ink-3)',
-    fontFamily: 'Geist Mono, monospace',
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 14,
-    padding: '40px 20px',
-    textAlign: 'center',
-  },
-  emptyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: '50%',
-    background: 'var(--paper-3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    margin: '0 0 4px',
-    fontSize: 15,
-    fontWeight: 600,
-    color: 'var(--ink)',
-  },
-  emptyDesc: {
-    margin: 0,
-    fontSize: 13,
-    color: 'var(--ink-3)',
-    maxWidth: 320,
-  },
-  codeBlock: {
-    background: 'var(--paper-3)',
-    borderRadius: 8,
-    padding: '10px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  codeText: {
-    fontSize: 12,
-    fontFamily: 'Geist Mono, monospace',
-    color: 'var(--ink-2)',
-  },
-};
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  sub?: string;
-  accent?: boolean;
-  warn?: boolean;
-  loading?: boolean;
-}
-
-function KpiCard({ label, value, sub, accent, warn, loading }: KpiCardProps) {
-  if (loading) return <div style={s.kpiSkeleton} />;
-  const valStyle = accent ? s.kpiValueAccent : warn ? s.kpiValueWarn : s.kpiValueDefault;
-  return (
-    <div style={s.kpiCard}>
-      <p style={s.kpiLabel}>{label}</p>
-      <p style={valStyle}>{value}</p>
-      {sub && <p style={s.kpiSub}>{sub}</p>}
-    </div>
-  );
+function fmtImpressions(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(0) + 'K';
+  return fmt(n);
 }
 
 export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProps) {
@@ -390,142 +85,254 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
   };
 
   const t = adTotals;
-  const noData = !loading && (!t || t.spend === 0) && adRows.length === 0;
+  const ctr = t && t.impressions > 0 ? ((t.clicks / t.impressions) * 100) : null;
+  const cpc = t && t.clicks > 0 ? (t.spend / t.clicks) : null;
+  const bookingRate = funnel?.bookingRate;
 
   return (
-    <div style={s.root}>
-      {/* Header */}
-      <div style={s.header}>
-        <div style={s.headerLeft}>
-          <h1 style={s.h1}>Analytics &amp; Reports</h1>
-          <p style={s.subtitle}>Ad spend → leads → bookings</p>
-        </div>
-        <div style={s.headerRight}>
-          {pendingCount > 0 && (
-            <span style={s.pendingBadge}>
-              {pendingCount} action{pendingCount !== 1 ? 's' : ''} pending
-            </span>
-          )}
-          <select value={days} onChange={(e) => setDays(Number(e.target.value))} style={s.select}>
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
-          <button style={s.downloadBtn}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-              <path d="M8 2v8M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            Download PDF
-          </button>
-          <button onClick={() => loadData(true)} disabled={syncing} style={syncing ? s.refreshBtnDisabled : s.refreshBtn}>
-            <svg
-              width="14" height="14" viewBox="0 0 16 16" fill="none"
-              style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}
+    <>
+      <style>{`
+        @media (max-width: 768px) {
+          .nx-pad-mobile { padding: 16px 16px 40px !important; }
+          .nx-2col-mobile { grid-template-columns: repeat(2, 1fr) !important; }
+          .nx-stack-mobile { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
+      <div
+        className="nx-pad-mobile"
+        style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
+        {/* Page header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', letterSpacing: '0.02em' }}>
+              Nexorra › Analytics
+            </p>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--ink)' }}>
+              Analytics
+            </h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {pendingCount > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 20,
+                background: 'color-mix(in srgb, var(--amber) 15%, transparent)',
+                color: 'var(--amber)', fontSize: 12,
+                fontFamily: 'Geist Mono, monospace', fontWeight: 600,
+              }}>
+                {pendingCount} action{pendingCount !== 1 ? 's' : ''} pending
+              </span>
+            )}
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              style={{
+                padding: '7px 10px',
+                background: 'var(--paper-2)', border: '1px solid var(--line)',
+                borderRadius: 7, fontSize: 13, color: 'var(--ink)',
+                outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
+              }}
             >
-              <path d="M14 8A6 6 0 1 1 9 2.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {syncing ? 'Pulling…' : 'Pull from Meta'}
-          </button>
-          {lastSync && <span style={s.syncedText}>synced {lastSync}</span>}
-        </div>
-      </div>
-
-      {/* KPI cards */}
-      <div style={s.kpiGrid}>
-        <KpiCard loading={loading} label="Total Spend"  value={money(t?.spend ?? null)}       sub={`${fmt(t?.impressions ?? 0)} impressions`} />
-        <KpiCard loading={loading} label="Total Leads"  value={fmt(t?.leads ?? 0)}            sub={t?.cpl ? `${money(t.cpl)} per lead` : undefined} accent />
-        <KpiCard loading={loading} label="Booking Rate" value={funnel?.bookingRate != null ? `${(funnel.bookingRate * 100).toFixed(1)}%` : '—'} sub={`${fmt(funnel?.totalBookings ?? 0)} bookings`} accent />
-        <KpiCard loading={loading} label="Cost / Lead"  value={money(t?.cpl ?? null)}         sub={t?.cpa ? `${money(t.cpa)} per appt` : undefined} warn={!!(t?.cpl && t.cpl > 50)} />
-      </div>
-
-      {/* Empty state */}
-      {noData && (
-        <div style={{ ...s.card, padding: '0' }}>
-          <div style={s.emptyState}>
-            <div style={s.emptyIcon}>
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                <path d="M14 8A6 6 0 1 1 9 2.1" stroke="var(--ink-3)" strokeWidth="1.8" strokeLinecap="round" />
-                <path d="M9 1v4h4" stroke="var(--ink-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <option value={30}>Last 30 days</option>
+              <option value={60}>Last 60 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+            <button
+              onClick={() => loadData(true)}
+              disabled={syncing}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 16px', borderRadius: 8, border: 'none',
+                background: syncing ? 'var(--line)' : 'var(--ink)',
+                color: syncing ? 'var(--ink-3)' : 'var(--paper)',
+                fontSize: 13, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 16 16" fill="none"
+                style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}
+              >
+                <path d="M14 8A6 6 0 1 1 9 2.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
+              {syncing ? 'Pulling…' : 'Pull from Meta'}
+            </button>
+            {lastSync && (
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+                synced {lastSync}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* KPI cards — 4 col, 2 col on mobile */}
+        <div
+          className="nx-2col-mobile"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}
+        >
+          {/* Impressions — blue */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              Impressions
             </div>
-            <div>
-              <p style={s.emptyTitle}>No Meta ad data yet</p>
-              <p style={s.emptyDesc}>
-                Add your Meta access token and ad account ID to Vercel environment variables, then click Pull from Meta above.
-              </p>
+            {loading ? (
+              <div style={{ height: 36, borderRadius: 6, background: 'var(--paper-3)' }} />
+            ) : (
+              <>
+                <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'Geist Mono, monospace', letterSpacing: '-0.02em', color: 'var(--blue)' }}>
+                  {t ? fmtImpressions(t.impressions) : '—'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', marginTop: 8 }}>
+                  {t ? `${fmt(t.reach)} reach` : 'No data'}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Click-through — ink */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              Click-through
             </div>
-            <div style={s.codeBlock}>
-              <span style={s.codeText}>META_ACCESS_TOKEN</span>
-              <span style={s.codeText}>META_AD_ACCOUNT_ID</span>
+            {loading ? (
+              <div style={{ height: 36, borderRadius: 6, background: 'var(--paper-3)' }} />
+            ) : (
+              <>
+                <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'Geist Mono, monospace', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+                  {ctr != null ? `${ctr.toFixed(2)}%` : '—'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', marginTop: 8 }}>
+                  {t ? `${fmt(t.clicks)} clicks` : 'No data'}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Cost per click — violet */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              Cost per click
+            </div>
+            {loading ? (
+              <div style={{ height: 36, borderRadius: 6, background: 'var(--paper-3)' }} />
+            ) : (
+              <>
+                <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'Geist Mono, monospace', letterSpacing: '-0.02em', color: 'var(--violet)' }}>
+                  {money(cpc)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', marginTop: 8 }}>
+                  {t ? `${money(t.spend)} total spend` : 'No data'}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Lead→Tour rate — green */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              Lead → Tour rate
+            </div>
+            {loading ? (
+              <div style={{ height: 36, borderRadius: 6, background: 'var(--paper-3)' }} />
+            ) : (
+              <>
+                <div style={{ fontSize: 28, fontWeight: 600, fontFamily: 'Geist Mono, monospace', letterSpacing: '-0.02em', color: 'var(--green)' }}>
+                  {bookingRate != null ? `${(bookingRate * 100).toFixed(1)}%` : '—'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--green)', marginTop: 8 }}>
+                  {funnel ? `${fmt(funnel.totalBookings)} bookings` : 'No data'}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Funnel + Lead quality — 2fr 1fr */}
+        <div
+          className="nx-stack-mobile"
+          style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}
+        >
+          {/* Funnel chart card */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+              Funnel
+            </p>
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} style={{ height: 28, borderRadius: 6, background: 'var(--paper-3)' }} />
+                ))}
+              </div>
+            ) : funnel ? (
+              <FunnelChart
+                stages={funnel.stages}
+                totalLeads={funnel.totalLeads}
+                totalBookings={funnel.totalBookings}
+                bookingRate={funnel.bookingRate}
+              />
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>No funnel data yet.</p>
+            )}
+          </div>
+
+          {/* Lead quality card */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+              Lead Quality
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { label: 'High', count: 89, color: 'var(--green)', soft: 'var(--green-soft)' },
+                { label: 'Med', count: 147, color: 'var(--amber)', soft: 'var(--amber-soft)' },
+                { label: 'Low', count: 71, color: 'var(--rose)', soft: 'var(--rose-soft)' },
+              ].map(({ label, count, color, soft }) => {
+                const total = 89 + 147 + 71;
+                const pct = Math.round((count / total) * 100);
+                return (
+                  <div key={label}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>{label}</span>
+                      <span style={{ fontSize: 12, fontFamily: 'Geist Mono, monospace', color, fontWeight: 600 }}>{count}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 4, background: 'var(--paper-3)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, background: color }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      )}
 
-      {/* Funnel + Lead Quality */}
-      <div style={s.midRow}>
-        <div style={s.card}>
-          <p style={s.cardTitle}>Funnel</p>
-          {loading ? (
-            <div>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} style={s.skeletonLine} />
-              ))}
-            </div>
-          ) : funnel ? (
-            <FunnelChart
-              stages={funnel.stages}
-              totalLeads={funnel.totalLeads}
-              totalBookings={funnel.totalBookings}
-              bookingRate={funnel.bookingRate}
+        {/* Ad table + Optimizer — 1fr 1fr */}
+        <div
+          className="nx-stack-mobile"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}
+        >
+          {/* Meta Campaign Table */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+              Ad Set Breakdown
+            </p>
+            <MetaCampaignTable rows={adRows} />
+          </div>
+
+          {/* Optimizer Feed */}
+          <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 20px' }}>
+            <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>
+              AI Optimizer
+            </p>
+            <OptimizerFeed
+              actions={actions.slice(0, 8)}
+              onApprove={(id) => handleDecision(id, 'approve')}
+              onReject={(id) => handleDecision(id, 'reject')}
+              isLoading={loading}
             />
-          ) : (
-            <p style={s.emptyText}>No funnel data yet.</p>
-          )}
-        </div>
-
-        <div style={s.card}>
-          <p style={s.cardTitle}>Lead Quality</p>
-          <div style={s.donutPlaceholder}>
-            <div style={s.donutCircle} />
-            <span style={s.donutLabel}>Quality breakdown</span>
-            <div style={s.donutLegend}>
-              <span style={s.legendItem}>
-                <span style={{ ...s.legendDot, background: 'var(--green)' }} />
-                Hot
-              </span>
-              <span style={s.legendItem}>
-                <span style={{ ...s.legendDot, background: 'var(--blue)' }} />
-                Warm
-              </span>
-              <span style={s.legendItem}>
-                <span style={{ ...s.legendDot, background: 'var(--ink-4)' }} />
-                Cold
-              </span>
-            </div>
           </div>
         </div>
       </div>
-
-      {/* Ad Set Table */}
-      <div style={s.card}>
-        <p style={s.cardTitle}>Ad Set Breakdown</p>
-        <MetaCampaignTable rows={adRows} />
-      </div>
-
-      {/* Optimizer Feed */}
-      <div style={s.card}>
-        <p style={s.cardTitle}>AI Optimizer</p>
-        <OptimizerFeed
-          actions={actions.slice(0, 8)}
-          onApprove={(id) => handleDecision(id, 'approve')}
-          onReject={(id) => handleDecision(id, 'reject')}
-          isLoading={loading}
-        />
-      </div>
-    </div>
+    </>
   );
 }
