@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Instagram, MessageSquare, Search, RefreshCw, ChevronLeft, ChevronRight, Clock, X, Send, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase-browser';
+
+const INSTA_GRAD = 'linear-gradient(135deg, #f58529 0%, #dd2a7b 40%, #8134af 70%, #515bd4 100%)';
 
 interface InstagramMessage {
   id: string;
@@ -37,37 +38,35 @@ interface InstagramConversation {
   latest_message: InstagramMessage | null;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Active',
-  booked: 'Booked',
-  closed: 'Closed',
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  active: { bg: 'oklch(91% 0.04 258 / 0.3)', color: 'var(--blue)' },
+  booked: { bg: 'oklch(91% 0.04 160 / 0.3)', color: 'var(--green)' },
+  closed: { bg: 'var(--paper-3)', color: 'var(--ink-3)' },
 };
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  booked: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  closed: 'bg-gray-100 text-gray-500 dark:bg-white/8 dark:text-gray-400',
-};
+const STATUS_LABELS: Record<string, string> = { active: 'Active', booked: 'Booked', closed: 'Closed' };
 
 const PAGE_SIZE = 50;
 const AUTO_REFRESH_INTERVAL = 30_000;
 
 function timeAgo(dateStr: string | null): string {
-  if (!dateStr) return '\u2014';
+  if (!dateStr) return '—';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function leadName(lead: Lead | null): string {
   if (!lead) return 'Unknown';
   const parts = [lead.first_name, lead.last_name].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : (lead.instagram_handle || lead.email || 'Unknown');
+}
+
+function leadInitials(lead: Lead | null): string {
+  return leadName(lead).split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?';
 }
 
 export default function InstagramConversations() {
@@ -85,25 +84,17 @@ export default function InstagramConversations() {
   const fetchConversations = useCallback(async (off = 0) => {
     setLoading(true);
     try {
-      // Build query for conversations with lead join
       let query = supabase
         .from('instagram_conversations')
         .select('*, lead:leads!lead_id(id, first_name, last_name, email, instagram_handle, instagram_status)', { count: 'exact' })
         .order('last_message_at', { ascending: false, nullsFirst: false })
         .range(off, off + PAGE_SIZE - 1);
 
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
-      }
+      if (filterStatus !== 'all') query = query.eq('status', filterStatus);
 
       const { data, count, error } = await query;
+      if (error) { console.error('Failed to fetch instagram conversations:', error); return; }
 
-      if (error) {
-        console.error('Failed to fetch instagram conversations:', error);
-        return;
-      }
-
-      // For each conversation, fetch the latest message for preview
       const convos: InstagramConversation[] = (data || []).map((row: Record<string, unknown>) => ({
         id: row.id as string,
         lead_id: row.lead_id as string,
@@ -117,29 +108,20 @@ export default function InstagramConversations() {
         latest_message: null,
       }));
 
-      // Fetch latest message per conversation
       if (convos.length > 0) {
         const convoIds = convos.map(c => c.id);
         const { data: messages } = await supabase
-          .from('instagram_messages')
-          .select('*')
-          .in('conversation_id', convoIds)
+          .from('instagram_messages').select('*').in('conversation_id', convoIds)
           .order('created_at', { ascending: false });
-
         if (messages) {
           const latestByConvo = new Map<string, InstagramMessage>();
           for (const msg of messages) {
-            if (!latestByConvo.has(msg.conversation_id)) {
-              latestByConvo.set(msg.conversation_id, msg as InstagramMessage);
-            }
+            if (!latestByConvo.has(msg.conversation_id)) latestByConvo.set(msg.conversation_id, msg as InstagramMessage);
           }
-          for (const conv of convos) {
-            conv.latest_message = latestByConvo.get(conv.id) || null;
-          }
+          for (const conv of convos) conv.latest_message = latestByConvo.get(conv.id) || null;
         }
       }
 
-      // Client-side search filter
       let filtered = convos;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -153,58 +135,30 @@ export default function InstagramConversations() {
 
       setConversations(filtered);
       setTotal(searchQuery.trim() ? filtered.length : (count || 0));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [filterStatus, searchQuery]);
 
-  // Initial load + filter changes
+  useEffect(() => { setOffset(0); setSelectedId(null); setThread([]); fetchConversations(0); }, [filterStatus, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchConversations(offset); }, [offset]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setOffset(0);
-    setSelectedId(null);
-    setThread([]);
-    fetchConversations(0);
-  }, [filterStatus, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Offset changes (pagination)
-  useEffect(() => {
-    fetchConversations(offset);
-  }, [offset]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-refresh every 30s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchConversations(offset);
-    }, AUTO_REFRESH_INTERVAL);
+    const interval = setInterval(() => fetchConversations(offset), AUTO_REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [offset, fetchConversations]);
 
-  // Open thread
   const openThread = async (conv: InstagramConversation) => {
     setSelectedId(conv.id);
     setThreadLoading(true);
     try {
       const { data, error } = await supabase
-        .from('instagram_messages')
-        .select('*')
-        .eq('conversation_id', conv.id)
+        .from('instagram_messages').select('*').eq('conversation_id', conv.id)
         .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Failed to fetch messages:', error);
-        return;
-      }
+      if (error) { console.error('Failed to fetch messages:', error); return; }
       setThread((data as InstagramMessage[]) || []);
-    } finally {
-      setThreadLoading(false);
-    }
+    } finally { setThreadLoading(false); }
   };
 
-  // Scroll to bottom when thread loads
   useEffect(() => {
-    if (thread.length > 0 && threadEndRef.current) {
-      threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (thread.length > 0 && threadEndRef.current) threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [thread]);
 
   const selectedConv = conversations.find(c => c.id === selectedId) ?? null;
@@ -212,188 +166,109 @@ export default function InstagramConversations() {
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
-    <div>
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 dark:from-purple-500/30 dark:to-pink-500/30 rounded-xl">
-            <Instagram className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: INSTA_GRAD, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Instagram DMs</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)' }}>Instagram DMs</h1>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--ink-3)' }}>
               {total.toLocaleString()} conversation{total !== 1 ? 's' : ''} with leads
             </p>
           </div>
         </div>
-        <button
-          onClick={() => fetchConversations(offset)}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 rounded-xl transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        <button onClick={() => fetchConversations(offset)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 13, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: 'pointer' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: loading ? 'spin 1s linear infinite' : undefined }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           Refresh
         </button>
       </div>
 
       {/* Search + Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by name or handle..."
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#3a3a3c] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-shadow"
-          />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: 320 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name or handle..."
+            style={{ width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: 8, paddingBottom: 8, fontSize: 13, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-
-        <div className="flex gap-1.5 flex-wrap">
+        <div style={{ display: 'flex', gap: 4 }}>
           {['all', 'active', 'booked', 'closed'].map(s => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                filterStatus === s
-                  ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/8'
-              }`}
-            >
-              {s === 'all' ? 'All' : STATUS_LABELS[s]}
-            </button>
+            <button key={s} onClick={() => setFilterStatus(s)} style={{
+              padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 999, cursor: 'pointer',
+              background: filterStatus === s ? 'oklch(91% 0.04 300 / 0.3)' : 'transparent',
+              color: filterStatus === s ? 'var(--violet)' : 'var(--ink-3)',
+              border: filterStatus === s ? '1px solid oklch(80% 0.04 300 / 0.4)' : '1px solid transparent',
+            }}>{s === 'all' ? 'All' : STATUS_LABELS[s]}</button>
           ))}
         </div>
       </div>
 
-      <div className={`flex gap-4 ${selectedId ? 'items-start' : ''}`}>
-        {/* Conversation list */}
-        <div className={`card p-0 overflow-hidden ${selectedId ? 'hidden md:block w-full md:w-[420px] md:flex-shrink-0' : 'flex-1'}`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/80 dark:bg-white/3">
-                  <th className="text-left px-4 py-3 font-medium text-[13px] text-gray-500 dark:text-gray-400">Lead</th>
-                  {!selectedId && (
-                    <th className="text-left px-4 py-3 font-medium text-[13px] text-gray-500 dark:text-gray-400">Preview</th>
+      {/* Main layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: selectedId ? '340px 1fr' : '1fr', gap: 16, alignItems: 'start' }}>
+        {/* Thread list */}
+        <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>Loading…</div>
+          ) : conversations.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+              <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.3 }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+              </div>
+              {searchQuery ? 'No results match your search' : 'No Instagram conversations yet'}
+            </div>
+          ) : conversations.map((conv, i) => {
+            const active = selectedId === conv.id;
+            const sc = STATUS_COLORS[conv.status] || STATUS_COLORS.closed;
+            return (
+              <div key={conv.id} onClick={() => openThread(conv)} style={{
+                display: 'flex', gap: 10, padding: '12px 14px', cursor: 'pointer',
+                background: active ? 'var(--paper-3)' : 'transparent',
+                borderLeft: active ? '2px solid var(--violet)' : '2px solid transparent',
+                borderBottom: i < conversations.length - 1 ? '1px solid var(--line)' : 'none',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--paper-2)'; }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: INSTA_GRAD, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'white', fontSize: 13, fontWeight: 600, fontFamily: 'Geist Mono, monospace' }}>
+                  {leadInitials(conv.lead)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leadName(conv.lead)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', flexShrink: 0, marginLeft: 8 }}>{timeAgo(conv.last_message_at)}</span>
+                  </div>
+                  {conv.lead?.instagram_handle && (
+                    <div style={{ fontSize: 11.5, color: 'var(--violet)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{conv.lead.instagram_handle.replace(/^@/, '')}</div>
                   )}
-                  <th className="text-left px-4 py-3 font-medium text-[13px] text-gray-500 dark:text-gray-400">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-[13px] text-gray-500 dark:text-gray-400">Messages</th>
-                  <th className="text-left px-4 py-3 font-medium text-[13px] text-gray-500 dark:text-gray-400">Last msg</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={selectedId ? 4 : 5} className="py-12 text-center text-gray-400">
-                      <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2" />
-                      Loading...
-                    </td>
-                  </tr>
-                ) : conversations.length === 0 ? (
-                  <tr>
-                    <td colSpan={selectedId ? 4 : 5} className="py-12 text-center text-gray-400 dark:text-gray-500">
-                      <Instagram className="w-7 h-7 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium text-sm">No conversations</p>
-                      <p className="text-xs mt-1">
-                        {searchQuery ? 'No results match your search' : 'Instagram DM threads with leads will appear here'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  conversations.map(conv => (
-                    <tr
-                      key={conv.id}
-                      onClick={() => openThread(conv)}
-                      className={`border-b border-gray-50 dark:border-gray-700/30 cursor-pointer transition-colors ${
-                        selectedId === conv.id
-                          ? 'bg-purple-50/60 dark:bg-purple-900/10'
-                          : 'hover:bg-gray-50/60 dark:hover:bg-white/3'
-                      }`}
-                    >
-                      {/* Lead */}
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-[13px] text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                          {leadName(conv.lead)}
-                        </p>
-                        {conv.lead?.instagram_handle && (
-                          <p className="text-xs text-purple-500 dark:text-purple-400 truncate max-w-[160px]">
-                            @{conv.lead.instagram_handle.replace(/^@/, '')}
-                          </p>
-                        )}
-                        {conv.lead?.email && !selectedId && (
-                          <p className="text-xs text-gray-400 truncate max-w-[160px]">{conv.lead.email}</p>
-                        )}
-                      </td>
+                  {conv.latest_message && (
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+                      {conv.latest_message.content.slice(0, 80)}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 999, fontWeight: 500, background: sc.bg, color: sc.color }}>{STATUS_LABELS[conv.status] || conv.status}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'Geist Mono, monospace' }}>{conv.message_count} msgs</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
-                      {/* Preview — hide in split view */}
-                      {!selectedId && (
-                        <td className="px-4 py-3 max-w-[280px]">
-                          {conv.latest_message ? (
-                            <div className="flex items-start gap-1.5">
-                              {conv.latest_message.direction === 'outbound' && (
-                                <Send className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />
-                              )}
-                              <p className="text-gray-600 dark:text-gray-400 text-xs truncate">
-                                {conv.latest_message.content.slice(0, 120)}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-gray-300 dark:text-gray-500 text-xs italic">No messages yet</span>
-                          )}
-                        </td>
-                      )}
-
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[conv.status] || ''}`}>
-                          {STATUS_LABELS[conv.status] || conv.status}
-                        </span>
-                      </td>
-
-                      {/* Message count */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                          <MessageSquare className="w-3 h-3" />
-                          {conv.message_count}
-                        </div>
-                      </td>
-
-                      {/* Last message time */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Clock className="w-3 h-3" />
-                          {timeAgo(conv.last_message_at)}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
           {total > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {offset + 1}&ndash;{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                  disabled={offset === 0}
-                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs text-gray-500 px-2">{currentPage} / {totalPages}</span>
-                <button
-                  onClick={() => setOffset(offset + PAGE_SIZE)}
-                  disabled={offset + PAGE_SIZE >= total}
-                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--line)' }}>
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace' }}>{offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total.toLocaleString()}</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: offset === 0 ? 'not-allowed' : 'pointer', opacity: offset === 0 ? 0.4 : 1 }}>‹</button>
+                <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', padding: '0 6px', lineHeight: '26px' }}>{currentPage}/{totalPages}</span>
+                <button onClick={() => setOffset(offset + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= total}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-2)', cursor: offset + PAGE_SIZE >= total ? 'not-allowed' : 'pointer', opacity: offset + PAGE_SIZE >= total ? 0.4 : 1 }}>›</button>
               </div>
             </div>
           )}
@@ -401,124 +276,69 @@ export default function InstagramConversations() {
 
         {/* Thread panel */}
         {selectedId && selectedConv && (
-          <div className="w-full md:flex-1 card p-0 overflow-hidden flex flex-col min-h-0">
+          <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '75vh' }}>
             {/* Thread header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 flex-shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <button
-                  onClick={() => { setSelectedId(null); setThread([]); }}
-                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4 text-white" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: INSTA_GRAD, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'white', fontSize: 13, fontWeight: 600, fontFamily: 'Geist Mono, monospace' }}>
+                  {leadInitials(selectedConv.lead)}
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-[13px] text-gray-900 dark:text-gray-100 truncate">
-                    {leadName(selectedConv.lead)}
-                  </p>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leadName(selectedConv.lead)}</div>
                   {selectedConv.lead?.instagram_handle && (
-                    <p className="text-xs text-purple-500 dark:text-purple-400 truncate">
-                      @{selectedConv.lead.instagram_handle.replace(/^@/, '')}
-                    </p>
+                    <div style={{ fontSize: 12, color: 'var(--violet)' }}>@{selectedConv.lead.instagram_handle.replace(/^@/, '')}</div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedConv.status]}`}>
-                  {STATUS_LABELS[selectedConv.status]}
-                </span>
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <MessageSquare className="w-3 h-3" />
-                  {selectedConv.message_count}
-                </span>
-                <button
-                  onClick={() => { setSelectedId(null); setThread([]); }}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/8 text-gray-400 transition-colors"
-                >
-                  <X className="w-4 h-4" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {(() => { const sc = STATUS_COLORS[selectedConv.status] || STATUS_COLORS.closed; return (
+                  <span style={{ fontSize: 11.5, padding: '2px 8px', borderRadius: 999, fontWeight: 500, background: sc.bg, color: sc.color }}>{STATUS_LABELS[selectedConv.status]}</span>
+                ); })()}
+                <button onClick={() => { setSelectedId(null); setThread([]); }} style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--line)', background: 'var(--paper-2)', color: 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30 dark:bg-[#1c1c1e]">
+            <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--paper-2)', minHeight: 0 }}>
               {threadLoading ? (
-                <div className="py-8 text-center text-gray-400">
-                  <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2" />
-                  Loading thread...
-                </div>
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>Loading thread…</div>
               ) : thread.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">
-                  <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-40" />
-                  No messages in this thread yet
-                </div>
-              ) : (
-                <>
-                  {thread.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                          msg.direction === 'outbound'
-                            ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
-                            : 'bg-white dark:bg-[#2c2c2e] text-gray-800 dark:text-gray-100 shadow-sm'
-                        }`}
-                      >
-                        <p className="text-[13px] whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                        <div className={`flex items-center gap-1.5 mt-1 ${
-                          msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
-                        }`}>
-                          <span className={`text-[10px] ${
-                            msg.direction === 'outbound'
-                              ? 'text-white/60'
-                              : 'text-gray-400 dark:text-gray-500'
-                          }`}>
-                            {new Date(msg.created_at).toLocaleString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          {msg.sent_via && msg.direction === 'outbound' && (
-                            <span className="text-[10px] text-white/40">
-                              via {msg.sent_via}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>No messages yet</div>
+              ) : thread.map(msg => (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '80%', borderRadius: 18, padding: '9px 14px',
+                    background: msg.direction === 'outbound' ? INSTA_GRAD : 'var(--paper)',
+                    color: msg.direction === 'outbound' ? 'white' : 'var(--ink)',
+                    border: msg.direction === 'outbound' ? 'none' : '1px solid var(--line)',
+                    fontSize: 13.5, lineHeight: 1.45, wordBreak: 'break-word',
+                  }}>
+                    {msg.content}
+                    <div style={{ fontSize: 10.5, marginTop: 4, opacity: 0.7, fontFamily: 'Geist Mono, monospace' }}>
+                      {new Date(msg.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {msg.sent_via && msg.direction === 'outbound' && ` · ${msg.sent_via}`}
                     </div>
-                  ))}
-                  <div ref={threadEndRef} />
-                </>
-              )}
+                  </div>
+                </div>
+              ))}
+              <div ref={threadEndRef} />
             </div>
 
-            {/* Thread footer */}
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700/60 flex-shrink-0 bg-gray-50/50 dark:bg-white/2">
-              <div className="flex items-center gap-4 text-xs text-gray-400">
-                {selectedConv.lead?.email && (
-                  <span>Email: {selectedConv.lead.email}</span>
-                )}
-                {selectedConv.instagram_thread_id && (
-                  <span className="truncate max-w-[180px]">Thread: {selectedConv.instagram_thread_id}</span>
-                )}
-                <span className="ml-auto">
-                  Started {new Date(selectedConv.created_at).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
+            {/* Footer */}
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--line)', flexShrink: 0, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              {selectedConv.lead?.email && <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>Email: {selectedConv.lead.email}</span>}
+              {selectedConv.instagram_thread_id && <span style={{ fontSize: 11.5, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>Thread: {selectedConv.instagram_thread_id}</span>}
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)', marginLeft: 'auto' }}>
+                Started {new Date(selectedConv.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
             </div>
           </div>
         )}
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

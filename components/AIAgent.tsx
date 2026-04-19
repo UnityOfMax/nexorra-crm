@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, MessageSquare, Mail, Zap, Save, ToggleLeft, ToggleRight, Info, FlaskConical, Settings, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import AITestChat from './ai/AITestChat';
 
 interface AIAgentProps {
@@ -14,17 +13,14 @@ interface AIConfig {
   tone: string;
   business_context: string;
   channels: { sms: boolean; email: boolean };
-  // SMS agent
   agent_name: string;
   agent_represents: string;
   system_prompt: string;
   max_tokens: number;
-  // Email agent
   email_agent_name: string;
   email_agent_represents: string;
   email_system_prompt: string;
   email_max_tokens: number;
-  // Knowledge base
   knowledge_base: string;
 }
 
@@ -45,7 +41,6 @@ const DEFAULT_CONFIG: AIConfig = {
   knowledge_base: '',
 };
 
-// Test preset: "Dan" — SMS assistant for Ben (Florida realtor)
 const DAN_SMS_CONFIG: Partial<AIConfig> = {
   agent_name: 'Dan',
   agent_represents: 'Ben',
@@ -104,7 +99,6 @@ KEY REMINDERS:
   business_context: "Ben is a licensed real estate agent in Florida helping buyers and sellers navigate the local market. Dan handles all text communication on Ben's behalf.",
 };
 
-// Test preset: "Dan" — Email assistant for Ben (Florida realtor)
 const DAN_EMAIL_CONFIG: Partial<AIConfig> = {
   email_agent_name: 'Dan',
   email_agent_represents: 'Ben',
@@ -177,6 +171,491 @@ const KB_TEMPLATE = `## Markets I Serve
 
 type Tab = 'general' | 'sms' | 'email' | 'test' | 'kb';
 
+const s: Record<string, React.CSSProperties> = {
+  root: {
+    maxWidth: 1280,
+    margin: '0 auto',
+    padding: '24px 32px 48px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  headerLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  h1: {
+    margin: 0,
+    fontSize: 22,
+    fontWeight: 700,
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--ink-3)',
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  badgeOnline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 10px',
+    borderRadius: 20,
+    background: 'color-mix(in srgb, var(--green) 12%, transparent)',
+    color: 'var(--green)',
+    fontSize: 12,
+    fontFamily: 'Geist Mono, monospace',
+    fontWeight: 600,
+  },
+  badgeOffline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 10px',
+    borderRadius: 20,
+    background: 'color-mix(in srgb, var(--ink-4) 12%, transparent)',
+    color: 'var(--ink-3)',
+    fontSize: 12,
+    fontFamily: 'Geist Mono, monospace',
+    fontWeight: 600,
+  },
+  configBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 14px',
+    borderRadius: 8,
+    border: '1px solid var(--line)',
+    background: 'var(--paper-2)',
+    color: 'var(--ink-2)',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  body: {
+    display: 'flex',
+    gap: 20,
+    alignItems: 'flex-start',
+  },
+  leftPanel: {
+    width: 260,
+    flexShrink: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  card: {
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    padding: '16px 18px',
+  },
+  cardTitle: {
+    margin: '0 0 12px',
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    color: 'var(--ink-3)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  capabilityRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 0',
+    borderBottom: '1px solid var(--line-2)',
+    fontSize: 13,
+    color: 'var(--ink-2)',
+  },
+  capabilityRowLast: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '6px 0',
+    fontSize: 13,
+    color: 'var(--ink-2)',
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  statRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    padding: '5px 0',
+    borderBottom: '1px solid var(--line-2)',
+  },
+  statRowLast: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    padding: '5px 0',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'var(--ink-3)',
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: 700,
+    fontFamily: 'Geist Mono, monospace',
+    color: 'var(--ink)',
+  },
+  rightPanel: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tabBar: {
+    display: 'flex',
+    gap: 2,
+    padding: '4px',
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    marginBottom: 16,
+    flexWrap: 'wrap' as const,
+  },
+  mainCard: {
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    padding: '20px 22px',
+  },
+  label: {
+    display: 'block',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--ink-2)',
+    fontFamily: 'Geist Mono, monospace',
+    marginBottom: 6,
+    letterSpacing: '0.04em',
+  },
+  input: {
+    display: 'block',
+    width: '100%',
+    padding: '8px 10px',
+    background: 'var(--paper-3)',
+    border: '1px solid var(--line)',
+    borderRadius: 7,
+    fontSize: 13,
+    color: 'var(--ink)',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'inherit',
+  },
+  textarea: {
+    display: 'block',
+    width: '100%',
+    padding: '8px 10px',
+    background: 'var(--paper-3)',
+    border: '1px solid var(--line)',
+    borderRadius: 7,
+    fontSize: 13,
+    color: 'var(--ink)',
+    outline: 'none',
+    resize: 'vertical' as const,
+    boxSizing: 'border-box' as const,
+    fontFamily: 'inherit',
+    lineHeight: 1.5,
+  },
+  select: {
+    display: 'block',
+    width: '100%',
+    padding: '8px 10px',
+    background: 'var(--paper-3)',
+    border: '1px solid var(--line)',
+    borderRadius: 7,
+    fontSize: 13,
+    color: 'var(--ink)',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'inherit',
+  },
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 14,
+    marginBottom: 0,
+  },
+  row2: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 12,
+  },
+  hint: {
+    fontSize: 11,
+    color: 'var(--ink-4)',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    margin: '0 0 4px',
+    fontSize: 15,
+    fontWeight: 700,
+    color: 'var(--ink)',
+  },
+  sectionSub: {
+    margin: '0 0 16px',
+    fontSize: 13,
+    color: 'var(--ink-3)',
+  },
+  toggleWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleTrackOn: {
+    position: 'relative' as const,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    background: 'var(--green)',
+    border: 'none',
+    cursor: 'pointer',
+    flexShrink: 0,
+    padding: 0,
+  },
+  toggleTrackOff: {
+    position: 'relative' as const,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    background: 'var(--line)',
+    border: 'none',
+    cursor: 'pointer',
+    flexShrink: 0,
+    padding: 0,
+  },
+  toggleThumbOn: {
+    position: 'absolute' as const,
+    top: 3,
+    left: 'calc(100% - 21px)',
+    width: 18,
+    height: 18,
+    borderRadius: '50%',
+    background: '#fff',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+  },
+  toggleThumbOff: {
+    position: 'absolute' as const,
+    top: 3,
+    left: 3,
+    width: 18,
+    height: 18,
+    borderRadius: '50%',
+    background: '#fff',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+  },
+  channelRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 12px',
+    background: 'var(--paper-3)',
+    borderRadius: 8,
+    border: '1px solid var(--line-2)',
+  },
+  channelLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  channelName: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ink)',
+  },
+  channelDesc: {
+    fontSize: 11,
+    color: 'var(--ink-4)',
+    marginTop: 1,
+  },
+  infoBanner: {
+    display: 'flex',
+    gap: 10,
+    padding: '12px 14px',
+    background: 'color-mix(in srgb, var(--blue) 8%, var(--paper-2))',
+    border: '1px solid color-mix(in srgb, var(--blue) 20%, var(--line))',
+    borderRadius: 8,
+  },
+  modeRow: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 12,
+  },
+  modeBtnActive: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--blue)',
+    background: 'color-mix(in srgb, var(--blue) 10%, var(--paper-2))',
+    color: 'var(--blue)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  modeBtnInactive: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--line)',
+    background: 'transparent',
+    color: 'var(--ink-3)',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  saveRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 4,
+  },
+  saveBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '9px 18px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'var(--ink)',
+    color: 'var(--paper)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  saveBtnDisabled: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '9px 18px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'var(--line)',
+    color: 'var(--ink-4)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'not-allowed',
+  },
+  savedText: {
+    fontSize: 13,
+    color: 'var(--green)',
+    fontWeight: 600,
+  },
+  presetBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    borderRadius: 6,
+    border: '1px solid color-mix(in srgb, var(--violet) 30%, var(--line))',
+    background: 'color-mix(in srgb, var(--violet) 8%, var(--paper-2))',
+    color: 'var(--violet)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  rangeWrap: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 6,
+  },
+  rangeEnds: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 11,
+    color: 'var(--ink-4)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  learningBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ink-2)',
+  },
+  learningContent: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTop: '1px solid var(--line-2)',
+    fontSize: 12,
+    color: 'var(--ink-4)',
+    fontStyle: 'italic' as const,
+  },
+  testChannelBar: {
+    display: 'flex',
+    gap: 2,
+    padding: '4px',
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    marginBottom: 16,
+    width: 'fit-content',
+  },
+  divider: {
+    height: 1,
+    background: 'var(--line-2)',
+    margin: '14px 0',
+  },
+  spinner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 200,
+    color: 'var(--ink-4)',
+    fontSize: 13,
+  },
+};
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '6px 12px',
+    borderRadius: 7,
+    border: 'none',
+    background: active ? 'var(--paper-3)' : 'transparent',
+    color: active ? 'var(--ink)' : 'var(--ink-3)',
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+    transition: 'background 0.15s, color 0.15s',
+  };
+}
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={on ? s.toggleTrackOn : s.toggleTrackOff}
+      aria-label="Toggle"
+    >
+      <span style={on ? s.toggleThumbOn : s.toggleThumbOff} />
+    </button>
+  );
+}
+
 export default function AIAgent({ accountId }: AIAgentProps) {
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -223,418 +702,418 @@ export default function AIAgent({ accountId }: AIAgentProps) {
     setConfig(prev => ({ ...prev, channels: { ...prev.channels, [ch]: value } }));
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-      </div>
-    );
+    return <div style={s.spinner}>Loading configuration…</div>;
   }
 
-  const inputClass = 'input text-sm';
-  const tabClass = (t: Tab) =>
-    `flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-      activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-    }`;
+  const activeChs = [config.channels.sms && 'SMS', config.channels.email && 'Email'].filter(Boolean);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div style={s.root}>
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-primary-100 rounded-lg">
-          <Bot className="w-6 h-6 text-primary-600" />
+      <div style={s.header}>
+        <div style={s.headerLeft}>
+          <h1 style={s.h1}>AI Agent</h1>
+          <p style={s.subtitle}>Configure AI auto-reply for SMS and email.</p>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">AI Agent</h2>
-          <p className="text-sm text-gray-500">Configure your AI agents for SMS and email</p>
+        <div style={s.headerRight}>
+          <span style={config.enabled ? s.badgeOnline : s.badgeOffline}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: config.enabled ? 'var(--green)' : 'var(--ink-4)', display: 'inline-block' }} />
+            {config.enabled ? 'Online' : 'Offline'}
+          </span>
+          <button style={s.configBtn} onClick={() => setActiveTab('general')}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M13.3 6.4l-.8-.5a5 5 0 0 0 0-1.8l.8-.5a.8.8 0 0 0 .3-1L13 2a.8.8 0 0 0-1-.3l-.8.5a5.2 5.2 0 0 0-1.6-.9V.8A.8.8 0 0 0 8.8 0H7.2a.8.8 0 0 0-.8.8v.9A5.2 5.2 0 0 0 4.8 2.6L4 2.1A.8.8 0 0 0 3 2.4L2.4 3.5a.8.8 0 0 0 .3 1l.8.5a5 5 0 0 0 0 1.8l-.8.5a.8.8 0 0 0-.3 1l.6 1.1a.8.8 0 0 0 1 .3l.8-.5c.5.4 1 .7 1.6.9v.9a.8.8 0 0 0 .8.8h1.6a.8.8 0 0 0 .8-.8v-.9a5.2 5.2 0 0 0 1.6-.9l.8.5a.8.8 0 0 0 1-.3l.6-1.1a.8.8 0 0 0-.3-1Z" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+            Configure
+          </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
-        <button onClick={() => setActiveTab('general')} className={tabClass('general')}>
-          <Settings className="w-4 h-4" />
-          General
-        </button>
-        <button onClick={() => setActiveTab('sms')} className={tabClass('sms')}>
-          <MessageSquare className="w-4 h-4" />
-          SMS Agent
-        </button>
-        <button onClick={() => setActiveTab('email')} className={tabClass('email')}>
-          <Mail className="w-4 h-4" />
-          Email Agent
-        </button>
-        <button onClick={() => setActiveTab('test')} className={tabClass('test')}>
-          <FlaskConical className="w-4 h-4" />
-          Test Chat
-        </button>
-        <button onClick={() => setActiveTab('kb')} className={tabClass('kb')}>
-          <BookOpen className="w-4 h-4" />
-          Knowledge Base
-        </button>
+      {/* Body */}
+      <div style={s.body}>
+        {/* Left panel */}
+        <div style={s.leftPanel}>
+          {/* Capabilities card */}
+          <div style={s.card}>
+            <p style={s.cardTitle}>Capabilities</p>
+            <div>
+              <div style={s.capabilityRow}>
+                <span style={{ ...s.dot, background: config.channels.sms ? 'var(--green)' : 'var(--ink-4)' }} />
+                SMS replies
+              </div>
+              <div style={s.capabilityRow}>
+                <span style={{ ...s.dot, background: config.channels.email ? 'var(--green)' : 'var(--ink-4)' }} />
+                Email replies
+              </div>
+              <div style={s.capabilityRow}>
+                <span style={{ ...s.dot, background: 'var(--blue)' }} />
+                Auto follow-ups (3×)
+              </div>
+              <div style={s.capabilityRow}>
+                <span style={{ ...s.dot, background: 'var(--violet)' }} />
+                Knowledge base
+              </div>
+              <div style={s.capabilityRowLast}>
+                <span style={{ ...s.dot, background: config.mode === 'auto' ? 'var(--amber)' : 'var(--ink-4)' }} />
+                Mode: {config.mode === 'auto' ? 'Auto-reply' : 'Suggest only'}
+              </div>
+            </div>
+          </div>
+
+          {/* Today stats card */}
+          <div style={s.card}>
+            <p style={s.cardTitle}>Today</p>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Channels active</span>
+              <span style={s.statValue}>{activeChs.length}/2</span>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Replies sent</span>
+              <span style={s.statValue}>—</span>
+            </div>
+            <div style={s.statRow}>
+              <span style={s.statLabel}>Follow-ups</span>
+              <span style={s.statValue}>—</span>
+            </div>
+            <div style={s.statRowLast}>
+              <span style={s.statLabel}>Suggestions</span>
+              <span style={s.statValue}>—</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div style={s.rightPanel}>
+          {/* Tab bar */}
+          <div style={s.tabBar}>
+            {(['general', 'sms', 'email', 'test', 'kb'] as Tab[]).map(t => (
+              <button key={t} onClick={() => setActiveTab(t)} style={tabStyle(activeTab === t)}>
+                {t === 'general' ? 'General' : t === 'sms' ? 'SMS Agent' : t === 'email' ? 'Email Agent' : t === 'test' ? 'Test Chat' : 'Knowledge Base'}
+              </button>
+            ))}
+          </div>
+
+          {/* General tab */}
+          {activeTab === 'general' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Master toggle */}
+              <div style={s.mainCard}>
+                <div style={s.toggleWrap}>
+                  <div>
+                    <p style={{ ...s.sectionTitle, margin: '0 0 2px' }}>AI Agent {config.enabled ? 'Enabled' : 'Disabled'}</p>
+                    <p style={{ ...s.sectionSub, margin: 0 }}>
+                      {config.enabled
+                        ? 'The AI is actively responding to inbound messages.'
+                        : 'The AI is off. No automatic replies will be sent.'}
+                    </p>
+                  </div>
+                  <Toggle on={config.enabled} onToggle={() => set('enabled', !config.enabled)} />
+                </div>
+                {config.enabled && (
+                  <>
+                    <div style={s.divider} />
+                    <p style={{ ...s.label, marginBottom: 8 }}>Response mode</p>
+                    <div style={s.modeRow}>
+                      {(['auto', 'suggest'] as const).map(m => (
+                        <button key={m} onClick={() => set('mode', m)} style={config.mode === m ? s.modeBtnActive : s.modeBtnInactive}>
+                          {m === 'auto' ? 'Auto-reply' : 'Suggest only'}
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ ...s.hint, marginTop: 8 }}>
+                      {config.mode === 'auto'
+                        ? 'Auto-reply: the AI sends responses automatically to inbound messages.'
+                        : 'Suggest: the AI drafts responses in Conversations for you to review before sending.'}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Channels */}
+              <div style={s.mainCard}>
+                <p style={s.cardTitle}>Active Channels</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={s.channelRow}>
+                    <div style={s.channelLeft}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                        <rect x="1" y="2" width="14" height="10" rx="2" stroke="var(--green)" strokeWidth="1.5" />
+                        <path d="M4 14l2-2h4l2 2" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      <div>
+                        <p style={s.channelName}>SMS Agent</p>
+                        <p style={s.channelDesc}>Responds to inbound text messages</p>
+                      </div>
+                    </div>
+                    <Toggle on={config.channels.sms} onToggle={() => setChannel('sms', !config.channels.sms)} />
+                  </div>
+                  <div style={s.channelRow}>
+                    <div style={s.channelLeft}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                        <rect x="1" y="3" width="14" height="10" rx="2" stroke="var(--blue)" strokeWidth="1.5" />
+                        <path d="M1 5l7 5 7-5" stroke="var(--blue)" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      <div>
+                        <p style={s.channelName}>Email Agent</p>
+                        <p style={s.channelDesc}>Responds to inbound emails via Resend routing</p>
+                      </div>
+                    </div>
+                    <Toggle on={config.channels.email} onToggle={() => setChannel('email', !config.channels.email)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Shared settings */}
+              <div style={s.mainCard}>
+                <p style={s.cardTitle}>Shared Settings</p>
+                <div style={s.fieldGroup}>
+                  <div>
+                    <label style={s.label}>Tone</label>
+                    <select style={s.select} value={config.tone} onChange={e => set('tone', e.target.value)}>
+                      <option value="friendly">Friendly</option>
+                      <option value="casual">Casual</option>
+                      <option value="professional">Professional</option>
+                      <option value="formal">Formal</option>
+                    </select>
+                    <p style={s.hint}>Applied to both SMS and email agents.</p>
+                  </div>
+                  <div>
+                    <label style={s.label}>Business context</label>
+                    <textarea
+                      rows={3}
+                      style={s.textarea}
+                      placeholder="We're a real estate team in Miami specialising in luxury condos..."
+                      value={config.business_context}
+                      onChange={e => set('business_context', e.target.value)}
+                    />
+                    <p style={s.hint}>Shared context injected into both agents' prompts.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Follow-ups info banner */}
+              <div style={s.infoBanner}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="8" cy="8" r="7" stroke="var(--blue)" strokeWidth="1.5" />
+                  <path d="M8 7v4" stroke="var(--blue)" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="8" cy="5" r="0.75" fill="var(--blue)" />
+                </svg>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)', margin: '0 0 4px' }}>Automatic Follow-ups</p>
+                  <p style={{ fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 }}>
+                    When the AI sends a message and the contact doesn't reply within 24 hours, the AI will
+                    automatically send a dynamic, context-aware follow-up. This repeats up to 3 times over
+                    3 days. Follow-ups stop immediately when the contact replies.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SMS Agent tab */}
+          {activeTab === 'sms' && (
+            <div style={s.mainCard}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div>
+                  <p style={{ ...s.sectionTitle, margin: '0 0 2px' }}>SMS Agent</p>
+                  <p style={{ ...s.sectionSub, margin: 0 }}>Handles inbound text conversations on your behalf.</p>
+                </div>
+                <button style={s.presetBtn} onClick={() => setConfig(prev => ({ ...prev, ...DAN_SMS_CONFIG }))}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M8 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Load Dan (test)
+                </button>
+              </div>
+              <div style={s.fieldGroup}>
+                <div style={s.row2}>
+                  <div>
+                    <label style={s.label}>Agent name</label>
+                    <input type="text" style={s.input} placeholder="e.g. Dan" value={config.agent_name} onChange={e => set('agent_name', e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={s.label}>Represents</label>
+                    <input type="text" style={s.input} placeholder="e.g. Ben (the agent)" value={config.agent_represents} onChange={e => set('agent_represents', e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label style={s.label}>System prompt</label>
+                  <textarea
+                    rows={8}
+                    style={s.textarea}
+                    placeholder="You are a friendly real estate assistant. You handle text conversations on behalf of [Agent Name] and your goal is to qualify leads and book calls..."
+                    value={config.system_prompt}
+                    onChange={e => set('system_prompt', e.target.value)}
+                  />
+                  <p style={s.hint}>Core instruction for the SMS agent. Keep it SMS-appropriate — concise, human, direct.</p>
+                </div>
+                <div style={s.rangeWrap}>
+                  <label style={s.label}>
+                    Max response length — <span style={{ color: 'var(--ink)' }}>{config.max_tokens} tokens</span> (~{Math.round(config.max_tokens * 0.75)} words)
+                  </label>
+                  <input
+                    type="range" min={50} max={500} step={25}
+                    value={config.max_tokens}
+                    onChange={e => set('max_tokens', parseInt(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--blue)' }}
+                  />
+                  <div style={s.rangeEnds}>
+                    <span>Short (50)</span><span>Long (500)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Email Agent tab */}
+          {activeTab === 'email' && (
+            <div style={s.mainCard}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div>
+                  <p style={{ ...s.sectionTitle, margin: '0 0 2px' }}>Email Agent</p>
+                  <p style={{ ...s.sectionSub, margin: 0 }}>Handles inbound email conversations on your behalf.</p>
+                </div>
+                <button style={s.presetBtn} onClick={() => setConfig(prev => ({ ...prev, ...DAN_EMAIL_CONFIG }))}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M8 3v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Load Dan (test)
+                </button>
+              </div>
+              <div style={s.fieldGroup}>
+                <div style={s.row2}>
+                  <div>
+                    <label style={s.label}>Agent name</label>
+                    <input type="text" style={s.input} placeholder="e.g. Dan" value={config.email_agent_name} onChange={e => set('email_agent_name', e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={s.label}>Represents</label>
+                    <input type="text" style={s.input} placeholder="e.g. Ben (the agent)" value={config.email_agent_represents} onChange={e => set('email_agent_represents', e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label style={s.label}>System prompt</label>
+                  <textarea
+                    rows={8}
+                    style={s.textarea}
+                    placeholder="You handle email correspondence on behalf of [Agent Name]. Write professional, concise emails that feel human. Always end with a clear next step..."
+                    value={config.email_system_prompt}
+                    onChange={e => set('email_system_prompt', e.target.value)}
+                  />
+                  <p style={s.hint}>Core instruction for the email agent. Can be longer than SMS — emails allow more context.</p>
+                </div>
+                <div style={s.rangeWrap}>
+                  <label style={s.label}>
+                    Max response length — <span style={{ color: 'var(--ink)' }}>{config.email_max_tokens} tokens</span> (~{Math.round(config.email_max_tokens * 0.75)} words)
+                  </label>
+                  <input
+                    type="range" min={100} max={1000} step={50}
+                    value={config.email_max_tokens}
+                    onChange={e => set('email_max_tokens', parseInt(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--blue)' }}
+                  />
+                  <div style={s.rangeEnds}>
+                    <span>Short (100)</span><span>Long (1000)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Test Chat tab */}
+          {activeTab === 'test' && (
+            <div>
+              <p style={{ ...s.sectionSub, marginBottom: 12 }}>
+                Simulate inbound conversations to see how each agent responds. No real messages are sent.
+              </p>
+              <div style={s.testChannelBar}>
+                <button onClick={() => setTestChannel('sms')} style={tabStyle(testChannel === 'sms')}>
+                  SMS — {config.agent_name || 'Agent'}
+                </button>
+                <button onClick={() => setTestChannel('email')} style={tabStyle(testChannel === 'email')}>
+                  Email — {config.email_agent_name || 'Agent'}
+                </button>
+              </div>
+              <AITestChat
+                key={testChannel}
+                accountId={accountId}
+                agentName={testChannel === 'sms' ? (config.agent_name || 'SMS Agent') : (config.email_agent_name || 'Email Agent')}
+                agentRepresents={testChannel === 'sms' ? config.agent_represents : config.email_agent_represents}
+                channel={testChannel}
+              />
+            </div>
+          )}
+
+          {/* Knowledge Base tab */}
+          {activeTab === 'kb' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={s.mainCard}>
+                <p style={{ ...s.sectionTitle, margin: '0 0 2px' }}>Knowledge Base</p>
+                <p style={{ ...s.sectionSub, margin: '0 0 14px' }}>
+                  Facts the AI always has access to — markets, commissions, FAQs, objection handling.
+                </p>
+                <textarea
+                  rows={20}
+                  style={{ ...s.textarea, resize: 'vertical' }}
+                  placeholder={KB_TEMPLATE}
+                  value={config.knowledge_base || ''}
+                  onChange={e => set('knowledge_base', e.target.value)}
+                  onFocus={() => {
+                    if (!config.knowledge_base) set('knowledge_base', KB_TEMPLATE);
+                  }}
+                />
+                <p style={{ ...s.hint, marginTop: 6 }}>
+                  Use plain text or Markdown. This is injected into every AI prompt so keep it factual and concise.
+                </p>
+              </div>
+              <div style={s.mainCard}>
+                <button onClick={() => setKbLearningsOpen(v => !v)} style={s.learningBtn}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 4l6 4 6-4" stroke="var(--violet)" strokeWidth="1.5" strokeLinecap="round" />
+                      <rect x="1" y="3" width="14" height="10" rx="2" stroke="var(--violet)" strokeWidth="1.5" />
+                    </svg>
+                    Conversation Learnings
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 400 }}>(auto-accumulated)</span>
+                  </span>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ transform: kbLearningsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <path d="M4 6l4 4 4-4" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+                {kbLearningsOpen && (
+                  <div style={s.learningContent}>
+                    Learnings from past conversations will appear here automatically as the AI processes replies.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Save button */}
+          {activeTab !== 'test' && (
+            <div style={{ ...s.saveRow, marginTop: 14 }}>
+              <button onClick={handleSave} disabled={saving} style={saving ? s.saveBtnDisabled : s.saveBtn}>
+                {saving ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="20 18" />
+                    </svg>
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l4 4 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Save changes
+                  </>
+                )}
+              </button>
+              {saved && <span style={s.savedText}>Saved</span>}
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* ── GENERAL TAB ── */}
-      {activeTab === 'general' && (<>
-        {/* Master toggle */}
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-900">AI Agent {config.enabled ? 'Enabled' : 'Disabled'}</p>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {config.enabled
-                  ? 'The AI is actively responding to inbound messages.'
-                  : 'The AI is off. No automatic replies will be sent.'}
-              </p>
-            </div>
-            <button onClick={() => set('enabled', !config.enabled)} className="flex-shrink-0" aria-label="Toggle AI">
-              {config.enabled
-                ? <ToggleRight className="w-12 h-12 text-primary-600" />
-                : <ToggleLeft className="w-12 h-12 text-gray-400" />}
-            </button>
-          </div>
-          {config.enabled && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-700 mb-2">Response mode</p>
-              <div className="flex gap-3">
-                {(['auto', 'suggest'] as const).map(m => (
-                  <button
-                    key={m}
-                    onClick={() => set('mode', m)}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                      config.mode === m
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200/60 dark:border-white/5 text-gray-600 hover:bg-gray-50 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    {m === 'auto' ? '⚡ Auto-reply' : '💡 Suggest only'}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-400 mt-2">
-                {config.mode === 'auto'
-                  ? 'Auto-reply: the AI sends responses automatically to inbound messages.'
-                  : 'Suggest: the AI drafts responses in Conversations for you to review before sending.'}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Active channels */}
-        <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary-500" /> Active Channels
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-5 h-5 text-green-600" />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">SMS Agent</p>
-                  <p className="text-xs text-gray-500">Responds to inbound text messages</p>
-                </div>
-              </div>
-              <button onClick={() => setChannel('sms', !config.channels.sms)}>
-                {config.channels.sms
-                  ? <ToggleRight className="w-8 h-8 text-green-600" />
-                  : <ToggleLeft className="w-8 h-8 text-gray-400" />}
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Email Agent</p>
-                  <p className="text-xs text-gray-500">Responds to inbound emails via Resend routing</p>
-                </div>
-              </div>
-              <button onClick={() => setChannel('email', !config.channels.email)}>
-                {config.channels.email
-                  ? <ToggleRight className="w-8 h-8 text-blue-600" />
-                  : <ToggleLeft className="w-8 h-8 text-gray-400" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Shared tone + context */}
-        <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">Shared Settings</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tone</label>
-              <select className={inputClass} value={config.tone} onChange={e => set('tone', e.target.value)}>
-                <option value="friendly">Friendly</option>
-                <option value="casual">Casual</option>
-                <option value="professional">Professional</option>
-                <option value="formal">Formal</option>
-              </select>
-              <p className="text-xs text-gray-400 mt-1">Applied to both SMS and email agents.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Business context</label>
-              <textarea
-                rows={3}
-                className={`${inputClass} resize-none`}
-                placeholder="We're a real estate team in Miami specialising in luxury condos..."
-                value={config.business_context}
-                onChange={e => set('business_context', e.target.value)}
-              />
-              <p className="text-xs text-gray-400 mt-1">Shared context injected into both agents' prompts.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Follow-ups info */}
-        <div className="card bg-blue-50 border-blue-100">
-          <div className="flex gap-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-blue-900 text-sm">Automatic Follow-ups</p>
-              <p className="text-sm text-blue-700 mt-1">
-                When the AI sends a message and the contact doesn't reply within 24 hours, the AI will
-                automatically send a dynamic, context-aware follow-up. This repeats up to 3 times over
-                3 days. Follow-ups stop immediately when the contact replies.
-              </p>
-            </div>
-          </div>
-        </div>
-      </>)}
-
-      {/* ── SMS AGENT TAB ── */}
-      {activeTab === 'sms' && (<>
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-gray-900">SMS Agent</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Handles inbound text conversations on your behalf.</p>
-            </div>
-            <button
-              onClick={() => setConfig(prev => ({ ...prev, ...DAN_SMS_CONFIG }))}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
-              title="Load Dan SMS preset (test config for Ben's real estate team)"
-            >
-              <FlaskConical className="w-3.5 h-3.5" />
-              Load Dan (test)
-            </button>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agent name</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="e.g. Dan"
-                  value={config.agent_name}
-                  onChange={e => set('agent_name', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Represents</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="e.g. Ben (the agent)"
-                  value={config.agent_represents}
-                  onChange={e => set('agent_represents', e.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">System prompt</label>
-              <textarea
-                rows={8}
-                className={`${inputClass} resize-none`}
-                placeholder="You are a friendly real estate assistant. You handle text conversations on behalf of [Agent Name] and your goal is to qualify leads and book calls..."
-                value={config.system_prompt}
-                onChange={e => set('system_prompt', e.target.value)}
-              />
-              <p className="text-xs text-gray-400 mt-1">Core instruction for the SMS agent. Keep it SMS-appropriate — concise, human, direct.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max response length — {config.max_tokens} tokens (~{Math.round(config.max_tokens * 0.75)} words)
-              </label>
-              <input
-                type="range" min={50} max={500} step={25}
-                value={config.max_tokens}
-                onChange={e => set('max_tokens', parseInt(e.target.value))}
-                className="w-full accent-primary-600"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>Short (50)</span><span>Long (500)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>)}
-
-      {/* ── EMAIL AGENT TAB ── */}
-      {activeTab === 'email' && (<>
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-gray-900">Email Agent</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Handles inbound email conversations on your behalf.</p>
-            </div>
-            <button
-              onClick={() => setConfig(prev => ({ ...prev, ...DAN_EMAIL_CONFIG }))}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
-              title="Load Dan email preset (test config for Ben's real estate team)"
-            >
-              <FlaskConical className="w-3.5 h-3.5" />
-              Load Dan (test)
-            </button>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agent name</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="e.g. Dan"
-                  value={config.email_agent_name}
-                  onChange={e => set('email_agent_name', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Represents</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="e.g. Ben (the agent)"
-                  value={config.email_agent_represents}
-                  onChange={e => set('email_agent_represents', e.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">System prompt</label>
-              <textarea
-                rows={8}
-                className={`${inputClass} resize-none`}
-                placeholder="You handle email correspondence on behalf of [Agent Name]. Write professional, concise emails that feel human. Always end with a clear next step..."
-                value={config.email_system_prompt}
-                onChange={e => set('email_system_prompt', e.target.value)}
-              />
-              <p className="text-xs text-gray-400 mt-1">Core instruction for the email agent. Can be longer than SMS — emails allow more context.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max response length — {config.email_max_tokens} tokens (~{Math.round(config.email_max_tokens * 0.75)} words)
-              </label>
-              <input
-                type="range" min={100} max={1000} step={50}
-                value={config.email_max_tokens}
-                onChange={e => set('email_max_tokens', parseInt(e.target.value))}
-                className="w-full accent-primary-600"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>Short (100)</span><span>Long (1000)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>)}
-
-      {/* ── TEST CHAT TAB ── */}
-      {activeTab === 'test' && (
-        <div>
-          <p className="text-sm text-gray-500 mb-3">
-            Simulate inbound conversations to see how each agent responds. No real messages are sent.
-          </p>
-          {/* Channel picker */}
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-4">
-            <button
-              onClick={() => setTestChannel('sms')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                testChannel === 'sms' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              SMS — {config.agent_name || 'Agent'}
-            </button>
-            <button
-              onClick={() => setTestChannel('email')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                testChannel === 'email' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              Email — {config.email_agent_name || 'Agent'}
-            </button>
-          </div>
-          <AITestChat
-            key={testChannel}
-            accountId={accountId}
-            agentName={testChannel === 'sms' ? (config.agent_name || 'SMS Agent') : (config.email_agent_name || 'Email Agent')}
-            agentRepresents={testChannel === 'sms' ? config.agent_represents : config.email_agent_represents}
-            channel={testChannel}
-          />
-        </div>
-      )}
-
-      {/* ── KNOWLEDGE BASE TAB ── */}
-      {activeTab === 'kb' && (<>
-        <div className="card">
-          <div className="mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Knowledge Base</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Facts the AI always has access to — markets, commissions, FAQs, objection handling.
-            </p>
-          </div>
-          <textarea
-            rows={20}
-            className={`${inputClass} resize-y w-full`}
-            placeholder={KB_TEMPLATE}
-            value={config.knowledge_base || ''}
-            onChange={e => set('knowledge_base', e.target.value)}
-            onFocus={() => {
-              if (!config.knowledge_base) set('knowledge_base', KB_TEMPLATE);
-            }}
-          />
-          <p className="text-xs text-gray-400 mt-2">
-            Use plain text or Markdown. This is injected into every AI prompt so keep it factual and concise.
-          </p>
-        </div>
-
-        <div className="card">
-          <button
-            onClick={() => setKbLearningsOpen(v => !v)}
-            className="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            <span className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-primary-500" />
-              Conversation Learnings
-              <span className="text-xs font-normal text-gray-400">(auto-accumulated)</span>
-            </span>
-            {kbLearningsOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-          </button>
-          {kbLearningsOpen && (
-            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/10">
-              <p className="text-xs text-gray-400 italic">
-                Learnings from past conversations will appear here automatically as the AI processes replies.
-              </p>
-            </div>
-          )}
-        </div>
-      </>)}
-
-      {/* Save button — shown on all non-test tabs */}
-      {activeTab !== 'test' && (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
-          {saved && <span className="text-sm text-green-600 font-medium">✓ Saved</span>}
-        </div>
-      )}
     </div>
   );
 }

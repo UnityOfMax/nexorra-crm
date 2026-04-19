@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import FunnelChart from './FunnelChart';
 import MetaCampaignTable, { AdSetRow } from './MetaCampaignTable';
 import OptimizerFeed, { OptimizerAction } from './OptimizerFeed';
-import { RefreshCw } from 'lucide-react';
 
 interface FunnelMetrics {
   stages: Array<{ stage: string; count: number; conversionRate: number | null }>;
@@ -36,17 +35,313 @@ function money(n: number | null, currency = 'USD') {
 }
 function fmt(n: number) { return n.toLocaleString('en-US'); }
 
-interface KpiCardProps { label: string; value: string; sub?: string; accent?: boolean; warn?: boolean }
-function KpiCard({ label, value, sub, accent, warn }: KpiCardProps) {
+const s: Record<string, React.CSSProperties> = {
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+    padding: '24px 32px 48px',
+    maxWidth: 1280,
+    margin: '0 auto',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  headerLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  h1: {
+    margin: 0,
+    fontSize: 22,
+    fontWeight: 700,
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--ink-3)',
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  select: {
+    padding: '7px 10px',
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 7,
+    fontSize: 13,
+    color: 'var(--ink)',
+    outline: 'none',
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+  },
+  refreshBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'var(--ink)',
+    color: 'var(--paper)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  refreshBtnDisabled: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'var(--line)',
+    color: 'var(--ink-4)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'not-allowed',
+  },
+  downloadBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    padding: '7px 14px',
+    borderRadius: 8,
+    border: '1px solid var(--line)',
+    background: 'var(--paper-2)',
+    color: 'var(--ink-2)',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  pendingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 10px',
+    borderRadius: 20,
+    background: 'color-mix(in srgb, var(--amber) 15%, transparent)',
+    color: 'var(--amber)',
+    fontSize: 12,
+    fontFamily: 'Geist Mono, monospace',
+    fontWeight: 600,
+  },
+  syncedText: {
+    fontSize: 12,
+    color: 'var(--ink-4)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  kpiGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 14,
+  },
+  kpiCard: {
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    minWidth: 0,
+  },
+  kpiLabel: {
+    margin: 0,
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    color: 'var(--ink-4)',
+    fontFamily: 'Geist Mono, monospace',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+  },
+  kpiValueDefault: {
+    margin: 0,
+    fontSize: 26,
+    fontWeight: 800,
+    fontFamily: 'Geist Mono, monospace',
+    letterSpacing: '-0.03em',
+    color: 'var(--ink)',
+    lineHeight: 1,
+  },
+  kpiValueAccent: {
+    margin: 0,
+    fontSize: 26,
+    fontWeight: 800,
+    fontFamily: 'Geist Mono, monospace',
+    letterSpacing: '-0.03em',
+    color: 'var(--green)',
+    lineHeight: 1,
+  },
+  kpiValueWarn: {
+    margin: 0,
+    fontSize: 26,
+    fontWeight: 800,
+    fontFamily: 'Geist Mono, monospace',
+    letterSpacing: '-0.03em',
+    color: 'var(--rose)',
+    lineHeight: 1,
+  },
+  kpiSub: {
+    margin: 0,
+    fontSize: 11,
+    color: 'var(--ink-4)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+  },
+  kpiSkeleton: {
+    background: 'var(--paper-3)',
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    height: 88,
+    animation: 'pulse 1.5s ease-in-out infinite',
+  },
+  midRow: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1fr',
+    gap: 14,
+  },
+  card: {
+    background: 'var(--paper-2)',
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    padding: '18px 20px',
+  },
+  cardTitle: {
+    margin: '0 0 16px',
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    color: 'var(--ink-4)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  skeletonLine: {
+    height: 28,
+    borderRadius: 6,
+    background: 'var(--paper-3)',
+    marginBottom: 10,
+    animation: 'pulse 1.5s ease-in-out infinite',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: 'var(--ink-4)',
+  },
+  donutPlaceholder: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 160,
+    gap: 8,
+  },
+  donutCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: '50%',
+    border: '10px solid var(--paper-3)',
+    borderTopColor: 'var(--blue)',
+    borderRightColor: 'var(--green)',
+  },
+  donutLabel: {
+    fontSize: 12,
+    color: 'var(--ink-4)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  donutLegend: {
+    display: 'flex',
+    gap: 12,
+    marginTop: 8,
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    fontSize: 11,
+    color: 'var(--ink-3)',
+    fontFamily: 'Geist Mono, monospace',
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 14,
+    padding: '40px 20px',
+    textAlign: 'center',
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: 'var(--paper-3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    margin: '0 0 4px',
+    fontSize: 15,
+    fontWeight: 600,
+    color: 'var(--ink)',
+  },
+  emptyDesc: {
+    margin: 0,
+    fontSize: 13,
+    color: 'var(--ink-3)',
+    maxWidth: 320,
+  },
+  codeBlock: {
+    background: 'var(--paper-3)',
+    borderRadius: 8,
+    padding: '10px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  codeText: {
+    fontSize: 12,
+    fontFamily: 'Geist Mono, monospace',
+    color: 'var(--ink-2)',
+  },
+};
+
+interface KpiCardProps {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+  warn?: boolean;
+  loading?: boolean;
+}
+
+function KpiCard({ label, value, sub, accent, warn, loading }: KpiCardProps) {
+  if (loading) return <div style={s.kpiSkeleton} />;
+  const valStyle = accent ? s.kpiValueAccent : warn ? s.kpiValueWarn : s.kpiValueDefault;
   return (
-    <div className="card flex flex-col gap-1 min-w-0">
-      <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest truncate">{label}</p>
-      <p className={`text-2xl font-mono font-bold tabular-nums leading-none ${
-        accent ? 'text-primary-600 dark:text-primary-400'
-        : warn ? 'text-red-600 dark:text-red-400'
-        : 'text-gray-900 dark:text-gray-100'
-      }`}>{value}</p>
-      {sub && <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{sub}</p>}
+    <div style={s.kpiCard}>
+      <p style={s.kpiLabel}>{label}</p>
+      <p style={valStyle}>{value}</p>
+      {sub && <p style={s.kpiSub}>{sub}</p>}
     </div>
   );
 }
@@ -95,88 +390,90 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
   };
 
   const t = adTotals;
+  const noData = !loading && (!t || t.spend === 0) && adRows.length === 0;
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Ad spend → leads → bookings</p>
+    <div style={s.root}>
+      {/* Header */}
+      <div style={s.header}>
+        <div style={s.headerLeft}>
+          <h1 style={s.h1}>Analytics &amp; Reports</h1>
+          <p style={s.subtitle}>Ad spend → leads → bookings</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div style={s.headerRight}>
           {pendingCount > 0 && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 animate-pulse">
+            <span style={s.pendingBadge}>
               {pendingCount} action{pendingCount !== 1 ? 's' : ''} pending
             </span>
           )}
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="input text-sm py-1.5"
-          >
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} style={s.select}>
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
           </select>
-          <button
-            onClick={() => loadData(true)}
-            disabled={syncing}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Pulling…' : 'Pull Data from Meta'}
+          <button style={s.downloadBtn}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2v8M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            Download PDF
           </button>
-          {lastSync && <span className="text-xs text-gray-400">synced {lastSync}</span>}
+          <button onClick={() => loadData(true)} disabled={syncing} style={syncing ? s.refreshBtnDisabled : s.refreshBtn}>
+            <svg
+              width="14" height="14" viewBox="0 0 16 16" fill="none"
+              style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}
+            >
+              <path d="M14 8A6 6 0 1 1 9 2.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {syncing ? 'Pulling…' : 'Pull from Meta'}
+          </button>
+          {lastSync && <span style={s.syncedText}>synced {lastSync}</span>}
         </div>
       </div>
 
-      {/* ── Meta KPI cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card h-20 animate-pulse bg-gray-100 dark:bg-white/5" />
-          ))
-        ) : (
-          <>
-            <KpiCard label="Total Spend"   value={money(t?.spend ?? null)}          sub={`${fmt(t?.impressions ?? 0)} impressions`} />
-            <KpiCard label="Reach"         value={fmt(t?.reach ?? 0)}               sub="unique people" />
-            <KpiCard label="CPM"           value={money(t?.cpm ?? null)}            sub="per 1,000 shown" />
-            <KpiCard label="Page Views"    value={fmt(t?.page_views ?? 0)}          sub={`${fmt(t?.clicks ?? 0)} link clicks`} />
-            <KpiCard label="Leads"         value={fmt(t?.leads ?? 0)}               sub={t?.cpl ? `${money(t.cpl)} per lead` : undefined} accent />
-            <KpiCard label="Booked Calls"  value={fmt(t?.appointments ?? 0)}        sub={t?.cpa ? `${money(t.cpa)} per appt` : undefined} accent={!!t?.appointments} />
-          </>
-        )}
+      {/* KPI cards */}
+      <div style={s.kpiGrid}>
+        <KpiCard loading={loading} label="Total Spend"  value={money(t?.spend ?? null)}       sub={`${fmt(t?.impressions ?? 0)} impressions`} />
+        <KpiCard loading={loading} label="Total Leads"  value={fmt(t?.leads ?? 0)}            sub={t?.cpl ? `${money(t.cpl)} per lead` : undefined} accent />
+        <KpiCard loading={loading} label="Booking Rate" value={funnel?.bookingRate != null ? `${(funnel.bookingRate * 100).toFixed(1)}%` : '—'} sub={`${fmt(funnel?.totalBookings ?? 0)} bookings`} accent />
+        <KpiCard loading={loading} label="Cost / Lead"  value={money(t?.cpl ?? null)}         sub={t?.cpa ? `${money(t.cpa)} per appt` : undefined} warn={!!(t?.cpl && t.cpl > 50)} />
       </div>
 
-      {/* ── No data empty state ────────────────────────────────── */}
-      {!loading && (!t || t.spend === 0) && adRows.length === 0 && (
-        <div className="card p-8 flex flex-col items-center text-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 mb-1">No Meta ad data yet</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-              Add your Meta access token and ad account ID to Vercel environment variables, then click <span className="font-semibold text-primary-600 dark:text-primary-400">Pull Data from Meta</span> above.
-            </p>
-          </div>
-          <div className="text-xs text-gray-400 space-y-1 bg-gray-50 dark:bg-white/5 rounded-lg px-4 py-3">
-            <p className="font-mono">META_ACCESS_TOKEN</p>
-            <p className="font-mono">META_AD_ACCOUNT_ID</p>
+      {/* Empty state */}
+      {noData && (
+        <div style={{ ...s.card, padding: '0' }}>
+          <div style={s.emptyState}>
+            <div style={s.emptyIcon}>
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                <path d="M14 8A6 6 0 1 1 9 2.1" stroke="var(--ink-3)" strokeWidth="1.8" strokeLinecap="round" />
+                <path d="M9 1v4h4" stroke="var(--ink-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <p style={s.emptyTitle}>No Meta ad data yet</p>
+              <p style={s.emptyDesc}>
+                Add your Meta access token and ad account ID to Vercel environment variables, then click Pull from Meta above.
+              </p>
+            </div>
+            <div style={s.codeBlock}>
+              <span style={s.codeText}>META_ACCESS_TOKEN</span>
+              <span style={s.codeText}>META_AD_ACCOUNT_ID</span>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Funnel + Optimizer ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="card p-5">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">Funnel</h3>
+      {/* Funnel + Lead Quality */}
+      <div style={s.midRow}>
+        <div style={s.card}>
+          <p style={s.cardTitle}>Funnel</p>
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 rounded-lg bg-gray-100 dark:bg-white/5 animate-pulse" />)}
+            <div>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={s.skeletonLine} />
+              ))}
             </div>
           ) : funnel ? (
             <FunnelChart
@@ -186,27 +483,49 @@ export default function AnalyticsDashboard({ accountId }: AnalyticsDashboardProp
               bookingRate={funnel.bookingRate}
             />
           ) : (
-            <p className="text-sm text-gray-400">No funnel data yet.</p>
+            <p style={s.emptyText}>No funnel data yet.</p>
           )}
         </div>
 
-        <div className="card p-5">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">AI Optimizer</h3>
-          <OptimizerFeed
-            actions={actions.slice(0, 8)}
-            onApprove={(id) => handleDecision(id, 'approve')}
-            onReject={(id) => handleDecision(id, 'reject')}
-            isLoading={loading}
-          />
+        <div style={s.card}>
+          <p style={s.cardTitle}>Lead Quality</p>
+          <div style={s.donutPlaceholder}>
+            <div style={s.donutCircle} />
+            <span style={s.donutLabel}>Quality breakdown</span>
+            <div style={s.donutLegend}>
+              <span style={s.legendItem}>
+                <span style={{ ...s.legendDot, background: 'var(--green)' }} />
+                Hot
+              </span>
+              <span style={s.legendItem}>
+                <span style={{ ...s.legendDot, background: 'var(--blue)' }} />
+                Warm
+              </span>
+              <span style={s.legendItem}>
+                <span style={{ ...s.legendDot, background: 'var(--ink-4)' }} />
+                Cold
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Ad Set Table ───────────────────────────────────────── */}
-      <div className="card p-5">
-        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-5 uppercase tracking-wider">Ad Set Breakdown</h3>
+      {/* Ad Set Table */}
+      <div style={s.card}>
+        <p style={s.cardTitle}>Ad Set Breakdown</p>
         <MetaCampaignTable rows={adRows} />
       </div>
 
+      {/* Optimizer Feed */}
+      <div style={s.card}>
+        <p style={s.cardTitle}>AI Optimizer</p>
+        <OptimizerFeed
+          actions={actions.slice(0, 8)}
+          onApprove={(id) => handleDecision(id, 'approve')}
+          onReject={(id) => handleDecision(id, 'reject')}
+          isLoading={loading}
+        />
+      </div>
     </div>
   );
 }

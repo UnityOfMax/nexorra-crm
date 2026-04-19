@@ -2,7 +2,42 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Contact } from '@/types';
-import { Send, MessageSquare, Phone, Mail, Loader, Search, X, Bot, Sparkles, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+function IcoSend({ size = 15 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+}
+function IcoMsgSq({ size = 24, style }: { size?: number; style?: React.CSSProperties }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+}
+function IcoPhone({ size = 14 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+}
+function IcoMail({ size = 14 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
+}
+function IcoLoader({ size = 24 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>;
+}
+function IcoSearch({ style }: { style?: React.CSSProperties }) {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+}
+function IcoX() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+}
+function IcoBot({ size = 14 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></svg>;
+}
+function IcoSparkles() {
+  return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.88 5.76L20 10l-6.12 1.24L12 17l-1.88-5.76L4 10l6.12-1.24L12 3z"/></svg>;
+}
+function IcoChevDown() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
+}
+function IcoChevRight() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+}
+function IcoClock() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+}
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -30,21 +65,28 @@ interface Message {
   created_at: string;
 }
 
-const INTENT_BADGE_CONFIG = {
-  booking_signal: { dot: 'bg-green-500', style: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400', label: 'Booking signal' },
-  interested:     { dot: 'bg-blue-500',  style: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400',   label: 'Interested' },
-  objection:      { dot: 'bg-amber-500', style: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400', label: 'Objection' },
-  qualifying:     { dot: 'bg-gray-400',  style: 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400',       label: 'Qualifying' },
-  stop_request:   { dot: 'bg-red-500',   style: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',        label: 'Stop' },
-} as const;
+const INTENT_COLORS: Record<string, { bg: string; color: string; dot: string }> = {
+  booking_signal: { bg: 'oklch(91% 0.04 160 / 0.35)', color: 'var(--green)',  dot: 'var(--green)' },
+  interested:     { bg: 'oklch(91% 0.04 258 / 0.35)', color: 'var(--blue)',   dot: 'var(--blue)' },
+  objection:      { bg: 'oklch(91% 0.04 75 / 0.35)',  color: 'var(--amber)',  dot: 'var(--amber)' },
+  qualifying:     { bg: 'oklch(86% 0 0 / 0.15)',       color: 'var(--ink-3)', dot: 'var(--ink-3)' },
+  stop_request:   { bg: 'oklch(91% 0.04 10 / 0.35)',  color: 'var(--rose)',   dot: 'var(--rose)' },
+};
+const INTENT_LABELS: Record<string, string> = {
+  booking_signal: 'Booking signal', interested: 'Interested',
+  objection: 'Objection', qualifying: 'Qualifying', stop_request: 'Stop',
+};
 
 function IntentBadge({ intent }: { intent: string }) {
-  const cfg = INTENT_BADGE_CONFIG[intent as keyof typeof INTENT_BADGE_CONFIG];
-  if (!cfg) return null;
+  const c = INTENT_COLORS[intent];
+  if (!c) return null;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.style}`}>
-      <span className={`size-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px',
+      borderRadius: 999, fontSize: 11, fontWeight: 500, background: c.bg, color: c.color,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+      {INTENT_LABELS[intent] || intent}
     </span>
   );
 }
@@ -74,6 +116,23 @@ interface AiConfig {
 }
 
 type MessageType = 'sms' | 'email';
+type ChannelFilter = 'all' | 'sms' | 'email';
+
+const AVATAR_COLORS = ['var(--blue)', 'var(--violet)', 'var(--green)', 'var(--amber)', 'var(--rose)'];
+
+function ContactAvatar({ name, idx, size = 38 }: { name: string; idx: number; size?: number }) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?';
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: 'var(--grad)', color: 'white',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontWeight: 600, fontSize: Math.round(size * 0.36), fontFamily: 'Geist Mono, monospace',
+      flexShrink: 0,
+    }}>{initials}</div>
+  );
+}
 
 export default function Conversations({ accountId, contacts, selectedContactId }: ConversationsProps) {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -84,37 +143,25 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
-  // AI state
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [contactAiEnabled, setContactAiEnabled] = useState(true);
 
-  // Follow-up queue state
   const [followUpQueue, setFollowUpQueue] = useState<FollowUpEntry[]>([]);
   const [queueExpanded, setQueueExpanded] = useState(true);
 
-  // Load AI config for this account
   useEffect(() => {
-    const loadAiConfig = async () => {
-      try {
-        const res = await fetch(`/api/ai/config?accountId=${accountId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setAiConfig(data.config);
-        }
-      } catch (error) {
-        console.error('Error loading AI config:', error);
-      }
-    };
-    loadAiConfig();
+    fetch(`/api/ai/config?accountId=${accountId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setAiConfig(d.config))
+      .catch(() => {});
   }, [accountId]);
 
-  // Load follow-up queue and poll every 60s
   useEffect(() => {
     const loadQueue = async () => {
       try {
@@ -136,21 +183,17 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
-    }).catch(err => console.error('[cancelFollowUp]', err));
+    }).catch(() => {});
   };
 
-  // Load draft messages from localStorage when contact changes
   useEffect(() => {
     if (selectedContact) {
       const draftKey = `draft_${selectedContact.id}`;
       const subjectKey = `subject_${selectedContact.id}`;
       const savedDraft = localStorage.getItem(draftKey);
       const savedSubject = localStorage.getItem(subjectKey);
-
       if (savedDraft) setNewMessage(savedDraft);
       if (savedSubject) setEmailSubject(savedSubject);
-
-      // Load per-contact AI setting
       setContactAiEnabled(selectedContact.ai_enabled !== false);
     } else {
       setNewMessage('');
@@ -158,37 +201,28 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     }
   }, [selectedContact]);
 
-  // Save draft to localStorage whenever it changes
   useEffect(() => {
     if (selectedContact && newMessage) {
-      const draftKey = `draft_${selectedContact.id}`;
-      localStorage.setItem(draftKey, newMessage);
+      localStorage.setItem(`draft_${selectedContact.id}`, newMessage);
     }
   }, [newMessage, selectedContact]);
 
-  // Save email subject to localStorage
   useEffect(() => {
     if (selectedContact && emailSubject) {
-      const subjectKey = `subject_${selectedContact.id}`;
-      localStorage.setItem(subjectKey, emailSubject);
+      localStorage.setItem(`subject_${selectedContact.id}`, emailSubject);
     }
   }, [emailSubject, selectedContact]);
 
-  // Auto-select contact if passed from props
   useEffect(() => {
     if (selectedContactId) {
       const contact = contacts.find(c => c.id === selectedContactId);
-      if (contact) {
-        setSelectedContact(contact);
-      }
+      if (contact) setSelectedContact(contact);
     }
   }, [selectedContactId, contacts]);
 
-  // Track last known message id to detect genuinely new inbound messages
   const lastKnownMsgId = useRef<string | null>(null);
   const initialLoadDone = useRef(false);
 
-  // Load messages when contact is selected + poll every 5s (bypasses RLS via API route)
   useEffect(() => {
     if (selectedContact) {
       initialLoadDone.current = false;
@@ -202,25 +236,19 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           const data = await res.json();
           const fetched: Message[] = data.messages || [];
 
-          setMessages((prev) => {
-            if (fetched.length === prev.length && fetched[fetched.length - 1]?.id === prev[prev.length - 1]?.id) {
-              return prev; // no change
-            }
+          setMessages(prev => {
+            if (fetched.length === prev.length && fetched[fetched.length - 1]?.id === prev[prev.length - 1]?.id) return prev;
             return fetched;
           });
 
-          // Detect new inbound message for AI auto-respond / suggest
           if (initialLoadDone.current && fetched.length > 0) {
             const last = fetched[fetched.length - 1];
             if (last.id !== lastKnownMsgId.current && last.direction === 'inbound') {
               if (aiConfig?.enabled && contactAiEnabled) {
                 const ch: MessageType = last.type === 'email' ? 'email' : 'sms';
                 if (aiConfig.channels[ch]) {
-                  if (aiConfig.mode === 'auto') {
-                    handleAiAutoRespond(ch);
-                  } else {
-                    handleAiSuggest(ch);
-                  }
+                  if (aiConfig.mode === 'auto') handleAiAutoRespond(ch);
+                  else handleAiSuggest(ch);
                 }
               }
             }
@@ -233,14 +261,12 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     }
   }, [selectedContact, aiConfig, contactAiEnabled, accountId]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const loadMessages = async () => {
     if (!selectedContact) return;
-
     setLoading(true);
     try {
       const res = await fetch(`/api/messages?accountId=${accountId}&contactId=${selectedContact.id}`);
@@ -248,32 +274,22 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         const data = await res.json();
         const msgs: Message[] = data.messages || [];
         setMessages(msgs);
-        if (msgs.length > 0) {
-          lastKnownMsgId.current = msgs[msgs.length - 1].id;
-        }
+        if (msgs.length > 0) lastKnownMsgId.current = msgs[msgs.length - 1].id;
         initialLoadDone.current = true;
       }
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
+    } catch {}
     setLoading(false);
   };
 
   const handleAiSuggest = async (channel: MessageType) => {
     if (!selectedContact || aiGenerating) return;
     setAiGenerating(true);
-
     try {
       const res = await fetch('/api/ai/generate-response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId,
-          contactId: selectedContact.id,
-          channel,
-        }),
+        body: JSON.stringify({ accountId, contactId: selectedContact.id, channel }),
       });
-
       if (res.ok) {
         const data = await res.json();
         setNewMessage(data.response);
@@ -283,42 +299,29 @@ export default function Conversations({ accountId, contacts, selectedContactId }
           setShowEmailComposer(true);
         }
       }
-    } catch (error) {
-      console.error('AI suggest error:', error);
-    } finally {
-      setAiGenerating(false);
-    }
+    } catch {}
+    setAiGenerating(false);
   };
 
   const handleAiAutoRespond = async (channel: MessageType) => {
     if (!selectedContact) return;
-
     try {
       await fetch('/api/ai/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId,
-          contactId: selectedContact.id,
-          channel,
-        }),
+        body: JSON.stringify({ accountId, contactId: selectedContact.id, channel }),
       });
-      // Messages will arrive via real-time subscription
-    } catch (error) {
-      console.error('AI auto-respond error:', error);
-    }
+    } catch {}
   };
 
   const handleGenerateAiResponse = () => {
-    const channel = messageType === 'email' ? 'email' : 'sms';
-    handleAiSuggest(channel);
+    handleAiSuggest(messageType === 'email' ? 'email' : 'sms');
   };
 
   const toggleContactAi = async () => {
     if (!selectedContact) return;
     const newValue = !contactAiEnabled;
     setContactAiEnabled(newValue);
-
     await fetch(`/api/contacts/${selectedContact.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -328,36 +331,25 @@ export default function Conversations({ accountId, contacts, selectedContactId }
 
   const handleSendSMS = async () => {
     if (!selectedContact?.phone || !newMessage.trim()) return;
-
     setSending(true);
-
     try {
-      const response = await fetch('/api/sms/send', {
+      const res = await fetch('/api/sms/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId,
-          to: selectedContact.phone,
-          message: newMessage.trim(),
-          contactId: selectedContact.id,
-        }),
+        body: JSON.stringify({ accountId, to: selectedContact.phone, message: newMessage.trim(), contactId: selectedContact.id }),
       });
-
-      if (response.ok) {
-        if (selectedContact) {
-          localStorage.removeItem(`draft_${selectedContact.id}`);
-        }
+      if (res.ok) {
+        if (selectedContact) localStorage.removeItem(`draft_${selectedContact.id}`);
         setNewMessage('');
         loadMessages();
       } else {
-        const data = await response.json();
+        const data = await res.json();
         toast.error(data.error || 'Failed to send message');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
-    } finally {
-      setSending(false);
     }
+    setSending(false);
   };
 
   const handleSendEmail = async () => {
@@ -365,24 +357,19 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       toast.error('Please enter both subject and message');
       return;
     }
-
     setSending(true);
-
     try {
-      const response = await fetch('/api/email/send', {
+      const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          accountId,
-          to: selectedContact.email,
-          subject: emailSubject.trim(),
+          accountId, to: selectedContact.email, subject: emailSubject.trim(),
           textContent: newMessage.trim(),
           htmlContent: `<p>${newMessage.trim().replace(/\n/g, '<br>')}</p>`,
           contactId: selectedContact.id,
         }),
       });
-
-      if (response.ok) {
+      if (res.ok) {
         if (selectedContact) {
           localStorage.removeItem(`draft_${selectedContact.id}`);
           localStorage.removeItem(`subject_${selectedContact.id}`);
@@ -392,22 +379,18 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         setShowEmailComposer(false);
         loadMessages();
       } else {
-        const data = await response.json();
+        const data = await res.json();
         toast.error(data.error || 'Failed to send email');
       }
     } catch (error: any) {
       toast.error('Error: ' + error.message);
-    } finally {
-      setSending(false);
     }
+    setSending(false);
   };
 
   const handleSend = () => {
-    if (messageType === 'email') {
-      handleSendEmail();
-    } else {
-      handleSendSMS();
-    }
+    if (messageType === 'email') handleSendEmail();
+    else handleSendSMS();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -417,448 +400,444 @@ export default function Conversations({ accountId, contacts, selectedContactId }
     }
   };
 
-  const filteredContacts = contacts.filter((contact) => {
-    const search = searchTerm.toLowerCase();
-    return (
-      contact.first_name?.toLowerCase().includes(search) ||
-      contact.last_name?.toLowerCase().includes(search) ||
-      contact.email?.toLowerCase().includes(search) ||
-      contact.phone?.includes(search)
-    );
+  const filteredContacts = contacts.filter(c => {
+    const q = searchTerm.toLowerCase();
+    const matchSearch = !q || [c.first_name, c.last_name, c.email, c.phone].some(f => f?.toLowerCase().includes(q));
+    const matchChannel = channelFilter === 'all' ? true : channelFilter === 'sms' ? !!c.phone : !!c.email;
+    return matchSearch && matchChannel;
   });
 
   const isAiActive = aiConfig?.enabled && contactAiEnabled;
+  const contactName = selectedContact ? `${selectedContact.first_name || ''} ${selectedContact.last_name || ''}`.trim() : '';
+  const contactInitials = contactName.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?';
 
   return (
-    <div className="h-[calc(100dvh-12rem)] md:h-[calc(100dvh-8rem)] flex bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm border border-gray-200/60 dark:border-white/5 overflow-hidden">
-      {/* Left Sidebar - Contact List (hidden when a contact is selected on mobile) */}
-      <div className={`${selectedContact ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r border-gray-200/60 dark:border-white/5 flex-col`}>
-        {/* Search */}
-        <div className="p-4 border-b border-gray-200/60 dark:border-white/5">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search conversations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10 py-2 text-sm"
-            />
-          </div>
-        </div>
+    <div style={{ height: 'calc(100vh - 57px)', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          Conversations
+        </h1>
+      </div>
 
-        {/* Contacts List */}
-        <div className="flex-1 overflow-y-auto">
-          {filteredContacts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-              No contacts found
+      {/* Body */}
+      <div
+        style={{ flex: 1, display: 'grid', gridTemplateColumns: '320px 1fr', overflow: 'hidden', minHeight: 0 }}
+        className="nx-inbox-grid"
+        data-has-selection={selectedContact ? 'true' : 'false'}
+      >
+        {/* Left: conversation list */}
+        <div
+          style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          className={selectedContact ? 'nx-inbox-list nx-inbox-list--hidden' : 'nx-inbox-list'}
+        >
+          {/* Channel filter pills */}
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', gap: 4 }}>
+            {(['all', 'sms', 'email'] as ChannelFilter[]).map(f => (
+              <button key={f} onClick={() => setChannelFilter(f)} style={{
+                padding: '5px 10px', fontSize: 12, borderRadius: 999, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap',
+                background: channelFilter === f ? 'var(--grad)' : 'var(--paper-2)',
+                color: channelFilter === f ? 'white' : 'var(--ink-2)',
+                border: channelFilter === f ? 'none' : '1px solid var(--line)',
+                textTransform: 'capitalize',
+              }}>{f === 'all' ? 'All' : f.toUpperCase()}</button>
+            ))}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <IcoSearch style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }} />
+              <input
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                style={{
+                  width: '100%', padding: '5px 8px 5px 24px', fontSize: 12,
+                  border: '1px solid var(--line)', background: 'var(--paper-2)',
+                  borderRadius: 999, outline: 'none', color: 'var(--ink)', boxSizing: 'border-box',
+                }}
+              />
             </div>
-          ) : (
-            filteredContacts.map((contact) => (
-              <button
-                key={contact.id}
-                onClick={() => setSelectedContact(contact)}
-                className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 ${
-                  selectedContact?.id === contact.id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
-                }`}
-              >
-                {/* Avatar */}
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                  {contact.first_name?.[0]}{contact.last_name?.[0]}
-                </div>
+          </div>
 
-                {/* Contact Info */}
-                <div className="flex-1 text-left overflow-hidden">
-                  <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {contact.first_name} {contact.last_name}
+          {/* Contact list */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {filteredContacts.length === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+                No contacts found
+              </div>
+            ) : filteredContacts.map((c, idx) => {
+              const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+              const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?';
+              const active = selectedContact?.id === c.id;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setSelectedContact(c)}
+                  style={{
+                    padding: '11px 14px', display: 'flex', gap: 10, cursor: 'pointer',
+                    background: active ? 'var(--paper-3)' : 'transparent',
+                    borderLeft: active ? '2px solid var(--blue)' : '2px solid transparent',
+                    borderBottom: '1px solid var(--line)',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--paper-2)'; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%',
+                      background: 'var(--grad)', color: 'white',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 600, fontSize: 13, fontFamily: 'Geist Mono, monospace',
+                    }}>{initials}</div>
+                    <div style={{
+                      position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%',
+                      background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: c.phone ? 'var(--green)' : 'var(--blue)',
+                      border: '1px solid var(--line)',
+                    }}>
+                      {c.phone ? <IcoPhone size={9} /> : <IcoMail size={9} />}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {contact.phone || contact.email || 'No contact info'}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 2 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+                        {name || 'Unknown'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.phone || c.email || 'No contact info'}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Follow-up queue */}
+          {followUpQueue.length > 0 && (
+            <div style={{ flexShrink: 0, borderTop: '1px solid var(--line)', background: 'var(--paper-2)' }}>
+              <button
+                onClick={() => setQueueExpanded(v => !v)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IcoClock />
+                  <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Scheduled</span>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 16, height: 16, borderRadius: '50%', background: 'var(--violet)', color: 'white', fontSize: 10, fontWeight: 700,
+                  }}>{followUpQueue.length}</span>
+                </div>
+                {queueExpanded ? <IcoChevDown /> : <IcoChevRight />}
               </button>
-            ))
+              {queueExpanded && (
+                <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+                  {followUpQueue.map(entry => {
+                    const n = [entry.contacts?.first_name, entry.contacts?.last_name].filter(Boolean).join(' ') || 'Unknown';
+                    return (
+                      <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderTop: '1px solid var(--line)' }} className="group">
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%', background: 'var(--violet)', color: 'white',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0,
+                        }}>{n[0]}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</div>
+                          <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                            Follow-up {entry.follow_up_count + 1} · {relativeTime(entry.next_follow_up_at)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => cancelFollowUp(entry.id)}
+                          style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', flexShrink: 0 }}
+                          title="Cancel"
+                        ><IcoX /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Follow-Up Queue Panel */}
-        {followUpQueue.length > 0 && (
-          <div className="flex-shrink-0 border-t border-gray-200/60 dark:border-white/10 bg-gray-50 dark:bg-[#1c1c1e]">
-            <button
-              onClick={() => setQueueExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Scheduled Follow-ups</span>
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-500 text-white text-[10px] font-bold">
-                  {followUpQueue.length}
-                </span>
+        {/* Right: chat view */}
+        {!selectedContact ? (
+          <div
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper-2)' }}
+            className="nx-inbox-chat"
+          >
+            <div style={{ textAlign: 'center' }}>
+              <IcoMsgSq size={48} style={{ color: 'var(--ink-4, #ccc)', marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink)', marginBottom: 6 }}>Select a conversation</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Choose a contact to view messages</div>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--paper)', flex: 1 }}
+            className="nx-inbox-chat"
+          >
+            {/* Chat header */}
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              {/* Mobile back */}
+              <button
+                onClick={() => setSelectedContact(null)}
+                className="nx-inbox-back"
+                style={{
+                  width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
+                  background: 'var(--paper-2)', color: 'var(--ink-2)', display: 'none',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <div style={{
+                width: 34, height: 34, borderRadius: '50%', background: 'var(--grad)', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontFamily: 'Geist Mono, monospace', fontSize: 12,
+                flexShrink: 0,
+              }}>{contactInitials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{contactName || 'Unknown'}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontFamily: 'Geist Mono, monospace', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    {messageType === 'email' ? <IcoMail size={10} /> : <IcoPhone size={10} />} {messageType}
+                  </span>
+                  <span>·</span>
+                  <span>{selectedContact.phone || selectedContact.email || 'No contact info'}</span>
+                </div>
               </div>
-              {queueExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
-            {queueExpanded && (
-              <div className="max-h-48 overflow-y-auto">
-                {followUpQueue.map(entry => {
-                  const name = [entry.contacts?.first_name, entry.contacts?.last_name].filter(Boolean).join(' ') || 'Unknown';
-                  return (
-                    <div key={entry.id} className="flex items-center gap-2 px-3 py-2 border-t border-white/5 hover:bg-white/5 transition-colors group">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{name}</div>
-                        <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
-                          {entry.channel === 'sms' ? <MessageSquare className="w-3 h-3" /> : <Mail className="w-3 h-3" />}
-                          <span>Follow-up {entry.follow_up_count + 1} of 3 · {relativeTime(entry.next_follow_up_at)}</span>
+              {/* AI toggle */}
+              {aiConfig?.enabled && (
+                <button
+                  onClick={toggleContactAi}
+                  style={{
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
+                    background: isAiActive ? 'oklch(91% 0.04 285 / 0.3)' : 'var(--paper-2)',
+                    color: isAiActive ? 'var(--violet)' : 'var(--ink-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  }}
+                  title={isAiActive ? `AI Active (${aiConfig.mode})` : 'AI Disabled'}
+                >
+                  <IcoBot size={14} />
+                </button>
+              )}
+              {/* Channel toggle */}
+              {selectedContact.phone && (
+                <button
+                  onClick={() => { setMessageType('sms'); setShowEmailComposer(false); }}
+                  style={{
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
+                    background: messageType === 'sms' ? 'oklch(91% 0.04 160 / 0.3)' : 'var(--paper-2)',
+                    color: messageType === 'sms' ? 'var(--green)' : 'var(--ink-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  }}
+                  title="SMS"
+                ><IcoPhone size={14} /></button>
+              )}
+              {selectedContact.email && (
+                <button
+                  onClick={() => { setMessageType('email'); setShowEmailComposer(true); }}
+                  style={{
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
+                    background: messageType === 'email' ? 'oklch(91% 0.04 258 / 0.3)' : 'var(--paper-2)',
+                    color: messageType === 'email' ? 'var(--blue)' : 'var(--ink-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  }}
+                  title="Email"
+                ><IcoMail size={14} /></button>
+              )}
+            </div>
+
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
+              <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0 8px' }}>
+                Messages
+              </div>
+              {loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <IcoLoader size={24} />
+                </div>
+              ) : messages.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, flexDirection: 'column', gap: 8 }}>
+                  <IcoMsgSq size={32} style={{ color: 'var(--ink-4, #ccc)' }} />
+                  <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>No messages yet</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Send your first message below</div>
+                </div>
+              ) : messages.map(msg => {
+                const me = msg.direction === 'outbound';
+                const isEmail = msg.type === 'email';
+                const expanded = expandedMessageId === msg.id;
+                return (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: me ? 'row-reverse' : 'row', gap: 8, maxWidth: '100%' }}>
+                    <div style={{ maxWidth: isEmail ? '85%' : '72%', display: 'flex', flexDirection: 'column', alignItems: me ? 'flex-end' : 'flex-start' }}>
+                      {isEmail ? (
+                        <div
+                          onClick={() => setExpandedMessageId(expanded ? null : msg.id)}
+                          style={{
+                            background: me ? 'var(--grad)' : 'var(--paper-2)',
+                            color: me ? 'white' : 'var(--ink)',
+                            border: me ? 'none' : '1px solid var(--line)',
+                            borderRadius: me ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                            overflow: 'hidden', minWidth: 200, cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{
+                            padding: '9px 14px 8px',
+                            borderBottom: me ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--line)',
+                            display: 'flex', alignItems: 'center', gap: 6, fontSize: 11,
+                            opacity: 0.9, fontFamily: 'Geist Mono, monospace', letterSpacing: '0.04em', textTransform: 'uppercase',
+                          }}>
+                            <IcoMail size={11} /> Email
+                            {msg.is_ai_generated && (
+                              <span style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <IcoBot size={10} /> AI
+                              </span>
+                            )}
+                          </div>
+                          {msg.metadata?.subject && (
+                            <div style={{ padding: '10px 14px 4px', fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.005em' }}>
+                              {msg.metadata.subject}
+                            </div>
+                          )}
+                          <div style={{ padding: msg.metadata?.subject ? '4px 14px 12px' : '12px 14px', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                            {expanded ? msg.content : msg.content.substring(0, 150) + (msg.content.length > 150 ? '…' : '')}
+                          </div>
+                          {msg.direction === 'inbound' && msg.metadata?.intent && msg.metadata.intent !== 'neutral' && (
+                            <div style={{ padding: '0 14px 10px' }}>
+                              <IntentBadge intent={msg.metadata.intent} />
+                            </div>
+                          )}
                         </div>
+                      ) : (
+                        <div style={{
+                          background: me ? 'var(--grad)' : 'var(--paper-2)',
+                          color: me ? 'white' : 'var(--ink)',
+                          border: me ? 'none' : '1px solid var(--line)',
+                          borderRadius: me ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                          padding: '8px 13px', fontSize: 13.5, lineHeight: 1.45, wordBreak: 'break-word',
+                        }}>
+                          {msg.is_ai_generated && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, marginBottom: 4, opacity: 0.8 }}>
+                              <IcoBot size={10} /> AI Reply
+                            </div>
+                          )}
+                          {msg.content}
+                          {msg.direction === 'inbound' && msg.metadata?.intent && msg.metadata.intent !== 'neutral' && (
+                            <div style={{ marginTop: 6 }}>
+                              <IntentBadge intent={msg.metadata.intent} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 4, fontFamily: 'Geist Mono, monospace', padding: '0 4px' }}>
+                        {me ? 'Sent · ' : ''}{format(new Date(msg.created_at), 'h:mm a')}
                       </div>
-                      <button
-                        onClick={() => cancelFollowUp(entry.id)}
-                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                        title="Cancel follow-up"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div style={{ borderTop: '1px solid var(--line)', padding: '10px 12px', background: 'var(--paper-2)', flexShrink: 0 }}>
+              {/* Channel tabs */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                {[
+                  { v: 'sms' as MessageType, l: 'SMS', icon: <IcoPhone size={11} />, disabled: !selectedContact.phone },
+                  { v: 'email' as MessageType, l: 'Email', icon: <IcoMail size={11} />, disabled: !selectedContact.email },
+                ].map(c => (
+                  <button key={c.v} onClick={() => { setMessageType(c.v); setShowEmailComposer(c.v === 'email'); }} disabled={c.disabled} style={{
+                    padding: '4px 10px', fontSize: 11.5, borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5, cursor: c.disabled ? 'not-allowed' : 'pointer',
+                    background: messageType === c.v ? 'var(--paper)' : 'transparent',
+                    color: messageType === c.v ? 'var(--ink)' : 'var(--ink-3)',
+                    border: messageType === c.v ? '1px solid var(--line)' : '1px solid transparent',
+                    fontWeight: 500, opacity: c.disabled ? 0.4 : 1,
+                  }}>{c.icon}{c.l}</button>
+                ))}
+                {isAiActive && (
+                  <button
+                    onClick={handleGenerateAiResponse}
+                    disabled={aiGenerating}
+                    style={{
+                      padding: '4px 10px', fontSize: 11.5, borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: 'transparent', border: '1px solid transparent',
+                      color: 'var(--violet)', cursor: aiGenerating ? 'not-allowed' : 'pointer', fontWeight: 500, marginLeft: 'auto',
+                    }}
+                  >
+                    {aiGenerating ? <IcoLoader size={11} /> : <IcoSparkles />}
+                    AI Draft
+                  </button>
+                )}
               </div>
-            )}
+              {/* Subject field for email */}
+              {messageType === 'email' && (
+                <input
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  placeholder="Subject"
+                  style={{
+                    width: '100%', padding: '8px 12px', border: '1px solid var(--line)',
+                    background: 'var(--paper)', borderRadius: 8, fontSize: 13, outline: 'none',
+                    color: 'var(--ink)', marginBottom: 6, boxSizing: 'border-box',
+                  }}
+                />
+              )}
+              {/* No contact info warning */}
+              {!selectedContact.phone && !selectedContact.email ? (
+                <div style={{ padding: '10px 12px', background: 'oklch(91% 0.06 75 / 0.3)', borderRadius: 8, fontSize: 13, color: 'var(--amber)', textAlign: 'center' }}>
+                  No phone or email on this contact.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <textarea
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={messageType === 'email' ? 'Write your email...' : 'Type a message...'}
+                    rows={messageType === 'email' ? 3 : 1}
+                    style={{
+                      flex: 1, padding: '9px 12px', border: '1px solid var(--line)',
+                      background: 'var(--paper)', borderRadius: messageType === 'email' ? 10 : 999,
+                      fontSize: 13.5, outline: 'none', resize: 'none',
+                      fontFamily: 'inherit', lineHeight: 1.5, minHeight: 38,
+                      color: 'var(--ink)',
+                    }}
+                    disabled={(messageType === 'sms' && !selectedContact.phone) || (messageType === 'email' && !selectedContact.email)}
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={sending || !newMessage.trim() || (messageType === 'sms' && !selectedContact.phone) || (messageType === 'email' && (!selectedContact.email || !emailSubject.trim()))}
+                    style={{
+                      width: 38, height: 38, borderRadius: '50%', background: 'var(--grad)', color: 'white',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      border: 'none', cursor: sending ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 2px 8px -2px oklch(58% 0.18 258 / 0.5)',
+                      opacity: !newMessage.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {sending ? <IcoLoader size={15} /> : <IcoSend />}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Right Side - Conversation (full width on mobile when contact selected) */}
-      {!selectedContact ? (
-        <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50 dark:bg-white/5">
-          <div className="text-center">
-            <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Select a conversation</h3>
-            <p className="text-gray-500 dark:text-gray-400">Choose a contact to view messages</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Conversation Header */}
-          <div className="flex-shrink-0 p-3 md:p-4 border-b border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                {/* Back button on mobile */}
-                <button
-                  onClick={() => setSelectedContact(null)}
-                  className="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
-                  aria-label="Back"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                  {selectedContact.first_name?.[0]}{selectedContact.last_name?.[0]}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                    {selectedContact.first_name} {selectedContact.last_name}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{selectedContact.phone || selectedContact.email}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 items-center">
-                {/* AI Toggle for this contact */}
-                {aiConfig?.enabled && (
-                  <button
-                    onClick={toggleContactAi}
-                    className={`p-2 rounded-lg transition-colors ${
-                      contactAiEnabled
-                        ? 'bg-violet-100 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
-                        : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400'
-                    }`}
-                    title={contactAiEnabled ? `AI Active (${aiConfig.mode})` : 'AI Disabled for this contact'}
-                  >
-                    <Bot className="w-5 h-5" />
-                  </button>
-                )}
-
-                {/* Message Type Selector */}
-                <button
-                  onClick={() => setMessageType('sms')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    messageType === 'sms' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400'
-                  }`}
-                  title="SMS"
-                  disabled={!selectedContact.phone}
-                >
-                  <MessageSquare className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setMessageType('email');
-                    setShowEmailComposer(true);
-                  }}
-                  className={`p-2 rounded-lg transition-colors ${
-                    messageType === 'email' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400'
-                  }`}
-                  title="Email"
-                  disabled={!selectedContact.email}
-                >
-                  <Mail className="w-5 h-5" />
-                </button>
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-600 dark:text-gray-400" title="Call" disabled>
-                  <Phone className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-white/5">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader className="w-8 h-8 text-gray-400 animate-spin" />
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400">No messages yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Send your first message below</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {message.type === 'email' ? (
-                      // Email format - white card with subject and expandable body
-                      <div
-                        className={`max-w-[75%] rounded-lg border cursor-pointer ${
-                          message.is_ai_generated
-                            ? 'border-violet-300 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-700'
-                            : message.direction === 'outbound'
-                            ? 'bg-white dark:bg-[#2c2c2e] border-gray-300 shadow-sm'
-                            : 'bg-gray-50 dark:bg-white/5 border-gray-200/60 dark:border-white/5'
-                        }`}
-                        onClick={() => setExpandedMessageId(expandedMessageId === message.id ? null : message.id)}
-                      >
-                        <div className="px-4 py-3 border-b border-gray-200">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="w-4 h-4 text-gray-500" />
-                            <span className="font-semibold text-gray-900 dark:text-gray-100">
-                              {message.metadata?.subject || '(No Subject)'}
-                            </span>
-                            {message.is_ai_generated && (
-                              <span className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">
-                                <Bot className="w-3 h-3" /> AI
-                              </span>
-                            )}
-                            {message.direction === 'inbound' && message.metadata?.intent && message.metadata.intent !== 'neutral' && (
-                              <IntentBadge intent={message.metadata.intent} />
-                            )}
-                          </div>
-                        </div>
-                        <div className="px-4 py-3">
-                          <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            {expandedMessageId === message.id
-                              ? message.content
-                              : message.content.substring(0, 150) + (message.content.length > 150 ? '…' : '')}
-                          </div>
-                          {expandedMessageId === message.id && message.content.length > 150 && (
-                            <p className="text-xs text-gray-400 mt-2">Click to collapse</p>
-                          )}
-                          {expandedMessageId !== message.id && message.content.length > 150 && (
-                            <p className="text-xs text-primary-500 mt-1">Click to expand</p>
-                          )}
-                        </div>
-                        <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-t border-gray-200">
-                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>
-                              {message.direction === 'outbound' ? 'To: ' : 'From: '}
-                              {message.direction === 'outbound' ? message.to_address : message.from_address}
-                            </span>
-                            <span>{format(new Date(message.created_at), 'MMM d, h:mm a')}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      // SMS format - blue bubble (violet for AI)
-                      <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                          message.is_ai_generated
-                            ? 'bg-violet-500 text-white rounded-br-sm'
-                            : message.direction === 'outbound'
-                            ? 'bg-blue-500 text-white rounded-br-sm'
-                            : 'bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm border border-gray-200/60 dark:border-white/5'
-                        }`}
-                      >
-                        {message.is_ai_generated && (
-                          <div className={`flex items-center gap-1 text-xs mb-1 ${
-                            message.direction === 'outbound' ? 'text-violet-200' : 'text-violet-500'
-                          }`}>
-                            <Bot className="w-3 h-3" />
-                            <span>AI Response</span>
-                          </div>
-                        )}
-                        <div className="break-words whitespace-pre-wrap">{message.content}</div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            message.is_ai_generated
-                              ? 'text-violet-200'
-                              : message.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
-                          }`}
-                        >
-                          {format(new Date(message.created_at), 'h:mm a')}
-                        </div>
-                        {message.direction === 'inbound' && message.metadata?.intent && message.metadata.intent !== 'neutral' && (
-                          <div className="mt-1.5">
-                            <IntentBadge intent={message.metadata.intent} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
-
-          {/* Message Input */}
-          <div className="flex-shrink-0 p-4 border-t border-gray-200/60 dark:border-white/5 bg-white dark:bg-[#2c2c2e]">
-            {messageType === 'email' && showEmailComposer ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <Mail className="w-4 h-4" />
-                    <span className="text-sm font-medium">Compose Email</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowEmailComposer(false);
-                      setMessageType('sms');
-                      setEmailSubject('');
-                    }}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  placeholder="Subject"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/5 dark:text-gray-100"
-                />
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Write your email..."
-                  className="w-full resize-none border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] dark:bg-white/5 dark:text-gray-100"
-                />
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={() => {
-                      setShowEmailComposer(false);
-                      setEmailSubject('');
-                      setNewMessage('');
-                    }}
-                    className="btn btn-secondary flex-1 min-w-[80px]"
-                  >
-                    Cancel
-                  </button>
-                  {isAiActive && (
-                    <button
-                      onClick={handleGenerateAiResponse}
-                      disabled={aiGenerating}
-                      className="btn bg-violet-100 text-violet-700 hover:bg-violet-200 flex items-center justify-center gap-2 flex-shrink-0"
-                    >
-                      {aiGenerating ? (
-                        <Loader className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4" />
-                      )}
-                      <span className="hidden sm:inline">AI Draft</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={handleSendEmail}
-                    disabled={sending || !newMessage.trim() || !emailSubject.trim()}
-                    className="btn btn-primary flex-1 min-w-[100px] flex items-center justify-center gap-2 disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {sending ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        Send Email
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : !selectedContact.phone && !selectedContact.email ? (
-              <div className="text-center text-sm text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
-                This contact doesn't have a phone number or email. Add contact info to send messages.
-              </div>
-            ) : (
-              <div className="flex gap-2 items-end">
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={messageType === 'email' ? 'Click to compose email...' : 'Type a message...'}
-                  onClick={() => {
-                    if (messageType === 'email') {
-                      setShowEmailComposer(true);
-                    }
-                  }}
-                  className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 max-h-32 dark:bg-white/5 dark:text-gray-100"
-                  rows={1}
-                  style={{
-                    minHeight: '42px',
-                    height: 'auto',
-                  }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                  }}
-                  disabled={messageType === 'sms' && !selectedContact.phone}
-                />
-                {/* AI Generate button */}
-                {isAiActive && messageType === 'sms' && (
-                  <button
-                    onClick={handleGenerateAiResponse}
-                    disabled={aiGenerating}
-                    className="h-[42px] px-3 rounded-xl bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                    title="Generate AI Response"
-                  >
-                    {aiGenerating ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                  </button>
-                )}
-                <button
-                  onClick={handleSend}
-                  disabled={sending || !newMessage.trim() || (messageType === 'sms' && !selectedContact.phone)}
-                  className="btn btn-primary h-[42px] px-4 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {sending ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          .nx-inbox-grid { grid-template-columns: 1fr !important; }
+          .nx-inbox-list--hidden { display: none !important; }
+          .nx-inbox-back { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

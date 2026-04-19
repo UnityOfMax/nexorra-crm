@@ -471,3 +471,12 @@ button:hover {
   animation: cc-scan 3s ease-in-out infinite;
   pointer-events: none;
 }
+
+/* ── Nexorra responsive utilities ── */
+@media (max-width: 768px) {
+  .nx-pad-mobile { padding: 16px !important; }
+  .nx-2col-mobile { grid-template-columns: repeat(2, 1fr) !important; }
+  .nx-3col-mobile { grid-template-columns: 1fr !important; }
+  .nx-stack-mobile { grid-template-columns: 1fr !important; }
+}
+.nx-scroll-mobile { overflow-x: auto; }
