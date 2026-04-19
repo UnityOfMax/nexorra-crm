@@ -1,5 +1,5 @@
 #!/bin/bash
-# System Health Check — runs daily in full mode after lead gen + Petra are done
+# System Health Check — runs daily after lead gen + Petra are done (full and minimal mode)
 # Checks all cron jobs, endpoints, and DB state. Invokes engineering to fix failures.
 # Crontab: 0 14 * * * /home/max/crm/scripts/cron/system-health-check.sh >> /home/max/crm/logs/system-health-check.log 2>&1
 
@@ -8,12 +8,6 @@ cd /home/max/crm || exit 1
 source .env.local 2>/dev/null || true
 
 echo "[$(date)] System health check starting..."
-
-# Only run in full mode
-if [ -f /tmp/nexorra-mode ] && grep -q "minimal" /tmp/nexorra-mode 2>/dev/null; then
-  echo "[$(date)] Minimal mode — skipping health check."
-  exit 0
-fi
 
 # Run the agent
 npx claude --dangerously-skip-permissions -p "$(cat .claude/commands/ops/system-health-check.md)
