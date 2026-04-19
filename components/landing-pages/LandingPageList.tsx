@@ -197,7 +197,7 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
   const publishedCount = pages.filter(p => p.published).length;
 
   return (
-    <div style={{ padding: '24px 32px 48px', maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }}>
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>

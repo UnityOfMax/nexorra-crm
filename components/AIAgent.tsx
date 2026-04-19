@@ -173,7 +173,7 @@ type Tab = 'general' | 'sms' | 'email' | 'test' | 'kb';
 
 const s: Record<string, React.CSSProperties> = {
   root: {
-    maxWidth: 1280,
+    maxWidth: 1480,
     margin: '0 auto',
     padding: '24px 32px 48px',
     display: 'flex',

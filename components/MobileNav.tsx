@@ -59,13 +59,12 @@ function InboxIcon({ active }: { active: boolean }) {
 export default function MobileNav({ activeView, onViewChange, isAgencyUser, isViewingClient }: MobileNavProps) {
   const tabs = (isAgencyUser && !isViewingClient) ? agencyTabs : clientTabs;
   return (
-    <nav style={{
-      display: 'none',
+    <nav className="nx-mobile-nav" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
       background: 'var(--paper)', borderTop: '1px solid var(--line)',
       paddingBottom: 'env(safe-area-inset-bottom)',
       alignItems: 'stretch',
-    }} className="nx-mobile-nav">
+    }}>
       {tabs.map(tab => {
         const Icon = tab.icon;
         const active = activeView === tab.id;
@@ -88,11 +87,6 @@ export default function MobileNav({ activeView, onViewChange, isAgencyUser, isVi
           </button>
         );
       })}
-      <style>{`
-        @media (max-width: 768px) {
-          .nx-mobile-nav { display: flex !important; }
-        }
-      `}</style>
     </nav>
   );
 }

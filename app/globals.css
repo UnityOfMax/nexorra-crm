@@ -472,11 +472,37 @@ button:hover {
   pointer-events: none;
 }
 
-/* ── Nexorra responsive utilities ── */
-@media (max-width: 768px) {
-  .nx-pad-mobile { padding: 16px !important; }
+/* ── Nexorra responsive utilities (900px breakpoint, matching prototype) ── */
+@media (max-width: 900px) {
+  .nx-hide-mobile { display: none !important; }
+  .nx-stack-mobile { grid-template-columns: 1fr !important; }
   .nx-2col-mobile { grid-template-columns: repeat(2, 1fr) !important; }
   .nx-3col-mobile { grid-template-columns: 1fr !important; }
-  .nx-stack-mobile { grid-template-columns: 1fr !important; }
+  .nx-scroll-mobile { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .nx-pad-mobile { padding: 16px !important; }
 }
-.nx-scroll-mobile { overflow-x: auto; }
+[data-nx-mobile="true"] .nx-hide-mobile { display: none !important; }
+[data-nx-mobile="true"] .nx-stack-mobile { grid-template-columns: 1fr !important; }
+[data-nx-mobile="true"] .nx-2col-mobile { grid-template-columns: 1fr 1fr !important; }
+[data-nx-mobile="true"] .nx-scroll-mobile { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+[data-nx-mobile="true"] .nx-pad-mobile { padding: 16px !important; }
+
+/* Mobile-only bottom nav */
+.nx-mobile-nav { display: none; }
+@media (max-width: 900px) {
+  .nx-mobile-nav { display: flex !important; }
+}
+
+/* Inbox/Conversations mobile: toggle between list and chat panes */
+@media (max-width: 900px) {
+  .nx-inbox-grid { grid-template-columns: 1fr !important; }
+  .nx-inbox-list { display: flex; }
+  .nx-inbox-chat { display: none; }
+  .nx-inbox-grid[data-mobile-view="chat"] .nx-inbox-list { display: none !important; }
+  .nx-inbox-grid[data-mobile-view="chat"] .nx-inbox-chat { display: flex !important; }
+  .nx-inbox-back { display: flex !important; }
+}
+[data-nx-mobile="true"] .nx-inbox-grid { grid-template-columns: 1fr !important; }
+[data-nx-mobile="true"] .nx-inbox-grid[data-mobile-view="chat"] .nx-inbox-list { display: none !important; }
+[data-nx-mobile="true"] .nx-inbox-grid[data-mobile-view="chat"] .nx-inbox-chat { display: flex !important; }
+[data-nx-mobile="true"] .nx-inbox-back { display: flex !important; }

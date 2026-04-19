@@ -148,6 +148,8 @@ export default function Conversations({ accountId, contacts, selectedContactId }
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [contactAiEnabled, setContactAiEnabled] = useState(true);
@@ -424,12 +426,12 @@ export default function Conversations({ accountId, contacts, selectedContactId }
       <div
         style={{ flex: 1, display: 'grid', gridTemplateColumns: '320px 1fr', overflow: 'hidden', minHeight: 0 }}
         className="nx-inbox-grid"
-        data-has-selection={selectedContact ? 'true' : 'false'}
+        data-mobile-view={mobileView}
       >
         {/* Left: conversation list */}
         <div
           style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', minHeight: 0 }}
-          className={selectedContact ? 'nx-inbox-list nx-inbox-list--hidden' : 'nx-inbox-list'}
+          className="nx-inbox-list"
         >
           {/* Channel filter pills */}
           <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)', display: 'flex', gap: 4 }}>
@@ -470,7 +472,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
               return (
                 <div
                   key={c.id}
-                  onClick={() => setSelectedContact(c)}
+                  onClick={() => { setSelectedContact(c); setMobileView('chat'); }}
                   style={{
                     padding: '11px 14px', display: 'flex', gap: 10, cursor: 'pointer',
                     background: active ? 'var(--paper-3)' : 'transparent',
@@ -584,7 +586,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
             <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
               {/* Mobile back */}
               <button
-                onClick={() => setSelectedContact(null)}
+                onClick={() => { setSelectedContact(null); setMobileView('list'); }}
                 className="nx-inbox-back"
                 style={{
                   width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)',
@@ -830,14 +832,7 @@ export default function Conversations({ accountId, contacts, selectedContactId }
         )}
       </div>
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
-          .nx-inbox-grid { grid-template-columns: 1fr !important; }
-          .nx-inbox-list--hidden { display: none !important; }
-          .nx-inbox-back { display: flex !important; }
-        }
-      `}</style>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
