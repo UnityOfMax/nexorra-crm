@@ -137,8 +137,8 @@ export async function generateAIResponse(
     .eq('id', accountId)
     .maybeSingle();
 
-  // Build memory-efficient context: rolling summary + last 5 messages + calendar slots
-  const { summary, recentMessages, upcomingSlots, availableSlots } = await buildAIContext(accountId, contactId);
+  // Build memory-efficient context: rolling summary + last 5 messages + calendar slots + last intent
+  const { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent } = await buildAIContext(accountId, contactId);
 
   // Load local memory: agent patterns + Obsidian contact note + skills
   const memoryCtx = loadReplyMemory(contact.first_name ?? null, contact.last_name ?? null);
@@ -184,6 +184,9 @@ export async function generateAIResponse(
       if (score <= 80) return 'Tone: hot lead — be direct and specific, suggest a concrete next step.';
       return 'Tone: ready-to-act lead — prioritise clarity and speed, remove all friction.';
     })(),
+    lastInboundIntent && lastInboundIntent !== 'neutral'
+      ? `Last message intent: ${lastInboundIntent} — factor this into your reply tone and next step.`
+      : '',
     // Form answers (from landing page lead capture) compressed into one line
     contact.custom_fields && Object.keys(contact.custom_fields as Record<string, string>).length > 0
       ? `Lead form answers: ${Object.entries(contact.custom_fields as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(' | ')}`

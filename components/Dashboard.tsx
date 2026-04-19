@@ -8,7 +8,7 @@ import Sidebar from './Sidebar';
 import ClientSidebar from './client/ClientSidebar';
 import SubAccountsView from './agency/SubAccountsView';
 import ContactsList from './ContactsList';
-import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign, Settings as SettingsIcon } from 'lucide-react';
+import { Users, TrendingUp, Mail, Phone, Building2, MessageSquare, CalendarCheck, Award, DollarSign, Settings as SettingsIcon, Flame } from 'lucide-react';
 import Settings from './Settings';
 import Conversations from './Conversations';
 import PipelineManager from './pipelines/PipelineManager';
@@ -74,6 +74,16 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
   });
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
+  const [hotLeads, setHotLeads] = useState<Array<{
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    lead_score: number | null;
+    funnel_stage: string | null;
+    last_intent: string | null;
+    last_message_at: string | null;
+    last_message_preview: string | null;
+  }>>([]);
   // Track whether initial URL state has been restored (prevent overwriting URL on first load)
   const urlRestoredRef = useRef(false);
 
@@ -85,8 +95,13 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     if (currentAccount && !isMockId(currentAccount.id)) {
       loadContacts();
       loadStats();
+      fetch(`/api/contacts/hot?accountId=${currentAccount.id}&limit=5`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.contacts) setHotLeads(data.contacts); })
+        .catch(() => {});
     } else if (currentAccount && isMockId(currentAccount.id)) {
       setContacts([]);
+      setHotLeads([]);
       setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0 });
     }
   }, [currentAccount]);
@@ -715,6 +730,92 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
                 </div>
               </div>
             </div>
+
+            {/* Hot Leads widget — client accounts only */}
+            {(!isAgencyUser || isViewingClient) && hotLeads.length > 0 && (
+              <div className="card mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+                      <Flame className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">Hot Leads</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">High score or recent intent signal</p>
+                    </div>
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                      {hotLeads.length}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveView('contacts')}
+                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {hotLeads.map(lead => {
+                    const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown';
+                    const score = lead.lead_score ?? 0;
+                    const scoreColor = score >= 80
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+                    const intentLabels: Record<string, string> = {
+                      booking_signal: 'Booking signal',
+                      interested: 'Interested',
+                      objection: 'Objection',
+                      qualifying: 'Qualifying',
+                    };
+                    const intentColors: Record<string, string> = {
+                      booking_signal: 'text-green-600 dark:text-green-400',
+                      interested: 'text-blue-600 dark:text-blue-400',
+                      objection: 'text-amber-600 dark:text-amber-400',
+                      qualifying: 'text-gray-500 dark:text-gray-400',
+                    };
+                    const relTime = lead.last_message_at ? (() => {
+                      const diff = Date.now() - new Date(lead.last_message_at).getTime();
+                      const hours = Math.floor(diff / (60 * 60 * 1000));
+                      if (hours < 1) return 'just now';
+                      if (hours < 24) return `${hours}h ago`;
+                      return `${Math.floor(hours / 24)}d ago`;
+                    })() : null;
+                    return (
+                      <div
+                        key={lead.id}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => { setSelectedContactId(lead.id); setActiveView('conversations'); }}
+                      >
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                          {name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</span>
+                            <span className={`inline-flex items-center text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${scoreColor}`}>
+                              {score}
+                            </span>
+                            {lead.last_intent && intentLabels[lead.last_intent] && (
+                              <span className={`text-[11px] font-medium ${intentColors[lead.last_intent] ?? 'text-gray-400'}`}>
+                                · {intentLabels[lead.last_intent]}
+                              </span>
+                            )}
+                          </div>
+                          {lead.last_message_preview && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                              {lead.last_message_preview}
+                            </p>
+                          )}
+                        </div>
+                        {relTime && (
+                          <span className="text-[11px] text-gray-400 dark:text-gray-500 flex-shrink-0">{relTime}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Funnel diagram — shown for real sub-accounts (not agency overview) */}
             {(!isAgencyUser || isViewingClient) && (

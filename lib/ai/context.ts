@@ -8,9 +8,11 @@ export interface AIContext {
     type: string;
     content: string;
     created_at: string;
+    metadata?: Record<string, string>;
   }>;
   upcomingSlots: string;    // contact's booked calls
   availableSlots: string;   // account's open slots to offer
+  lastInboundIntent?: string;
 }
 
 // Build a Date representing `hour:00:00` in the given timezone on the same
@@ -93,7 +95,7 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
       .maybeSingle(),
     supabaseAdmin
       .from('messages')
-      .select('direction, type, content, created_at')
+      .select('direction, type, content, created_at, metadata')
       .eq('account_id', accountId)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false })
@@ -127,6 +129,8 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
 
   const summary = summaryResult.data?.summary ?? '';
   const recentMessages = (messagesResult.data ?? []).reverse() as AIContext['recentMessages'];
+  const lastInboundMsg = recentMessages.findLast(m => m.direction === 'inbound');
+  const lastInboundIntent = (lastInboundMsg?.metadata?.intent as string | undefined) ?? undefined;
 
   const slots = calendarResult.data ?? [];
   const upcomingSlots = slots.length > 0
@@ -145,7 +149,7 @@ export async function buildAIContext(accountId: string, contactId: string): Prom
     ? computeAvailableSlots(accountMeetingsResult.data ?? [], timezone)
     : '';
 
-  return { summary, recentMessages, upcomingSlots, availableSlots };
+  return { summary, recentMessages, upcomingSlots, availableSlots, lastInboundIntent };
 }
 
 /**
