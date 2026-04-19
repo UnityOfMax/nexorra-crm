@@ -42,6 +42,14 @@ Triggers: new API route, database migration, integration with a third-party serv
 | Lead research, market research | `research:market-research` (Derek) |
 | Local biz pipeline | `research:local-biz-scout` (Petra) |
 
+### The Council → Multi-perspective deliberation
+Use `/council` or `council:deliberate` when you need multiple independent views before making a decision:
+- Strategy or positioning questions
+- Copy/ad/landing page review
+- Any decision where blind spots matter
+
+Six members deliberate in parallel (Strategist, Skeptic, Creative, Analyst, Operator, Buyer), then a Chairman synthesizes a final verdict. Invoke with: `/council [question or paste content]`
+
 ### Rule: Never build a UI without design inspiration first
 If you are about to write HTML/CSS/TSX for any user-facing page without having first pulled real design inspiration via `mcp__design-inspiration__*` or `mcp__21st-magic__*`, **stop and do that first**. The result of skipping this step is a generic, low-quality UI. This rule has no exceptions.
 
