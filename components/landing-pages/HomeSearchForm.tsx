@@ -112,12 +112,12 @@ function fireFbq(event: string, params?: Record<string, any>) {
   } catch (_) {}
 }
 
-function trackEvent(pageId: string | undefined, slug: string | undefined, event_type: string, metadata?: Record<string, any>) {
+function trackEvent(pageId: string | undefined, slug: string | undefined, event_type: string, metadata?: Record<string, any>, sessionId?: string) {
   if (!pageId && !slug) return;
   fetch('/api/landing-pages/track', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ page_id: pageId, slug, event_type, metadata: metadata || {} }),
+    body: JSON.stringify({ page_id: pageId, slug, event_type, metadata: { ...(metadata || {}), session_id: sessionId } }),
   }).catch(() => {});
 }
 
@@ -147,14 +147,25 @@ export default function HomeSearchForm({
   const [metaFbp, setMetaFbp] = useState<string | null>(null);
   const [metaFbc, setMetaFbc] = useState<string | null>(null);
 
+  // Session ID — persists for the duration of this page visit, links all events to the contact
+  const [sessionId] = useState(() => {
+    if (typeof window === 'undefined') return crypto.randomUUID();
+    const key = `lp_session_${pageId || slug}`;
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(key, id);
+    return id;
+  });
+
   // Track step views whenever step changes
   useEffect(() => {
     if (isOpen && step) {
-      trackEvent(pageId, slug, 'step_view', { step });
+      trackEvent(pageId, slug, 'step_view', { step }, sessionId);
     }
   }, [step, isOpen]);
 
-  // Reset when opened; capture fbp/fbc
+  // Reset when opened; capture fbp/fbc; fire form_start
   useEffect(() => {
     if (isOpen) {
       setStep(activeQuestionSteps[0] || 'contact');
@@ -165,7 +176,8 @@ export default function HomeSearchForm({
         sell_also: '', employment: '', income: '', call_time: '', serious: '',
         first_name: '', last_name: '', phone: '', email: '',
       });
-      trackEvent(pageId, slug, 'cta_click');
+      trackEvent(pageId, slug, 'form_start', {}, sessionId);
+      trackEvent(pageId, slug, 'cta_click', {}, sessionId);
 
       // Capture _fbp cookie (Meta browser pixel cookie)
       const fbpCookie = document.cookie
@@ -231,6 +243,9 @@ export default function HomeSearchForm({
           fbc: metaFbc || undefined,
           fbp: metaFbp || undefined,
           event_id: metaEventId,
+          session_id: sessionId,
+          page_id: pageId,
+          slug,
           custom_fields: {
             'Intent': formData.intent,
             'Current Situation': formData.situation,
@@ -248,7 +263,7 @@ export default function HomeSearchForm({
       const data = await res.json();
       if (res.ok && data.contactId) {
         setSubmittedContactId(data.contactId);
-        trackEvent(pageId, slug, 'form_submit', { contact_id: data.contactId });
+        trackEvent(pageId, slug, 'form_submit', { contact_id: data.contactId }, sessionId);
         // Fire browser-side Lead pixel event with matching eventID for CAPI deduplication
         fireFbq('Lead', { content_name: 'Real Estate Form', eventID: metaEventId });
         setStep('calendar');
@@ -264,7 +279,7 @@ export default function HomeSearchForm({
   };
 
   const handleBookingConfirmed = () => {
-    trackEvent(pageId, slug, 'booking_confirmed');
+    trackEvent(pageId, slug, 'booking_confirmed', {}, sessionId);
     // Fire Schedule pixel event
     fireFbq('Schedule', { content_name: 'Call Booked' });
     setStep('confirmed');

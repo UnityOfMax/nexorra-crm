@@ -61,12 +61,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    const sessionId = body.metadata?.session_id || null;
+
     await supabaseAdmin.from('landing_page_events').insert({
       landing_page_id: page.id,
       lead_id: page.lead_id,
       event_type,
       visitor_ip_hash: ipHash,
-      metadata: metadata || {},
+      metadata: { ...(metadata || {}), session_id: sessionId },
     });
 
     return NextResponse.json({ ok: true });

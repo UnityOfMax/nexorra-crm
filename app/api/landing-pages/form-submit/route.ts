@@ -25,6 +25,9 @@ export async function POST(request: NextRequest) {
       fbc,
       fbp,
       event_id,
+      session_id,
+      page_id,
+      slug,
       pipeline_stage_id,
       pipeline_id,
       stage_name,
@@ -108,6 +111,26 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error;
       contactId = data.id;
+    }
+
+    // Write per-step funnel events from answered questions (non-blocking)
+    const stepFieldMap: Record<string, string> = {
+      'Intent': 'intent', 'Current Situation': 'situation', 'Timeline': 'timeline',
+      'Budget': 'budget', 'Wishlist': 'wishlist', 'Also Selling': 'sell_also',
+      'Employer': 'employment', 'Annual Income': 'income',
+      'Best Call Time': 'call_time', 'Serious Buyer': 'serious',
+    };
+    const answeredSteps = Object.entries(custom_fields || {})
+      .filter(([key, val]) => stepFieldMap[key] && val)
+      .map(([key, val]) => ({
+        account_id: accountId,
+        contact_id: contactId,
+        event_type: 'form_step',
+        channel: 'web',
+        metadata: { step: stepFieldMap[key], value: val, session_id: session_id || null },
+      }));
+    if (answeredSteps.length) {
+      void supabaseAdmin.from('funnel_events').insert(answeredSteps);
     }
 
     // CAPI Lead event + funnel tracking + lead score (all non-blocking)
