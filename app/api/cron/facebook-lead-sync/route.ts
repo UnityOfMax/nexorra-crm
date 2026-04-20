@@ -157,7 +157,7 @@ interface GraphLead {
 
 async function fetchFormLeads(formId: string, pageToken: string, since: number): Promise<GraphLead[]> {
   const filter = encodeURIComponent(JSON.stringify([
-    { field: 'time_created', operator: 'GREATER_THAN', value: since }
+    { field: 'created_time', operator: 'GREATER_THAN', value: since }
   ]));
 
   const url = `https://graph.facebook.com/v21.0/${formId}/leads`
