@@ -49,26 +49,36 @@ function buildDailyTrend(contacts: Array<{ created_at: string }>, days = 30): nu
   return counts;
 }
 
+// Unified lead activity event
+interface LeadEvent {
+  id: string;
+  kind: 'new_lead' | 'booking' | 'hot_lead';
+  name: string;
+  source?: string;
+  created_at: string;
+}
+
 export default function DashboardView({ sub, accountId, userId }: DashboardViewProps) {
   const [stats, setStats] = useState({ leads30: 0, spend30: 0, pipelineValue: 0, wonThisMonth: 0 });
   const [pipelineStages, setPipelineStages] = useState<Array<{ name: string; count: number }>>([]);
-  const [activities, setActivities] = useState<Array<{ id: string; type: string; description: string; contact_name: string; created_at: string }>>([]);
+  const [leadEvents, setLeadEvents] = useState<LeadEvent[]>([]);
   const [leadTrend, setLeadTrend] = useState<number[]>([]);
   const [channelMix, setChannelMix] = useState<Array<{ name: string; count: number; color: string }>>([]);
+
   useEffect(() => {
     async function load() {
       try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-        const [contactsRes, dealsRes, activitiesRes] = await Promise.all([
+        const [contactsRes, dealsRes, bookingsRes] = await Promise.all([
           fetch(`/api/contacts?accountId=${accountId}&limit=200&since=${thirtyDaysAgo}`),
           fetch(`/api/deals?accountId=${accountId}`),
-          fetch(`/api/activities?accountId=${accountId}&limit=6`),
+          fetch(`/api/activities?accountId=${accountId}&type=meeting&limit=10`),
         ]);
 
         if (contactsRes.ok) {
           const cData = await contactsRes.json();
-          const contacts: Array<{ created_at: string; source?: string }> = cData.contacts || [];
+          const contacts: Array<{ id: string; first_name?: string; last_name?: string; created_at: string; source?: string; lead_score?: number }> = cData.contacts || [];
           const total = cData.total ?? contacts.length;
 
           setStats(s => ({ ...s, leads30: total }));
@@ -84,6 +94,36 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
             .sort((a, b) => b[1] - a[1])
             .map(([name, count]) => ({ name, count, color: sourceColor(name) }));
           setChannelMix(mix);
+
+          // Build lead event feed from contacts + bookings
+          const events: LeadEvent[] = contacts.slice(0, 8).map(c => ({
+            id: c.id,
+            kind: (c.lead_score || 0) >= 70 ? 'hot_lead' : 'new_lead',
+            name: [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Unknown',
+            source: c.source,
+            created_at: c.created_at,
+          }));
+
+          if (bookingsRes.ok) {
+            const bData = await bookingsRes.json();
+            const bookings: Array<{ id?: string; subject?: string; contact_id?: string; created_at: string }> = bData.activities || bData || [];
+            for (const b of bookings) {
+              if (!b.contact_id) continue;
+              const contactForBooking = contacts.find(c => c.id === b.contact_id);
+              const name = contactForBooking
+                ? [contactForBooking.first_name, contactForBooking.last_name].filter(Boolean).join(' ')
+                : (b.subject?.split(' — ')[0]?.replace(/^Call with /, '') || 'Lead');
+              events.push({ id: b.id || b.contact_id + b.created_at, kind: 'booking', name, created_at: b.created_at });
+            }
+          }
+
+          // Sort by most recent, deduplicate by contact+kind
+          const seen = new Set<string>();
+          const deduped = events
+            .filter(e => { const key = `${e.name}-${e.kind}`; if (seen.has(key)) return false; seen.add(key); return true; })
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 7);
+          setLeadEvents(deduped);
         }
 
         if (dealsRes.ok) {
@@ -99,15 +139,9 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
             if (d.status === 'won') won += (d.value || 0);
           }
 
-          // Build ordered stage list from actual deal data
           const stages = Object.entries(bystage).map(([name, count]) => ({ name, count }));
           setPipelineStages(stages);
           setStats(s => ({ ...s, pipelineValue: pipeline, wonThisMonth: won }));
-        }
-
-        if (activitiesRes.ok) {
-          const data = await activitiesRes.json();
-          setActivities(data.activities || data || []);
         }
 
         // Meta spend — try live fetch first, falls back to cached DB rows
@@ -208,26 +242,32 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
 
         {/* Right column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Recent activity */}
+          {/* Recent lead activity */}
           <Card padding={0} style={{ overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Recent activity</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Recent leads</div>
             </div>
-            {activities.length > 0 ? activities.slice(0, 5).map((a, i) => (
-              <div key={a.id || i} style={{ padding: '12px 16px', borderBottom: i < Math.min(activities.length, 5) - 1 ? '1px solid var(--line)' : 'none', display: 'flex', gap: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--paper-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', flexShrink: 0 }}>
-                  {a.type === 'call' ? <Icons.phone size={13} /> : a.type === 'email' ? <Icons.mail size={13} /> : a.type === 'meeting' ? <Icons.calendar size={13} /> : <Icons.bolt size={13} />}
+            {leadEvents.length > 0 ? leadEvents.map((e, i) => {
+              const isBooking = e.kind === 'booking';
+              const isHot = e.kind === 'hot_lead';
+              const iconColor = isBooking ? 'var(--green)' : isHot ? 'var(--amber)' : 'var(--blue)';
+              const label = isBooking ? 'Booking' : isHot ? 'Hot lead' : 'New lead';
+              return (
+                <div key={e.id} style={{ padding: '11px 16px', borderBottom: i < leadEvents.length - 1 ? '1px solid var(--line)' : 'none', display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--paper-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} >
+                    {isBooking ? <Icons.calendar size={13} style={{ color: iconColor }} /> : isHot ? <Icons.bolt size={13} style={{ color: iconColor }} /> : <Icons.target size={13} style={{ color: iconColor }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 1 }}>{label}{e.source ? ` · ${e.source}` : ''}</div>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', flexShrink: 0 }}>
+                    {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.contact_name || a.description}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{a.description}</div>
-                </div>
-                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', flexShrink: 0, marginTop: 2 }}>
-                  {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </div>
-              </div>
-            )) : (
-              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>No recent activity</div>
+              );
+            }) : (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>No recent leads</div>
             )}
           </Card>
 
