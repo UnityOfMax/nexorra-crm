@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 // GET /api/cron/cleanup-leads — auto-delete expired leads across all 3 categories
 // Schedule: daily via cron
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get('x-cron-secret');
-  if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
