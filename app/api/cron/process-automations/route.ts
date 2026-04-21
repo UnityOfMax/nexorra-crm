@@ -43,11 +43,26 @@ export async function GET(request: NextRequest) {
 
     for (const msg of messages) {
       try {
+        // Atomically claim this message — prevents duplicate sends if two cron instances overlap.
+        // Only proceed if we won the race (exactly 1 row updated from 'pending' to 'processing').
+        const { data: claimed } = await supabaseAdmin
+          .from('automation_messages')
+          .update({ status: 'processing' })
+          .eq('id', msg.id)
+          .eq('status', 'pending')
+          .select('id');
+
+        if (!claimed || claimed.length === 0) {
+          // Another instance already claimed this message
+          continue;
+        }
+
         // Check enrollment is still active
         const { data: enrollment } = await supabaseAdmin
           .from('automation_enrollments')
           .select('id, status, metadata, automation_id')
           .eq('id', msg.enrollment_id)
+          .limit(1)
           .maybeSingle();
 
         if (!enrollment || enrollment.status !== 'active') {
@@ -55,7 +70,8 @@ export async function GET(request: NextRequest) {
           await supabaseAdmin
             .from('automation_messages')
             .update({ status: 'cancelled' })
-            .eq('id', msg.id);
+            .eq('id', msg.id)
+            .eq('status', 'processing');
           continue;
         }
 

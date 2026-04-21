@@ -133,25 +133,7 @@ export async function POST(request: NextRequest) {
       void supabaseAdmin.from('funnel_events').insert(answeredSteps);
     }
 
-    // CAPI Lead event + funnel tracking + lead score (all non-blocking)
-    const capiEventId = event_id || crypto.randomUUID();
-
-    sendCapiEvent({
-      eventName: 'Lead',
-      eventId: capiEventId,
-      userData: {
-        email: email || undefined,
-        phone: normalizedPhone || undefined,
-        firstName: first_name || undefined,
-        lastName: last_name || undefined,
-        fbc: fbc || undefined,
-        fbp: fbp || undefined,
-        externalId: contactId,
-      },
-      accountId,
-      contactId,
-    }).catch((err) => console.error('[form-submit] CAPI error:', err));
-
+    // Funnel tracking + lead score (non-blocking, always)
     void supabaseAdmin
       .from('funnel_events')
       .insert({
@@ -165,22 +147,37 @@ export async function POST(request: NextRequest) {
       console.error('[form-submit] lead score error:', err)
     );
 
-    // Trigger new lead automation (non-blocking)
+    // New contacts only: CAPI Lead event, automation enrollment, workflow trigger, push
     const contactName = [first_name, last_name].filter(Boolean).join(' ') || 'there';
-    enrollNewLead({
-      accountId,
-      contactId,
-      contactName,
-      agentName: agentName || 'Your Agent',
-    }).catch((err) => console.error('[form-submit] automation enrollment error:', err));
-
-    // Trigger custom workflows for new contacts only (non-blocking)
     if (!existingContact) {
+      const capiEventId = event_id || crypto.randomUUID();
+      sendCapiEvent({
+        eventName: 'Lead',
+        eventId: capiEventId,
+        userData: {
+          email: email || undefined,
+          phone: normalizedPhone || undefined,
+          firstName: first_name || undefined,
+          lastName: last_name || undefined,
+          fbc: fbc || undefined,
+          fbp: fbp || undefined,
+          externalId: contactId,
+        },
+        accountId,
+        contactId,
+      }).catch((err) => console.error('[form-submit] CAPI error:', err));
+
+      enrollNewLead({
+        accountId,
+        contactId,
+        contactName,
+        agentName: agentName || 'Your Agent',
+      }).catch((err) => console.error('[form-submit] automation enrollment error:', err));
+
       triggerContactCreated(accountId, contactId).catch((err) =>
         console.error('[form-submit] workflow trigger error:', err)
       );
 
-      // Push notification to account owner for new leads (non-blocking, respects preferences)
       sendPushToAccountOwnerIfEnabled(accountId, 'new_leads', {
         title: '🔥 New Lead',
         body: `${contactName} just submitted a form`,
