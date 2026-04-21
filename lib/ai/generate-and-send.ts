@@ -168,6 +168,9 @@ export async function generateAIResponse(
   const maxTokens = (isEmail && config.email_max_tokens) ? config.email_max_tokens : (config.max_tokens || 500);
 
   const systemParts = [
+    // Copy rules go FIRST — Claude applies instructions in order, top-weighted
+    memoryCtx.stopSlopSkill ? `## COPY RULES — APPLY TO EVERY WORD YOU WRITE\n${memoryCtx.stopSlopSkill}` : '',
+    memoryCtx.humanizerSkill ? `## WRITING VOICE — NON-NEGOTIABLE\n${memoryCtx.humanizerSkill}` : '',
     systemPrompt || 'You are a helpful business assistant responding to customer messages.',
     toneInstructions[config.tone] || toneInstructions.professional,
     agentName ? `Your name is ${agentName}.` : '',
@@ -209,8 +212,6 @@ export async function generateAIResponse(
       ? `This is follow-up #${(followUpCount ?? 0) + 1} of 3 — they haven't replied. Brief, specific reference to something from your previous exchange, gentle nudge. Not pushy.`
       : '',
     `## Memory\n${memoryBlock}`,
-    `## Writing style\n${memoryCtx.humanizerSkill}`,
-    `---\n${memoryCtx.stopSlopSkill}`,
     'Respond with the message text only. No labels, no meta-commentary, no quotation marks.',
   ].filter(Boolean).join('\n\n');
 
@@ -439,21 +440,34 @@ export async function generateAndSendAI(
     throw new Error('accountId, contactId, and channel required');
   }
 
-  // Deduplication: skip if an outbound message was sent to this contact in the last 5 minutes
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  const { data: recentOutbound } = await supabaseAdmin
+  // Deduplication: skip if there's already any outbound reply after the most recent inbound.
+  // This catches both AI-generated replies AND manual replies from the account owner,
+  // regardless of how long ago they were sent.
+  const { data: lastInbound } = await supabaseAdmin
     .from('messages')
-    .select('id')
+    .select('created_at')
     .eq('account_id', accountId)
     .eq('contact_id', contactId)
-    .eq('direction', 'outbound')
+    .eq('direction', 'inbound')
     .eq('type', channel === 'sms' ? 'sms' : 'email')
-    .gte('created_at', fiveMinutesAgo)
-    .limit(1);
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (recentOutbound && recentOutbound.length > 0) {
-    console.log(`[generateAndSendAI] Skipping — outbound ${channel} sent to ${contactId} within last 5 min`);
-    return { success: false, message: 'Skipped: duplicate within 5 minutes', channel };
+  if (lastInbound) {
+    const { data: replySinceInbound } = await supabaseAdmin
+      .from('messages')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('contact_id', contactId)
+      .eq('direction', 'outbound')
+      .gt('created_at', lastInbound.created_at)
+      .limit(1);
+
+    if (replySinceInbound && replySinceInbound.length > 0) {
+      console.log(`[generateAndSendAI] Skipping — already replied to latest inbound from ${contactId}`);
+      return { success: false, message: 'Skipped: already replied to latest inbound', channel };
+    }
   }
 
   // Step 1: Generate AI response
