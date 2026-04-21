@@ -182,18 +182,44 @@ async function processLead(
   accountId: string,
   fieldMappings: Record<string, string> = {}
 ): Promise<boolean> {
+  // Map form fields first so we can use email/phone in dedup checks
+  const fields = mapLeadFields(lead.field_data, fieldMappings);
+  const normalizedPhone = fields.phone ? normalizePhone(fields.phone) : null;
+
   // Dedup by Facebook lead ID
-  const { data: existing } = await supabaseAdmin
+  const { data: existingByLeadId } = await supabaseAdmin
     .from('facebook_ad_leads')
     .select('id')
     .eq('facebook_lead_id', lead.id)
     .maybeSingle();
 
-  if (existing) return false; // Already processed
+  if (existingByLeadId) return false; // Already processed this exact submission
 
-  // Map form fields to contact fields (applying user-configured field mappings)
-  const fields = mapLeadFields(lead.field_data, fieldMappings);
-  const normalizedPhone = fields.phone ? normalizePhone(fields.phone) : null;
+  // Secondary dedup by email — catches same person re-submitted via a different form
+  if (fields.email) {
+    const { data: existingByEmail } = await supabaseAdmin
+      .from('facebook_ad_leads')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('email', fields.email)
+      .maybeSingle();
+    if (existingByEmail) {
+      // Record this lead_id so future runs skip it immediately via the primary dedup
+      void supabaseAdmin.from('facebook_ad_leads').insert({
+        account_id: accountId,
+        contact_id: existingByEmail.id,
+        facebook_lead_id: lead.id,
+        form_id: form.id,
+        lead_data: lead.field_data,
+        email: fields.email,
+        phone: normalizedPhone,
+        first_name: fields.first_name || null,
+        last_name: fields.last_name || null,
+        created_time: lead.created_time,
+      });
+      return false;
+    }
+  }
 
   // Upsert contact (dedup by phone or email)
   let existingContact: { id: string; custom_fields: Record<string, any> } | null = null;
