@@ -349,8 +349,10 @@ async function processLead(
 
   updateLeadScore(contactId).catch(() => {});
 
-  // Automation enrollment (non-blocking)
-  enrollNewLead({ accountId, contactId, contactName, agentName: 'Your Agent' }).catch(() => {});
+  // Automation enrollment — new contacts only (non-blocking)
+  if (!existingContact) {
+    enrollNewLead({ accountId, contactId, contactName, agentName: 'Your Agent' }).catch(() => {});
+  }
 
   return true;
 }

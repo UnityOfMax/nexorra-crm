@@ -44,15 +44,16 @@ export async function enrollNewLead(params: EnrollNewLeadParams) {
   const { accountId, contactId, contactName, agentName } = params;
   try {
     // Check if already enrolled in an active automation — skip if so
-    const { data: existing } = await supabaseAdmin
+    // Use limit(1) instead of maybeSingle() to avoid error when multiple rows exist
+    const { data: existingRows } = await supabaseAdmin
       .from('automation_enrollments')
       .select('id')
       .eq('account_id', accountId)
       .eq('contact_id', contactId)
       .eq('status', 'active')
-      .maybeSingle();
+      .limit(1);
 
-    if (existing) {
+    if (existingRows && existingRows.length > 0) {
       console.log('[automation] Contact already enrolled, skipping new_lead enrollment', contactId);
       return;
     }
