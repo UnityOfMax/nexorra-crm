@@ -1,18 +1,23 @@
 /**
  * Memory loader for the client reply agent.
  *
- * Loads context in order of relevance:
- *   1. agents/memory/client-reply.md   — engagement patterns, what works/doesn't
- *   2. Obsidian client note            — per-contact notes if one exists
- *   3. agents/skills/humanizer.md      — writing style rules
- *   4. agents/skills/stop-slop.md      — banned words / AI-tell patterns
+ * Copy rules are hardcoded as compact constants (not file-loaded) to minimize
+ * prompt token usage. Full skill files in agents/skills/ are the source of truth
+ * for humans; runtime uses condensed versions here.
+ *
+ * Per-contact Obsidian notes still loaded dynamically when they exist.
  */
 
 import fs from 'fs';
 import path from 'path';
 
-const CRM_ROOT = path.resolve(process.cwd());
 const OBSIDIAN_CLIENTS = path.join(process.env.HOME || '/home/max', 'Obsidian/Nexorra/Clients');
+
+
+// Compact runtime copy rules (~400 chars vs ~3,300 chars from full files)
+const STOP_SLOP_COMPACT = `Never use: crucial, vital, essential, transformative, game-changing, seamless, leverage, facilitate, foster, empower. No filler openers (Certainly!, Absolutely!, Great question!). No em-dashes. No hedging qualifiers. No conclusion recaps. No bullet-point everything.`;
+
+const HUMANIZER_COMPACT = `Write like a real person sent this. Match their register — casual in, casual out. Short texts get short replies. Use contractions. Jump straight in, no filler openers. One idea per SMS. For email: first name greeting only, one-line sign-off, no padding.`;
 
 function readFile(filePath: string): string {
   try {
@@ -47,12 +52,14 @@ export function loadReplyMemory(
   contactFirstName: string | null,
   contactLastName: string | null
 ): ReplyMemoryContext {
-  const agentMemory = readFile(path.join(CRM_ROOT, 'agents/memory/client-reply.md'));
   const contactNote = findObsidianNote(contactFirstName, contactLastName);
-  const humanizerSkill = readFile(path.join(CRM_ROOT, 'agents/skills/humanizer.md'));
-  const stopSlopSkill = readFile(path.join(CRM_ROOT, 'agents/skills/stop-slop.md'));
 
-  return { agentMemory, contactNote, humanizerSkill, stopSlopSkill };
+  return {
+    agentMemory: '',  // populated once there are real engagement patterns to learn from
+    contactNote,
+    humanizerSkill: HUMANIZER_COMPACT,
+    stopSlopSkill: STOP_SLOP_COMPACT,
+  };
 }
 
 /**
