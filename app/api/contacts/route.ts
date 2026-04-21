@@ -14,13 +14,18 @@ export async function GET(request: NextRequest) {
 
   const limit = Math.min(Number(searchParams.get('limit') ?? 50), 200);
   const offset = Number(searchParams.get('offset') ?? 0);
+  const since = searchParams.get('since');
 
-  const { data, error, count } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('contacts')
     .select('*', { count: 'exact' })
     .eq('account_id', accountId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
+
+  if (since) query = query.gte('created_at', since);
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error('Contacts fetch error:', error);

@@ -46,17 +46,17 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
   useEffect(() => {
     async function load() {
       try {
-        // Load funnel/analytics overview
-        const [funnelRes, dealsRes, activitiesRes] = await Promise.all([
-          fetch(`/api/analytics/funnel?accountId=${accountId}&days=30`),
+        // Load contacts (leads), deals, activities in parallel
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const [contactsRes, dealsRes, activitiesRes] = await Promise.all([
+          fetch(`/api/contacts?accountId=${accountId}&limit=1&since=${thirtyDaysAgo}`),
           fetch(`/api/deals?accountId=${accountId}`),
           fetch(`/api/activities?accountId=${accountId}&limit=6`),
         ]);
 
-        if (funnelRes.ok) {
-          const funnel = await funnelRes.json();
-          setLeadTrend(funnel.trend || []);
-          setStats(s => ({ ...s, leads30: funnel.total || 0 }));
+        if (contactsRes.ok) {
+          const cData = await contactsRes.json();
+          setStats(s => ({ ...s, leads30: cData.total ?? (cData.contacts?.length ?? 0) }));
         }
 
         if (dealsRes.ok) {
