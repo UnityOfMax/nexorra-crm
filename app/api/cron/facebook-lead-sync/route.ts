@@ -156,13 +156,11 @@ interface GraphLead {
 }
 
 async function fetchFormLeads(formId: string, pageToken: string, since: number): Promise<GraphLead[]> {
-  const filter = encodeURIComponent(JSON.stringify([
-    { field: 'created_time', operator: 'GREATER_THAN', value: since }
-  ]));
-
+  // Use `since` param — the `filtering` array causes OAuthException on the /leads edge
   const url = `https://graph.facebook.com/v21.0/${formId}/leads`
     + `?fields=id,created_time,field_data,ad_id,ad_name,campaign_id,campaign_name`
-    + `&filtering=${filter}`
+    + `&since=${since}`
+    + `&limit=100`
     + `&access_token=${pageToken}`;
 
   const res = await fetch(url);
