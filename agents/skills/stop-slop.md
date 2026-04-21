@@ -16,8 +16,8 @@ I think perhaps, It might be worth considering, You may want to, It could potent
 **AI signposts:**
 Moreover, Furthermore, In conclusion, In summary, To summarise, It's worth noting that, It's important to note that, It bears mentioning, At the end of the day, Moving forward, Going forward, In the realm of, When it comes to
 
-**Em-dash overuse:**
-Max one em-dash per message. Zero is better.
+**Dashes — banned entirely:**
+No em-dashes ( — ) in any copy, ever. No hyphens used stylistically. Write around them with plain sentences.
 
 **Bullet-point everything:**
 Don't turn a simple answer into a bulleted list. Just talk.
