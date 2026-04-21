@@ -48,15 +48,15 @@ Just reply with a time that works.
 {{user.firstname}}`,
   },
 
-  // Step 2 -- +2h
+  // Step 2 -- +1 day
   {
     type: 'sms',
-    delayMs: 2 * H,
+    delayMs: 1 * D,
     body: `Hi {{contact.first_name}}, just following up. Happy to chat whenever works for you, even 5 minutes helps.`,
   },
   {
     type: 'email',
-    delayMs: 2 * H,
+    delayMs: 1 * D,
     subject: `Following up`,
     body: `Hi {{contact.first_name}},
 
@@ -67,15 +67,15 @@ Whenever you have a moment, just reply and we can set up a quick call.
 {{user.firstname}}`,
   },
 
-  // Step 3 -- +1 day
+  // Step 3 -- +2 days
   {
     type: 'sms',
-    delayMs: 1 * D,
+    delayMs: 2 * D,
     body: `Hi {{contact.first_name}}, I still have some properties to show you. What does your schedule look like this week?`,
   },
   {
     type: 'email',
-    delayMs: 1 * D,
+    delayMs: 2 * D,
     subject: `Properties matching your search`,
     body: `Hi {{contact.first_name}},
 
@@ -86,15 +86,15 @@ Would you be available for a quick call this week? Even 10 minutes would be enou
 {{user.firstname}}`,
   },
 
-  // Step 4 -- +2 days
+  // Step 4 -- +3 days
   {
     type: 'sms',
-    delayMs: 2 * D,
+    delayMs: 3 * D,
     body: `Hi {{contact.first_name}}, I found some homes I think you would like. Any chance we could connect today?`,
   },
   {
     type: 'email',
-    delayMs: 2 * D,
+    delayMs: 3 * D,
     subject: `A few homes worth seeing`,
     body: `Hi {{contact.first_name}},
 
@@ -105,15 +105,15 @@ If now works better, just reply and I will work around your schedule.
 {{user.firstname}}`,
   },
 
-  // Step 5 -- +3 days
+  // Step 5 -- +4 days
   {
     type: 'sms',
-    delayMs: 3 * D,
+    delayMs: 4 * D,
     body: `Hi {{contact.first_name}}, this is my last check-in for a bit. No worries if the timing is not right. I will be around when you are ready.`,
   },
   {
     type: 'email',
-    delayMs: 3 * D,
+    delayMs: 4 * D,
     subject: `Last check-in for now`,
     body: `Hi {{contact.first_name}},
 

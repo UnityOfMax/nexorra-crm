@@ -1,10 +1,9 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { DM_Sans, JetBrains_Mono } from 'next/font/google';
+import { JetBrains_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import ThemeProvider from '@/components/ThemeProvider';
 
-const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
 
@@ -50,7 +49,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
         />
       </head>
-      <body className={`${dmSans.variable} ${jetbrainsMono.variable} ${dmSans.className}`}>
+      <body className={jetbrainsMono.variable}>
         <ThemeProvider>
           {children}
         </ThemeProvider>

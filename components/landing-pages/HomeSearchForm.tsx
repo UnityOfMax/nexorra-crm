@@ -17,6 +17,7 @@ interface HomeSearchFormProps {
   pixelIds?: string[];
   calendarSettings?: LandingPageContent['calendarSettings'];
   questionnaireConfig?: QuestionnaireConfig;
+  prefill?: { first_name?: string; last_name?: string; email?: string; phone?: string };
 }
 
 type QuestionStep = 'intent' | 'situation' | 'timeline' | 'budget' | 'wishlist' | 'sell_also' | 'employment' | 'income' | 'call_time' | 'serious';
@@ -24,7 +25,6 @@ type Step = QuestionStep | 'contact' | 'calendar' | 'confirmed';
 
 const ALL_QUESTION_STEPS: QuestionStep[] = [
   'intent', 'situation', 'timeline', 'budget', 'wishlist',
-  'sell_also', 'employment', 'income', 'call_time', 'serious',
 ];
 
 // Default options for each choice-based step
@@ -123,7 +123,7 @@ function trackEvent(pageId: string | undefined, slug: string | undefined, event_
 
 export default function HomeSearchForm({
   isOpen, onClose, accountId, accentColor = '#f59e0b',
-  agentName = 'Your Agent', agentPhoto, pageId, slug, pixelIds, calendarSettings, questionnaireConfig,
+  agentName = 'Your Agent', agentPhoto, pageId, slug, pixelIds, calendarSettings, questionnaireConfig, prefill,
 }: HomeSearchFormProps) {
   // Build active steps from config (skip disabled)
   const activeQuestionSteps: QuestionStep[] = ALL_QUESTION_STEPS.filter(
@@ -168,13 +168,18 @@ export default function HomeSearchForm({
   // Reset when opened; capture fbp/fbc; fire form_start
   useEffect(() => {
     if (isOpen) {
-      setStep(activeQuestionSteps[0] || 'contact');
+      const hasPrefill = !!(prefill?.first_name || prefill?.phone || prefill?.email);
+      // If contact details are pre-filled from a Facebook lead ad redirect, jump straight to contact step
+      setStep(hasPrefill ? 'contact' : (activeQuestionSteps[0] || 'contact'));
       setSubmittedContactId(null);
       setSubmitError('');
       setFormData({
         intent: '', situation: '', timeline: '', budget: '', wishlist: '',
         sell_also: '', employment: '', income: '', call_time: '', serious: '',
-        first_name: '', last_name: '', phone: '', email: '',
+        first_name: prefill?.first_name || '',
+        last_name:  prefill?.last_name  || '',
+        phone:      prefill?.phone      || '',
+        email:      prefill?.email      || '',
       });
       trackEvent(pageId, slug, 'form_start', {}, sessionId);
       trackEvent(pageId, slug, 'cta_click', {}, sessionId);

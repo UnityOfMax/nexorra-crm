@@ -1,0 +1,212 @@
+'use client';
+import React, { useState, useEffect } from 'react';
+import { Card, Avatar, Badge, Button, Toggle } from '../ui/primitives';
+import { Placeholder } from '../ui/primitives';
+import { Icons } from '../Icons';
+import type { SubAccount } from '../Sidebar';
+
+interface SettingsViewProps {
+  sub: SubAccount;
+  accountId: string;
+  userId: string;
+}
+
+const SECTIONS = [
+  { id: 'general', label: 'General', icon: <Icons.settings size={14} /> },
+  { id: 'preferences', label: 'Preferences', icon: <Icons.sun size={14} /> },
+  { id: 'team', label: 'Team & access', icon: <Icons.user size={14} /> },
+  { id: 'billing', label: 'Billing', icon: <Icons.dollar size={14} /> },
+  { id: 'integrations', label: 'Integrations', icon: <Icons.link size={14} /> },
+  { id: 'portal', label: 'Client portal', icon: <Icons.globe size={14} /> },
+  { id: 'automations', label: 'Automation rules', icon: <Icons.bolt size={14} /> },
+  { id: 'notifications', label: 'Notifications', icon: <Icons.bell size={14} /> },
+];
+
+export default function SettingsView({ sub, accountId, userId }: SettingsViewProps) {
+  const [section, setSection] = useState('general');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try { return (localStorage.getItem('nx.theme') as 'light' | 'dark') || 'dark'; } catch { return 'dark'; }
+  });
+
+  const applyTheme = (t: 'light' | 'dark') => {
+    setTheme(t);
+    try { localStorage.setItem('nx.theme', t); } catch {}
+    document.documentElement.setAttribute('data-theme', t);
+    if (t === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  };
+
+  return (
+    <div style={{ padding: '24px 32px 48px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Avatar tag={sub.tag} color={sub.color} size={16} /> {sub.name} <Icons.chevR size={12} /> Settings
+        </div>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em' }}>Settings</h1>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24 }} className="nx-settings-grid">
+        <div className="nx-settings-nav" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {SECTIONS.map(s => (
+            <button key={s.id} onClick={() => setSection(s.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+              background: section === s.id ? 'var(--paper-3)' : 'transparent',
+              color: section === s.id ? 'var(--ink)' : 'var(--ink-2)', fontSize: 13.5,
+              fontWeight: section === s.id ? 500 : 400, textAlign: 'left', whiteSpace: 'nowrap', flexShrink: 0,
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              <span style={{ color: 'var(--ink-3)' }}>{s.icon}</span>{s.label}
+            </button>
+          ))}
+        </div>
+        <div>
+          {section === 'general' && <GeneralSettings sub={sub} accountId={accountId} />}
+          {section === 'preferences' && <PreferencesSettings theme={theme} setTheme={applyTheme} />}
+          {section === 'team' && <TeamSettings accountId={accountId} />}
+          {section === 'integrations' && <IntegrationsSettings accountId={accountId} />}
+          {!['general', 'preferences', 'team', 'integrations'].includes(section) && (
+            <Card padding={28}><Placeholder h={320} label={`${section} settings`} /></Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GeneralSettings({ sub, accountId }: { sub: SubAccount; accountId: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card padding={24}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Workspace</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 18 }}>Basic information about this subaccount.</div>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+          <Avatar tag={sub.tag} color={sub.color} size={60} />
+          <div>
+            <Button variant="secondary" size="sm">Change logo</Button>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 6 }}>PNG or SVG · 512×512 recommended</div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="nx-2col-tight">
+          <Field label="Workspace name" value={sub.name} />
+          <Field label="Location" value={sub.location || '—'} />
+          <Field label="Client since" value={sub.since || '—'} />
+          <Field label="Primary contact email" value="contact@workspace.com" />
+        </div>
+      </Card>
+      <Card padding={24} style={{ borderColor: 'var(--rose-soft)' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, color: 'var(--rose)' }}>Danger zone</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 14 }}>Archive removes this workspace from active billing.</div>
+        <Button variant="danger" size="sm">Archive subaccount</Button>
+      </Card>
+    </div>
+  );
+}
+
+function PreferencesSettings({ theme, setTheme }: { theme: string; setTheme: (t: 'light' | 'dark') => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card padding={24}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Appearance</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 18 }}>Light and dark work equally well — pick what&apos;s easier on your eyes.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="nx-2col-tight">
+          {[
+            { v: 'light', label: 'Light', bg: 'oklch(98.8% 0.003 260)', ink: 'oklch(18% 0.012 260)', icon: <Icons.sun size={16} /> },
+            { v: 'dark', label: 'Dark', bg: 'oklch(16% 0.012 260)', ink: 'oklch(97% 0.003 260)', icon: <Icons.moon size={16} /> },
+          ].map(t => (
+            <button key={t.v} onClick={() => setTheme(t.v as 'light' | 'dark')} style={{
+              border: theme === t.v ? '2px solid var(--blue)' : '1px solid var(--line)',
+              borderRadius: 12, padding: 14, textAlign: 'left', background: t.bg, color: t.ink, position: 'relative', cursor: 'pointer',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                {t.icon}
+                <span style={{ fontSize: 13.5, fontWeight: 500 }}>{t.label}</span>
+                {theme === t.v && <span style={{ marginLeft: 'auto', color: 'var(--blue)' }}><Icons.check size={15} /></span>}
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: 'oklch(58% 0.18 258)', opacity: 0.9, width: '70%' }} />
+              <div style={{ height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.18, width: '90%', marginTop: 6 }} />
+              <div style={{ height: 6, borderRadius: 3, background: 'currentColor', opacity: 0.18, width: '55%', marginTop: 6 }} />
+            </button>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function TeamSettings({ accountId }: { accountId: string }) {
+  const [members, setMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+
+  useEffect(() => {
+    fetch(`/api/account-members?accountId=${accountId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMembers(d.members || d || []); })
+      .catch(() => {});
+  }, [accountId]);
+
+  const displayMembers = members.length > 0 ? members : [
+    { id: '1', name: 'Jess Alvarez', email: 'jess@nexorra.com', role: 'Agency admin' },
+    { id: '2', name: 'Kai Obi', email: 'kai@nexorra.com', role: 'Account manager' },
+  ];
+
+  return (
+    <Card padding={0} style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>Team & access</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>People who can access this workspace.</div>
+        </div>
+        <Button variant="primary" size="sm" icon={<Icons.plus size={13} />}>Invite</Button>
+      </div>
+      {displayMembers.map((t, i) => (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', borderBottom: i < displayMembers.length - 1 ? '1px solid var(--line)' : 'none' }}>
+          <Avatar name={t.name} color={['blue', 'violet', 'green', 'amber'][i % 4]} size={32} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.email}</div>
+          </div>
+          <Badge tone="neutral">{t.role}</Badge>
+          <button style={{ padding: 4, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <Icons.more size={16} />
+          </button>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function IntegrationsSettings({ accountId }: { accountId: string }) {
+  const integrations = [
+    { name: 'Facebook Ads', icon: <Icons.megaphone size={18} />, status: 'connected', color: 'var(--blue)' },
+    { name: 'Google Calendar', icon: <Icons.calendar size={18} />, status: 'connected', color: 'var(--green)' },
+    { name: 'Twilio SMS', icon: <Icons.phone size={18} />, status: 'connected', color: 'var(--violet)' },
+    { name: 'Instantly', icon: <Icons.mail size={18} />, status: 'connected', color: 'var(--amber)' },
+  ];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {integrations.map((intg, i) => (
+        <Card key={i} padding={16} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--paper-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: intg.color }}>
+            {intg.icon}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>{intg.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Connected and syncing</div>
+          </div>
+          <Badge tone={intg.status === 'connected' ? 'green' : 'neutral'} dot>{intg.status}</Badge>
+          <Button variant="secondary" size="sm">Manage</Button>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function Field({ label, value, chip }: { label: string; value: string; chip?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--line)', background: 'var(--paper-2)', borderRadius: 8, fontSize: 13 }}>
+        {chip && <span style={{ width: 14, height: 14, borderRadius: 4, background: chip === 'blue' ? 'var(--blue)' : 'var(--violet)' }} />}
+        <span>{value}</span>
+      </div>
+    </div>
+  );
+}

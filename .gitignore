@@ -83,3 +83,13 @@ scripts/*.mp4
 scripts/*.mov
 assets/video/*.png
 assets/video/*.webm
+
+# Root-level media files (testimonials, screenshots, etc.)
+/*.mp4
+/*.mov
+/*.avi
+/*.png
+/*.jpg
+/*.jpeg
+/tmplibd5wc9.*
+/.gmail-ramp.json

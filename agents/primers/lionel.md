@@ -1,6 +1,38 @@
 # Lionel — Cold Email Maintenance Agent
-Last run: 2026-04-20 (complete)
+Last run: 2026-04-21 (complete)
 Status: partially operational (4 critical blockers remain)
+
+## What Just Happened (Run 2026-04-21)
+
+### Maintenance Actions Summary
+✓ Nudge Check: 0 conversations ready
+✓ Ghosted Detection: 0 conversations to mark ghosted
+✓ Video Viewed Check: 0 leads viewed videos in last 3 days
+✗ Scheduled Messages: BLOCKED (schema columns missing)
+✗ Instantly Status Sync: BLOCKED (401 API auth error)
+✓ Learning Cycle: 0 unlearned outcomes
+
+### Status by Component
+| Component | Status | Result |
+|-----------|--------|--------|
+| Nudge send | ✓ OK | 0 ready |
+| Ghosted detection | ✓ OK | 0 to mark |
+| Video conditional | ✓ OK | 0 viewers |
+| Scheduled send | ✗ Blocked | Schema columns missing |
+| Instantly sync | ✗ Blocked | 401 auth error |
+| Learning cycle | ✓ OK | 0 unlearned outcomes |
+
+### Execution Summary
+- 1 day since last run (2026-04-20)
+- All operational components executed successfully
+- Zero actionable items: 0 nudges, 0 ghosted, 0 video views, 0 learnings
+- All 4 blockers remain unresolved (24 days stuck since 2026-03-31)
+- **No progress** — system still waiting on Instantly fixes + ANTHROPIC_API_KEY
+
+### Status
+System operational but idle. No incoming replies to nudge, no leads crossing ghosted threshold. Next actionable event: when new replies arrive (awaiting inbound traffic).
+
+---
 
 ## What Just Happened (Run 2026-04-20)
 

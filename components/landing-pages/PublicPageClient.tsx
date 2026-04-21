@@ -18,11 +18,37 @@ declare global {
   }
 }
 
+interface PrefillData {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+}
+
 export default function PublicPageClient({ slug, pageId }: PublicPageClientProps) {
   const [content, setContent] = useState<LandingPageContent | null>(null);
   const [accountId, setAccountId] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
+
+  // Read prefill params from URL (?fn=&ln=&em=&ph= — passed from Facebook lead ad thank-you redirect)
+  const [prefill] = useState<PrefillData>(() => {
+    if (typeof window === 'undefined') return {};
+    const p = new URLSearchParams(window.location.search);
+    return {
+      first_name: p.get('fn') || undefined,
+      last_name:  p.get('ln') || undefined,
+      email:      p.get('em') || undefined,
+      phone:      p.get('ph') || undefined,
+    };
+  });
+
+  // Auto-open form if prefill data is present (they clicked through from the lead ad thank-you screen)
+  useEffect(() => {
+    if (prefill.first_name || prefill.phone || prefill.email) {
+      setFormOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     const url = pageId
@@ -133,6 +159,7 @@ export default function PublicPageClient({ slug, pageId }: PublicPageClientProps
         agentPhoto={agentPhoto}
         calendarSettings={content.calendarSettings}
         questionnaireConfig={content.questionnaireConfig}
+        prefill={prefill}
       />
     </>
   );

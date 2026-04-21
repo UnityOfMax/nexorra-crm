@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-browser';
 import { User } from '@supabase/supabase-js';
 import AuthForm from '@/components/AuthForm';
-import Dashboard from '@/components/Dashboard';
+import Shell from '@/components/Shell';
 
 function HomeContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +44,7 @@ function HomeContent() {
 
   return (
     <main className="min-h-[100dvh]">
-      {!user ? <AuthForm /> : <Dashboard user={user} initialView={initialView} initialAccountId={initialAccountId} />}
+      {!user ? <AuthForm /> : <Shell user={user} initialView={initialView} initialAccountId={initialAccountId} />}
     </main>
   );
 }
