@@ -113,9 +113,10 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
   useEffect(() => {
     async function loadAccounts() {
       try {
+        // Step 1: get memberships (account_id + role only — no join to avoid RLS on accounts table)
         const { data: memberships } = await supabase
           .from('account_members')
-          .select('role, accounts(*)')
+          .select('account_id, role')
           .eq('user_id', user.id);
 
         if (!memberships || memberships.length === 0) {
@@ -123,47 +124,76 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
           return;
         }
 
-        // Build user name from email
         setUserName(user.email?.split('@')[0]?.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User');
 
         const built: SubAccount[] = [];
         let colorIdx = 0;
-        let agencyId: string | null = null;
-        let agencyUserId: string | null = null;
 
-        for (const m of memberships) {
-          const acc = m.accounts as Record<string, unknown> | null;
-          if (!acc || typeof acc !== 'object') continue;
-          const id = acc.id as string;
-          const name = (acc.name as string) || 'Account';
-          const isAgency = id === AGENCY_ACCOUNT_ID || (acc.account_type as string) === 'agency';
+        // Step 2: check if this user is the agency owner/admin
+        const agencyMembership = memberships.find(
+          (m: { account_id: string; role: string }) => m.account_id === AGENCY_ACCOUNT_ID
+        );
 
-          if (isAgency) {
-            agencyId = id;
-            agencyUserId = user.id;
-            built.unshift({
-              id,
-              name,
-              kind: 'agency',
-              tag: 'NX',
-              color: 'grad',
-              location: 'All markets',
-              markets: 6,
-              leads30: 0,
-              status: 'healthy',
-            });
-            setUserRole((m.role as string) || 'admin');
-          } else {
+        if (agencyMembership) {
+          setUserRole((agencyMembership.role as string) || 'agency_owner');
+
+          // Add agency account (no DB fetch needed — ID is known)
+          built.push({
+            id: AGENCY_ACCOUNT_ID,
+            name: 'Nexorra',
+            kind: 'agency',
+            tag: 'NX',
+            color: 'grad',
+            location: 'All markets',
+            markets: 6,
+            leads30: 0,
+            status: 'healthy',
+          });
+
+          // Step 3: load all client sub-accounts via API (uses supabaseAdmin — no RLS)
+          const res = await fetch(`/api/agency/clients?agencyId=${AGENCY_ACCOUNT_ID}&userId=${user.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const clients: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
+            for (const c of clients) {
+              const settings = (c.settings as Record<string, unknown>) || {};
+              const loc = settings.location as Record<string, unknown> | string | undefined;
+              const locStr = typeof loc === 'object' && loc
+                ? [(loc as Record<string, unknown>).first_name, (loc as Record<string, unknown>).last_name].filter(Boolean).join(' ')
+                : (typeof loc === 'string' ? loc : '');
+              built.push({
+                id: c.id as string,
+                name: (c.name as string) || 'Client',
+                kind: 'client',
+                tag: makeTag((c.name as string) || 'CL'),
+                color: COLORS[colorIdx % COLORS.length],
+                location: locStr,
+                leads30: 0,
+                status: 'healthy',
+                since: c.created_at ? new Date(c.created_at as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : undefined,
+              });
+              colorIdx++;
+            }
+          }
+        } else {
+          // Non-agency user: load their direct account memberships via join
+          const { data: full } = await supabase
+            .from('account_members')
+            .select('role, accounts(*)')
+            .eq('user_id', user.id);
+          for (const m of (full || [])) {
+            const acc = (m as Record<string, unknown>).accounts as Record<string, unknown> | null;
+            if (!acc) continue;
             const settings = (acc.settings as Record<string, unknown>) || {};
             const loc = settings.location as Record<string, unknown> | string | undefined;
             const locStr = typeof loc === 'object' && loc
-              ? [loc.first_name, loc.last_name].filter(Boolean).join(' ')
+              ? [(loc as Record<string, unknown>).first_name, (loc as Record<string, unknown>).last_name].filter(Boolean).join(' ')
               : (typeof loc === 'string' ? loc : '');
             built.push({
-              id,
-              name,
+              id: acc.id as string,
+              name: (acc.name as string) || 'Account',
               kind: 'client',
-              tag: makeTag(name),
+              tag: makeTag((acc.name as string) || 'AC'),
               color: COLORS[colorIdx % COLORS.length],
               location: locStr,
               leads30: 0,
@@ -171,39 +201,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
               since: acc.created_at ? new Date(acc.created_at as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : undefined,
             });
             colorIdx++;
-          }
-        }
-
-        // For agency users, also load all client sub-accounts via the agency API
-        if (agencyId && agencyUserId) {
-          try {
-            const res = await fetch(`/api/agency/clients?agencyId=${agencyId}&userId=${agencyUserId}`);
-            if (res.ok) {
-              const data = await res.json();
-              const clients: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
-              for (const c of clients) {
-                if (built.find(s => s.id === (c.id as string))) continue; // skip dupes
-                const settings = (c.settings as Record<string, unknown>) || {};
-                const loc = settings.location as Record<string, unknown> | string | undefined;
-                const locStr = typeof loc === 'object' && loc
-                  ? [loc.first_name, loc.last_name].filter(Boolean).join(' ')
-                  : (typeof loc === 'string' ? loc : '');
-                built.push({
-                  id: c.id as string,
-                  name: (c.name as string) || 'Client',
-                  kind: 'client',
-                  tag: makeTag((c.name as string) || 'CL'),
-                  color: COLORS[colorIdx % COLORS.length],
-                  location: locStr,
-                  leads30: 0,
-                  status: 'healthy',
-                  since: c.created_at ? new Date(c.created_at as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : undefined,
-                });
-                colorIdx++;
-              }
-            }
-          } catch {
-            // Non-fatal — agency client load failed, continue with direct memberships
+            setUserRole((m as Record<string, unknown>).role as string || 'member');
           }
         }
 
