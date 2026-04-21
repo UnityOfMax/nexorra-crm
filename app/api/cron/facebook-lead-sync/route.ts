@@ -110,6 +110,27 @@ async function syncAccountLeads(integration: {
 
   if (!formsToSync.length) return 0;
 
+  // Look up the account's default pipeline once — used to auto-create deals for new leads
+  const { data: defaultPipeline } = await supabaseAdmin
+    .from('pipelines')
+    .select('id')
+    .eq('account_id', account_id)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  let firstStage: { id: string; name: string } | null = null;
+  if (defaultPipeline) {
+    const { data: stage } = await supabaseAdmin
+      .from('pipeline_stages')
+      .select('id, name')
+      .eq('pipeline_id', defaultPipeline.id)
+      .order('position', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    firstStage = stage;
+  }
+
   // Sync window: last_sync_at (default: 30 min ago for first run)
   const since = last_sync_at
     ? Math.floor(new Date(last_sync_at).getTime() / 1000)
@@ -122,7 +143,7 @@ async function syncAccountLeads(integration: {
 
     for (const lead of formLeads) {
       try {
-        const processed = await processLead(lead, form, account_id, field_mappings || {});
+        const processed = await processLead(lead, form, account_id, field_mappings || {}, defaultPipeline?.id || null, firstStage);
         if (processed) syncedCount++;
       } catch (err: any) {
         console.error(`[fb-lead-sync] Error processing lead ${lead.id}:`, err.message);
@@ -180,7 +201,9 @@ async function processLead(
   lead: GraphLead,
   form: { id: string; name: string },
   accountId: string,
-  fieldMappings: Record<string, string> = {}
+  fieldMappings: Record<string, string> = {},
+  pipelineId: string | null = null,
+  firstStage: { id: string; name: string } | null = null,
 ): Promise<boolean> {
   // Map form fields first so we can use email/phone in dedup checks
   const fields = mapLeadFields(lead.field_data, fieldMappings);
@@ -313,8 +336,28 @@ async function processLead(
 
   const contactName = [fields.first_name, fields.last_name].filter(Boolean).join(' ') || 'there';
 
-  // New contacts only: CAPI Lead event, workflow trigger, push notification
+  // New contacts only: pipeline entry, CAPI, workflow trigger, push, enrollment
   if (!existingContact) {
+    // Add to pipeline first stage — triggers deal_stage_changed workflows
+    if (pipelineId && firstStage) {
+      const leadName = [fields.first_name, fields.last_name].filter(Boolean).join(' ') || 'New Lead';
+      const { data: newEntry } = await supabaseAdmin.from('deals').insert({
+        account_id: accountId,
+        contact_id: contactId,
+        pipeline_id: pipelineId,
+        pipeline_stage_id: firstStage.id,
+        stage: firstStage.name,
+        title: leadName,
+        status: 'open',
+        value: 0,
+      }).select('id').single();
+
+      if (newEntry) {
+        const { triggerDealStageChanged } = await import('@/lib/workflow-engine/triggers');
+        triggerDealStageChanged(accountId, newEntry.id, contactId, '', firstStage.id).catch(() => {});
+      }
+    }
+
     sendCapiEvent({
       eventName: 'Lead',
       eventId: crypto.randomUUID(),
@@ -336,6 +379,8 @@ async function processLead(
       tag: 'new-lead',
       url: `/contacts/${contactId}`,
     }).catch(() => {});
+
+    enrollNewLead({ accountId, contactId, contactName, agentName: 'Your Agent' }).catch(() => {});
   }
 
   // Funnel event (non-blocking)
@@ -348,11 +393,6 @@ async function processLead(
   });
 
   updateLeadScore(contactId).catch(() => {});
-
-  // Automation enrollment — new contacts only (non-blocking)
-  if (!existingContact) {
-    enrollNewLead({ accountId, contactId, contactName, agentName: 'Your Agent' }).catch(() => {});
-  }
 
   return true;
 }

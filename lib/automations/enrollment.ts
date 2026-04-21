@@ -43,8 +43,7 @@ function buildTokens(params: { contactName: string; agentName: string; callTimeD
 export async function enrollNewLead(params: EnrollNewLeadParams) {
   const { accountId, contactId, contactName, agentName } = params;
   try {
-    // Check if already enrolled in an active automation — skip if so
-    // Use limit(1) instead of maybeSingle() to avoid error when multiple rows exist
+    // Skip if already enrolled
     const { data: existingRows } = await supabaseAdmin
       .from('automation_enrollments')
       .select('id')
@@ -55,6 +54,20 @@ export async function enrollNewLead(params: EnrollNewLeadParams) {
 
     if (existingRows && existingRows.length > 0) {
       console.log('[automation] Contact already enrolled, skipping new_lead enrollment', contactId);
+      return;
+    }
+
+    // Skip if contact already has outbound messages — don't re-send step 1 to leads already in a conversation
+    const { data: existingMessages } = await supabaseAdmin
+      .from('messages')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('contact_id', contactId)
+      .eq('direction', 'outbound')
+      .limit(1);
+
+    if (existingMessages && existingMessages.length > 0) {
+      console.log('[automation] Contact already has outbound messages, skipping new_lead enrollment', contactId);
       return;
     }
 
