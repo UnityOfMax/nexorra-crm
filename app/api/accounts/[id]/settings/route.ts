@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireAccountAccess } from '@/lib/auth/require-account-access';
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const accountId = params.id;
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
+
+  const { data: account, error } = await supabaseAdmin
+    .from('accounts')
+    .select('name, settings')
+    .eq('id', accountId)
+    .single();
+
+  if (error || !account) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ name: account.name, ...(account.settings || {}) });
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }

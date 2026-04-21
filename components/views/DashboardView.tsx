@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Card, Avatar, KPI, Button } from '../ui/primitives';
+import { Card, Avatar, KPI } from '../ui/primitives';
 import { Sparkline } from '../ui/charts';
 import { Icons } from '../Icons';
 import type { SubAccount } from '../Sidebar';
@@ -55,8 +55,6 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
   const [activities, setActivities] = useState<Array<{ id: string; type: string; description: string; contact_name: string; created_at: string }>>([]);
   const [leadTrend, setLeadTrend] = useState<number[]>([]);
   const [channelMix, setChannelMix] = useState<Array<{ name: string; count: number; color: string }>>([]);
-  const [range, setRange] = useState('30d');
-
   useEffect(() => {
     async function load() {
       try {
@@ -90,7 +88,7 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
 
         if (dealsRes.ok) {
           const data = await dealsRes.json();
-          const dealList: Array<{ stage?: string; status?: string; value?: number }> = data.deals || data || [];
+          const dealList: Array<{ stage?: string; status?: string; value?: number }> = data.data || data.deals || [];
 
           const bystage: Record<string, number> = {};
           let pipeline = 0, won = 0;
@@ -112,11 +110,11 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
           setActivities(data.activities || data || []);
         }
 
-        // Meta spend (optional — silently skips if not configured)
-        const metaRes = await fetch(`/api/meta/insights?accountId=${accountId}&days=30`);
+        // Meta spend — try live fetch first, falls back to cached DB rows
+        const metaRes = await fetch(`/api/meta/insights?accountId=${accountId}&days=30&live=true`);
         if (metaRes.ok) {
           const meta = await metaRes.json();
-          setStats(s => ({ ...s, spend30: meta.totalSpend || 0 }));
+          setStats(s => ({ ...s, spend30: meta.totals?.spend || 0 }));
         }
       } catch {}
     }
@@ -132,37 +130,18 @@ export default function DashboardView({ sub, accountId, userId }: DashboardViewP
   return (
     <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }} className="nx-pad-mobile">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 6 }}>
-            <span>{sub.kind === 'agency' ? 'Agency' : 'Subaccounts'}</span>
-            <Icons.chevR size={12} />
-            <span style={{ color: 'var(--ink-2)' }}>{sub.name}</span>
-            <Icons.chevR size={12} />
-            <span style={{ color: 'var(--ink-2)' }}>Dashboard</span>
-          </div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Avatar tag={sub.tag} color={sub.color} size={38} />
-            {greeting}.
-          </h1>
-          <div style={{ color: 'var(--ink-3)', fontSize: 13.5, marginTop: 6, marginLeft: 50 }}>
-            Here&apos;s what&apos;s happening at <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{sub.name}</strong> {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 6 }}>
+          <span style={{ color: 'var(--ink-2)' }}>{sub.name}</span>
+          <Icons.chevR size={12} />
+          <span style={{ color: 'var(--ink-2)' }}>Dashboard</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 8, padding: 2 }}>
-            {['7d', '30d', '90d', 'YTD'].map((r) => (
-              <button key={r} onClick={() => setRange(r)} style={{
-                padding: '5px 11px', fontSize: 12.5, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
-                background: range === r ? 'var(--paper)' : 'transparent',
-                color: range === r ? 'var(--ink)' : 'var(--ink-3)',
-                border: range === r ? '1px solid var(--line)' : '1px solid transparent',
-                fontWeight: range === r ? 500 : 400,
-              }}>{r}</button>
-            ))}
-          </div>
-          <Button variant="secondary" icon={<Icons.download size={14} />}>Export</Button>
-          <Button variant="primary" icon={<Icons.plus size={14} />}>New lead</Button>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Avatar tag={sub.tag} color={sub.color} size={38} />
+          {greeting}.
+        </h1>
+        <div style={{ color: 'var(--ink-3)', fontSize: 13.5, marginTop: 6, marginLeft: 50 }}>
+          Here&apos;s what&apos;s happening at <strong style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{sub.name}</strong> {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
       </div>
 

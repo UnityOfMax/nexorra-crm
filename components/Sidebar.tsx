@@ -257,12 +257,17 @@ export function Sidebar({
         { id: 'pipeline', label: 'Opportunities', icon: <Icons.pipeline size={17} /> },
       ];
 
-  const tools: NavItemDef[] = [
-    { id: 'workflows', label: 'Workflows', icon: <Icons.workflow size={17} /> },
-    { id: 'pages', label: 'Landing Pages', icon: <Icons.pages size={17} /> },
-    { id: 'reports', label: 'Analytics', icon: <Icons.chart size={17} /> },
-    { id: 'ai-agent', label: 'AI Agent', icon: <Icons.bot size={17} />, badge: { label: 'NEW', tone: 'violet' } },
-  ];
+  // Tools section: agency and client accounts see different items
+  const tools: NavItemDef[] = isAgency
+    ? [
+        { id: 'workflows', label: 'Workflows', icon: <Icons.workflow size={17} /> },
+        { id: 'pages', label: 'Landing Pages', icon: <Icons.pages size={17} /> },
+        { id: 'reports', label: 'Analytics', icon: <Icons.chart size={17} /> },
+        { id: 'ai-agent', label: 'AI Agent', icon: <Icons.bot size={17} />, badge: { label: 'NEW', tone: 'violet' } },
+      ]
+    : [
+        { id: 'reports', label: 'Analytics', icon: <Icons.chart size={17} /> },
+      ];
 
   const agency: NavItemDef[] = isAgency ? [
     { id: 'leads', label: 'Leads', icon: <Icons.target size={17} /> },

@@ -30,14 +30,31 @@ export async function GET(request: NextRequest) {
         .eq('id', accountId)
         .single();
 
-      const adAccountId =
+      // Resolve ad account + access token: settings override → facebook_integrations → env fallback
+      let adAccountId: string | undefined =
         accountRow?.settings?.campaign?.meta_ad_account_id ||
         process.env.META_AD_ACCOUNT_ID;
+
+      let fbAccessToken: string | undefined;
+
+      if (!adAccountId) {
+        const { data: fbInt } = await supabaseAdmin
+          .from('facebook_integrations')
+          .select('ad_account_id, access_token')
+          .eq('account_id', accountId)
+          .not('ad_account_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        if (fbInt?.ad_account_id) {
+          adAccountId = fbInt.ad_account_id;
+          fbAccessToken = fbInt.access_token;
+        }
+      }
 
       if (adAccountId) {
         const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const until = new Date().toISOString().slice(0, 10);
-        const metrics = await fetchAdSetInsights({ adAccountId, since, until });
+        const metrics = await fetchAdSetInsights({ adAccountId, since, until, accessToken: fbAccessToken });
 
         for (const row of metrics) {
           const cpl = row.leads > 0 ? row.spend / row.leads : null;

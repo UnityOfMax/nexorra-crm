@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, CSSProperties } from 'react';
 import { Card, Avatar, Badge, Button, Toggle } from '../ui/primitives';
 import { Placeholder } from '../ui/primitives';
 import { Icons } from '../Icons';
@@ -73,29 +73,80 @@ export default function SettingsView({ sub, accountId, userId }: SettingsViewPro
 }
 
 function GeneralSettings({ sub, accountId }: { sub: SubAccount; accountId: string }) {
+  const [name, setName] = useState(sub.name || '');
+  const [fromEmail, setFromEmail] = useState('');
+  const [fromName, setFromName] = useState('');
+  const [timezone, setTimezone] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/accounts/${accountId}/settings`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        if (d.from_email) setFromEmail(d.from_email);
+        if (d.from_name) setFromName(d.from_name);
+        if (d.timezone) setTimezone(d.timezone);
+      })
+      .catch(() => {});
+  }, [accountId]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await fetch(`/api/accounts/${accountId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: { from_email: fromEmail, from_name: fromName, timezone },
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: CSSProperties = {
+    width: '100%', padding: '8px 12px', border: '1px solid var(--line)',
+    background: 'var(--paper-2)', borderRadius: 8, fontSize: 13, outline: 'none',
+    fontFamily: 'inherit', color: 'var(--ink)',
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Card padding={24}>
-        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Workspace</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 18 }}>Basic information about this subaccount.</div>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
-          <Avatar tag={sub.tag} color={sub.color} size={60} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>Workspace</div>
+          <Button variant="primary" size="sm" onClick={save} disabled={saving}>
+            {saved ? 'Saved' : saving ? 'Saving...' : 'Save changes'}
+          </Button>
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 18 }}>Basic information about this workspace.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="nx-2col-tight">
           <div>
-            <Button variant="secondary" size="sm">Change logo</Button>
-            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 6 }}>PNG or SVG · 512×512 recommended</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>Workspace name</div>
+            <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Workspace name" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>From email</div>
+            <input style={inputStyle} value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="hello@yourdomain.com" type="email" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>From name</div>
+            <input style={inputStyle} value={fromName} onChange={e => setFromName(e.target.value)} placeholder="Your name or business name" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>Timezone</div>
+            <input style={inputStyle} value={timezone} onChange={e => setTimezone(e.target.value)} placeholder="America/Vancouver" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>Client since</div>
+            <div style={{ ...inputStyle, color: 'var(--ink-3)' }}>{sub.since || '—'}</div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="nx-2col-tight">
-          <Field label="Workspace name" value={sub.name} />
-          <Field label="Location" value={sub.location || '—'} />
-          <Field label="Client since" value={sub.since || '—'} />
-          <Field label="Primary contact email" value="contact@workspace.com" />
-        </div>
-      </Card>
-      <Card padding={24} style={{ borderColor: 'var(--rose-soft)' }}>
-        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, color: 'var(--rose)' }}>Danger zone</div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 14 }}>Archive removes this workspace from active billing.</div>
-        <Button variant="danger" size="sm">Archive subaccount</Button>
       </Card>
     </div>
   );
@@ -199,14 +250,3 @@ function IntegrationsSettings({ accountId }: { accountId: string }) {
   );
 }
 
-function Field({ label, value, chip }: { label: string; value: string; chip?: string }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--line)', background: 'var(--paper-2)', borderRadius: 8, fontSize: 13 }}>
-        {chip && <span style={{ width: 14, height: 14, borderRadius: 4, background: chip === 'blue' ? 'var(--blue)' : 'var(--violet)' }} />}
-        <span>{value}</span>
-      </div>
-    </div>
-  );
-}
