@@ -46,7 +46,31 @@ export default function SubaccountsOverview({ sub, accountId, userId, onOpen }: 
         const res = await fetch(`/api/agency/clients?agencyId=${accountId}&userId=${userId}`);
         if (res.ok) {
           const data = await res.json();
-          setClients(Array.isArray(data) ? data : data.clients || []);
+          const raw: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
+          const COLORS = ['blue', 'violet', 'green', 'amber', 'rose'];
+          const mapped: SubAccount[] = raw.map((c, i) => {
+            const name = (c.name as string) || 'Client';
+            const words = name.trim().split(/\s+/);
+            const tag = words.length >= 2
+              ? (words[0][0] + words[1][0]).toUpperCase()
+              : name.slice(0, 2).toUpperCase();
+            const settings = (c.settings as Record<string, unknown>) || {};
+            const loc = settings.location as Record<string, unknown> | string | undefined;
+            const locStr = typeof loc === 'object' && loc
+              ? [(loc as Record<string, unknown>).first_name, (loc as Record<string, unknown>).last_name].filter(Boolean).join(' ')
+              : (typeof loc === 'string' ? loc : '');
+            return {
+              id: c.id as string,
+              name,
+              kind: 'client' as const,
+              tag,
+              color: COLORS[i % COLORS.length],
+              location: locStr,
+              leads30: 0,
+              status: 'healthy',
+            };
+          });
+          setClients(mapped);
         }
         // Load overview stats
         const ovRes = await fetch(`/api/analytics/overview?accountId=${accountId}`);

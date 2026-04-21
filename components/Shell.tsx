@@ -283,7 +283,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
   return (
     <div
       data-nx-mobile={isMobile ? 'true' : 'false'}
-      style={{ display: 'flex', minHeight: '100vh', background: 'var(--paper)', position: 'relative' }}
+      style={{ display: 'flex', height: '100vh', background: 'var(--paper)', position: 'relative', overflow: 'hidden' }}
     >
       {/* Sidebar — slide-in overlay on mobile */}
       {isMobile ? (
@@ -322,7 +322,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
       )}
 
       {/* Main content */}
-      <main style={{ flex: 1, minWidth: 0, paddingBottom: isMobile ? 64 : 0, overflow: 'visible' }}>
+      <main style={{ flex: 1, minWidth: 0, paddingBottom: isMobile ? 64 : 0, overflowY: 'auto', overflowX: 'hidden', height: '100%' }}>
         <TopBar sub={sub} isMobile={isMobile} onMenu={() => setMobileNavOpen(true)} />
         {renderView()}
       </main>
