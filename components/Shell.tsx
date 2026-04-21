@@ -128,6 +128,8 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
 
         const built: SubAccount[] = [];
         let colorIdx = 0;
+        let agencyId: string | null = null;
+        let agencyUserId: string | null = null;
 
         for (const m of memberships) {
           const acc = m.accounts as Record<string, unknown> | null;
@@ -137,6 +139,8 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
           const isAgency = id === AGENCY_ACCOUNT_ID || (acc.account_type as string) === 'agency';
 
           if (isAgency) {
+            agencyId = id;
+            agencyUserId = user.id;
             built.unshift({
               id,
               name,
@@ -148,24 +152,59 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
               leads30: 0,
               status: 'healthy',
             });
+            setUserRole((m.role as string) || 'admin');
           } else {
             const settings = (acc.settings as Record<string, unknown>) || {};
+            const loc = settings.location as Record<string, unknown> | string | undefined;
+            const locStr = typeof loc === 'object' && loc
+              ? [loc.first_name, loc.last_name].filter(Boolean).join(' ')
+              : (typeof loc === 'string' ? loc : '');
             built.push({
               id,
               name,
               kind: 'client',
               tag: makeTag(name),
               color: COLORS[colorIdx % COLORS.length],
-              location: (settings.location as string) || '',
+              location: locStr,
               leads30: 0,
               status: 'healthy',
               since: acc.created_at ? new Date(acc.created_at as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : undefined,
             });
             colorIdx++;
           }
+        }
 
-          // Set user role from the first agency membership
-          if (isAgency) setUserRole((m.role as string) || 'admin');
+        // For agency users, also load all client sub-accounts via the agency API
+        if (agencyId && agencyUserId) {
+          try {
+            const res = await fetch(`/api/agency/clients?agencyId=${agencyId}&userId=${agencyUserId}`);
+            if (res.ok) {
+              const data = await res.json();
+              const clients: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
+              for (const c of clients) {
+                if (built.find(s => s.id === (c.id as string))) continue; // skip dupes
+                const settings = (c.settings as Record<string, unknown>) || {};
+                const loc = settings.location as Record<string, unknown> | string | undefined;
+                const locStr = typeof loc === 'object' && loc
+                  ? [loc.first_name, loc.last_name].filter(Boolean).join(' ')
+                  : (typeof loc === 'string' ? loc : '');
+                built.push({
+                  id: c.id as string,
+                  name: (c.name as string) || 'Client',
+                  kind: 'client',
+                  tag: makeTag((c.name as string) || 'CL'),
+                  color: COLORS[colorIdx % COLORS.length],
+                  location: locStr,
+                  leads30: 0,
+                  status: 'healthy',
+                  since: c.created_at ? new Date(c.created_at as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : undefined,
+                });
+                colorIdx++;
+              }
+            }
+          } catch {
+            // Non-fatal — agency client load failed, continue with direct memberships
+          }
         }
 
         if (built.length > 0) {
