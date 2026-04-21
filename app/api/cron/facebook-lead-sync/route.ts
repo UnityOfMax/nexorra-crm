@@ -313,20 +313,30 @@ async function processLead(
 
   const contactName = [fields.first_name, fields.last_name].filter(Boolean).join(' ') || 'there';
 
-  // CAPI Lead event (non-blocking)
-  sendCapiEvent({
-    eventName: 'Lead',
-    eventId: crypto.randomUUID(),
-    userData: {
-      email: fields.email || undefined,
-      phone: normalizedPhone || undefined,
-      firstName: fields.first_name || undefined,
-      lastName: fields.last_name || undefined,
-      externalId: contactId,
-    },
-    accountId,
-    contactId,
-  }).catch(() => {});
+  // New contacts only: CAPI Lead event, workflow trigger, push notification
+  if (!existingContact) {
+    sendCapiEvent({
+      eventName: 'Lead',
+      eventId: crypto.randomUUID(),
+      userData: {
+        email: fields.email || undefined,
+        phone: normalizedPhone || undefined,
+        firstName: fields.first_name || undefined,
+        lastName: fields.last_name || undefined,
+        externalId: contactId,
+      },
+      accountId,
+      contactId,
+    }).catch(() => {});
+
+    triggerContactCreated(accountId, contactId).catch(() => {});
+    sendPushToAccountOwnerIfEnabled(accountId, 'new_leads', {
+      title: '🔥 New Lead',
+      body: `${contactName} submitted a Facebook lead form`,
+      tag: 'new-lead',
+      url: `/contacts/${contactId}`,
+    }).catch(() => {});
+  }
 
   // Funnel event (non-blocking)
   void supabaseAdmin.from('funnel_events').insert({
@@ -341,17 +351,6 @@ async function processLead(
 
   // Automation enrollment (non-blocking)
   enrollNewLead({ accountId, contactId, contactName, agentName: 'Your Agent' }).catch(() => {});
-
-  // Workflow trigger + push — new contacts only (non-blocking)
-  if (!existingContact) {
-    triggerContactCreated(accountId, contactId).catch(() => {});
-    sendPushToAccountOwnerIfEnabled(accountId, 'new_leads', {
-      title: '🔥 New Lead',
-      body: `${contactName} submitted a Facebook lead form`,
-      tag: 'new-lead',
-      url: `/contacts/${contactId}`,
-    }).catch(() => {});
-  }
 
   return true;
 }
