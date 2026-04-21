@@ -17,7 +17,7 @@ interface Lead {
   city: string;
   timezone: 'EST' | 'CST' | 'MST' | 'PST' | null;
   source_brokerage: string;
-  lead_category: 'email' | 'instagram' | 'calling';
+  lead_category: 'calling' | 'website';
   scraped_at: string;
   pushed_to_instantly: boolean;
   instantly_campaign_id: string | null;
@@ -32,24 +32,7 @@ interface Lead {
   funnel_stage?: string | null;
 }
 
-type LeadCategory = 'email' | 'instagram' | 'calling';
-
-const BROKERAGES: Record<string, string> = {
-  kw: 'Keller Williams',
-  remax: 'RE/MAX',
-  exp: 'eXp Realty',
-  century21: 'Century 21',
-  coldwell: 'Coldwell Banker',
-  coldwellbanker: 'Coldwell Banker',
-  bhhs: 'BHHS',
-  compass: 'Compass',
-  howardhanna: 'Howard Hanna',
-  sothebys: "Sotheby's",
-  royallepage: 'Royal LePage',
-  sutton: 'Sutton',
-  remaxca: 'RE/MAX Canada',
-  remax_ca: 'RE/MAX Canada',
-};
+type LeadCategory = 'calling' | 'website';
 
 const TIMEZONES = ['EST', 'CST', 'MST', 'PST'];
 const PAGE_SIZE = 100;
@@ -70,7 +53,6 @@ const TZ_BG: Record<string, string> = {
 
 const MONO: React.CSSProperties = { fontFamily: 'Geist Mono, monospace' };
 
-// Score bar: gradient from rose (0) → amber (50) → green (100)
 function ScoreBar({ score }: { score: number | null | undefined }) {
   const pct = score ?? 0;
   return (
@@ -119,15 +101,13 @@ export default function LeadsList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
-  const [category, setCategory] = useState<LeadCategory>('email');
-  const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ email: 0, instagram: 0, calling: 0 });
+  const [category, setCategory] = useState<LeadCategory>('calling');
+  const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ calling: 0, website: 0 });
   const [csvExporting, setCsvExporting] = useState(false);
   const [tzCounts, setTzCounts] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
   const [tzAvail, setTzAvail] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
   const [tzAvailLoaded, setTzAvailLoaded] = useState(false);
-  const [filterPushed, setFilterPushed] = useState<'all' | 'true' | 'false'>('all');
   const [filterTimezone, setFilterTimezone] = useState('');
-  const [filterBrokerage, setFilterBrokerage] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -139,9 +119,7 @@ export default function LeadsList() {
   const fetchLeads = useCallback(async (off = offset) => {
     setLoading(true);
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), category });
-    if (filterPushed !== 'all') params.set('pushed', filterPushed);
     if (filterTimezone) params.set('timezone', filterTimezone);
-    if (filterBrokerage) params.set('brokerage', filterBrokerage);
     if (filterCountry) params.set('country', filterCountry);
     try {
       const res = await fetch(`/api/leads?${params}`);
@@ -152,11 +130,11 @@ export default function LeadsList() {
         setCategoryCounts(prev => ({ ...prev, [category]: json.total || 0 }));
       }
     } finally { setLoading(false); }
-  }, [offset, category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+  }, [offset, category, filterTimezone, filterCountry]);
 
   useEffect(() => {
     const fetchCounts = async () => {
-      for (const cat of ['email', 'instagram', 'calling'] as LeadCategory[]) {
+      for (const cat of ['calling', 'website'] as LeadCategory[]) {
         const res = await fetch(`/api/leads?category=${cat}&limit=1`);
         if (res.ok) {
           const json = await res.json();
@@ -168,14 +146,14 @@ export default function LeadsList() {
   }, []);
 
   useEffect(() => {
-    setOffset(0); setSelectedIds(new Set()); fetchLeads(0);
+    setOffset(0); setSelectedIds(new Set()); setTzAvailLoaded(false); fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, filterPushed, filterTimezone, filterBrokerage, filterCountry]);
+  }, [category, filterTimezone, filterCountry]);
 
   useEffect(() => {
-    if (category !== 'calling' || tzAvailLoaded) return;
+    if (tzAvailLoaded) return;
     const load = async () => {
-      const res = await fetch('/api/leads/csv-export', { method: 'HEAD' });
+      const res = await fetch(`/api/leads/csv-export?category=${category}`, { method: 'HEAD' });
       if (res.ok) {
         try {
           const counts = JSON.parse(res.headers.get('X-TZ-Counts') || '{}');
@@ -197,7 +175,7 @@ export default function LeadsList() {
     if (tot === 0) return;
     setCsvExporting(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ category });
       for (const [tz, count] of Object.entries(tzCounts)) { if (count > 0) params.set(tz, String(count)); }
       const res = await fetch(`/api/leads/csv-export?${params}`);
       if (res.ok) {
@@ -206,17 +184,12 @@ export default function LeadsList() {
         const a = document.createElement('a');
         a.href = url;
         const cd = res.headers.get('content-disposition') || '';
-        a.download = cd.match(/filename=([^\s;]+)/)?.[1] || 'calling-leads.csv';
+        a.download = cd.match(/filename=([^\s;]+)/)?.[1] || `${category}-leads.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
         setTzAvailLoaded(false); fetchLeads(offset);
       }
     } finally { setCsvExporting(false); }
-  };
-
-  const handleMarkPushed = async (lead: Lead) => {
-    const res = await fetch(`/api/leads?id=${lead.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pushed_to_instantly: true }) });
-    if (res.ok) setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, pushed_to_instantly: true } : l));
   };
 
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -251,31 +224,16 @@ export default function LeadsList() {
   const allSelected = leads.length > 0 && selectedIds.size === leads.length;
 
   const catTabs: { key: LeadCategory; label: string }[] = [
-    { key: 'email',     label: 'Email' },
-    { key: 'instagram', label: 'Instagram' },
-    { key: 'calling',   label: 'Calling' },
+    { key: 'calling', label: 'Agent Leads' },
+    { key: 'website', label: 'Website Leads' },
   ];
 
-  const kpis = {
-    email: [
-      { l: 'Email Leads',  v: categoryCounts.email.toLocaleString(),                              d: 'scraped brokerages' },
-      { l: 'Hot (pushed)', v: leads.filter(l => l.pushed_to_instantly).length.toString(),          d: 'of current page' },
-      { l: 'Not Pushed',   v: leads.filter(l => !l.pushed_to_instantly).length.toString(),         d: 'pending upload' },
-      { l: 'Brokerages',   v: Array.from(new Set(leads.map(l => l.source_brokerage))).length.toString(), d: 'unique sources' },
-    ],
-    instagram: [
-      { l: 'Instagram Leads', v: categoryCounts.instagram.toLocaleString(),                          d: 'with @handle' },
-      { l: 'DMs Sent',        v: leads.filter(l => l.instagram_dm_sent).length.toString(),           d: 'of current page' },
-      { l: 'Replied',         v: leads.filter(l => l.instagram_status === 'replied').length.toString(), d: 'this page' },
-      { l: 'Booked',          v: leads.filter(l => l.instagram_status === 'booked').length.toString(),  d: 'this page' },
-    ],
-    calling: [
-      { l: 'Calling Leads', v: categoryCounts.calling.toLocaleString(),                              d: 'with phone numbers' },
-      { l: 'EST Available', v: (tzAvail.EST || 0).toString(),                                        d: 'not yet exported' },
-      { l: 'CST Available', v: (tzAvail.CST || 0).toString(),                                        d: 'not yet exported' },
-      { l: 'PST + MST',     v: ((tzAvail.PST || 0) + (tzAvail.MST || 0)).toString(),                 d: 'not yet exported' },
-    ],
-  }[category];
+  const kpis = [
+    { l: category === 'calling' ? 'Agent Leads' : 'Website Leads', v: categoryCounts[category].toLocaleString(), d: category === 'calling' ? 'realtor.com solo agents' : 'Google Maps no-website' },
+    { l: 'EST Available', v: (tzAvail.EST || 0).toString(), d: 'not yet exported' },
+    { l: 'CST + MST',     v: ((tzAvail.CST || 0) + (tzAvail.MST || 0)).toString(), d: 'not yet exported' },
+    { l: 'PST Available', v: (tzAvail.PST || 0).toString(), d: 'not yet exported' },
+  ];
 
   return (
     <div style={{ padding: '24px 32px 48px', maxWidth: 1480, margin: '0 auto' }} className="nx-pad-mobile">
@@ -350,56 +308,54 @@ export default function LeadsList() {
         ))}
       </div>
 
-      {/* CSV Export — calling only */}
-      {category === 'calling' && (
-        <div style={{ marginBottom: 18, padding: '18px 20px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper-2)' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Export Calling Leads by Timezone</div>
-          <div style={{ fontSize: 12, color: 'var(--amber)', marginBottom: 14, ...MONO }}>Leads sorted alphabetically in OpenPhone — export each timezone separately.</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }} className="nx-2col-mobile">
-            {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
-              <div key={tz}>
-                <div style={{ fontSize: 11, ...MONO, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: TZ_COLORS[tz], fontWeight: 700 }}>{tz}</span>
-                  <span style={{ color: 'var(--ink-3)' }}>{tzAvail[tz] ?? '…'} avail</span>
-                </div>
-                <input
-                  type="number"
-                  value={tzCounts[tz]}
-                  min={0}
-                  max={tzAvail[tz] || 0}
-                  onChange={e => setTzCounts(prev => ({ ...prev, [tz]: Math.max(0, Math.min(tzAvail[tz] || 0, Number(e.target.value) || 0)) }))}
-                  style={{
-                    width: '100%', padding: '8px 10px', fontSize: 14, fontWeight: 600,
-                    border: `1px solid ${TZ_COLORS[tz]}44`, borderRadius: 8,
-                    background: TZ_BG[tz], color: TZ_COLORS[tz],
-                    outline: 'none', textAlign: 'center', boxSizing: 'border-box',
-                    ...MONO,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={handleCsvExport}
-            disabled={csvExporting || Object.values(tzCounts).every(v => v === 0)}
-            style={{
-              padding: '9px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8,
-              border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer',
-              opacity: csvExporting || Object.values(tzCounts).every(v => v === 0) ? 0.45 : 1,
-            }}
-          >
-            {csvExporting ? 'Exporting…' : `Export ${Object.values(tzCounts).reduce((a, b) => a + b, 0)} leads`}
-          </button>
+      {/* CSV Export */}
+      <div style={{ marginBottom: 18, padding: '18px 20px', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--paper-2)' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>
+          Export {category === 'calling' ? 'Agent' : 'Website'} Leads by Timezone
         </div>
-      )}
+        <div style={{ fontSize: 12, color: 'var(--amber)', marginBottom: 14, ...MONO }}>Leads sorted alphabetically in OpenPhone — export each timezone separately.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }} className="nx-2col-mobile">
+          {(['EST', 'CST', 'MST', 'PST'] as const).map(tz => (
+            <div key={tz}>
+              <div style={{ fontSize: 11, ...MONO, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: TZ_COLORS[tz], fontWeight: 700 }}>{tz}</span>
+                <span style={{ color: 'var(--ink-3)' }}>{tzAvail[tz] ?? '…'} avail</span>
+              </div>
+              <input
+                type="number"
+                value={tzCounts[tz]}
+                min={0}
+                max={tzAvail[tz] || 0}
+                onChange={e => setTzCounts(prev => ({ ...prev, [tz]: Math.max(0, Math.min(tzAvail[tz] || 0, Number(e.target.value) || 0)) }))}
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: 14, fontWeight: 600,
+                  border: `1px solid ${TZ_COLORS[tz]}44`, borderRadius: 8,
+                  background: TZ_BG[tz], color: TZ_COLORS[tz],
+                  outline: 'none', textAlign: 'center', boxSizing: 'border-box',
+                  ...MONO,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={handleCsvExport}
+          disabled={csvExporting || Object.values(tzCounts).every(v => v === 0)}
+          style={{
+            padding: '9px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+            border: 'none', background: 'var(--grad)', color: 'white', cursor: 'pointer',
+            opacity: csvExporting || Object.values(tzCounts).every(v => v === 0) ? 0.45 : 1,
+          }}
+        >
+          {csvExporting ? 'Exporting…' : `Export ${Object.values(tzCounts).reduce((a, b) => a + b, 0)} leads`}
+        </button>
+      </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Filter:</span>
         {[
-          { value: filterPushed, onChange: (v: string) => setFilterPushed(v as any), options: [['all', 'All Status'], ['false', 'Not Pushed'], ['true', 'Pushed']] },
           { value: filterTimezone, onChange: setFilterTimezone, options: [['', 'All TZ'], ...TIMEZONES.map(t => [t, t])] },
-          { value: filterBrokerage, onChange: setFilterBrokerage, options: [['', 'All Brokerages'], ...Object.entries(BROKERAGES).map(([k, v]) => [k, v])] },
           { value: filterCountry, onChange: setFilterCountry, options: [['', 'US + CA'], ['US', 'United States'], ['CA', 'Canada']] },
         ].map((f, i) => (
           <select
@@ -451,7 +407,9 @@ export default function LeadsList() {
         ) : leads.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center' }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', marginBottom: 4 }}>No leads yet</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Jeff will populate this once he starts scraping</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              {category === 'calling' ? 'Jeff will populate this once he starts scraping' : 'Google Maps scraper will populate this during morning run'}
+            </div>
           </div>
         ) : leads.map((lead, i) => {
           const isLast = i === leads.length - 1;
@@ -476,7 +434,7 @@ export default function LeadsList() {
               {/* Lead name */}
               <div style={{ flex: 2, minWidth: 0 }}>
                 <div style={{ fontWeight: 500, color: 'var(--ink)', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.full_name}</div>
-                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', ...MONO }}>{lead.country}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', ...MONO }}>{lead.source_brokerage}</div>
               </div>
 
               {/* Contact */}
@@ -517,21 +475,10 @@ export default function LeadsList() {
 
               {/* Status */}
               <div style={{ flex: 1 }}>
-                {category === 'email' ? (
-                  lead.pushed_to_instantly
-                    ? <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, ...MONO }}>Pushed</span>
-                    : <span style={{ fontSize: 12, color: 'var(--ink-3)', ...MONO }}>Pending</span>
-                ) : category === 'calling' ? (
-                  lead.csv_downloaded_at
-                    ? <span style={{ fontSize: 12, color: 'var(--rose)', fontWeight: 600, ...MONO }}>Downloaded</span>
-                    : <span style={{ fontSize: 12, color: 'var(--ink-3)', ...MONO }}>Ready</span>
-                ) : (
-                  lead.instagram_dm_sent
-                    ? <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 11.5, background: lead.instagram_status === 'replied' ? 'var(--green-soft)' : 'var(--paper-3)', color: lead.instagram_status === 'replied' ? 'var(--green)' : 'var(--ink-3)', ...MONO }}>
-                        {lead.instagram_status === 'dm_sent' ? "DM'd" : lead.instagram_status}
-                      </span>
-                    : <span style={{ fontSize: 12, color: 'var(--ink-3)', ...MONO }}>Not DM'd</span>
-                )}
+                {lead.csv_downloaded_at
+                  ? <span style={{ fontSize: 12, color: 'var(--rose)', fontWeight: 600, ...MONO }}>Downloaded</span>
+                  : <span style={{ fontSize: 12, color: 'var(--ink-3)', ...MONO }}>Ready</span>
+                }
               </div>
 
               {/* Actions */}
@@ -561,12 +508,6 @@ export default function LeadsList() {
                   <button onClick={() => setDeleteConfirm(lead.id)}
                     style={{ padding: 5, borderRadius: 6, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
-                  </button>
-                )}
-                {category === 'email' && !lead.pushed_to_instantly && (
-                  <button onClick={() => handleMarkPushed(lead)}
-                    style={{ padding: '3px 8px', fontSize: 11.5, fontWeight: 500, borderRadius: 5, border: '1px solid var(--blue)', background: 'transparent', color: 'var(--blue)', cursor: 'pointer' }}>
-                    Push
                   </button>
                 )}
               </div>

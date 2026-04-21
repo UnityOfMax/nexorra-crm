@@ -16,8 +16,22 @@ const fs = require('fs');
 const { spawnSync } = require('child_process');
 
 const TARGET = 1000;
-const MIN_DEALS = 12;
+const MIN_DEALS = parseInt(process.env.MIN_DEALS || '0');
 const TZ_TARGET = 250;
+
+const COMPANY_INDICATORS = [
+  'group', 'team', 'realty', 'real estate', 'properties', 'property',
+  'llc', 'inc', 'corp', 'associates', ' & ', 'co.', 'homes', 'brokers',
+  'brokerage', 'investments', 'solutions', 'advisors', 'partners',
+];
+function isSoloAgent(name) {
+  if (!name || name.trim().length < 3) return false;
+  const lower = name.toLowerCase();
+  if (COMPANY_INDICATORS.some(ind => lower.includes(ind))) return false;
+  const words = name.trim().split(/\s+/);
+  if (words.length < 2 || words.length > 4) return false;
+  return true;
+}
 const PAGE_DELAY = 4000;      // ms between listing pages
 const PROFILE_DELAY = 2500;   // ms between profile visits
 const WARMUP_DONE_FILE = '/tmp/realtor-warmup-done';
@@ -27,6 +41,26 @@ const LOG_FILE = '/home/max/crm/logs/realtor-leads.log';
 // MST cities (~250 leads)
 // PST cities (~250 leads)
 const TZ_CITIES = {
+  EST: [
+    { name: 'New York',         state: 'NY', slug: 'new-york_ny' },
+    { name: 'Miami',            state: 'FL', slug: 'miami_fl' },
+    { name: 'Atlanta',          state: 'GA', slug: 'atlanta_ga' },
+    { name: 'Charlotte',        state: 'NC', slug: 'charlotte_nc' },
+    { name: 'Philadelphia',     state: 'PA', slug: 'philadelphia_pa' },
+    { name: 'Boston',           state: 'MA', slug: 'boston_ma' },
+    { name: 'Orlando',          state: 'FL', slug: 'orlando_fl' },
+    { name: 'Tampa',            state: 'FL', slug: 'tampa_fl' },
+  ],
+  CST: [
+    { name: 'Houston',          state: 'TX', slug: 'houston_tx' },
+    { name: 'Dallas',           state: 'TX', slug: 'dallas_tx' },
+    { name: 'Chicago',          state: 'IL', slug: 'chicago_il' },
+    { name: 'San Antonio',      state: 'TX', slug: 'san-antonio_tx' },
+    { name: 'Austin',           state: 'TX', slug: 'austin_tx' },
+    { name: 'Minneapolis',      state: 'MN', slug: 'minneapolis_mn' },
+    { name: 'Nashville',        state: 'TN', slug: 'nashville_tn' },
+    { name: 'Kansas City',      state: 'MO', slug: 'kansas-city_mo' },
+  ],
   MST: [
     { name: 'Phoenix',          state: 'AZ', slug: 'phoenix_az' },
     { name: 'Denver',           state: 'CO', slug: 'denver_co' },
@@ -52,6 +86,8 @@ const TZ_CITIES = {
 const COUNTRY_BY_STATE = {
   AZ: 'US', CO: 'US', NM: 'US', UT: 'US',
   CA: 'US', WA: 'US', OR: 'US', NV: 'US',
+  NY: 'US', FL: 'US', GA: 'US', NC: 'US', PA: 'US', MA: 'US',
+  TX: 'US', IL: 'US', MN: 'US', TN: 'US', MO: 'US',
 };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -203,12 +239,10 @@ async function getAgentsFromListingPage(page) {
     const links = Array.from(document.querySelectorAll('a[href*="/realestateagents/"]'))
       .filter(a => /\/realestateagents\/[a-f0-9]{24}$/.test(a.href));
 
-    // Deduplicate by href
     const seen = new Set();
     const unique = links.filter(a => { if (seen.has(a.href)) return false; seen.add(a.href); return true; });
 
     return unique.map(link => {
-      // Walk up 4 levels to card container
       let card = link;
       for (let i = 0; i < 4; i++) card = card.parentElement || card;
       const text = (card.innerText || '').trim();
@@ -217,7 +251,7 @@ async function getAgentsFromListingPage(page) {
       const dealsM = text.match(/(\d+)\s+(?:recent\s+)?sales in last 12 months/);
       const deals = dealsM ? parseInt(dealsM[1]) : 0;
       return { profileUrl: link.href, name, deals };
-    }).filter(a => a.name && a.deals >= MIN_DEALS);
+    }).filter(a => a.name && a.deals >= MIN_DEALS && isSoloAgent(a.name));
   }, MIN_DEALS);
 }
 
@@ -342,7 +376,7 @@ async function main() {
         }
 
         const agents = await getAgentsFromListingPage(page).catch(() => []);
-        log(`  ${agents.length} qualifying agents (${MIN_DEALS}+ deals)`);
+        log(`  ${agents.length} qualifying solo agents (${MIN_DEALS}+ deals)`);
 
         if (agents.length === 0) {
           dryStreak++;

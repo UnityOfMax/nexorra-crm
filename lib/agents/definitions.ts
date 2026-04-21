@@ -63,17 +63,7 @@ export const AGENT_DEFINITIONS: Record<string, AgentDef> = {
     schedule: '11:00 PM daily',
     legacyId: 'lead-gen-quality-check',
   },
-  'petra': {
-    promptFile: '.claude/commands/research/local-biz-scout.md',
-    model: 'sonnet', maxTurns: 120,
-    department: 'research', role: 'agent', reportsTo: 'jeff',
-    displayName: 'Petra',
-    skills: ['opencli'],
-    mcps: ['21st-magic', 'memory', 'filesystem', 'supabase'],
-    schedule: '11:30 AM daily',
-    legacyId: 'local-biz-scout',
-  },
-  'derek': {
+'derek': {
     promptFile: '.claude/commands/research/market-research.md',
     model: 'opus', maxTurns: 30,
     department: 'research', role: 'agent', reportsTo: 'jeff',

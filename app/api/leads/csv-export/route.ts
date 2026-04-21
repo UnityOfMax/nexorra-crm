@@ -7,13 +7,14 @@ export const dynamic = 'force-dynamic';
 
 const TIMEZONES = ['EST', 'CST', 'MST', 'PST'] as const;
 
-// GET /api/leads/csv-export?EST=50&CST=30&MST=20&PST=50
+// GET /api/leads/csv-export?EST=50&CST=30&MST=20&PST=50&category=calling
 // or legacy: ?count=150  (equally distributed)
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
   const sp = request.nextUrl.searchParams;
+  const category = sp.get('category') || 'calling';
 
   // Per-timezone mode: EST=N&CST=N&MST=N&PST=N
   const perTz: Partial<Record<typeof TIMEZONES[number], number>> = {};
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     const { data } = await supabaseAdmin
       .from('leads')
       .select('*')
-      .eq('lead_category', 'calling')
+      .eq('lead_category', category)
       .is('csv_batch_id', null)
       .eq('timezone', tz)
       .order('scraped_at', { ascending: false })
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (allLeads.length === 0) {
-    return NextResponse.json({ error: 'No calling leads available for export' }, { status: 404 });
+    return NextResponse.json({ error: 'No leads available for export' }, { status: 404 });
   }
 
   // Mark batch
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
   ].join(','));
 
   const csv = [header, ...rows].join('\n');
-  const fileName = `calling-leads-${date}-${allLeads.length}.csv`;
+  const fileName = `${category}-leads-${date}-${allLeads.length}.csv`;
 
   return new NextResponse(csv, {
     status: 200,
@@ -101,17 +102,19 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// GET /api/leads/csv-export/counts — available leads per timezone
+// HEAD /api/leads/csv-export?category=calling|website — available leads per timezone
 export async function HEAD(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
+
+  const category = request.nextUrl.searchParams.get('category') || 'calling';
 
   const counts: Record<string, number> = {};
   for (const tz of TIMEZONES) {
     const { count } = await supabaseAdmin
       .from('leads')
       .select('id', { count: 'exact', head: true })
-      .eq('lead_category', 'calling')
+      .eq('lead_category', category)
       .is('csv_batch_id', null)
       .eq('timezone', tz);
     counts[tz] = count || 0;
