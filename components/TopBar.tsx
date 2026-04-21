@@ -14,7 +14,8 @@ export function TopBar({ sub, isMobile, onMenu }: TopBarProps) {
   return (
     <div style={{
       position: 'sticky', top: 0, zIndex: 20, background: 'var(--paper)',
-      borderBottom: '1px solid var(--line)', padding: isMobile ? '10px 16px' : '10px 32px',
+      borderBottom: '1px solid var(--line)',
+      padding: isMobile ? 'max(env(safe-area-inset-top), 10px) 16px 10px' : '10px 32px',
       display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12,
     }}>
       {isMobile && (

@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase-browser';
 import type { Contact } from '@/types';
 import type { SubAccount } from '../Sidebar';
 
@@ -20,13 +19,11 @@ export default function ContactsView({ sub, accountId, userId }: ContactsViewPro
 
   const loadContacts = async () => {
     try {
-      const { data } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('account_id', accountId)
-        .order('created_at', { ascending: false })
-        .limit(200);
-      setContacts(data || []);
+      const res = await fetch(`/api/contacts?accountId=${accountId}&limit=200`);
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(data.contacts || []);
+      }
     } catch {}
     setLoading(false);
   };

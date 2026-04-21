@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase-browser';
 import type { Contact } from '@/types';
 import type { SubAccount } from '../Sidebar';
 import dynamic from 'next/dynamic';
@@ -16,12 +15,9 @@ export default function InboxView({ sub, accountId, userId }: InboxViewProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
 
   useEffect(() => {
-    supabase
-      .from('contacts')
-      .select('*')
-      .eq('account_id', accountId)
-      .limit(100)
-      .then(({ data }) => setContacts(data || []));
+    fetch(`/api/contacts?accountId=${accountId}&limit=100`)
+      .then(r => r.ok ? r.json() : { contacts: [] })
+      .then(d => setContacts(d.contacts || []));
   }, [accountId]);
 
   return <Conversations accountId={accountId} contacts={contacts} />;

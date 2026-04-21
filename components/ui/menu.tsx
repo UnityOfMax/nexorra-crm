@@ -14,13 +14,19 @@ interface MenuProps {
 
 export function Menu({ open, onClose, anchorRef, children, width = 240, align = 'left' }: MenuProps) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !anchorRef?.current) return;
     const r = anchorRef.current.getBoundingClientRect();
     setPos({ top: r.bottom + 6, left: align === 'right' ? r.right - width : r.left });
     const onDoc = (e: MouseEvent) => {
-      if (!anchorRef.current?.contains(e.target as Node)) onClose?.();
+      if (
+        !anchorRef.current?.contains(e.target as Node) &&
+        !menuRef.current?.contains(e.target as Node)
+      ) {
+        onClose?.();
+      }
     };
     const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0);
     return () => {
@@ -31,7 +37,7 @@ export function Menu({ open, onClose, anchorRef, children, width = 240, align = 
 
   if (!open) return null;
   return (
-    <div style={{
+    <div ref={menuRef} style={{
       position: 'fixed', top: pos.top, left: pos.left, width,
       background: 'var(--paper)', border: '1px solid var(--line-2)', borderRadius: 10,
       boxShadow: 'var(--shadow-lg)', padding: 6, zIndex: 100,
