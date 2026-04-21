@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { User } from '@supabase/supabase-js';
 import AuthForm from '@/components/AuthForm';
-import Dashboard from '@/components/Dashboard';
+import Shell from '@/components/Shell';
 
 interface SubAccountPageProps {
   slug: string;
@@ -40,7 +40,7 @@ export default function SubAccountPage({ slug, initialView }: SubAccountPageProp
     <main className="min-h-screen">
       {!user
         ? <AuthForm />
-        : <Dashboard user={user} initialAccountSlug={slug} initialView={initialView} />
+        : <Shell user={user} initialView={initialView} />
       }
     </main>
   );

@@ -32,8 +32,10 @@ function WorkspaceSwitcher({ subaccounts, current, onChange, collapsed }: Worksp
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const anchor = useRef<HTMLButtonElement>(null);
-  const cur = subaccounts.find(s => s.id === current) || subaccounts[0];
-  const filtered = subaccounts.filter(s =>
+  const safeAccounts = subaccounts || [];
+  const cur = safeAccounts.find(s => s.id === current) || safeAccounts[0];
+  if (!cur) return null;
+  const filtered = safeAccounts.filter(s =>
     s.name.toLowerCase().includes(q.toLowerCase()) ||
     (s.location || '').toLowerCase().includes(q.toLowerCase())
   );
