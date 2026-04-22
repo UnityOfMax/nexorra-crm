@@ -191,7 +191,7 @@ async function phoneExists(phone) {
 async function countTodayLeads() {
   return new Promise((resolve) => {
     const today = new Date().toISOString().split('T')[0];
-    const u = new URL(`${SUPABASE_URL}/rest/v1/leads?select=id&lead_category=eq.website&scraped_at=gte.${today}T00:00:00Z`);
+    const u = new URL(`${SUPABASE_URL}/rest/v1/leads?select=id&lead_category=eq.website&created_at=gte.${today}T00:00:00Z`);
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: 'count=exact' },
@@ -212,20 +212,12 @@ async function insertLead(lead) {
       last_name:        lead.business_name.split(' ').slice(1).join(' ') || '',
       phone:            lead.phone,
       city:             lead.city,
-      state:            lead.state,
+      state_province:   lead.state,
       country:          'US',
       timezone:         lead.tz,
       profile_url:      lead.maps_url,
       lead_category:    'website',
       source_brokerage: lead.business_type,
-      scraped_at:       new Date().toISOString(),
-      personal_research: {
-        review_count:  lead.review_count,
-        website_url:   lead.website_url  || null,
-        facebook_url:  lead.facebook_url || null,
-        business_type: lead.business_type,
-        maps_url:      lead.maps_url,
-      },
     });
     const u = new URL(`${SUPABASE_URL}/rest/v1/leads`);
     const req = https.request({
@@ -235,8 +227,15 @@ async function insertLead(lead) {
         'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
         Prefer: 'return=minimal',
       },
-    }, res => { res.resume(); resolve(res.statusCode < 300); });
-    req.on('error', () => resolve(false));
+    }, res => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        if (res.statusCode >= 300) log(`  INSERT ERROR ${res.statusCode}: ${body.slice(0, 200)}`);
+        resolve(res.statusCode < 300);
+      });
+    });
+    req.on('error', e => { log(`  INSERT NETWORK ERROR: ${e.message}`); resolve(false); });
     req.write(body);
     req.end();
   });
