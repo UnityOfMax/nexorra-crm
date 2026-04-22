@@ -9,6 +9,7 @@ interface SettingsViewProps {
   sub: SubAccount;
   accountId: string;
   userId: string;
+  userRole?: string;
 }
 
 const SECTIONS = [
@@ -22,7 +23,7 @@ const SECTIONS = [
   { id: 'notifications', label: 'Notifications', icon: <Icons.bell size={14} /> },
 ];
 
-export default function SettingsView({ sub, accountId, userId }: SettingsViewProps) {
+export default function SettingsView({ sub, accountId, userId, userRole = 'member' }: SettingsViewProps) {
   const [section, setSection] = useState('general');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try { return (localStorage.getItem('nx.theme') as 'light' | 'dark') || 'dark'; } catch { return 'dark'; }
@@ -62,7 +63,7 @@ export default function SettingsView({ sub, accountId, userId }: SettingsViewPro
           {section === 'general' && <GeneralSettings sub={sub} accountId={accountId} />}
           {section === 'preferences' && <PreferencesSettings theme={theme} setTheme={applyTheme} />}
           {section === 'team' && <TeamSettings accountId={accountId} />}
-          {section === 'integrations' && <IntegrationsSettings accountId={accountId} />}
+          {section === 'integrations' && <IntegrationsSettings accountId={accountId} userRole={userRole} />}
           {!['general', 'preferences', 'team', 'integrations'].includes(section) && (
             <Card padding={28}><Placeholder h={320} label={`${section} settings`} /></Card>
           )}
@@ -71,6 +72,8 @@ export default function SettingsView({ sub, accountId, userId }: SettingsViewPro
     </div>
   );
 }
+
+// ── General ───────────────────────────────────────────────────────────────────
 
 function GeneralSettings({ sub, accountId }: { sub: SubAccount; accountId: string }) {
   const [name, setName] = useState(sub.name || '');
@@ -98,9 +101,7 @@ function GeneralSettings({ sub, accountId }: { sub: SubAccount; accountId: strin
       await fetch(`/api/accounts/${accountId}/settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          settings: { from_email: fromEmail, from_name: fromName, timezone },
-        }),
+        body: JSON.stringify({ settings: { from_email: fromEmail, from_name: fromName, timezone } }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -152,6 +153,8 @@ function GeneralSettings({ sub, accountId }: { sub: SubAccount; accountId: strin
   );
 }
 
+// ── Preferences ───────────────────────────────────────────────────────────────
+
 function PreferencesSettings({ theme, setTheme }: { theme: string; setTheme: (t: 'light' | 'dark') => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -183,6 +186,8 @@ function PreferencesSettings({ theme, setTheme }: { theme: string; setTheme: (t:
   );
 }
 
+// ── Team ──────────────────────────────────────────────────────────────────────
+
 function TeamSettings({ accountId }: { accountId: string }) {
   const [members, setMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
 
@@ -209,7 +214,7 @@ function TeamSettings({ accountId }: { accountId: string }) {
       </div>
       {displayMembers.map((t, i) => (
         <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', borderBottom: i < displayMembers.length - 1 ? '1px solid var(--line)' : 'none' }}>
-          <Avatar name={t.name} color={['blue', 'violet', 'green', 'amber'][i % 4]} size={32} />
+          <Avatar name={t.name} color={(['blue', 'violet', 'green', 'amber'] as const)[i % 4]} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.email}</div>
@@ -224,29 +229,409 @@ function TeamSettings({ accountId }: { accountId: string }) {
   );
 }
 
-function IntegrationsSettings({ accountId }: { accountId: string }) {
+// ── Integrations ──────────────────────────────────────────────────────────────
+
+interface IntegrationStatus {
+  facebook: { connected: boolean; pageId?: string; adAccountId?: string };
+  calendar: { connected: boolean; email?: string };
+  twilio:   { connected: boolean; phone?: string };
+}
+
+function IntegrationsSettings({ accountId, userRole }: { accountId: string; userRole: string }) {
+  const isAdminOrOwner = ['owner', 'admin', 'agency_owner'].some(r => userRole.toLowerCase().includes(r));
+
+  const [status, setStatus] = useState<IntegrationStatus>({
+    facebook: { connected: false },
+    calendar: { connected: false },
+    twilio:   { connected: false },
+  });
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<'facebook' | 'calendar' | 'twilio' | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/accounts/${accountId}/settings`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        setStatus({
+          facebook: {
+            connected: !!(d.meta?.fb_page_id || d.meta?.ad_account_id),
+            pageId: d.meta?.fb_page_id,
+            adAccountId: d.meta?.ad_account_id,
+          },
+          calendar: {
+            connected: !!(d.google_calendar?.enabled),
+            email: d.google_calendar?.email,
+          },
+          twilio: {
+            connected: !!(d.twilio_phone_number),
+            phone: d.twilio_phone_number,
+          },
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [accountId]);
+
   const integrations = [
-    { name: 'Facebook Ads', icon: <Icons.megaphone size={18} />, status: 'connected', color: 'var(--blue)' },
-    { name: 'Google Calendar', icon: <Icons.calendar size={18} />, status: 'connected', color: 'var(--green)' },
-    { name: 'Twilio SMS', icon: <Icons.phone size={18} />, status: 'connected', color: 'var(--violet)' },
-    { name: 'Instantly', icon: <Icons.mail size={18} />, status: 'connected', color: 'var(--amber)' },
+    ...(isAdminOrOwner ? [{
+      id: 'facebook' as const,
+      name: 'Facebook Ads',
+      description: 'Ad account, page, and lead forms',
+      icon: <Icons.megaphone size={18} />,
+      color: 'var(--blue)',
+      connected: status.facebook.connected,
+      detail: status.facebook.pageId ? `Page ${status.facebook.pageId}` : undefined,
+    }] : []),
+    {
+      id: 'calendar' as const,
+      name: 'Google Calendar',
+      description: 'Sync appointments and availability',
+      icon: <Icons.calendar size={18} />,
+      color: 'var(--green)',
+      connected: status.calendar.connected,
+      detail: status.calendar.email,
+    },
+    ...(isAdminOrOwner ? [{
+      id: 'twilio' as const,
+      name: 'Twilio SMS',
+      description: 'Inbound and outbound SMS',
+      icon: <Icons.phone size={18} />,
+      color: 'var(--violet)',
+      connected: status.twilio.connected,
+      detail: status.twilio.phone,
+    }] : []),
   ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {integrations.map((intg, i) => (
-        <Card key={i} padding={16} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--paper-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: intg.color }}>
-            {intg.icon}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{intg.name}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Connected and syncing</div>
-          </div>
-          <Badge tone={intg.status === 'connected' ? 'green' : 'neutral'} dot>{intg.status}</Badge>
-          <Button variant="secondary" size="sm">Manage</Button>
-        </Card>
-      ))}
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {loading ? (
+          <Card padding={24}><div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Loading...</div></Card>
+        ) : integrations.map(intg => (
+          <Card key={intg.id} padding={16} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--paper-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: intg.color, flexShrink: 0 }}>
+              {intg.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{intg.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                {intg.connected && intg.detail ? intg.detail : intg.description}
+              </div>
+            </div>
+            <Badge tone={intg.connected ? 'green' : 'neutral'} dot>
+              {intg.connected ? 'connected' : 'not connected'}
+            </Badge>
+            <Button variant="secondary" size="sm" onClick={() => setModal(intg.id)}>
+              Manage
+            </Button>
+          </Card>
+        ))}
+      </div>
+
+      {modal === 'facebook' && (
+        <FacebookModal
+          accountId={accountId}
+          status={status.facebook}
+          onClose={() => setModal(null)}
+          onSaved={(pageId, adAccountId) => {
+            setStatus(s => ({ ...s, facebook: { connected: true, pageId, adAccountId } }));
+            setModal(null);
+          }}
+        />
+      )}
+      {modal === 'calendar' && (
+        <CalendarModal
+          accountId={accountId}
+          status={status.calendar}
+          onClose={() => setModal(null)}
+          onDisconnected={() => {
+            setStatus(s => ({ ...s, calendar: { connected: false } }));
+            setModal(null);
+          }}
+        />
+      )}
+      {modal === 'twilio' && (
+        <TwilioModal
+          status={status.twilio}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Modal shell ───────────────────────────────────────────────────────────────
+
+function ModalShell({ title, onClose, children, width = 560 }: {
+  title: string; onClose: () => void; children: React.ReactNode; width?: number;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
+      <div style={{
+        position: 'relative', width, maxWidth: 'calc(100vw - 48px)', background: 'var(--paper-2)',
+        border: '1px solid var(--line)', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+        maxHeight: '85vh', overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 0' }}>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>{title}</div>
+          <button onClick={onClose} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)' }}>
+            <Icons.x size={18} />
+          </button>
+        </div>
+        <div style={{ padding: '16px 24px 24px' }}>{children}</div>
+      </div>
     </div>
   );
 }
 
+// ── Facebook modal ────────────────────────────────────────────────────────────
+
+function FacebookModal({ accountId, status, onClose, onSaved }: {
+  accountId: string;
+  status: { connected: boolean; pageId?: string; adAccountId?: string };
+  onClose: () => void;
+  onSaved: (pageId: string, adAccountId: string) => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [adAccounts, setAdAccounts] = useState<Array<{ id: string; name: string }>>([]);
+  const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedAdAccount, setSelectedAdAccount] = useState(status.adAccountId || '');
+  const [selectedPage, setSelectedPage] = useState(status.pageId || '');
+  const [section, setSection] = useState<'main' | 'lead-forms'>('main');
+  const [leadForms, setLeadForms] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [formsLoading, setFormsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/integrations/facebook/accounts?accountId=${accountId}`)
+      .then(r => r.ok ? r.json() : Promise.reject('Failed'))
+      .then(d => {
+        setAdAccounts(d.adAccounts || []);
+        setPages(d.pages || []);
+      })
+      .catch(() => setError('Could not load Facebook accounts. Check the Meta access token.'))
+      .finally(() => setLoading(false));
+  }, [accountId]);
+
+  const loadLeadForms = async () => {
+    if (!selectedPage) return;
+    setFormsLoading(true);
+    try {
+      const r = await fetch(`/api/integrations/facebook/lead-forms?accountId=${accountId}&pageId=${selectedPage}`);
+      const d = await r.json();
+      setLeadForms(d.forms || []);
+      setSection('lead-forms');
+    } catch { setError('Could not load lead forms.'); }
+    finally { setFormsLoading(false); }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch('/api/integrations/facebook/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, adAccountId: selectedAdAccount || null, pageId: selectedPage || null }),
+      });
+      if (!r.ok) throw new Error('Save failed');
+      onSaved(selectedPage, selectedAdAccount);
+    } catch { setError('Save failed. Try again.'); }
+    finally { setSaving(false); }
+  };
+
+  const selectStyle: CSSProperties = {
+    width: '100%', padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 8,
+    background: 'var(--paper-3)', fontSize: 13, color: 'var(--ink)', fontFamily: 'inherit', outline: 'none',
+  };
+  const labelStyle: CSSProperties = {
+    fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 6,
+  };
+
+  if (section === 'lead-forms') {
+    return (
+      <ModalShell title="Lead Forms" onClose={onClose} width={560}>
+        <button onClick={() => setSection('main')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16, padding: 0 }}>
+          <Icons.chevL size={13} /> Back to Facebook Ads
+        </button>
+        {formsLoading ? (
+          <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Loading forms...</div>
+        ) : leadForms.length === 0 ? (
+          <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>No lead forms found for this page.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {leadForms.map(f => (
+              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--paper-3)', borderRadius: 8 }}>
+                <Icons.docs size={15} style={{ color: 'var(--ink-3)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 500 }}>{f.name}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>ID: {f.id}</div>
+                </div>
+                <Badge tone={f.status === 'ACTIVE' ? 'green' : 'neutral'} dot>{f.status?.toLowerCase() || 'unknown'}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </ModalShell>
+    );
+  }
+
+  return (
+    <ModalShell title="Facebook Ads" onClose={onClose} width={520}>
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'var(--red-dim, rgba(239,68,68,0.1))', borderRadius: 8, color: 'var(--red, #ef4444)', fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+      {loading ? (
+        <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '16px 0' }}>Loading your Facebook accounts...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div style={labelStyle}>Ad account</div>
+            <select style={selectStyle} value={selectedAdAccount} onChange={e => setSelectedAdAccount(e.target.value)}>
+              <option value="">— Select ad account —</option>
+              {adAccounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.id})</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={labelStyle}>Facebook page</div>
+            <select style={selectStyle} value={selectedPage} onChange={e => setSelectedPage(e.target.value)}>
+              <option value="">— Select page —</option>
+              {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          {selectedPage && (
+            <button onClick={loadLeadForms} disabled={formsLoading} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', background: 'var(--paper-3)',
+              border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: 'var(--ink-2)', fontFamily: 'inherit',
+            }}>
+              <Icons.docs size={14} />
+              {formsLoading ? 'Loading...' : 'View lead forms'}
+              <Icons.chevR size={12} style={{ marginLeft: 'auto' }} />
+            </button>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--line)' }}>
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={save} disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+// ── Google Calendar modal ─────────────────────────────────────────────────────
+
+function CalendarModal({ accountId, status, onClose, onDisconnected }: {
+  accountId: string;
+  status: { connected: boolean; email?: string };
+  onClose: () => void;
+  onDisconnected: () => void;
+}) {
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState('');
+
+  const connect = () => {
+    window.location.href = `/api/integrations/google/auth?accountId=${accountId}`;
+  };
+
+  const disconnect = async () => {
+    setDisconnecting(true);
+    try {
+      const r = await fetch(`/api/integrations/google/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!r.ok) throw new Error('Failed');
+      onDisconnected();
+    } catch { setError('Disconnect failed. Try again.'); }
+    finally { setDisconnecting(false); }
+  };
+
+  return (
+    <ModalShell title="Google Calendar" onClose={onClose} width={460}>
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'var(--red-dim, rgba(239,68,68,0.1))', borderRadius: 8, color: 'var(--red, #ef4444)', fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+      {status.connected ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'var(--green-dim, rgba(34,197,94,0.08))', borderRadius: 10 }}>
+            <Icons.check size={18} style={{ color: 'var(--green)' }} />
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 500 }}>Connected</div>
+              {status.email && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{status.email}</div>}
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            Appointments booked through the CRM are synced to this Google Calendar. New events on your calendar are imported as activities.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--line)' }}>
+            <Button variant="secondary" size="sm" onClick={onClose}>Close</Button>
+            <Button variant="destructive" size="sm" onClick={disconnect} disabled={disconnecting}>
+              {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+            Connect your Google Calendar to sync appointments and availability. You&apos;ll be redirected to Google to authorise access.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--line)' }}>
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={connect}>Connect Google Calendar</Button>
+          </div>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+// ── Twilio modal ──────────────────────────────────────────────────────────────
+
+function TwilioModal({ status, onClose }: {
+  status: { connected: boolean; phone?: string };
+  onClose: () => void;
+}) {
+  return (
+    <ModalShell title="Twilio SMS" onClose={onClose} width={440}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {status.connected ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'var(--green-dim, rgba(34,197,94,0.08))', borderRadius: 10 }}>
+              <Icons.check size={18} style={{ color: 'var(--green)' }} />
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 500 }}>Connected</div>
+                {status.phone && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{status.phone}</div>}
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+              This number handles inbound SMS from leads and sends automated follow-ups. Managed by the Nexorra team.
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+            No SMS number configured yet. Contact Nexorra to assign a Twilio number to this account.
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4, borderTop: '1px solid var(--line)' }}>
+          <Button variant="secondary" size="sm" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}

@@ -30,11 +30,6 @@ check_and_restart() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port ${PORT} restart complete." >> "$LOG"
 }
 
-check_and_restart 9222 scripts/chrome-launch.sh                    # Jeff (lead-gen)
+check_and_restart 9222 scripts/chrome-launch.sh                    # Jeff (realtor.com)
+check_and_restart 9223 scripts/chrome-launch-gmaps.sh              # GMaps (website leads)
 check_and_restart 9225 scripts/chrome-launch-instagram.sh          # Tara (Instagram)
-check_and_restart 9232 scripts/chrome-launch-petra.sh "9232"       # Petra worker 1
-check_and_restart 9233 scripts/chrome-launch-petra.sh "9233"       # Petra worker 2
-check_and_restart 9234 scripts/chrome-launch-petra.sh "9234"       # Petra worker 3
-check_and_restart 9235 scripts/chrome-launch-petra.sh "9235"       # Petra worker 4
-check_and_restart 9236 scripts/chrome-launch-petra.sh "9236"       # Petra worker 5
-check_and_restart 9240 scripts/chrome-launch-openphone.sh          # OpenPhone SMS (port 9240)

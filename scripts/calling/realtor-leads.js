@@ -235,7 +235,16 @@ async function checkBlocked(page) {
 
 // Extract agent cards from a listing page: [{profileUrl, name, deals}]
 async function getAgentsFromListingPage(page) {
-  return page.evaluate((MIN_DEALS) => {
+  return page.evaluate((MIN_DEALS, COMPANY_INDICATORS) => {
+    function isSoloAgentInBrowser(name) {
+      if (!name || name.trim().length < 3) return false;
+      const lower = name.toLowerCase();
+      if (COMPANY_INDICATORS.some(ind => lower.includes(ind))) return false;
+      const words = name.trim().split(/\s+/);
+      if (words.length < 2 || words.length > 4) return false;
+      return true;
+    }
+
     const links = Array.from(document.querySelectorAll('a[href*="/realestateagents/"]'))
       .filter(a => /\/realestateagents\/[a-f0-9]{24}$/.test(a.href));
 
@@ -251,8 +260,8 @@ async function getAgentsFromListingPage(page) {
       const dealsM = text.match(/(\d+)\s+(?:recent\s+)?sales in last 12 months/);
       const deals = dealsM ? parseInt(dealsM[1]) : 0;
       return { profileUrl: link.href, name, deals };
-    }).filter(a => a.name && a.deals >= MIN_DEALS && isSoloAgent(a.name));
-  }, MIN_DEALS);
+    }).filter(a => a.name && a.deals >= MIN_DEALS && isSoloAgentInBrowser(a.name));
+  }, MIN_DEALS, COMPANY_INDICATORS);
 }
 
 // Extract mobile phone (preferred) from an agent profile page

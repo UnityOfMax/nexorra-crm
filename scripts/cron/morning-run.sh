@@ -28,19 +28,22 @@ ts "Starting GDM desktop"
 sudo systemctl start gdm
 sleep 30  # XWayland needs ~20-30s to create auth file after GDM starts
 
-# ── 2. Chrome on port 9222 (Jeff — realtor.com scraping) ─────────────────────
+# ── 2. Chrome on port 9222 (Jeff) and 9223 (GMaps) ──────────────────────────
 ts "Starting Chrome :9222 for realtor.com scraping"
 DISPLAY=:0 bash scripts/chrome-launch.sh >> logs/chrome-debug.log 2>&1 &
-sleep 5
+ts "Starting Chrome :9223 for Google Maps scraping"
+DISPLAY=:0 bash scripts/chrome-launch-gmaps.sh >> logs/chrome-gmaps.log 2>&1 &
+sleep 10
 
 # ── 3. Realtor.com scraping ───────────────────────────────────────────────────
 ts "Running realtor.com scraping (realtor-leads.js)"
 DISPLAY=:0 node scripts/calling/realtor-leads.js >> "$LOG" 2>&1
 ts "Realtor.com scraping complete"
 
-# ── 4. Kill scraping Chrome ───────────────────────────────────────────────────
-ts "Killing Chrome :9222"
+# ── 4. Kill scraping Chromes ──────────────────────────────────────────────────
+ts "Killing Chrome :9222 and :9223"
 pkill -f "remote-debugging-port=9222" || true
+pkill -f "remote-debugging-port=9223" || true
 sleep 2
 
 # ── 5. Google Maps leads (no-website businesses) ─────────────────────────────

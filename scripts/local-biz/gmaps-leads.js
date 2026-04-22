@@ -1,271 +1,460 @@
 #!/usr/bin/env node
 /**
- * Google Maps → CRM leads scraper.
- * Finds real estate agents/companies with no website on Google Maps.
- * Uses Outscraper API. Inserts as lead_category='website' in leads table.
+ * Google Maps local business lead scraper.
+ * Finds local businesses (restaurants, barbers, salons, etc.) that have:
+ *   - No website, OR a bad/social-only website
+ *   - Under 50 reviews
  *
- * Usage: node scripts/local-biz/gmaps-leads.js
- * Env:   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OUTSCRAPER_API_KEY
+ * Captures per listing: business name, phone, Google Maps URL, review count,
+ * website URL (if any), Facebook URL (if any).
+ *
+ * Uses Chrome on port 9223. Stores in leads table (lead_category='website').
+ * Extra fields go into personal_research jsonb.
  */
 
 'use strict';
 
+const puppeteer = require('puppeteer');
 const https = require('https');
+const fs = require('fs');
 
-const TARGET_PER_TZ = 250;
-const OUTSCRAPER_BASE = 'https://api.app.outscraper.com';
-const POLL_INTERVAL_MS = 5000;
-const MAX_WAIT_MS = 5 * 60 * 1000;
+const PORT = 9223;
+const DAILY_TARGET = 500;
+const MAX_REVIEWS = 50;
+const CITY_STATE_FILE = '/home/max/crm/agents/state/gmaps-city-pages.json';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const OUTSCRAPER_KEY = process.env.OUTSCRAPER_API_KEY;
 
-const TZ_CITIES = {
-  EST: [
-    { name: 'New York', state: 'NY' },
-    { name: 'Miami', state: 'FL' },
-    { name: 'Atlanta', state: 'GA' },
-    { name: 'Charlotte', state: 'NC' },
-    { name: 'Philadelphia', state: 'PA' },
-    { name: 'Boston', state: 'MA' },
-    { name: 'Orlando', state: 'FL' },
-    { name: 'Tampa', state: 'FL' },
-  ],
-  CST: [
-    { name: 'Houston', state: 'TX' },
-    { name: 'Dallas', state: 'TX' },
-    { name: 'Chicago', state: 'IL' },
-    { name: 'San Antonio', state: 'TX' },
-    { name: 'Austin', state: 'TX' },
-    { name: 'Minneapolis', state: 'MN' },
-    { name: 'Nashville', state: 'TN' },
-    { name: 'Kansas City', state: 'MO' },
-  ],
-  MST: [
-    { name: 'Phoenix', state: 'AZ' },
-    { name: 'Denver', state: 'CO' },
-    { name: 'Tucson', state: 'AZ' },
-    { name: 'Colorado Springs', state: 'CO' },
-    { name: 'Albuquerque', state: 'NM' },
-    { name: 'Salt Lake City', state: 'UT' },
-    { name: 'Mesa', state: 'AZ' },
-    { name: 'Aurora', state: 'CO' },
-  ],
-  PST: [
-    { name: 'Los Angeles', state: 'CA' },
-    { name: 'San Diego', state: 'CA' },
-    { name: 'San Francisco', state: 'CA' },
-    { name: 'Seattle', state: 'WA' },
-    { name: 'Portland', state: 'OR' },
-    { name: 'Sacramento', state: 'CA' },
-    { name: 'Las Vegas', state: 'NV' },
-    { name: 'San Jose', state: 'CA' },
-  ],
-};
+// Free / social-only website domains — treat as "no real website"
+const BAD_WEBSITE_DOMAINS = [
+  'facebook.com', 'fb.me', 'fb.com',
+  'instagram.com', 'instagr.am',
+  'yelp.com',
+  'google.com', 'goo.gl',
+  'linktr.ee', 'linktree.com',
+  'wix.com', 'wixsite.com',
+  'squarespace.com',
+  'godaddysites.com',
+  'weebly.com',
+  'jimdo.com',
+  'site123.com',
+  'strikingly.com',
+  'webnode.com',
+  'yolasite.com',
+  'wordpress.com',
+  'blogspot.com',
+  'tumblr.com',
+];
 
-const COUNTRY_BY_STATE = {
-  AZ: 'US', CO: 'US', NM: 'US', UT: 'US',
-  CA: 'US', WA: 'US', OR: 'US', NV: 'US',
-  NY: 'US', FL: 'US', GA: 'US', NC: 'US', PA: 'US', MA: 'US',
-  TX: 'US', IL: 'US', MN: 'US', TN: 'US', MO: 'US',
-};
-
-function log(msg) {
-  console.log(`[${new Date().toISOString()}] ${msg}`);
+function isBadWebsite(url) {
+  if (!url) return true;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return BAD_WEBSITE_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+  } catch { return true; }
 }
 
+const BUSINESS_TYPES = [
+  'barber shop',
+  'hair salon',
+  'restaurant',
+  'nail salon',
+  'auto repair',
+  'cleaning service',
+  'landscaping',
+  'plumber',
+  'electrician',
+  'pizza',
+  'cafe',
+  'tattoo shop',
+  'dog groomer',
+  'gym',
+  'daycare',
+  'car wash',
+  'laundromat',
+  'florist',
+  'painter',
+  'roofing',
+];
+
+const CITIES = [
+  { name: 'Birmingham',     state: 'AL', tz: 'CST' },
+  { name: 'Huntsville',     state: 'AL', tz: 'CST' },
+  { name: 'Little Rock',    state: 'AR', tz: 'CST' },
+  { name: 'Fresno',         state: 'CA', tz: 'PST' },
+  { name: 'Bakersfield',    state: 'CA', tz: 'PST' },
+  { name: 'Stockton',       state: 'CA', tz: 'PST' },
+  { name: 'Colorado Springs', state: 'CO', tz: 'MST' },
+  { name: 'Pueblo',         state: 'CO', tz: 'MST' },
+  { name: 'Jacksonville',   state: 'FL', tz: 'EST' },
+  { name: 'Tallahassee',    state: 'FL', tz: 'EST' },
+  { name: 'Pensacola',      state: 'FL', tz: 'CST' },
+  { name: 'Augusta',        state: 'GA', tz: 'EST' },
+  { name: 'Macon',          state: 'GA', tz: 'EST' },
+  { name: 'Savannah',       state: 'GA', tz: 'EST' },
+  { name: 'Boise',          state: 'ID', tz: 'MST' },
+  { name: 'Peoria',         state: 'IL', tz: 'CST' },
+  { name: 'Rockford',       state: 'IL', tz: 'CST' },
+  { name: 'Fort Wayne',     state: 'IN', tz: 'EST' },
+  { name: 'Evansville',     state: 'IN', tz: 'CST' },
+  { name: 'Des Moines',     state: 'IA', tz: 'CST' },
+  { name: 'Wichita',        state: 'KS', tz: 'CST' },
+  { name: 'Topeka',         state: 'KS', tz: 'CST' },
+  { name: 'Lexington',      state: 'KY', tz: 'EST' },
+  { name: 'Baton Rouge',    state: 'LA', tz: 'CST' },
+  { name: 'Shreveport',     state: 'LA', tz: 'CST' },
+  { name: 'Grand Rapids',   state: 'MI', tz: 'EST' },
+  { name: 'Lansing',        state: 'MI', tz: 'EST' },
+  { name: 'Flint',          state: 'MI', tz: 'EST' },
+  { name: 'Jackson',        state: 'MS', tz: 'CST' },
+  { name: 'Springfield',    state: 'MO', tz: 'CST' },
+  { name: 'Billings',       state: 'MT', tz: 'MST' },
+  { name: 'Omaha',          state: 'NE', tz: 'CST' },
+  { name: 'Lincoln',        state: 'NE', tz: 'CST' },
+  { name: 'Reno',           state: 'NV', tz: 'PST' },
+  { name: 'Henderson',      state: 'NV', tz: 'PST' },
+  { name: 'Albuquerque',    state: 'NM', tz: 'MST' },
+  { name: 'Buffalo',        state: 'NY', tz: 'EST' },
+  { name: 'Rochester',      state: 'NY', tz: 'EST' },
+  { name: 'Syracuse',       state: 'NY', tz: 'EST' },
+  { name: 'Greensboro',     state: 'NC', tz: 'EST' },
+  { name: 'Durham',         state: 'NC', tz: 'EST' },
+  { name: 'Winston-Salem',  state: 'NC', tz: 'EST' },
+  { name: 'Fargo',          state: 'ND', tz: 'CST' },
+  { name: 'Columbus',       state: 'OH', tz: 'EST' },
+  { name: 'Cleveland',      state: 'OH', tz: 'EST' },
+  { name: 'Cincinnati',     state: 'OH', tz: 'EST' },
+  { name: 'Tulsa',          state: 'OK', tz: 'CST' },
+  { name: 'Oklahoma City',  state: 'OK', tz: 'CST' },
+  { name: 'Eugene',         state: 'OR', tz: 'PST' },
+  { name: 'Salem',          state: 'OR', tz: 'PST' },
+  { name: 'Allentown',      state: 'PA', tz: 'EST' },
+  { name: 'Pittsburgh',     state: 'PA', tz: 'EST' },
+  { name: 'Providence',     state: 'RI', tz: 'EST' },
+  { name: 'Columbia',       state: 'SC', tz: 'EST' },
+  { name: 'Sioux Falls',    state: 'SD', tz: 'CST' },
+  { name: 'Memphis',        state: 'TN', tz: 'CST' },
+  { name: 'Knoxville',      state: 'TN', tz: 'EST' },
+  { name: 'Chattanooga',    state: 'TN', tz: 'EST' },
+  { name: 'El Paso',        state: 'TX', tz: 'MST' },
+  { name: 'Lubbock',        state: 'TX', tz: 'CST' },
+  { name: 'Corpus Christi', state: 'TX', tz: 'CST' },
+  { name: 'Laredo',         state: 'TX', tz: 'CST' },
+  { name: 'Salt Lake City', state: 'UT', tz: 'MST' },
+  { name: 'Provo',          state: 'UT', tz: 'MST' },
+  { name: 'Norfolk',        state: 'VA', tz: 'EST' },
+  { name: 'Richmond',       state: 'VA', tz: 'EST' },
+  { name: 'Spokane',        state: 'WA', tz: 'PST' },
+  { name: 'Tacoma',         state: 'WA', tz: 'PST' },
+  { name: 'Milwaukee',      state: 'WI', tz: 'CST' },
+  { name: 'Madison',        state: 'WI', tz: 'CST' },
+  { name: 'Cheyenne',       state: 'WY', tz: 'MST' },
+];
+
+function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function jitter(base) { return base + Math.floor(Math.random() * 1200); }
 
-// ── HTTP helpers ──────────────────────────────────────────────────────────────
+function formatPhone(p) {
+  if (!p) return null;
+  const d = p.replace(/\D/g, '');
+  if (d.length === 10) return '+1' + d;
+  if (d.length === 11 && d[0] === '1') return '+' + d;
+  return null;
+}
 
-function httpsRequest(opts, body) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(opts, (res) => {
-      let data = '';
-      res.on('data', d => data += d);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, body: data }); }
-      });
+function loadCityState() {
+  try { return JSON.parse(fs.readFileSync(CITY_STATE_FILE, 'utf8')); } catch { return {}; }
+}
+
+function saveCityState(state) {
+  try { fs.writeFileSync(CITY_STATE_FILE, JSON.stringify(state, null, 2)); } catch {}
+}
+
+async function phoneExists(phone) {
+  return new Promise((resolve) => {
+    const u = new URL(`${SUPABASE_URL}/rest/v1/leads?select=id&phone=eq.${encodeURIComponent(phone)}&limit=1`);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    }, res => {
+      let b = '';
+      res.on('data', d => b += d);
+      res.on('end', () => { try { resolve(JSON.parse(b).length > 0); } catch { resolve(false); } });
     });
-    req.on('error', reject);
-    if (body) req.write(body);
+    req.on('error', () => resolve(false));
     req.end();
   });
 }
 
-// ── Outscraper ────────────────────────────────────────────────────────────────
-
-async function searchPlaces(query, limit = 50) {
-  const params = new URLSearchParams({
-    query,
-    limit: String(limit),
-    async: 'true',
-    fields: 'place_id,name,phone,site,full_address,city,state,country_code,rating,reviews',
+async function countTodayLeads() {
+  return new Promise((resolve) => {
+    const today = new Date().toISOString().split('T')[0];
+    const u = new URL(`${SUPABASE_URL}/rest/v1/leads?select=id&lead_category=eq.website&scraped_at=gte.${today}T00:00:00Z`);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: 'count=exact' },
+    }, res => {
+      const m = (res.headers['content-range'] || '').match(/\/(\d+)$/);
+      resolve(m ? parseInt(m[1]) : 0);
+    });
+    req.on('error', () => resolve(0));
+    req.end();
   });
+}
 
-  const url = new URL(`${OUTSCRAPER_BASE}/maps/search-v3?${params}`);
-  const res = await httpsRequest({
-    hostname: url.hostname,
-    path: url.pathname + url.search,
-    method: 'GET',
-    headers: { 'X-API-KEY': OUTSCRAPER_KEY },
+async function insertLead(lead) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      full_name:        lead.business_name,
+      first_name:       lead.business_name.split(' ')[0],
+      last_name:        lead.business_name.split(' ').slice(1).join(' ') || '',
+      phone:            lead.phone,
+      city:             lead.city,
+      state:            lead.state,
+      country:          'US',
+      timezone:         lead.tz,
+      profile_url:      lead.maps_url,
+      lead_category:    'website',
+      source_brokerage: lead.business_type,
+      scraped_at:       new Date().toISOString(),
+      personal_research: {
+        review_count:  lead.review_count,
+        website_url:   lead.website_url  || null,
+        facebook_url:  lead.facebook_url || null,
+        business_type: lead.business_type,
+        maps_url:      lead.maps_url,
+      },
+    });
+    const u = new URL(`${SUPABASE_URL}/rest/v1/leads`);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname, method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
+        Prefer: 'return=minimal',
+      },
+    }, res => { res.resume(); resolve(res.statusCode < 300); });
+    req.on('error', () => resolve(false));
+    req.write(body);
+    req.end();
   });
+}
 
-  if (res.status !== 200) {
-    log(`  Outscraper error ${res.status}: ${JSON.stringify(res.body).slice(0, 200)}`);
+// Extract all details from a listing page that's already loaded
+async function extractListingDetails(page) {
+  return page.evaluate(() => {
+    // Phone — from data-item-id attribute (most reliable)
+    let phone = null;
+    document.querySelectorAll('[data-item-id]').forEach(el => {
+      const id = el.getAttribute('data-item-id') || '';
+      if (id.startsWith('phone:tel:')) phone = id.replace('phone:tel:', '').trim();
+    });
+    if (!phone) {
+      const telLink = document.querySelector('a[href^="tel:"]');
+      if (telLink) phone = telLink.href.replace('tel:', '').trim();
+    }
+
+    // Website URL — the authority link
+    let website_url = null;
+    const websiteEl = document.querySelector('a[data-item-id="authority"]');
+    if (websiteEl) website_url = websiteEl.href;
+
+    // Facebook URL — look for facebook.com links in the page
+    let facebook_url = null;
+    document.querySelectorAll('a[href]').forEach(a => {
+      if (!facebook_url && a.href.includes('facebook.com/') &&
+          !a.href.includes('facebook.com/share') &&
+          !a.href.includes('facebook.com/sharer') &&
+          !a.href.includes('facebook.com/dialog')) {
+        facebook_url = a.href;
+      }
+    });
+
+    // Review count — "X reviews" in page text
+    let review_count = null;
+    const bodyText = document.body.innerText || '';
+    const rm = bodyText.match(/(\d[\d,]*)\s+reviews?/i);
+    if (rm) review_count = parseInt(rm[1].replace(/,/g, ''));
+
+    // Business name — h1
+    const nameEl = document.querySelector('h1');
+    const name = nameEl ? nameEl.innerText.trim() : null;
+
+    // Current page URL (the canonical Maps listing URL)
+    const maps_url = window.location.href;
+
+    return { name, phone, website_url, facebook_url, review_count, maps_url };
+  });
+}
+
+async function scrapeSearch(page, city, businessType) {
+  const query = `${businessType} ${city.name} ${city.state}`;
+  const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+
+  log(`  Searching: "${query}"`);
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await sleep(jitter(1500));
+
+  try {
+    await page.waitForSelector('[role="feed"]', { timeout: 8000 });
+  } catch {
+    log(`  No results panel — skipping`);
     return [];
   }
 
-  const data = res.body;
-
-  // Synchronous response
-  if (data.status === 'Success' && data.data) {
-    return flattenResults(data.data);
-  }
-
-  // Async job — poll
-  const jobId = data.id;
-  if (!jobId) { log('  No job ID from Outscraper'); return []; }
-
-  return pollJob(jobId);
-}
-
-async function pollJob(jobId) {
-  const deadline = Date.now() + MAX_WAIT_MS;
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
-    const url = new URL(`${OUTSCRAPER_BASE}/requests/${jobId}`);
-    const res = await httpsRequest({
-      hostname: url.hostname,
-      path: url.pathname,
-      method: 'GET',
-      headers: { 'X-API-KEY': OUTSCRAPER_KEY },
+  // Scroll to load more results
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => {
+      const feed = document.querySelector('[role="feed"]');
+      if (feed) feed.scrollTop = feed.scrollHeight;
     });
-    const d = res.body;
-    if (d.status === 'Success') return flattenResults(d.data || []);
-    if (d.status === 'Error' || d.status === 'Cancelled') {
-      log(`  Outscraper job ${jobId} failed: ${d.status}`);
-      return [];
-    }
+    await sleep(800);
   }
-  log(`  Outscraper job ${jobId} timed out`);
-  return [];
-}
 
-function flattenResults(data) {
-  const flat = [];
-  for (const batch of data) {
-    if (Array.isArray(batch)) { for (const item of batch) flat.push(item); }
-    else if (batch && typeof batch === 'object') flat.push(batch);
-  }
-  return flat;
-}
-
-// ── Supabase ──────────────────────────────────────────────────────────────────
-
-async function checkExistingByPhone(phone) {
-  const u = new URL(`${SUPABASE_URL}/rest/v1/leads?phone=eq.${encodeURIComponent(phone)}&select=id&limit=1`);
-  const res = await httpsRequest({
-    hostname: u.hostname,
-    path: u.pathname + u.search,
-    method: 'GET',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+  // Collect listing URLs from the results panel
+  const listingUrls = await page.evaluate(() => {
+    const seen = new Set();
+    const urls = [];
+    document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]').forEach(a => {
+      if (!seen.has(a.href)) { seen.add(a.href); urls.push(a.href); }
+    });
+    return urls.slice(0, 20);
   });
-  return Array.isArray(res.body) && res.body.length > 0;
-}
 
-async function saveLead(lead) {
-  const body = JSON.stringify(lead);
-  const u = new URL(`${SUPABASE_URL}/rest/v1/leads`);
-  const res = await httpsRequest({
-    hostname: u.hostname,
-    path: u.pathname,
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal',
-    },
-  }, body);
-  return { ok: res.status < 300, status: res.status };
-}
+  log(`  Found ${listingUrls.length} listings`);
+  const leads = [];
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+  for (const listingUrl of listingUrls) {
+    try {
+      await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      await sleep(jitter(1500));
+
+      const info = await extractListingDetails(page);
+
+      // Filter: review count
+      if (info.review_count !== null && info.review_count >= MAX_REVIEWS) {
+        log(`  Skip: ${info.name} (${info.review_count} reviews)`);
+        continue;
+      }
+
+      // Filter: must have no website OR a bad/social-only website
+      const websiteIsBad = isBadWebsite(info.website_url);
+      if (info.website_url && !websiteIsBad) {
+        log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`);
+        continue;
+      }
+
+      // Must have a phone
+      if (!info.phone) {
+        log(`  Skip: ${info.name} (no phone)`);
+        continue;
+      }
+
+      const phone = formatPhone(info.phone);
+      if (!phone) continue;
+
+      if (await phoneExists(phone)) {
+        log(`  Dupe: ${info.name} (${phone})`);
+        continue;
+      }
+
+      const lead = {
+        business_name: info.name,
+        phone,
+        city:          city.name,
+        state:         city.state,
+        tz:            city.tz,
+        maps_url:      info.maps_url,
+        website_url:   info.website_url,
+        facebook_url:  info.facebook_url,
+        review_count:  info.review_count,
+        business_type: businessType,
+      };
+
+      const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
+      const fbNote = info.facebook_url ? ' | has FB' : '';
+      log(`  + "${info.name}" (${info.review_count ?? '?'} reviews${websiteNote}${fbNote}) — ${phone}`);
+
+      leads.push(lead);
+
+    } catch (err) {
+      log(`  Error: ${err.message.slice(0, 60)}`);
+    }
+
+    await sleep(jitter(600));
+  }
+
+  return leads;
+}
 
 async function main() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) { log('ERROR: Missing SUPABASE env vars'); process.exit(1); }
-  if (!OUTSCRAPER_KEY) { log('ERROR: Missing OUTSCRAPER_API_KEY'); process.exit(1); }
+  if (!SUPABASE_URL || !SUPABASE_KEY) { log('ERROR: Missing Supabase env vars'); process.exit(1); }
 
-  log('=== Google Maps leads scraper started ===');
+  log('=== Google Maps local business scraper ===');
+  log(`Filter: no/bad website + under ${MAX_REVIEWS} reviews`);
+
+  let browser;
+  try {
+    browser = await puppeteer.connect({ browserURL: `http://localhost:${PORT}`, defaultViewport: null });
+  } catch (err) {
+    log(`ERROR: Cannot connect to Chrome on port ${PORT}: ${err.message}`);
+    process.exit(1);
+  }
+
+  const todayStart = await countTodayLeads();
+  log(`Website leads already today: ${todayStart}`);
+  if (todayStart >= DAILY_TARGET) {
+    log('Daily target reached — exiting');
+    browser.disconnect();
+    return;
+  }
+
+  const cityState = loadCityState();
+  const today = new Date().toISOString().split('T')[0];
+
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
   let totalSaved = 0;
-  const tzSaved = { EST: 0, CST: 0, MST: 0, PST: 0 };
 
-  for (const [tz, cities] of Object.entries(TZ_CITIES)) {
-    log(`\n=== ${tz} (target: ${TARGET_PER_TZ}) ===`);
+  outer: for (const city of CITIES) {
+    const cityKey = `${city.name}_${city.state}`;
+    const doneBizTypes = (cityState[cityKey]?.date === today) ? (cityState[cityKey].types || []) : [];
+    const pendingTypes = BUSINESS_TYPES.filter(t => !doneBizTypes.includes(t));
 
-    for (const { name: cityName, state } of cities) {
-      if (tzSaved[tz] >= TARGET_PER_TZ) break;
-
-      const query = `real estate agent ${cityName} ${state}`;
-      log(`Searching: "${query}"`);
-
-      const places = await searchPlaces(query, 50).catch(e => { log(`  Error: ${e.message}`); return []; });
-
-      // Filter to no-website entries
-      const noWebsite = places.filter(p => !p.site);
-      log(`  ${places.length} results, ${noWebsite.length} without website`);
-
-      for (const place of noWebsite) {
-        if (tzSaved[tz] >= TARGET_PER_TZ) break;
-
-        if (!place.phone) continue;
-        // Normalize phone
-        const digits = place.phone.replace(/\D/g, '');
-        let phone = null;
-        if (digits.length === 10) phone = '+1' + digits;
-        else if (digits.length === 11 && digits[0] === '1') phone = '+' + digits;
-        if (!phone) continue;
-
-        // Dedup by phone
-        const exists = await checkExistingByPhone(phone).catch(() => false);
-        if (exists) continue;
-
-        const nameParts = (place.name || '').trim().split(' ');
-        const country = COUNTRY_BY_STATE[state] || 'US';
-
-        const result = await saveLead({
-          full_name: place.name || '',
-          first_name: nameParts[0] || '',
-          last_name: nameParts.slice(1).join(' ') || '',
-          phone,
-          email: null,
-          profile_url: null,
-          source_brokerage: 'Google Maps',
-          country,
-          state_province: state,
-          city: cityName,
-          timezone: tz,
-          lead_category: 'website',
-        });
-
-        if (result.ok) {
-          tzSaved[tz]++;
-          totalSaved++;
-          log(`  ✓ Saved: ${place.name} ${phone} (${tz}: ${tzSaved[tz]}/${TARGET_PER_TZ})`);
-        } else if (result.status === 409) {
-          // duplicate
-        } else {
-          log(`  ✗ Error ${result.status}`);
-        }
+    for (const businessType of pendingTypes) {
+      if (todayStart + totalSaved >= DAILY_TARGET) {
+        log('Daily target reached — stopping');
+        break outer;
       }
+
+      log(`\n=== ${city.name}, ${city.state} — "${businessType}" ===`);
+
+      try {
+        const leads = await scrapeSearch(page, city, businessType);
+        for (const lead of leads) {
+          if (await insertLead(lead)) totalSaved++;
+        }
+      } catch (err) {
+        log(`ERROR: ${err.message}`);
+      }
+
+      // Mark this type as done for today
+      if (!cityState[cityKey] || cityState[cityKey].date !== today) {
+        cityState[cityKey] = { date: today, types: [] };
+      }
+      cityState[cityKey].types.push(businessType);
+      saveCityState(cityState);
+
+      await sleep(jitter(2000));
     }
   }
 
-  log(`\n=== Done: ${totalSaved} website leads saved (EST:${tzSaved.EST} CST:${tzSaved.CST} MST:${tzSaved.MST} PST:${tzSaved.PST}) ===`);
+  await page.close();
+  browser.disconnect();
+  log(`\n=== Done: ${totalSaved} website leads saved ===`);
 }
 
-main().catch(e => { log(`FATAL: ${e.message}`); process.exit(1); });
+main().catch(err => { log(`FATAL: ${err.message}`); process.exit(1); });

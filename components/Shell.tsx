@@ -256,7 +256,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
   const isAgency = sub.kind === 'agency';
 
   // ─── View content ─────────────────────────────────────────────────────────
-  const viewProps = { sub, accountId: sub.id, userId: user.id };
+  const viewProps = { sub, accountId: sub.id, userId: user.id, userRole };
 
   const renderView = () => {
     switch (route) {
