@@ -375,7 +375,7 @@ async function scrapeSearch(page, city, businessType) {
       const info = await extractListingDetails(page);
 
       let skip = false;
-      if (!info.name || info.name === 'Results') {
+      if (!info.name || info.name === 'Results' || /^sponsored/i.test(info.name)) {
         log(`  Skip: (no valid name)`); skip = true;
       } else if (info.website_url && !isBadWebsite(info.website_url)) {
         log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`); skip = true;
