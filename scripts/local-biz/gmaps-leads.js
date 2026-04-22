@@ -296,17 +296,27 @@ async function extractListingDetails(page) {
       } catch {}
     }
 
-    // Reviewer name — contributor profile links are the most reliable signal.
-    // /maps/contrib/ URLs are always reviewer profile links (not business photos).
+    // Reviewer name — find contributor links that belong to customer reviewers.
+    // Skip any link whose text matches the business name (that's the owner's profile).
     let reviewer_name = null;
-    const contribLink = document.querySelector('a[href*="/maps/contrib/"]');
-    if (contribLink) reviewer_name = contribLink.textContent.trim() || null;
-    // Fallback: photo button scoped inside a review container, not the listing header
+    const bizNameLower = (name || '').toLowerCase().trim();
+    const contribLinks = Array.from(document.querySelectorAll('a[href*="/maps/contrib/"]'));
+    for (const link of contribLinks) {
+      const t = link.textContent.trim();
+      if (t && t.toLowerCase() !== bizNameLower && t.length > 1 && t.length < 60) {
+        reviewer_name = t;
+        break;
+      }
+    }
+    // Fallback: photo button inside a review container (scoped to avoid business header photo)
     if (!reviewer_name) {
       const reviewEl = document.querySelector('[data-review-id]');
       if (reviewEl) {
         const btn = reviewEl.querySelector('button[aria-label^="Photo of "]');
-        if (btn) reviewer_name = btn.getAttribute('aria-label').replace('Photo of ', '').trim() || null;
+        if (btn) {
+          const t = btn.getAttribute('aria-label').replace('Photo of ', '').trim();
+          if (t.toLowerCase() !== bizNameLower) reviewer_name = t || null;
+        }
       }
     }
 
