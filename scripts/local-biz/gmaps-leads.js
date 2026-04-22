@@ -446,6 +446,15 @@ async function main() {
     return;
   }
 
+  // Close leftover Maps tabs from previous killed runs
+  const existingPages = await browser.pages();
+  for (const p of existingPages) {
+    const url = p.url();
+    if (url.includes('google.com/maps') || url.includes('maps/place') || url.includes('maps/search')) {
+      await p.close().catch(() => {});
+    }
+  }
+
   const cityState = loadCityState();
   const today = new Date().toISOString().split('T')[0];
 
@@ -454,42 +463,44 @@ async function main() {
 
   let totalSaved = 0;
 
-  outer: for (const city of CITIES) {
-    const cityKey = `${city.name}_${city.state}`;
-    const doneBizTypes = (cityState[cityKey]?.date === today) ? (cityState[cityKey].types || []) : [];
-    const pendingTypes = BUSINESS_TYPES.filter(t => !doneBizTypes.includes(t));
+  try {
+    outer: for (const city of CITIES) {
+      const cityKey = `${city.name}_${city.state}`;
+      const doneBizTypes = (cityState[cityKey]?.date === today) ? (cityState[cityKey].types || []) : [];
+      const pendingTypes = BUSINESS_TYPES.filter(t => !doneBizTypes.includes(t));
 
-    for (const businessType of pendingTypes) {
-      if (todayStart + totalSaved >= DAILY_TARGET) {
-        log('Daily target reached — stopping');
-        break outer;
-      }
-
-      log(`\n=== ${city.name}, ${city.state} — "${businessType}" ===`);
-
-      try {
-        const leads = await scrapeSearch(page, city, businessType);
-        for (const lead of leads) {
-          if (await insertLead(lead)) totalSaved++;
+      for (const businessType of pendingTypes) {
+        if (todayStart + totalSaved >= DAILY_TARGET) {
+          log('Daily target reached — stopping');
+          break outer;
         }
-      } catch (err) {
-        log(`ERROR: ${err.message}`);
-      }
 
-      // Mark this type as done for today
-      if (!cityState[cityKey] || cityState[cityKey].date !== today) {
-        cityState[cityKey] = { date: today, types: [] };
-      }
-      cityState[cityKey].types.push(businessType);
-      saveCityState(cityState);
+        log(`\n=== ${city.name}, ${city.state} — "${businessType}" ===`);
 
-      await sleep(jitter(2000));
+        try {
+          const leads = await scrapeSearch(page, city, businessType);
+          for (const lead of leads) {
+            if (await insertLead(lead)) totalSaved++;
+          }
+        } catch (err) {
+          log(`ERROR: ${err.message}`);
+        }
+
+        // Mark this type as done for today
+        if (!cityState[cityKey] || cityState[cityKey].date !== today) {
+          cityState[cityKey] = { date: today, types: [] };
+        }
+        cityState[cityKey].types.push(businessType);
+        saveCityState(cityState);
+
+        await sleep(jitter(2000));
+      }
     }
+  } finally {
+    await page.close().catch(() => {});
+    browser.disconnect();
+    log(`\n=== Done: ${totalSaved} website leads saved ===`);
   }
-
-  await page.close();
-  browser.disconnect();
-  log(`\n=== Done: ${totalSaved} website leads saved ===`);
 }
 
 main().catch(err => { log(`FATAL: ${err.message}`); process.exit(1); });
