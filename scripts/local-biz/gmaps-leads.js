@@ -20,7 +20,6 @@ const fs = require('fs');
 
 const PORT = 9223;
 const DAILY_TARGET = 500;
-const MAX_REVIEWS = 50;
 const CITY_STATE_FILE = '/home/max/crm/agents/state/gmaps-city-pages.json';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -373,8 +372,6 @@ async function scrapeSearch(page, city, businessType) {
       let skip = false;
       if (!info.name || info.name === 'Results') {
         log(`  Skip: (no valid name)`); skip = true;
-      } else if (info.review_count !== null && info.review_count >= MAX_REVIEWS) {
-        log(`  Skip: ${info.name} (${info.review_count} reviews)`); skip = true;
       } else if (info.website_url && !isBadWebsite(info.website_url)) {
         log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`); skip = true;
       } else if (!info.phone) {
@@ -428,7 +425,7 @@ async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) { log('ERROR: Missing Supabase env vars'); process.exit(1); }
 
   log('=== Google Maps local business scraper ===');
-  log(`Filter: no/bad website + under ${MAX_REVIEWS} reviews`);
+  log(`Filter: no real website (review count no longer a filter)`);
 
   let browser;
   try {
