@@ -296,16 +296,18 @@ async function extractListingDetails(page) {
       } catch {}
     }
 
-    // Reviewer name — first reviewer's name via aria-label on their photo button
+    // Reviewer name — contributor profile links are the most reliable signal.
+    // /maps/contrib/ URLs are always reviewer profile links (not business photos).
     let reviewer_name = null;
-    const photoBtn = document.querySelector('button[aria-label^="Photo of "]');
-    if (photoBtn) {
-      reviewer_name = photoBtn.getAttribute('aria-label').replace('Photo of ', '').trim() || null;
-    }
-    // Fallback: look for a local guide / reviewer link text near the reviews section
+    const contribLink = document.querySelector('a[href*="/maps/contrib/"]');
+    if (contribLink) reviewer_name = contribLink.textContent.trim() || null;
+    // Fallback: photo button scoped inside a review container, not the listing header
     if (!reviewer_name) {
-      const reviewBtn = document.querySelector('[data-review-id] a[aria-label]');
-      if (reviewBtn) reviewer_name = reviewBtn.getAttribute('aria-label').trim() || null;
+      const reviewEl = document.querySelector('[data-review-id]');
+      if (reviewEl) {
+        const btn = reviewEl.querySelector('button[aria-label^="Photo of "]');
+        if (btn) reviewer_name = btn.getAttribute('aria-label').replace('Photo of ', '').trim() || null;
+      }
     }
 
     return { name, phone, website_url, facebook_url, review_count, maps_url, reviewer_name };
@@ -317,8 +319,8 @@ async function scrapeSearch(page, city, businessType) {
   const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
 
   log(`  Searching: "${query}"`);
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-  await sleep(jitter(1500));
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await sleep(jitter(2000));
 
   try {
     await page.waitForSelector('[role="feed"]', { timeout: 8000 });
