@@ -296,26 +296,17 @@ async function extractListingDetails(page) {
       } catch {}
     }
 
-    // Reviewer name — find contributor links that belong to customer reviewers.
-    // Skip any link whose text matches the business name (that's the owner's profile).
+    // Reviewer name — scoped inside [data-review-id] so we only hit customer review cards,
+    // never the business listing header photo (which is outside any review container).
     let reviewer_name = null;
     const bizNameLower = (name || '').toLowerCase().trim();
-    const contribLinks = Array.from(document.querySelectorAll('a[href*="/maps/contrib/"]'));
-    for (const link of contribLinks) {
-      const t = link.textContent.trim();
-      if (t && t.toLowerCase() !== bizNameLower && t.length > 1 && t.length < 60) {
-        reviewer_name = t;
-        break;
-      }
-    }
-    // Fallback: photo button inside a review container (scoped to avoid business header photo)
-    if (!reviewer_name) {
-      const reviewEl = document.querySelector('[data-review-id]');
-      if (reviewEl) {
-        const btn = reviewEl.querySelector('button[aria-label^="Photo of "]');
-        if (btn) {
-          const t = btn.getAttribute('aria-label').replace('Photo of ', '').trim();
-          if (t.toLowerCase() !== bizNameLower) reviewer_name = t || null;
+    const reviewEl = document.querySelector('[data-review-id]');
+    if (reviewEl) {
+      const photoBtn = reviewEl.querySelector('button[aria-label^="Photo of "]');
+      if (photoBtn) {
+        const t = photoBtn.getAttribute('aria-label').replace('Photo of ', '').trim();
+        if (t && t.toLowerCase() !== bizNameLower && t.length > 1 && t.length < 60) {
+          reviewer_name = t;
         }
       }
     }
@@ -371,8 +362,10 @@ async function scrapeSearch(page, city, businessType) {
 
       await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
       openedPanel = true;
-      // Give the detail panel DOM a moment to populate
-      await sleep(jitter(1200));
+      // Wait for review cards to appear (gives us reviewer names).
+      // Falls through immediately after 3s if the business has no reviews.
+      await page.waitForSelector('[data-review-id]', { timeout: 3000 }).catch(() => {});
+      await sleep(jitter(600));
 
       const info = await extractListingDetails(page);
 
