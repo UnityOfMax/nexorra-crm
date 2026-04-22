@@ -1,5 +1,5 @@
 #!/bin/bash
-# Launch Chrome for OpenPhone web (app.openphone.com).
+# Launch Chrome for Quo (my.quo.com — OpenPhone web client).
 # Fixed port 9240 — persistent profile retains login session.
 # Safe to call repeatedly — exits immediately if port is already up.
 
@@ -65,15 +65,8 @@ resolve_display() {
   return 1
 }
 
-WAITED=0
-until resolve_display; do
-  if [ $WAITED -ge 60 ]; then
-    echo "[$(date)] ERROR: No X11 display after 60s." | tee -a "$LOG"
-    exit 1
-  fi
-  sleep 5
-  WAITED=$((WAITED + 5))
-done
+# Force main display so the user can interact with OpenPhone
+export DISPLAY=:0
 
 echo "[$(date)] Using DISPLAY=$DISPLAY" | tee -a "$LOG"
 
@@ -83,17 +76,9 @@ DBUS_SESSION_BUS_ADDRESS="" WAYLAND_DISPLAY="" XDG_RUNTIME_DIR="/tmp/chrome-xdg-
   --remote-debugging-address=127.0.0.1 \
   --user-data-dir="$DEBUG_PROFILE" \
   --no-first-run \
-  --ozone-platform=x11 \
-  --disable-gpu \
-  --disable-gpu-sandbox \
-  --disable-background-timer-throttling \
-  --disable-backgrounding-occluded-windows \
-  --disable-renderer-backgrounding \
-  --disable-dev-shm-usage \
-  --disable-blink-features=AutomationControlled \
-  --disable-back-forward-cache \
+  --no-default-browser-check \
   --window-size=1280,900 \
-  "https://app.openphone.com" >> "$LOG" 2>&1 &
+  "https://my.quo.com" >> "$LOG" 2>&1 &
 disown
 
 for i in $(seq 1 30); do

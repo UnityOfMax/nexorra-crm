@@ -508,7 +508,7 @@ async function main() {
   }
 
   const pages = await browser.pages();
-  const page  = pages.find(p => p.url().includes('openphone.com')) || pages[0];
+  const page  = pages.find(p => p.url().includes('quo.com')) || pages[0];
   if (!page) { log('ERROR: No OpenPhone page found'); browser.disconnect(); process.exit(1); }
 
   if (isInspect) {
