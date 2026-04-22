@@ -52,7 +52,16 @@ function WorkspaceSwitcher({ subaccounts, current, onChange, collapsed }: Worksp
           border: '1px solid var(--line)', transition: 'background 120ms',
         }}
       >
-        <Avatar tag={cur.tag} color={cur.color} size={collapsed ? 30 : 32} />
+        {cur.kind === 'agency' ? (
+          <img
+            src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
+            alt="Nexorra"
+            className="nx-logo-mark"
+            style={{ width: collapsed ? 30 : 32, height: collapsed ? 30 : 32, objectFit: 'contain', flexShrink: 0 }}
+          />
+        ) : (
+          <Avatar tag={cur.tag} color={cur.color} size={collapsed ? 30 : 32} />
+        )}
         {!collapsed && (
           <>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -96,7 +105,12 @@ function WorkspaceSwitcher({ subaccounts, current, onChange, collapsed }: Worksp
               borderRadius: 6, cursor: 'pointer',
               background: s.id === current ? 'var(--paper-3)' : 'transparent',
             }}>
-            <Avatar tag={s.tag} color={s.color} size={28} />
+            <img
+              src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
+              alt="Nexorra"
+              className="nx-logo-mark"
+              style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
+            />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
               <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
@@ -288,7 +302,9 @@ export function Sidebar({
       flexShrink: 0, height: '100vh', position: 'sticky', top: 0,
       borderRight: '1px solid var(--line)', background: 'var(--paper-2)',
       display: 'flex', flexDirection: 'column',
-      padding: 12, gap: 6,
+      paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
+      paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
+      paddingLeft: 12, paddingRight: 12, gap: 6,
       transition: 'width 220ms cubic-bezier(0.2,0.8,0.2,1)',
       overflow: 'hidden',
     }}>
@@ -301,6 +317,7 @@ export function Sidebar({
           <img
             src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
             alt="Nexorra"
+            className="nx-logo-mark"
             style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
           />
         ) : (
@@ -309,7 +326,8 @@ export function Sidebar({
             <img
               src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
               alt="O"
-              style={{ width: 19, height: 19, objectFit: 'contain', margin: '0 1px', verticalAlign: 'middle' }}
+              className="nx-logo-mark"
+              style={{ width: 19, height: 19, objectFit: 'contain', margin: '0 -1px', verticalAlign: 'middle' }}
             />
             <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.1em', color: 'var(--ink)', lineHeight: 1 }}>RRA</span>
           </div>

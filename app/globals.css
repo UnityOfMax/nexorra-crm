@@ -49,6 +49,9 @@ body {
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
 
+/* Nexorra logo mark — invert to white in dark mode */
+[data-theme="dark"] .nx-logo-mark { filter: brightness(0) invert(1); }
+
 /* ─── Base ───────────────────────────────────────────────────────────────── */
 @layer base {
   :root {

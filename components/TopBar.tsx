@@ -39,7 +39,8 @@ export function TopBar({ sub, isMobile, onMenu }: TopBarProps) {
             <img
               src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
               alt="O"
-              style={{ width: 22, height: 22, objectFit: 'contain', margin: '0 1px', verticalAlign: 'middle' }}
+              className="nx-logo-mark"
+              style={{ width: 22, height: 22, objectFit: 'contain', margin: '0 -1px', verticalAlign: 'middle' }}
             />
             <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.12em', color: 'var(--ink)', lineHeight: 1 }}>RRA</span>
           </div>
