@@ -32,8 +32,8 @@ function isSoloAgent(name) {
   if (words.length < 2 || words.length > 4) return false;
   return true;
 }
-const PAGE_DELAY = 4000;      // ms between listing pages
-const PROFILE_DELAY = 2500;   // ms between profile visits
+const PAGE_DELAY = 2000;      // ms between listing pages
+const PROFILE_DELAY = 800;    // ms between profile visits
 const WARMUP_DONE_FILE = '/tmp/realtor-warmup-done';
 const CITY_PAGE_STATE = '/home/max/crm/agents/state/realtor-city-pages.json';
 const LOG_FILE = '/home/max/crm/logs/realtor-leads.log';
@@ -422,9 +422,6 @@ async function main() {
           if (!phone) {
             log('    No phone');
             skipped++;
-            // Navigate back to listing page for next agent
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-            await sleep(jitter(1500));
             continue;
           }
 
@@ -450,10 +447,6 @@ async function main() {
             log(`    ✗ Error ${result.status}: ${result.err}`);
             errors++;
           }
-
-          // Navigate back to listing page for next agent
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-          await sleep(jitter(1500));
         }
 
         saveCityPage(cityPageState, slug, pageNum);

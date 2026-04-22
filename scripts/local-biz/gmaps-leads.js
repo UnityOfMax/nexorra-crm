@@ -339,14 +339,18 @@ async function scrapeSearch(page, city, businessType) {
   for (let idx = 0; idx < listingUrls.length; idx++) {
     let openedPanel = false;
     try {
-      // Click the listing card in the results panel (SPA update, ~1s vs 25s full-page nav)
-      const clicked = await page.evaluate((i) => {
+      // Navigate to the listing URL in the same tab (avoids target=_blank new-tab spam)
+      const listingUrl = await page.evaluate((i) => {
         const cards = Array.from(document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]'));
-        if (cards[i]) { cards[i].click(); return true; }
-        return false;
+        const card = cards[i];
+        if (!card) return null;
+        // Force same-tab navigation — don't click (would open new tab)
+        const url = card.href;
+        window.location.href = url;
+        return url;
       }, idx);
 
-      if (!clicked) continue;
+      if (!listingUrl) continue;
       openedPanel = true;
 
       // Wait for URL to change to a /maps/place/ path (immediate on click)
