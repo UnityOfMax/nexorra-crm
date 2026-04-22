@@ -71,12 +71,13 @@ export DISPLAY=:0
 echo "[$(date)] Using DISPLAY=$DISPLAY" | tee -a "$LOG"
 
 mkdir -p "/tmp/chrome-xdg-${PORT}"
-DBUS_SESSION_BUS_ADDRESS="" WAYLAND_DISPLAY="" XDG_RUNTIME_DIR="/tmp/chrome-xdg-${PORT}" "$CHROME" \
+WAYLAND_DISPLAY="" XDG_RUNTIME_DIR="/tmp/chrome-xdg-${PORT}" "$CHROME" \
   --remote-debugging-port=${PORT} \
   --remote-debugging-address=127.0.0.1 \
   --user-data-dir="$DEBUG_PROFILE" \
   --no-first-run \
   --no-default-browser-check \
+  --ozone-platform=x11 \
   --window-size=1280,900 \
   "https://my.quo.com" >> "$LOG" 2>&1 &
 disown
