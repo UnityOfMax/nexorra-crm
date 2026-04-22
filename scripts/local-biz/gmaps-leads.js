@@ -339,25 +339,13 @@ async function scrapeSearch(page, city, businessType) {
   for (let idx = 0; idx < listingUrls.length; idx++) {
     let openedPanel = false;
     try {
-      // Navigate to the listing URL in the same tab (avoids target=_blank new-tab spam)
-      const listingUrl = await page.evaluate((i) => {
-        const cards = Array.from(document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]'));
-        const card = cards[i];
-        if (!card) return null;
-        // Force same-tab navigation — don't click (would open new tab)
-        const url = card.href;
-        window.location.href = url;
-        return url;
-      }, idx);
-
+      // Navigate using page.goto() — we already have the URL from the upfront collection.
+      // Avoids page.evaluate() window.location.href trick which detaches the frame.
+      const listingUrl = listingUrls[idx];
       if (!listingUrl) continue;
-      openedPanel = true;
 
-      // Wait for URL to change to a /maps/place/ path (immediate on click)
-      await page.waitForFunction(
-        () => window.location.href.includes('/maps/place/'),
-        { timeout: 8000 }
-      );
+      await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      openedPanel = true;
       // Give the detail panel DOM a moment to populate
       await sleep(jitter(1200));
 
