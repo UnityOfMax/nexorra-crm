@@ -270,7 +270,6 @@ export function Sidebar({
       : [
           { id: 'workflows', label: 'Workflows', icon: <Icons.workflow size={17} /> },
           { id: 'pages', label: 'Landing Pages', icon: <Icons.pages size={17} /> },
-          { id: 'reports', label: 'Analytics', icon: <Icons.chart size={17} /> },
           { id: 'ai-agent', label: 'AI Agent', icon: <Icons.bot size={17} /> },
         ]
     : [];
