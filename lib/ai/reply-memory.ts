@@ -15,9 +15,9 @@ const OBSIDIAN_CLIENTS = path.join(process.env.HOME || '/home/max', 'Obsidian/Ne
 
 
 // Compact runtime copy rules (~400 chars vs ~3,300 chars from full files)
-const STOP_SLOP_COMPACT = `Never use: crucial, vital, essential, transformative, game-changing, seamless, leverage, facilitate, foster, empower. No filler openers (Certainly!, Absolutely!, Great question!). No em-dashes. No hedging qualifiers. No conclusion recaps. No bullet-point everything.`;
+const STOP_SLOP_COMPACT = `BANNED: the characters — and – (em-dash and en-dash) are FORBIDDEN in every message, no exceptions. Also banned: crucial, vital, essential, transformative, seamless, leverage, facilitate, foster, empower. No filler openers (Certainly!, Absolutely!, Great question!). No hedging. No conclusion recaps.`;
 
-const HUMANIZER_COMPACT = `Write like a real person sent this. Match their register — casual in, casual out. Short texts get short replies. Use contractions. Jump straight in, no filler openers. One idea per SMS. For email: first name greeting only, one-line sign-off, no padding.`;
+const HUMANIZER_COMPACT = `Write like a real person sent this. Match their register. Short texts get short replies. Use contractions. Jump straight in, no filler openers. One idea per SMS. For email: first name greeting only, one-line sign-off, no padding.`;
 
 function readFile(filePath: string): string {
   try {

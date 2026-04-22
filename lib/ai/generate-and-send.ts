@@ -226,7 +226,11 @@ export async function generateAIResponse(
     maxTokens,
   });
 
-  const responseText = kimiResult.reply;
+  // Hard strip: replace em-dashes and en-dashes before they reach anyone.
+  // Spaced em-dash ( — ) becomes a comma; bare em/en-dash becomes a comma.
+  const responseText = kimiResult.reply
+    .replace(/ [—–] /g, ', ')
+    .replace(/[—–]/g, ', ');
 
   // Generate subject for email if needed
   let subject: string | undefined;
