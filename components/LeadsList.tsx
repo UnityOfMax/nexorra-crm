@@ -30,6 +30,8 @@ interface Lead {
   created_at: string;
   lead_score?: number | null;
   funnel_stage?: string | null;
+  reviewer_name?: string | null;
+  has_website?: boolean | null;
 }
 
 type LeadCategory = 'calling' | 'website';
@@ -390,7 +392,10 @@ export default function LeadsList() {
           <div style={{ width: 20, flexShrink: 0 }}>
             <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer', accentColor: 'var(--blue)' }} />
           </div>
-          {['Lead', 'Contact', 'Location', 'TZ', 'Score', 'Stage', 'Age', 'Status', ''].map((h, i) => (
+          {(category === 'website'
+            ? ['Lead', 'Contact', 'Location', 'TZ', 'Reviewer', 'Website', 'Age', 'Status', '']
+            : ['Lead', 'Contact', 'Location', 'TZ', 'Score', 'Stage', 'Age', 'Status', '']
+          ).map((h, i) => (
             <div key={i} style={{
               fontSize: 11, fontWeight: 500, color: 'var(--ink-3)',
               textTransform: 'uppercase', letterSpacing: '0.07em', ...MONO,
@@ -461,14 +466,26 @@ export default function LeadsList() {
                 ) : <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>—</span>}
               </div>
 
-              {/* Score bar */}
+              {/* Score / Reviewer */}
               <div style={{ minWidth: 80, flex: 1 }}>
-                <ScoreBar score={lead.lead_score} />
+                {category === 'website'
+                  ? <div style={{ fontSize: 12.5, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lead.reviewer_name || <span style={{ color: 'var(--ink-3)' }}>—</span>}
+                    </div>
+                  : <ScoreBar score={lead.lead_score} />
+                }
               </div>
 
-              {/* Stage */}
+              {/* Stage / Website */}
               <div style={{ flex: 1 }}>
-                <StageBadge stage={lead.funnel_stage} />
+                {category === 'website'
+                  ? lead.has_website === null || lead.has_website === undefined
+                    ? <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>—</span>
+                    : lead.has_website
+                      ? <span style={{ fontSize: 11.5, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'var(--amber-soft)', color: 'var(--amber)', ...MONO }}>Social</span>
+                      : <span style={{ fontSize: 11.5, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'var(--green-soft)', color: 'var(--green)', ...MONO }}>None</span>
+                  : <StageBadge stage={lead.funnel_stage} />
+                }
               </div>
 
               {/* Age */}

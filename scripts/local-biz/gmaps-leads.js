@@ -218,6 +218,8 @@ async function insertLead(lead) {
       profile_url:      lead.maps_url,
       lead_category:    'website',
       source_brokerage: lead.business_type,
+      reviewer_name:    lead.reviewer_name || null,
+      has_website:      lead.has_website,
     });
     const u = new URL(`${SUPABASE_URL}/rest/v1/leads`);
     const req = https.request({
@@ -294,7 +296,19 @@ async function extractListingDetails(page) {
       } catch {}
     }
 
-    return { name, phone, website_url, facebook_url, review_count, maps_url };
+    // Reviewer name — first reviewer's name via aria-label on their photo button
+    let reviewer_name = null;
+    const photoBtn = document.querySelector('button[aria-label^="Photo of "]');
+    if (photoBtn) {
+      reviewer_name = photoBtn.getAttribute('aria-label').replace('Photo of ', '').trim() || null;
+    }
+    // Fallback: look for a local guide / reviewer link text near the reviews section
+    if (!reviewer_name) {
+      const reviewBtn = document.querySelector('[data-review-id] a[aria-label]');
+      if (reviewBtn) reviewer_name = reviewBtn.getAttribute('aria-label').trim() || null;
+    }
+
+    return { name, phone, website_url, facebook_url, review_count, maps_url, reviewer_name };
   });
 }
 
@@ -369,16 +383,18 @@ async function scrapeSearch(page, city, businessType) {
             log(`  Dupe: ${info.name} (${phone})`);
           } else {
             const lead = {
-              business_name: info.name,
+              business_name:  info.name,
               phone,
-              city:          city.name,
-              state:         city.state,
-              tz:            city.tz,
-              maps_url:      info.maps_url,
-              website_url:   info.website_url,
-              facebook_url:  info.facebook_url,
-              review_count:  info.review_count,
-              business_type: businessType,
+              city:           city.name,
+              state:          city.state,
+              tz:             city.tz,
+              maps_url:       info.maps_url,
+              website_url:    info.website_url,
+              facebook_url:   info.facebook_url,
+              review_count:   info.review_count,
+              business_type:  businessType,
+              reviewer_name:  info.reviewer_name || null,
+              has_website:    !!info.website_url,
             };
             const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
             const fbNote = info.facebook_url ? ' | has FB' : '';
