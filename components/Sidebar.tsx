@@ -297,16 +297,21 @@ export function Sidebar({
         display: 'flex', alignItems: 'center', gap: 10, padding: collapsed ? '6px 0' : '4px 6px 6px',
         justifyContent: collapsed ? 'center' : 'flex-start',
       }}>
-        <div style={{
-          width: 30, height: 30, borderRadius: 8, background: 'var(--grad)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
-          fontWeight: 700, fontSize: 14, letterSpacing: '-0.04em', flexShrink: 0,
-          boxShadow: '0 2px 10px -2px oklch(58% 0.18 258 / 0.4)',
-        }}>N</div>
-        {!collapsed && (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>Nexorra</div>
-            <div style={{ fontSize: 10.5, color: 'var(--ink-3)', fontFamily: 'Geist Mono, monospace', letterSpacing: '0.08em' }}>CRM · v2.4</div>
+        {collapsed ? (
+          <img
+            src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
+            alt="Nexorra"
+            style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+            <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.1em', color: 'var(--ink)', lineHeight: 1 }}>NEX</span>
+            <img
+              src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
+              alt="O"
+              style={{ width: 19, height: 19, objectFit: 'contain', margin: '0 1px', verticalAlign: 'middle' }}
+            />
+            <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.1em', color: 'var(--ink)', lineHeight: 1 }}>RRA</span>
           </div>
         )}
       </div>

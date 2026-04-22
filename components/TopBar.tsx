@@ -33,10 +33,15 @@ export function TopBar({ sub, isMobile, onMenu }: TopBarProps) {
         </button>
       )}
       {isMobile && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-          <Avatar tag={sub.tag} color={sub.color} size={26} />
-          <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {sub.name}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.12em', color: 'var(--ink)', lineHeight: 1 }}>NEX</span>
+            <img
+              src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-assets/nexorra-logo.png"
+              alt="O"
+              style={{ width: 22, height: 22, objectFit: 'contain', margin: '0 1px', verticalAlign: 'middle' }}
+            />
+            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.12em', color: 'var(--ink)', lineHeight: 1 }}>RRA</span>
           </div>
         </div>
       )}

@@ -328,6 +328,8 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
 
       {/* Workflow table card */}
       <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, padding: 0, overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+      <div style={{ minWidth: 680 }}>
         {/* Column headers */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--line)', background: 'var(--paper-3)' }}>
           <div style={{ width: 40, flexShrink: 0 }} />
@@ -551,6 +553,8 @@ export default function WorkflowList({ accountId, userId }: WorkflowListProps) {
             </button>
           </div>
         )}
+      </div>{/* end minWidth */}
+      </div>{/* end overflowX */}
       </div>
 
       {/* Contact Tracking Modal */}

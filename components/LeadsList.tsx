@@ -383,6 +383,8 @@ export default function LeadsList() {
 
       {/* Leads list card */}
       <div style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+      <div style={{ minWidth: 700 }}>
         {/* Table header row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--line)', background: 'var(--paper-3)' }}>
           <div style={{ width: 20, flexShrink: 0 }}>
@@ -515,6 +517,9 @@ export default function LeadsList() {
             </div>
           );
         })}
+
+      </div>{/* end minWidth */}
+      </div>{/* end overflowX */}
 
         {/* Pagination */}
         {total > PAGE_SIZE && (

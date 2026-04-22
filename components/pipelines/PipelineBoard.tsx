@@ -175,54 +175,10 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
         </div>
       </div>
 
-      {/* Mobile Stage Selector + Vertical List (< md) */}
-      <div className="md:hidden flex flex-col flex-1 min-h-0">
-        {/* Stage tabs */}
-        <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto pb-3 scrollbar-none">
-          {sortedStages.map(stage => (
-            <button
-              key={stage.id}
-              onClick={() => setMobileStageId(stage.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 transition-colors border ${
-                activeMobileStage?.id === stage.id
-                  ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-transparent'
-                  : 'bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10'
-              }`}
-            >
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
-              {stage.name}
-              <span className="tabular-nums ml-0.5 opacity-70">
-                {stageDeals[stage.id]?.length || 0}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Stage value summary */}
-        {activeMobileStage && (
-          <div className="flex-shrink-0 mb-3 text-sm text-gray-500 dark:text-gray-400">
-            ${(calculateStageValue(activeMobileStage.id) / 1000).toFixed(1)}k in {mobileDeals.length} deal{mobileDeals.length !== 1 ? 's' : ''}
-          </div>
-        )}
-
-        {/* Deal cards - vertical list */}
-        <div className="flex-1 overflow-y-auto space-y-2 pb-4">
-          {mobileDeals.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
-              No deals in this stage
-            </div>
-          ) : mobileDeals.map(deal => (
-            <div key={deal.id} className="min-w-0">
-              <DealCard deal={deal} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Desktop Kanban Board (>= md) */}
+      {/* Kanban Board — horizontal scroll on mobile, full view on desktop */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="hidden md:block flex-1 overflow-x-auto pb-2">
-          <div className="flex gap-3 min-h-full pb-4" style={{ minWidth: `${sortedStages.length * 220}px` }}>
+        <div className="flex-1 overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-3 min-h-full pb-4" style={{ minWidth: `${sortedStages.length * 240}px` }}>
             {sortedStages.map(stage => {
               const count = stageDeals[stage.id]?.length || 0;
               const stageVal = calculateStageValue(stage.id);
@@ -237,7 +193,7 @@ export default function PipelineBoard({ pipeline, accountId, refreshKey }: Pipel
                           ? 'bg-gray-50 dark:bg-white/4'
                           : 'bg-transparent'
                       }`}
-                      style={{ width: 210 }}
+                      style={{ width: 230 }}
                     >
                       {/* Stage header pill */}
                       <div className="flex items-center justify-between mb-2.5 px-0.5">
