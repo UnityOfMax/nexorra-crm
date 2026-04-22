@@ -25,6 +25,7 @@ const LandingPagesView = dynamic(() => import('./views/LandingPagesView'), { ssr
 const AIAgentView = dynamic(() => import('./views/AIAgentView'), { ssr: false });
 const InstagramView = dynamic(() => import('./views/InstagramView'), { ssr: false });
 const CommandCenterView = dynamic(() => import('./views/CommandCenterView'), { ssr: false });
+const OpenPhoneView = dynamic(() => import('./views/OpenPhoneView'), { ssr: false });
 
 // ─── Nexorra Agency account ID ─────────────────────────────────────────────
 const AGENCY_ACCOUNT_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
@@ -100,7 +101,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
   const currentSub = subaccounts.find(s => s.id === current);
   useEffect(() => {
     if (!currentSub) return;
-    const agencyOnlyRoutes = ['overview', 'leads', 'campaigns', 'instagram', 'command'];
+    const agencyOnlyRoutes = ['overview', 'leads', 'openphone', 'campaigns', 'instagram', 'command'];
     if (currentSub.kind === 'client' && agencyOnlyRoutes.includes(route)) {
       setRoute('dashboard');
     }
@@ -274,6 +275,7 @@ export default function Shell({ user, initialView, initialAccountId }: ShellProp
       case 'pages':        return <LandingPagesView {...viewProps} />;
       case 'ai-agent':     return <AIAgentView {...viewProps} />;
       case 'instagram':    return <InstagramView {...viewProps} />;
+      case 'openphone':    return <OpenPhoneView {...viewProps} />;
       case 'command':      return <CommandCenterView {...viewProps} />;
       default:             return <DashboardView {...viewProps} />;
     }

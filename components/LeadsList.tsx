@@ -230,9 +230,10 @@ export default function LeadsList() {
 
   const kpis = [
     { l: category === 'calling' ? 'Agent Leads' : 'Website Leads', v: categoryCounts[category].toLocaleString(), d: category === 'calling' ? 'realtor.com solo agents' : 'Google Maps no-website' },
-    { l: 'EST Available', v: (tzAvail.EST || 0).toString(), d: 'not yet exported' },
-    { l: 'CST + MST',     v: ((tzAvail.CST || 0) + (tzAvail.MST || 0)).toString(), d: 'not yet exported' },
-    { l: 'PST Available', v: (tzAvail.PST || 0).toString(), d: 'not yet exported' },
+    { l: 'EST', v: (tzAvail.EST || 0).toString(), d: 'not yet exported', c: TZ_COLORS.EST },
+    { l: 'CST', v: (tzAvail.CST || 0).toString(), d: 'not yet exported', c: TZ_COLORS.CST },
+    { l: 'MST', v: (tzAvail.MST || 0).toString(), d: 'not yet exported', c: TZ_COLORS.MST },
+    { l: 'PST', v: (tzAvail.PST || 0).toString(), d: 'not yet exported', c: TZ_COLORS.PST },
   ];
 
   return (
@@ -298,11 +299,11 @@ export default function LeadsList() {
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }} className="nx-2col-mobile">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 20 }} className="nx-2col-mobile">
         {kpis.map((k, i) => (
           <div key={i} style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '18px 20px' }}>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', ...MONO }}>{k.l}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 8, color: 'var(--ink)', lineHeight: 1, ...MONO }}>{k.v}</div>
+            <div style={{ fontSize: 11, color: k.c || 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', ...MONO, fontWeight: k.c ? 700 : 400 }}>{k.l}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 8, color: k.c || 'var(--ink)', lineHeight: 1, ...MONO }}>{k.v}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>{k.d}</div>
           </div>
         ))}

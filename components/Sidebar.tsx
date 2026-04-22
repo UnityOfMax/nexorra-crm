@@ -276,8 +276,7 @@ export function Sidebar({
 
   const agency: NavItemDef[] = isAgency ? [
     { id: 'leads', label: 'Leads', icon: <Icons.target size={17} /> },
-    { id: 'campaigns', label: 'Email Campaigns', icon: <Icons.megaphone size={17} /> },
-    { id: 'instagram', label: 'Instagram', icon: <Icons.instagram size={17} />, badge: { label: '3', tone: 'rose' } },
+    { id: 'openphone', label: 'OpenPhone Outreach', icon: <Icons.phone size={17} /> },
     { id: 'command', label: 'Command Center', icon: <Icons.terminal size={17} /> },
   ] : [];
 

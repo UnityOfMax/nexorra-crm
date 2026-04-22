@@ -394,6 +394,28 @@ function ModalShell({ title, onClose, children, width = 560 }: {
 
 // ── Facebook modal ────────────────────────────────────────────────────────────
 
+interface LeadForm {
+  id: string;
+  name: string;
+  status: string;
+  leads_count_meta: number;
+  leads_count_local: number;
+  questions: Array<{ key: string; label: string; type: string }>;
+}
+
+const CRM_FIELDS: Array<{ value: string; label: string }> = [
+  { value: '', label: '— Skip this field —' },
+  { value: 'first_name', label: 'First name' },
+  { value: 'last_name', label: 'Last name' },
+  { value: 'full_name', label: 'Full name' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'city', label: 'City' },
+  { value: 'state_province', label: 'State / Province' },
+  { value: 'zip_code', label: 'ZIP code' },
+  { value: 'company', label: 'Company' },
+];
+
 function FacebookModal({ accountId, status, onClose, onSaved }: {
   accountId: string;
   status: { connected: boolean; pageId?: string; adAccountId?: string };
@@ -407,8 +429,12 @@ function FacebookModal({ accountId, status, onClose, onSaved }: {
   const [selectedAdAccount, setSelectedAdAccount] = useState(status.adAccountId || '');
   const [selectedPage, setSelectedPage] = useState(status.pageId || '');
   const [section, setSection] = useState<'main' | 'lead-forms'>('main');
-  const [leadForms, setLeadForms] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [leadForms, setLeadForms] = useState<LeadForm[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
+  const [savingForms, setSavingForms] = useState(false);
+  const [activeFormId, setActiveFormId] = useState<string>('');
+  const [expandedFormId, setExpandedFormId] = useState<string>('');
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -426,12 +452,31 @@ function FacebookModal({ accountId, status, onClose, onSaved }: {
     if (!selectedPage) return;
     setFormsLoading(true);
     try {
-      const r = await fetch(`/api/integrations/facebook/lead-forms?accountId=${accountId}&pageId=${selectedPage}`);
+      const r = await fetch(`/api/integrations/facebook/lead-forms?accountId=${accountId}`);
       const d = await r.json();
       setLeadForms(d.forms || []);
+      setActiveFormId((d.selectedFormIds || [])[0] || '');
+      setFieldMappings(d.fieldMappings || {});
       setSection('lead-forms');
     } catch { setError('Could not load lead forms.'); }
     finally { setFormsLoading(false); }
+  };
+
+  const saveLeadForms = async () => {
+    setSavingForms(true);
+    try {
+      const r = await fetch('/api/integrations/facebook/lead-forms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          selectedFormIds: activeFormId ? [activeFormId] : [],
+          fieldMappings,
+        }),
+      });
+      if (!r.ok) throw new Error('Save failed');
+    } catch { setError('Save failed. Try again.'); }
+    finally { setSavingForms(false); }
   };
 
   const save = async () => {
@@ -457,28 +502,111 @@ function FacebookModal({ accountId, status, onClose, onSaved }: {
   };
 
   if (section === 'lead-forms') {
+    const activeForm = leadForms.find(f => f.id === activeFormId);
     return (
-      <ModalShell title="Lead Forms" onClose={onClose} width={560}>
+      <ModalShell title="Lead Forms" onClose={onClose} width={600}>
         <button onClick={() => setSection('main')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16, padding: 0 }}>
           <Icons.chevL size={13} /> Back to Facebook Ads
         </button>
+        {error && (
+          <div style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 8, color: '#ef4444', fontSize: 12.5, marginBottom: 12 }}>{error}</div>
+        )}
         {formsLoading ? (
           <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Loading forms...</div>
         ) : leadForms.length === 0 ? (
           <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>No lead forms found for this page.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {leadForms.map(f => (
-              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--paper-3)', borderRadius: 8 }}>
-                <Icons.docs size={15} style={{ color: 'var(--ink-3)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500 }}>{f.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>ID: {f.id}</div>
-                </div>
-                <Badge tone={f.status === 'ACTIVE' ? 'green' : 'neutral'} dot>{f.status?.toLowerCase() || 'unknown'}</Badge>
+          <>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 12 }}>
+              Select one active form. Leads from that form are automatically imported into the CRM.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {leadForms.map(f => {
+                const isActive = f.id === activeFormId;
+                const isExpanded = f.id === expandedFormId;
+                return (
+                  <div key={f.id} style={{
+                    border: `1px solid ${isActive ? 'var(--blue)' : 'var(--line)'}`,
+                    borderRadius: 10, overflow: 'hidden',
+                    background: isActive ? 'var(--blue-soft, rgba(59,130,246,0.05))' : 'var(--paper-3)',
+                  }}>
+                    {/* Form header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
+                      {/* Radio */}
+                      <button
+                        onClick={() => setActiveFormId(isActive ? '' : f.id)}
+                        style={{
+                          width: 18, height: 18, borderRadius: 999, flexShrink: 0,
+                          border: `2px solid ${isActive ? 'var(--blue)' : 'var(--line-2)'}`,
+                          background: isActive ? 'var(--blue)' : 'transparent',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {isActive && <div style={{ width: 6, height: 6, borderRadius: 999, background: '#fff' }} />}
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: isActive ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'Geist Mono, monospace' }}>
+                          ID: {f.id} · {f.leads_count_local} in CRM · {f.leads_count_meta} on Meta
+                        </div>
+                      </div>
+                      <Badge tone={f.status === 'ACTIVE' ? 'green' : 'neutral'} dot>{f.status?.toLowerCase() || 'unknown'}</Badge>
+                      {f.questions && f.questions.length > 0 && (
+                        <button
+                          onClick={() => setExpandedFormId(isExpanded ? '' : f.id)}
+                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--line)', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Map fields {isExpanded ? '▲' : '▼'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Field mapping section */}
+                    {isExpanded && f.questions && f.questions.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--line)', padding: '12px 14px', background: 'var(--paper-2)' }}>
+                        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 10 }}>
+                          Field mapping — form field → CRM field
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {f.questions.map(q => (
+                            <div key={q.key} style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 10 }}>
+                              <div style={{ padding: '7px 10px', background: 'var(--paper-3)', borderRadius: 7, fontSize: 12.5, border: '1px solid var(--line)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={q.key}>
+                                {q.label || q.key}
+                              </div>
+                              <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>→</span>
+                              <select
+                                value={fieldMappings[q.key] || ''}
+                                onChange={e => setFieldMappings(prev => ({ ...prev, [q.key]: e.target.value }))}
+                                style={{ padding: '7px 10px', fontSize: 12.5, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--paper-3)', color: 'var(--ink)', fontFamily: 'inherit', outline: 'none' }}
+                              >
+                                {CRM_FIELDS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Active form field mapping summary */}
+            {activeForm && activeForm.questions && activeForm.questions.length > 0 && expandedFormId !== activeFormId && (
+              <div style={{ padding: '10px 14px', background: 'var(--paper-2)', borderRadius: 8, marginBottom: 16, fontSize: 12.5, color: 'var(--ink-3)' }}>
+                Active form has {activeForm.questions.length} field{activeForm.questions.length !== 1 ? 's' : ''} —
+                {' '}{activeForm.questions.filter(q => fieldMappings[q.key]).length} mapped.
+                <button onClick={() => setExpandedFormId(activeFormId)} style={{ marginLeft: 8, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5 }}>Configure mapping ›</button>
               </div>
-            ))}
-          </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4, borderTop: '1px solid var(--line)' }}>
+              <Button variant="secondary" size="sm" onClick={() => setSection('main')}>Back</Button>
+              <Button variant="primary" size="sm" onClick={saveLeadForms} disabled={savingForms}>
+                {savingForms ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </>
         )}
       </ModalShell>
     );
