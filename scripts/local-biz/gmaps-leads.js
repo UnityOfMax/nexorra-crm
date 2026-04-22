@@ -329,46 +329,51 @@ async function scrapeSearch(page, city, businessType) {
     return [];
   }
 
-  // Scroll to load more results
-  for (let i = 0; i < 3; i++) {
+  // Scroll until Maps reaches the end of results or no new listings load
+  let lastCount = 0;
+  let staleScrolls = 0;
+  for (let i = 0; i < 20 && staleScrolls < 3; i++) {
     await page.evaluate(() => {
       const feed = document.querySelector('[role="feed"]');
       if (feed) feed.scrollTop = feed.scrollHeight;
     });
-    await sleep(800);
+    await sleep(1200);
+
+    const count = await page.evaluate(() =>
+      document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]').length
+    );
+    const atEnd = await page.evaluate(() =>
+      document.body.innerText.includes("You've reached the end of the list")
+    );
+
+    if (count === lastCount) staleScrolls++;
+    else staleScrolls = 0;
+    lastCount = count;
+    if (atEnd) break;
   }
 
-  // Collect listing URLs from the results panel
+  // Collect all listing URLs — no cap
   const listingUrls = await page.evaluate(() => {
     const seen = new Set();
     const urls = [];
     document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]').forEach(a => {
       if (!seen.has(a.href)) { seen.add(a.href); urls.push(a.href); }
     });
-    return urls.slice(0, 20);
+    return urls;
   });
 
   log(`  Found ${listingUrls.length} listings`);
   const leads = [];
 
+  // Navigate listing-to-listing directly — no goBack needed since we have all URLs upfront
   for (let idx = 0; idx < listingUrls.length; idx++) {
-    let openedPanel = false;
     try {
-      // Navigate using page.goto() — we already have the URL from the upfront collection.
-      // Avoids page.evaluate() window.location.href trick which detaches the frame.
-      const listingUrl = listingUrls[idx];
-      if (!listingUrl) continue;
-
-      await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      openedPanel = true;
-      // Wait for review cards to appear (gives us reviewer names).
-      // Falls through immediately after 3s if the business has no reviews.
+      await page.goto(listingUrls[idx], { waitUntil: 'domcontentloaded', timeout: 15000 });
       await page.waitForSelector('[data-review-id]', { timeout: 3000 }).catch(() => {});
-      await sleep(jitter(600));
+      await sleep(jitter(400));
 
       const info = await extractListingDetails(page);
 
-      // Apply filters — all use if blocks, not continue, so the finally block always runs
       let skip = false;
       if (!info.name || info.name === 'Results') {
         log(`  Skip: (no valid name)`); skip = true;
@@ -408,13 +413,6 @@ async function scrapeSearch(page, city, businessType) {
 
     } catch (err) {
       log(`  Error: ${err.message.slice(0, 80)}`);
-    } finally {
-      // Always return to the search results panel before the next iteration
-      if (openedPanel) {
-        await page.goBack({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
-        await page.waitForSelector('[role="feed"]', { timeout: 8000 }).catch(() => {});
-        await sleep(jitter(400));
-      }
     }
   }
 
