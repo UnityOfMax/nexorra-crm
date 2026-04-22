@@ -278,12 +278,22 @@ async function extractListingDetails(page) {
     const rm = bodyText.match(/(\d[\d,]*)\s+reviews?/i);
     if (rm) review_count = parseInt(rm[1].replace(/,/g, ''));
 
-    // Business name — h1
-    const nameEl = document.querySelector('h1');
-    const name = nameEl ? nameEl.innerText.trim() : null;
-
     // Current page URL (the canonical Maps listing URL)
     const maps_url = window.location.href;
+
+    // Business name — h1 that is NOT "Results" (the search panel heading)
+    // Fallback: decode from URL path /maps/place/Business+Name/...
+    let name = null;
+    document.querySelectorAll('h1').forEach(el => {
+      const t = el.innerText.trim();
+      if (t && t !== 'Results' && t.length > 1) name = t;
+    });
+    if (!name && maps_url.includes('/maps/place/')) {
+      try {
+        const seg = maps_url.split('/maps/place/')[1].split('/')[0];
+        name = decodeURIComponent(seg.replace(/\+/g, ' '));
+      } catch {}
+    }
 
     return { name, phone, website_url, facebook_url, review_count, maps_url };
   });
@@ -326,64 +336,77 @@ async function scrapeSearch(page, city, businessType) {
   log(`  Found ${listingUrls.length} listings`);
   const leads = [];
 
-  for (const listingUrl of listingUrls) {
+  for (let idx = 0; idx < listingUrls.length; idx++) {
+    let openedPanel = false;
     try {
-      await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
-      await sleep(jitter(1500));
+      // Click the listing card in the results panel (SPA update, ~1s vs 25s full-page nav)
+      const clicked = await page.evaluate((i) => {
+        const cards = Array.from(document.querySelectorAll('[role="feed"] a[href*="/maps/place/"]'));
+        if (cards[i]) { cards[i].click(); return true; }
+        return false;
+      }, idx);
+
+      if (!clicked) continue;
+      openedPanel = true;
+
+      // Wait for URL to change to a /maps/place/ path (immediate on click)
+      await page.waitForFunction(
+        () => window.location.href.includes('/maps/place/'),
+        { timeout: 8000 }
+      );
+      // Give the detail panel DOM a moment to populate
+      await sleep(jitter(1200));
 
       const info = await extractListingDetails(page);
 
-      // Filter: review count
-      if (info.review_count !== null && info.review_count >= MAX_REVIEWS) {
-        log(`  Skip: ${info.name} (${info.review_count} reviews)`);
-        continue;
+      // Apply filters — all use if blocks, not continue, so the finally block always runs
+      let skip = false;
+      if (!info.name || info.name === 'Results') {
+        log(`  Skip: (no valid name)`); skip = true;
+      } else if (info.review_count !== null && info.review_count >= MAX_REVIEWS) {
+        log(`  Skip: ${info.name} (${info.review_count} reviews)`); skip = true;
+      } else if (info.website_url && !isBadWebsite(info.website_url)) {
+        log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`); skip = true;
+      } else if (!info.phone) {
+        log(`  Skip: ${info.name} (no phone)`); skip = true;
       }
 
-      // Filter: must have no website OR a bad/social-only website
-      const websiteIsBad = isBadWebsite(info.website_url);
-      if (info.website_url && !websiteIsBad) {
-        log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`);
-        continue;
+      if (!skip) {
+        const phone = formatPhone(info.phone);
+        if (phone) {
+          if (await phoneExists(phone)) {
+            log(`  Dupe: ${info.name} (${phone})`);
+          } else {
+            const lead = {
+              business_name: info.name,
+              phone,
+              city:          city.name,
+              state:         city.state,
+              tz:            city.tz,
+              maps_url:      info.maps_url,
+              website_url:   info.website_url,
+              facebook_url:  info.facebook_url,
+              review_count:  info.review_count,
+              business_type: businessType,
+            };
+            const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
+            const fbNote = info.facebook_url ? ' | has FB' : '';
+            log(`  + "${info.name}" (${info.review_count ?? '?'} reviews${websiteNote}${fbNote}) — ${phone}`);
+            leads.push(lead);
+          }
+        }
       }
-
-      // Must have a phone
-      if (!info.phone) {
-        log(`  Skip: ${info.name} (no phone)`);
-        continue;
-      }
-
-      const phone = formatPhone(info.phone);
-      if (!phone) continue;
-
-      if (await phoneExists(phone)) {
-        log(`  Dupe: ${info.name} (${phone})`);
-        continue;
-      }
-
-      const lead = {
-        business_name: info.name,
-        phone,
-        city:          city.name,
-        state:         city.state,
-        tz:            city.tz,
-        maps_url:      info.maps_url,
-        website_url:   info.website_url,
-        facebook_url:  info.facebook_url,
-        review_count:  info.review_count,
-        business_type: businessType,
-      };
-
-      const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
-      const fbNote = info.facebook_url ? ' | has FB' : '';
-      log(`  + "${info.name}" (${info.review_count ?? '?'} reviews${websiteNote}${fbNote}) — ${phone}`);
-
-      leads.push(lead);
 
     } catch (err) {
-      log(`  Error: ${err.message.slice(0, 60)}`);
+      log(`  Error: ${err.message.slice(0, 80)}`);
+    } finally {
+      // Always return to the search results panel before the next iteration
+      if (openedPanel) {
+        await page.goBack({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
+        await page.waitForSelector('[role="feed"]', { timeout: 8000 }).catch(() => {});
+        await sleep(jitter(400));
+      }
     }
-
-    await sleep(jitter(600));
   }
 
   return leads;
