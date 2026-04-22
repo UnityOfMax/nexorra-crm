@@ -4,17 +4,20 @@ import { useEffect } from 'react';
 
 /**
  * Resolves the stored theme from localStorage.
- * Checks user-scoped key first (`nexorra_theme_{userId}`), then generic `theme`.
+ * Checks nx.theme (Settings UI key) first, then legacy user-scoped and generic keys.
  */
 function getStoredTheme(): string | null {
-  // Check all user-scoped keys — pick the first match
+  // Primary key written by SettingsView
+  const primary = localStorage.getItem('nx.theme');
+  if (primary) return primary;
+  // Legacy user-scoped keys
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key && key.startsWith('nexorra_theme_')) {
       return localStorage.getItem(key);
     }
   }
-  // Fall back to generic key (legacy)
+  // Legacy generic key
   return localStorage.getItem('theme');
 }
 
