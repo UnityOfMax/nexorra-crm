@@ -51,6 +51,16 @@ export async function POST(req: NextRequest) {
         await Promise.allSettled([
           ...contacts.map(c => stopAutomation(c.account_id, c.id)),
           ...contacts.map(c => stopContactWorkflows(c.account_id, c.id)),
+          // Cancel pending SMS follow-up — they replied, so the timer resets
+          ...contacts.map(c =>
+            supabaseAdmin
+              .from('ai_follow_up_queue')
+              .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+              .eq('account_id', c.account_id)
+              .eq('contact_id', c.id)
+              .eq('channel', 'sms')
+              .eq('status', 'pending')
+          ),
         ]);
 
         for (const c of contacts) {

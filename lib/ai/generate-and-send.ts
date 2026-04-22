@@ -152,14 +152,6 @@ export async function generateAIResponse(
     content: msg.content,
   }));
 
-  // Build system prompt
-  const toneInstructions: Record<string, string> = {
-    professional: 'Maintain a professional and courteous tone.',
-    casual: 'Use a casual, friendly tone as if talking to a friend.',
-    friendly: 'Be warm, approachable, and helpful.',
-    formal: 'Use formal language with proper business etiquette.',
-  };
-
   // Use email-specific agent config when channel is email (falls back to SMS config)
   const isEmail = channel === 'email';
   const agentName = (isEmail && config.email_agent_name) ? config.email_agent_name : (config.agent_name || '');
@@ -167,53 +159,63 @@ export async function generateAIResponse(
   const systemPrompt = (isEmail && config.email_system_prompt) ? config.email_system_prompt : (config.system_prompt || '');
   const maxTokens = (isEmail && config.email_max_tokens) ? config.email_max_tokens : (config.max_tokens || 500);
 
-  const systemParts = [
-    // Copy rules go FIRST — Claude applies instructions in order, top-weighted
-    memoryCtx.stopSlopSkill ? `## COPY RULES — APPLY TO EVERY WORD YOU WRITE\n${memoryCtx.stopSlopSkill}` : '',
-    memoryCtx.humanizerSkill ? `## WRITING VOICE — NON-NEGOTIABLE\n${memoryCtx.humanizerSkill}` : '',
-    systemPrompt || 'You are a helpful business assistant responding to customer messages.',
-    toneInstructions[config.tone] || toneInstructions.professional,
-    agentName ? `Your name is ${agentName}.` : '',
-    agentRepresents ? `You work on behalf of ${agentRepresents}.` : '',
-    config.business_context ? `Business context: ${config.business_context}` : '',
-    accountRow?.name ? `Account/business name: ${accountRow.name}` : '',
-    // Compact contact snapshot
-    `Contact: ${[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'} | Phone: ${contact.phone || 'N/A'} | Email: ${contact.email || 'N/A'} | Status: ${contact.status}${contact.company ? ` | Company: ${contact.company}` : ''}`,
-    // Lead intelligence — score, stage, source, tags
-    `Lead intelligence: score=${contact.lead_score ?? 0}/100 | stage=${contact.funnel_stage || 'lead'} | source=${contact.source || 'unknown'}${Array.isArray(contact.tags) && contact.tags.length > 0 ? ` | tags: ${contact.tags.join(', ')}` : ''}`,
-    // Score-based tone guide (warmth only — NOT outreach frequency)
-    (() => {
-      const score = contact.lead_score ?? 0;
-      if (score <= 30) return 'Tone: warm and curious, no pressure, ask one open question to understand intent.';
-      if (score <= 60) return 'Tone: engaged, qualify timeline and situation, move naturally toward next step.';
-      if (score <= 80) return 'Tone: hot lead — be direct and specific, suggest a concrete next step.';
-      return 'Tone: ready-to-act lead — prioritise clarity and speed, remove all friction.';
-    })(),
-    lastInboundIntent && lastInboundIntent !== 'neutral'
-      ? `Last message intent: ${lastInboundIntent} — factor this into your reply tone and next step.`
-      : '',
-    (fbc || fbp)
-      ? `Meta attribution: this contact arrived via a Meta ad (${fbc ? 'click tracked' : 'pixel match'}). Treat as warm, not cold outreach — they already engaged with an ad before reaching out.`
-      : '',
-    // Form answers (from landing page lead capture) compressed into one line
-    contact.custom_fields && Object.keys(contact.custom_fields as Record<string, string>).length > 0
-      ? `Lead form answers: ${Object.entries(contact.custom_fields as Record<string, string>).map(([k, v]) => `${k}=${v}`).join(' | ')}`
-      : '',
-    summary ? `Conversation notes (compressed): ${summary}` : '',
-    // Inject account knowledge base (website info, FAQs, conversation learnings)
-    config.knowledge_base ? `## Account Knowledge Base\n${config.knowledge_base}` : '',
-    upcomingSlots ? `This contact's booked call: ${upcomingSlots}` : '',
-    availableSlots
-      ? `Your available times to offer: ${availableSlots}. Suggest 2 specific options when scheduling.`
-      : 'Calendar not connected — do not suggest specific meeting times, use open-ended availability.',
-    channel === 'sms' ? 'Keep it under 160 characters when possible. One idea per message. No filler greetings.' : '',
-    channel === 'email' ? 'Include a greeting (first name + comma) and a natural one-line sign-off. No walls of text.' : '',
-    isFollowUp
-      ? `This is follow-up #${(followUpCount ?? 0) + 1} of 3 — they haven't replied. Brief, specific reference to something from your previous exchange, gentle nudge. Not pushy.`
-      : '',
-    `## Memory\n${memoryBlock}`,
-    'Respond with the message text only. No labels, no meta-commentary, no quotation marks.',
+  // Strip em-dashes from injected account content so they don't model bad behavior
+  const clean = (s: string) => s.replace(/ [—–] /g, ', ').replace(/[—–]/g, ', ');
+
+  // ── LAYER 1: Base behavior — always applies, sets the floor ──────────────
+  // These rules take precedence over everything in the account config below.
+  const baseRules = [
+    memoryCtx.stopSlopSkill ? `## COPY RULES — apply to every single word you write\n${memoryCtx.stopSlopSkill}` : '',
+    memoryCtx.humanizerSkill ? `## WRITING VOICE — non-negotiable\n${memoryCtx.humanizerSkill}` : '',
   ].filter(Boolean).join('\n\n');
+
+  // ── LAYER 2: Identity — who you are for this account ─────────────────────
+  // Injected per-account. Does NOT override the base rules above.
+  const identityParts = [
+    agentName ? `Your name is ${agentName}.` : '',
+    agentRepresents ? `You represent ${agentRepresents}.` : '',
+    config.business_context ? `Business: ${clean(config.business_context)}` : '',
+    accountRow?.name ? `Account: ${accountRow.name}` : '',
+    clean(systemPrompt) || 'You are a helpful business assistant responding to customer messages.',
+  ].filter(Boolean).join('\n');
+
+  // ── LAYER 3: Lead context — who you're talking to ────────────────────────
+  const score = contact.lead_score ?? 0;
+  const toneGuide =
+    score <= 30 ? 'Warm and curious, no pressure, ask one open question.' :
+    score <= 60 ? 'Engaged, qualify timeline and situation, move toward next step.' :
+    score <= 80 ? 'Direct and specific, suggest a concrete next step.' :
+                  'Clarity and speed, remove all friction.';
+
+  const contactParts = [
+    `Contact: ${[contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unknown'} | score=${score}/100 | stage=${contact.funnel_stage || 'lead'} | source=${contact.source || 'unknown'}${contact.company ? ` | company=${contact.company}` : ''}`,
+    `Tone for this lead: ${toneGuide}`,
+    lastInboundIntent && lastInboundIntent !== 'neutral' ? `Last intent: ${lastInboundIntent}` : '',
+    (fbc || fbp) ? `Meta ad lead (${fbc ? 'click tracked' : 'pixel match'}) — treat as warm, not cold.` : '',
+    contact.custom_fields && Object.keys(contact.custom_fields as Record<string, string>).length > 0
+      ? `Form answers: ${Object.entries(contact.custom_fields as Record<string, string>).filter(([k]) => !k.startsWith('meta_')).map(([k, v]) => `${k}=${v}`).join(' | ')}`
+      : '',
+    summary ? `Conversation summary: ${summary}` : '',
+  ].filter(Boolean).join('\n');
+
+  // ── LAYER 4: Knowledge + context ─────────────────────────────────────────
+  const knowledgeParts = [
+    config.knowledge_base ? `## Knowledge base\n${clean(config.knowledge_base)}` : '',
+    upcomingSlots ? `Contact's booked call: ${upcomingSlots}` : '',
+    availableSlots ? `Your available slots: ${availableSlots}. Offer 2 specific options when booking.` : 'Calendar not connected — do not name specific times.',
+    memoryBlock !== '(No prior memory for this contact)' ? `## Agent memory\n${memoryBlock}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  // ── LAYER 5: Output constraints ───────────────────────────────────────────
+  const outputRules = [
+    channel === 'sms' ? 'SMS: under 160 chars when possible. One idea. No filler greetings.' : '',
+    channel === 'email' ? 'Email: first-name greeting, one-line sign-off, no walls of text.' : '',
+    isFollowUp ? `Follow-up #${(followUpCount ?? 0) + 1} of 3 — they have not replied. Brief nudge, specific reference, not pushy.` : '',
+    'Reply with the message text only. No labels, no meta-commentary, no quotation marks.',
+  ].filter(Boolean).join('\n');
+
+  const systemParts = [baseRules, identityParts, contactParts, knowledgeParts, outputRules]
+    .filter(Boolean).join('\n\n---\n\n');
 
   // Generate via Claude Haiku 4.5 (daemon bridge)
   const kimiResult = await callKimi({
