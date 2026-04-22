@@ -1,0 +1,26 @@
+{
+  "1": {
+    "initial":  "Hey {first_name} — saw your profile on realtor.com. We help agents in {city} book more buyer consults through AI follow-up. Worth a quick chat?",
+    "followup1": "Hey {first_name}, just following up on my last message. Still happy to show you how it works — takes 10 mins.",
+    "followup2": "Last one from me {first_name}. If the timing's ever right, you know where I am.",
+    "autoReply": null
+  },
+  "2": {
+    "initial":  "Hi {first_name}! I help real estate agents in {city} convert more leads without extra ad spend. Would love to show you — got 10 mins this week?",
+    "followup1": "Hey {first_name}, circling back on this. Happy to do a quick screen share — no pressure.",
+    "followup2": "Hey {first_name}, last nudge from me. Feel free to reach out whenever it makes sense.",
+    "autoReply": null
+  },
+  "3": {
+    "initial":  "Hi {first_name} — I work with agents in {city} to book more consultations using AI. Curious if it's something you'd be open to hearing about?",
+    "followup1": "Hey {first_name}, didn't hear back — still open to a 10-min call?",
+    "followup2": "Last message {first_name} — no worries if not the right time.",
+    "autoReply": null
+  },
+  "4": {
+    "initial":  "Hey {first_name}! Helping agents in {city} automate their follow-up so no lead goes cold. Want to see how it works?",
+    "followup1": "Hey {first_name}, just checking in — still happy to walk you through it.",
+    "followup2": "Hey {first_name}, last one from me. Door's always open.",
+    "autoReply": null
+  }
+}

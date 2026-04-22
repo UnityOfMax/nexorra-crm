@@ -1,0 +1,23 @@
+{
+  "numbers": [
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 1 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 1 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 1 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 2 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 2 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 2 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 3 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 3 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 4 },
+    { "displayNumber": "+1XXXXXXXXXX", "scriptId": 4 }
+  ],
+  "ramp": {
+    "startDate": null,
+    "startLimit": 10,
+    "endLimit": 40,
+    "days": 5
+  },
+  "followUpDays": 3,
+  "followUp2Days": 6,
+  "leadCategory": "calling"
+}
