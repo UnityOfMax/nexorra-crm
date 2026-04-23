@@ -46,8 +46,8 @@ export async function sendSMSAction(
       to: normalizedTo,
     });
 
-    // Log to messages table
-    void supabaseAdmin.from('messages').insert({
+    // Log to messages table — must await so Vercel doesn't kill the promise before insert
+    await supabaseAdmin.from('messages').insert({
       account_id: context.accountId,
       contact_id: context.contactId || null,
       direction: 'outbound',
