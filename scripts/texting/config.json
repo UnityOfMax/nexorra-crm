@@ -1,15 +1,15 @@
 {
   "numbers": [
-    { "displayNumber": "+19294703489", "inboxId": "PNWNDnEVrq", "scriptId": 1 },
-    { "displayNumber": "+17864421372", "inboxId": "PNCo6ggAJA", "scriptId": 1 },
-    { "displayNumber": "+14702795391", "inboxId": "PNTxQHg3A4", "scriptId": 1 },
-    { "displayNumber": "+13465006552", "inboxId": "PN0ckB2aF5", "scriptId": 2 },
-    { "displayNumber": "+14695359670", "inboxId": "PNwStvYCJI", "scriptId": 2 },
-    { "displayNumber": "+14642514331", "inboxId": "PNd8ezV5yd", "scriptId": 2 },
-    { "displayNumber": "+14805428293", "inboxId": "PNN7Gx6N9C", "scriptId": 3 },
-    { "displayNumber": "+17208071281", "inboxId": "PNCa7iJMP1", "scriptId": 3 },
-    { "displayNumber": "+12133205591", "inboxId": "PNvlWf19zc", "scriptId": 4 },
-    { "displayNumber": "+12065944042", "inboxId": "PNdcPHhY0M", "scriptId": 4 }
+    { "displayNumber": "+19294703489", "inboxId": "PNWNDnEVrq", "timezone": "EST" },
+    { "displayNumber": "+17864421372", "inboxId": "PNCo6ggAJA", "timezone": "EST" },
+    { "displayNumber": "+14702795391", "inboxId": "PNTxQHg3A4", "timezone": "EST" },
+    { "displayNumber": "+13465006552", "inboxId": "PN0ckB2aF5", "timezone": "CST" },
+    { "displayNumber": "+14695359670", "inboxId": "PNwStvYCJI", "timezone": "CST" },
+    { "displayNumber": "+14642514331", "inboxId": "PNd8ezV5yd", "timezone": "CST" },
+    { "displayNumber": "+14805428293", "inboxId": "PNN7Gx6N9C", "timezone": "MST" },
+    { "displayNumber": "+17208071281", "inboxId": "PNCa7iJMP1", "timezone": "MST" },
+    { "displayNumber": "+12133205591", "inboxId": "PNvlWf19zc", "timezone": "PST" },
+    { "displayNumber": "+12065944042", "inboxId": "PNdcPHhY0M", "timezone": "PST" }
   ],
   "blockedInboxIds": ["PNAtCJVoUv", "PNDvQkHlFA"],
   "ramp": {

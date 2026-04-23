@@ -92,13 +92,25 @@ function supabase(method, resource, body) {
   });
 }
 
-async function getLeadsForInitial(scriptId, category, limit) {
+async function getLeadsForInitialByTimezone(timezone, limit) {
   const r = await supabase('GET',
     `leads?select=id,full_name,first_name,phone,city,state_province,timezone` +
     `&text_status=is.null&phone=not.is.null&text_opted_out=not.is.true` +
-    `&lead_category=eq.${category}&order=created_at.asc&limit=${limit}`
+    `&lead_category=eq.calling&timezone=eq.${timezone}` +
+    `&order=created_at.asc&limit=${limit}`
   );
   return r.data || [];
+}
+
+// Position-based script assignment: 25% each, rounded up for scripts 1&2.
+// At limit=10 → 3,3,2,2. At limit=40 → 10,10,10,10.
+function getScriptForCount(sentToday, dailyLimit) {
+  const q = Math.ceil(dailyLimit * 0.25);
+  const q3 = Math.floor(dailyLimit * 0.25);
+  if (sentToday < q)           return 1;
+  if (sentToday < q * 2)       return 2;
+  if (sentToday < q * 2 + q3) return 3;
+  return 4;
 }
 
 async function getLeadsForFollowUp(fromStatus, daysAgo) {
@@ -536,10 +548,10 @@ async function checkReplies(page, config, scripts) {
   const blocked = new Set(config.blockedInboxIds || []);
 
   for (const numCfg of config.numbers) {
-    const { displayNumber, scriptId, inboxId } = numCfg;
+    const { displayNumber, inboxId } = numCfg;
     if (!inboxId) { log(`  ${displayNumber}: no inboxId configured — skip`); continue; }
     if (blocked.has(inboxId)) { log(`  ${displayNumber}: blocked inbox — skip`); continue; }
-    const script = scripts[String(scriptId)];
+    const script = null; // scripts are per-lead via lead.text_script_id in follow-ups
 
     log(`\n  Inbox ${displayNumber} (${inboxId})...`);
     try {
@@ -672,7 +684,7 @@ async function sendOutbound(page, config, scripts) {
       const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
       if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
     }
   }
 
@@ -685,26 +697,32 @@ async function sendOutbound(page, config, scripts) {
       const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
       if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
     }
   }
 
-  // ── Initial sends — per number ─────────────────────────────────────────────
+  // ── Initial sends — timezone-based, script distributed 25% each ──────────
+  // Each number pulls from its timezone lead pool. Script assigned by position:
+  // first 25% of daily sends → script 1, next 25% → script 2, etc.
+  // At 10/number: 3,3,2,2. At 40/number: 10,10,10,10.
   for (const numCfg of config.numbers) {
-    const { displayNumber, scriptId, inboxId } = numCfg;
+    const { displayNumber, inboxId, timezone } = numCfg;
+    if (!timezone) continue;
     if ((config.blockedInboxIds || []).includes(inboxId)) continue;
+
     const sent = getDailySent(displayNumber);
     const remaining = dailyLimit - sent;
-    if (remaining <= 0) { log(`\n  ${displayNumber}: limit reached (${sent}/${dailyLimit})`); continue; }
+    if (remaining <= 0) { log(`\n  ${displayNumber} (${timezone}): limit reached`); continue; }
 
-    const script = scripts[String(scriptId)];
-    if (!script?.initial) { log(`  No initial script for id ${scriptId}`); continue; }
-
-    const leads = await getLeadsForInitial(scriptId, config.leadCategory || 'calling', remaining);
-    log(`\n  ${displayNumber} (script ${scriptId}): ${leads.length} initial sends, ${remaining} slots`);
+    const leads = await getLeadsForInitialByTimezone(timezone, remaining);
+    log(`\n  ${displayNumber} (${timezone}): ${leads.length} leads, ${remaining} slots`);
 
     for (const lead of leads) {
       if (getDailySent(displayNumber) >= dailyLimit) break;
+      const currentSent = getDailySent(displayNumber);
+      const scriptId = getScriptForCount(currentSent, dailyLimit);
+      const script = scripts[String(scriptId)];
+      if (!script?.initial) { log(`  No script ${scriptId}`); continue; }
       await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId, inboxId, script.audioFile || null);
     }
   }
