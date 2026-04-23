@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
-const puppeteer = require('puppeteer');
-const https     = require('https');
-const fs        = require('fs');
-const path      = require('path');
+const puppeteer  = require('puppeteer');
+const https      = require('https');
+const fs         = require('fs');
+const path       = require('path');
+const { execSync } = require('child_process');
 
 const PORT             = 9240;
 const CONFIG_PATH      = path.join(__dirname, 'config.json');
@@ -18,7 +19,6 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'remove me', 'dont text', "don't text", 'opt out', 'no thanks', 'not interested'];
 const BOOKING_INTENT_KEYWORDS = ['yes', 'sure', 'sounds good', 'interested', 'when', 'what time', 'schedule', 'book', 'call', 'zoom', 'tell me more', 'how does', 'definitely', "i'd like", 'id like', 'love to', 'works for me', 'available', 'open to', 'let\'s', 'lets'];
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CALENDLY_URL = 'https://calendly.com/nexorra/discovery';
 
 // ── Logging ───────────────────────────────────────────────────────────────────
@@ -166,29 +166,14 @@ Reply in 1-2 sentences max. Casual, direct, human. If they show interest push fo
 Never start with: Absolutely, Great, Fantastic, Certainly, Of course, I understand.
 Reply only — no quotes, no labels.`;
 
-  return new Promise((resolve) => {
-    const body = JSON.stringify({
-      model: 'claude-haiku-4-5-20251001', max_tokens: 120,
-      messages: [{ role: 'user', content: prompt }],
+  try {
+    const result = execSync(`claude -p ${JSON.stringify(prompt)}`, {
+      timeout: 30000, encoding: 'utf8',
     });
-    const req = https.request({
-      hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01',
-        'content-type': 'application/json', 'content-length': Buffer.byteLength(body),
-      },
-    }, res => {
-      let d = '';
-      res.on('data', c => d += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(d).content?.[0]?.text?.trim() || null); }
-        catch { resolve(null); }
-      });
-    });
-    req.on('error', () => resolve(null));
-    req.write(body);
-    req.end();
-  });
+    return result.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 async function findLeadByPhone(phone) {

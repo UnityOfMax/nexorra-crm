@@ -44,7 +44,7 @@ loadEnv();
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const { execSync } = require('child_process');
 
 const SCRIPTS_PATH = path.join(__dirname, 'message-scripts.json');
 
@@ -123,34 +123,11 @@ async function sbPatch(resource, body) {
 
 // ── Claude Haiku ──────────────────────────────────────────────────────────────
 
-async function callClaude(prompt) {
-  const res = await httpRequest(
-    {
-      method:   'POST',
-      hostname: 'api.anthropic.com',
-      path:     '/v1/messages',
-      headers: {
-        'x-api-key':         ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type':      'application/json',
-      },
-    },
-    {
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
-    }
-  );
-
-  if (res.status >= 400) {
-    throw new Error(`Claude API → ${res.status}: ${JSON.stringify(res.data)}`);
-  }
-
-  const content = res.data && res.data.content;
-  if (!content || !content[0] || !content[0].text) {
-    throw new Error('Unexpected Claude response shape');
-  }
-  return content[0].text.trim();
+function callClaude(prompt) {
+  const result = execSync(`claude -p ${JSON.stringify(prompt)}`, {
+    timeout: 60000, encoding: 'utf8',
+  });
+  return result.trim();
 }
 
 // ── Script helpers ────────────────────────────────────────────────────────────
@@ -165,7 +142,7 @@ function saveScripts(scripts) {
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 
-async function generateVariant(scriptId, currentMsg, stats, daily) {
+function generateVariant(scriptId, currentMsg, stats, daily) {
   const replyRate     = stats.reply_rate  || 0;
   const totalSent     = stats.total_sent  || 0;
   const bookingIntent = stats.booking_intent || 0;
@@ -201,7 +178,7 @@ RULES (non-negotiable):
 
 Reply with ONLY the new message text. No explanation, no quotes, no preamble.`;
 
-  const raw = await callClaude(prompt);
+  const raw = callClaude(prompt);
 
   // Strip any surrounding quotes the model might add
   const cleaned = raw.replace(/^["']|["']$/g, '').trim();
@@ -221,10 +198,6 @@ async function run() {
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     log('ERROR: Missing SUPABASE env vars — abort');
-    process.exit(1);
-  }
-  if (!ANTHROPIC_KEY) {
-    log('ERROR: Missing ANTHROPIC_API_KEY — abort');
     process.exit(1);
   }
 
@@ -261,7 +234,7 @@ async function run() {
     }
 
     try {
-      const newBody = await generateVariant(script_id, currentMsg, stat, daily);
+      const newBody = generateVariant(script_id, currentMsg, stat, daily);
       log(`  Generated (${newBody.length} chars): "${newBody}"`);
 
       await sbPost('text_script_variants', {
