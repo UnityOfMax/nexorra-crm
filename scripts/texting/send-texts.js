@@ -467,8 +467,49 @@ async function sendText(page, toPhone, body) {
   await sleep(jitter(1000, 400));
 }
 
-// Send MMS: attach audio file then type and send the text body.
-async function sendMMS(page, toPhone, body, audioPath) {
+// Set contact name in the Quo details panel for the open conversation.
+async function setContactName(page, firstName, lastName) {
+  // Open details panel
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('button[aria-label]'))
+      .find(b => b.getAttribute('aria-label') === 'Show details');
+    if (btn) btn.click();
+  });
+  await sleep(800);
+
+  // Click "Add a name..." to reveal first/last inputs
+  const hasNameInput = await page.$('input[placeholder="Add a first name..."]');
+  if (!hasNameInput) {
+    await page.evaluate(() => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.trim() === 'Add a name...') {
+          node.parentElement.click();
+          return;
+        }
+      }
+    });
+    await sleep(600);
+  }
+
+  const fnInput = await page.$('input[placeholder="Add a first name..."]').catch(() => null);
+  const lnInput = await page.$('input[placeholder="Add a last name..."]').catch(() => null);
+  if (fnInput) { await fnInput.click(); await fnInput.type(firstName, { delay: 50 }); await sleep(200); }
+  if (lnInput) { await lnInput.click(); await lnInput.type(lastName, { delay: 50 }); await sleep(200); }
+  if (fnInput || lnInput) { await page.keyboard.press('Tab'); await sleep(500); }
+
+  // Close details panel
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('button[aria-label]'))
+      .find(b => b.getAttribute('aria-label') === 'Show details');
+    if (btn) btn.click();
+  });
+  await sleep(400);
+}
+
+// Send MMS: compose new conversation, set contact name, upload audio, send text.
+async function sendMMS(page, toPhone, body, audioPath, firstName, lastName) {
   // Click compose
   const composeClicked = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label="Send a message"]');
@@ -478,7 +519,7 @@ async function sendMMS(page, toPhone, body, audioPath) {
   if (!composeClicked) throw new Error('Compose button not found');
   await sleep(jitter(800, 400));
 
-  // Enter recipient
+  // Enter recipient phone
   const recipientInput = await page.waitForSelector(
     'input[aria-label="participant input"], input[role="combobox"]', { timeout: 6000 }
   ).catch(() => null);
@@ -489,32 +530,28 @@ async function sendMMS(page, toPhone, body, audioPath) {
   if (suggestion) await suggestion.click(); else await page.keyboard.press('Enter');
   await sleep(jitter(800, 300));
 
-  // Attach audio file via hidden file input
-  const fileInput = await page.$('input[type="file"]').catch(() => null);
-  if (fileInput) {
-    await fileInput.uploadFile(audioPath);
-    await sleep(jitter(1500, 500));
-  } else {
-    // Try clicking the attachment button first to reveal the input
-    await page.evaluate(() => {
-      const btn = document.querySelector('button[aria-label*="ttach"], button[aria-label*="ile"], label[aria-label*="ttach"]');
-      if (btn) btn.click();
-    });
-    await sleep(600);
-    const fi = await page.$('input[type="file"]').catch(() => null);
-    if (fi) { await fi.uploadFile(audioPath); await sleep(jitter(1500, 500)); }
+  // Wait for conversation to open (message input appears)
+  await page.waitForSelector('[aria-label="message input"]', { timeout: 8000 }).catch(() => {});
+
+  // Set contact name if provided
+  if (firstName) {
+    await setContactName(page, firstName, lastName || '');
+    await page.waitForSelector('[aria-label="message input"]', { timeout: 5000 }).catch(() => {});
   }
 
-  // Type text body
-  const msgInput = await page.waitForSelector(
-    '[role="textbox"][aria-label="message input"], [aria-label="message input"]', { timeout: 6000 }
-  ).catch(() => null);
-  if (!msgInput) throw new Error('Message input not found');
+  // Upload audio via the file input (already in DOM in Quo's compose area)
+  const fileInputs = await page.$$('input[type="file"]');
+  for (const fi of fileInputs) {
+    try { await fi.uploadFile(audioPath); break; } catch { /* try next */ }
+  }
+  await sleep(jitter(2000, 500));
+
+  // Type text and send
+  const msgInput = await page.$('[aria-label="message input"]').catch(() => null);
+  if (!msgInput) throw new Error('Message input not found after audio upload');
   await msgInput.click();
   await page.keyboard.type(body, { delay: jitter(20, 10) });
   await sleep(jitter(400, 200));
-
-  // Send
   const sent = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label="Send message"]');
     if (btn && !btn.disabled) { btn.click(); return true; }
@@ -735,7 +772,10 @@ async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId,
   try {
     await switchToInbox(page, fromNumber, inboxId || null);
     if (audioFile && fs.existsSync(audioFile)) {
-      await sendMMS(page, lead.phone, body, audioFile);
+      const fn = getFirstName(lead);
+      const rawFull = (lead.full_name || '').trim().split(/\s+/);
+      const ln = rawFull.length > 1 ? properName(rawFull.slice(1).join(' ')) : '';
+      await sendMMS(page, lead.phone, body, audioFile, fn, ln);
     } else {
       await sendText(page, lead.phone, body);
     }
