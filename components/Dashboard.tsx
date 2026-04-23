@@ -73,6 +73,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     closings: 0,
     revenue: 0,
     adSpend: 0,
+    textsTotal: 0,
+    textReplies: 0,
+    textBookingIntent: 0,
+    textBooked: 0,
   });
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -130,7 +134,7 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
     } else if (currentAccount && isMockId(currentAccount.id)) {
       setContacts([]);
       setHotLeads([]);
-      setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0, adSpend: 0 });
+      setStats({ totalContacts: 0, totalLeads: 0, totalCustomers: 0, activeDeals: 0, emailsSent: 0, textsSent: 0, bookings: 0, closings: 0, revenue: 0, adSpend: 0, textsTotal: 0, textReplies: 0, textBookingIntent: 0, textBooked: 0 });
     }
   }, [currentAccount]);
 
@@ -329,6 +333,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       { data: wonDeals },
       { data: metaRows },
       { data: todayActivitiesData },
+      { count: textsTotalCount },
+      { count: textRepliesCount },
+      { count: textBookingIntentCount },
+      { count: textBookedCount },
     ] = await Promise.all([
       fetch(`/api/contacts?accountId=${currentAccount.id}`).then(r => r.ok ? r.json() : {}),
       supabase.from('deals').select('status').eq('account_id', currentAccount.id).eq('status', 'open'),
@@ -338,6 +346,11 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       supabase.from('deals').select('value').eq('account_id', currentAccount.id).eq('status', 'won'),
       supabase.from('meta_ad_metrics').select('spend').eq('account_id', currentAccount.id).gte('date', thirtyDaysAgo.toISOString().slice(0, 10)),
       supabase.from('activities').select('id, title, type, scheduled_at, description').eq('account_id', currentAccount.id).gte('scheduled_at', todayStart.toISOString()).lte('scheduled_at', todayEnd.toISOString()).order('scheduled_at', { ascending: true }).limit(10),
+      // Texting stats from leads table (agency-only, global table)
+      supabase.from('leads').select('*', { count: 'exact', head: true }).not('text_status', 'is', null).gte('last_texted_at', thirtyDaysAgo.toISOString()),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('text_reply_received', true).gte('last_texted_at', thirtyDaysAgo.toISOString()),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('text_booking_intent', true),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('text_booked', true),
     ]);
 
     const contactsData: { id: string; status: string }[] = contactsJson.contacts || [];
@@ -357,6 +370,10 @@ export default function Dashboard({ user, initialView, initialAccountId, initial
       closings: closingsCount,
       revenue: totalRevenue,
       adSpend,
+      textsTotal: textsTotalCount || 0,
+      textReplies: textRepliesCount || 0,
+      textBookingIntent: textBookingIntentCount || 0,
+      textBooked: textBookedCount || 0,
     });
   };
 
