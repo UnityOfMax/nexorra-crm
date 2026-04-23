@@ -232,6 +232,10 @@ async function getInboxUnreadCounts(page) {
 // Primary: navigate by inboxId URL (fast, reliable).
 // Fallback: scan sidebar buttons by phone digits.
 async function switchToInbox(page, displayNumber, inboxId) {
+  const config = loadConfig();
+  const blocked = new Set(config.blockedInboxIds || []);
+  if (inboxId && blocked.has(inboxId)) throw new Error(`Blocked inbox ${inboxId} — will not navigate there`);
+
   const digits = displayNumber.replace(/\D/g, '').slice(-10);
 
   // Already on this inbox root (not inside a specific conversation)?
@@ -431,9 +435,12 @@ async function sendReply(page, body) {
 async function checkReplies(page, config, scripts) {
   log('\n=== Checking for replies ===');
 
+  const blocked = new Set(config.blockedInboxIds || []);
+
   for (const numCfg of config.numbers) {
     const { displayNumber, scriptId, inboxId } = numCfg;
     if (!inboxId) { log(`  ${displayNumber}: no inboxId configured — skip`); continue; }
+    if (blocked.has(inboxId)) { log(`  ${displayNumber}: blocked inbox — skip`); continue; }
     const script = scripts[String(scriptId)];
 
     log(`\n  Inbox ${displayNumber} (${inboxId})...`);

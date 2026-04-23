@@ -11,6 +11,7 @@
     { "displayNumber": "+12133205591", "inboxId": "PNvlWf19zc", "scriptId": 4 },
     { "displayNumber": "+12065944042", "inboxId": "PNdcPHhY0M", "scriptId": 4 }
   ],
+  "blockedInboxIds": ["PNAtCJVoUv", "PNDvQkHlFA"],
   "ramp": {
     "startDate": null,
     "startLimit": 10,
