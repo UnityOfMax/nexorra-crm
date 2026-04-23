@@ -302,7 +302,9 @@ async function switchToInbox(page, displayNumber, inboxId) {
   // Navigate directly if we have the inbox ID
   if (inboxId) {
     await page.goto(`https://my.quo.com/inbox/${inboxId}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-    await sleep(jitter(800, 300));
+    // Wait for compose button to confirm React has rendered the inbox
+    await page.waitForSelector('button[aria-label="Send a message"]', { timeout: 10000 }).catch(() => {});
+    await sleep(300);
     return;
   }
 
