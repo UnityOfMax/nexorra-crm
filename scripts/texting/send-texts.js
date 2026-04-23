@@ -19,7 +19,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'remove me', 'dont text', "don't text", 'opt out', 'no thanks', 'not interested'];
 const BOOKING_INTENT_KEYWORDS = ['yes', 'sure', 'sounds good', 'interested', 'when', 'what time', 'schedule', 'book', 'call', 'zoom', 'tell me more', 'how does', 'definitely', "i'd like", 'id like', 'love to', 'works for me', 'available', 'open to', 'let\'s', 'lets'];
 
-const CALENDLY_URL = 'https://calendly.com/nexorra/discovery';
+const CALENDLY_URL = 'https://calendly.com/nexorra/demo-call';
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
@@ -101,13 +101,22 @@ async function getLeadsForInitial(scriptId, category, limit) {
   return r.data || [];
 }
 
-async function getLeadsForFollowUp(followUpNum, daysAgo) {
+async function getLeadsForFollowUp(fromStatus, daysAgo) {
   const cutoff = new Date(Date.now() - daysAgo * 86400000).toISOString();
-  const status = followUpNum === 1 ? 'initial_sent' : 'followup_1_sent';
   const r = await supabase('GET',
     `leads?select=id,full_name,first_name,phone,city,state_province,timezone,text_sender_number,text_script_id` +
-    `&text_status=eq.${status}&text_reply_received=not.is.true&text_opted_out=not.is.true` +
-    `&last_texted_at=lt.${cutoff}&limit=200`
+    `&text_status=eq.${fromStatus}&text_reply_received=not.is.true&text_opted_out=not.is.true` +
+    `&last_texted_at=lt.${encodeURIComponent(cutoff)}&limit=200`
+  );
+  return r.data || [];
+}
+
+async function getLeadsForPostBooking(fromStatus, daysAgo) {
+  const cutoff = new Date(Date.now() - daysAgo * 86400000).toISOString();
+  const r = await supabase('GET',
+    `leads?select=id,full_name,first_name,phone,city,state_province,timezone,text_sender_number,text_script_id` +
+    `&text_status=eq.${fromStatus}&text_booked=not.is.true&text_opted_out=not.is.true` +
+    `&last_texted_at=lt.${encodeURIComponent(cutoff)}&limit=200`
   );
   return r.data || [];
 }
@@ -135,6 +144,21 @@ async function markBookingIntent(leadId) {
   });
 }
 
+async function markBookingLinkSent(leadId) {
+  await supabase('PATCH', `leads?id=eq.${leadId}`, {
+    text_booking_link_sent: true,
+    text_booking_link_sent_at: new Date().toISOString(),
+    text_status: 'booking_link_sent',
+    last_texted_at: new Date().toISOString(),
+  });
+}
+
+async function markBooked(leadId) {
+  await supabase('PATCH', `leads?id=eq.${leadId}`, {
+    text_booked: true, text_booked_at: new Date().toISOString(), text_status: 'booked',
+  });
+}
+
 async function getConversationHistory(leadId) {
   const r = await supabase('GET',
     `text_message_log?lead_id=eq.${leadId}&order=sent_at.asc&limit=10&select=direction,body`
@@ -142,38 +166,42 @@ async function getConversationHistory(leadId) {
   return r.data || [];
 }
 
+function claudeExec(prompt) {
+  try {
+    return execSync(`claude -p ${JSON.stringify(prompt)}`, { timeout: 30000, encoding: 'utf8' }).trim() || null;
+  } catch { return null; }
+}
+
 async function generateAIReply(lead, inboundMessage, scriptId, history) {
-  if (!ANTHROPIC_API_KEY) return null;
-  const scripts = loadScripts();
-  const script = scripts[String(scriptId)];
-  const firstName = lead.first_name || (lead.full_name || '').split(' ')[0] || 'there';
-  const initialMsg = (script?.initial || '')
-    .replace(/{first_name}/g, firstName)
-    .replace(/{city}/g, lead.city || 'your area');
-
+  const firstName = getFirstName(lead);
   const historyText = history.map(m => `${m.direction === 'outbound' ? 'Us' : 'Them'}: ${m.body}`).join('\n');
-
-  const prompt = `You rep Nexorra texting real estate agents about AI-powered appointment setting.
+  const prompt = `You text real estate agents for Nexorra about AI-powered lead follow-up.
 
 Agent: ${firstName} | Market: ${lead.city || 'their area'}, ${lead.state_province || ''}
-Goal: book a 10-min discovery call
+Goal: get them to book a demo call
 
-Our opening: "${initialMsg}"
-${historyText ? `\nConversation:\n${historyText}` : ''}
-Them: ${inboundMessage}
+${historyText ? `Conversation so far:\n${historyText}\n` : ''}Them: ${inboundMessage}
 
-Reply in 1-2 sentences max. Casual, direct, human. If they show interest push for a specific time or send: ${CALENDLY_URL}
-Never start with: Absolutely, Great, Fantastic, Certainly, Of course, I understand.
-Reply only — no quotes, no labels.`;
+Reply in 1-2 sentences. Direct, real, no filler. No dashes. No AI slop.
+Never say: Absolutely, Great, Fantastic, Certainly, Of course, I totally understand, I appreciate.
+Reply only — no labels, no quotes.`;
+  return claudeExec(prompt);
+}
 
-  try {
-    const result = execSync(`claude -p ${JSON.stringify(prompt)}`, {
-      timeout: 30000, encoding: 'utf8',
-    });
-    return result.trim() || null;
-  } catch {
-    return null;
-  }
+async function generateBookingLinkMessage(lead, inboundMessage, scriptId, history) {
+  const firstName = getFirstName(lead);
+  const historyText = history.map(m => `${m.direction === 'outbound' ? 'Us' : 'Them'}: ${m.body}`).join('\n');
+  const prompt = `You text real estate agents for Nexorra. This person just expressed interest in booking a call.
+
+Agent: ${firstName}
+${historyText ? `Conversation:\n${historyText}\n` : ''}Them: ${inboundMessage}
+
+Write a short 1-sentence reply acknowledging their interest and include this booking link naturally: ${CALENDLY_URL}
+No filler words. No dashes. Sound human, not salesy.
+Reply only — no labels, no quotes.`;
+  const ai = claudeExec(prompt);
+  // Fallback if AI fails — always include the link
+  return ai || `Here's the link to grab a time: ${CALENDLY_URL}`;
 }
 
 async function findLeadByPhone(phone) {
@@ -192,10 +220,23 @@ async function logMessage(leadId, direction, from, to, body, type, scriptId) {
   });
 }
 
-// ── Template ──────────────────────────────────────────────────────────────────
+// ── Name + template ───────────────────────────────────────────────────────────
+function properName(raw) {
+  if (!raw) return 'there';
+  // Each word: first letter upper, rest lower — handles "JEN" → "Jen", "JOHN DOE" → "John Doe"
+  return raw.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+function getFirstName(lead) {
+  const raw = lead.first_name || (lead.full_name || '').split(/\s+/)[0] || '';
+  return properName(raw) || 'there';
+}
+
 function personalise(template, lead) {
+  const first = getFirstName(lead);
   return template
-    .replace(/{first_name}/g, lead.first_name || (lead.full_name || '').split(' ')[0] || 'there')
+    .replace(/{First_name}/g, first)
+    .replace(/{first_name}/g, first)
     .replace(/{city}/g, lead.city || 'your area')
     .replace(/{state}/g, lead.state_province || '');
 }
@@ -412,6 +453,63 @@ async function sendText(page, toPhone, body) {
   await sleep(jitter(1000, 400));
 }
 
+// Send MMS: attach audio file then type and send the text body.
+async function sendMMS(page, toPhone, body, audioPath) {
+  // Click compose
+  const composeClicked = await page.evaluate(() => {
+    const btn = document.querySelector('button[aria-label="Send a message"]');
+    if (btn) { btn.click(); return true; }
+    return false;
+  });
+  if (!composeClicked) throw new Error('Compose button not found');
+  await sleep(jitter(800, 400));
+
+  // Enter recipient
+  const recipientInput = await page.waitForSelector(
+    'input[aria-label="participant input"], input[role="combobox"]', { timeout: 6000 }
+  ).catch(() => null);
+  if (!recipientInput) throw new Error('Recipient input not found');
+  await recipientInput.type(toPhone, { delay: jitter(50, 30) });
+  await sleep(jitter(900, 300));
+  const suggestion = await page.waitForSelector('[role="option"]', { timeout: 3000 }).catch(() => null);
+  if (suggestion) await suggestion.click(); else await page.keyboard.press('Enter');
+  await sleep(jitter(800, 300));
+
+  // Attach audio file via hidden file input
+  const fileInput = await page.$('input[type="file"]').catch(() => null);
+  if (fileInput) {
+    await fileInput.uploadFile(audioPath);
+    await sleep(jitter(1500, 500));
+  } else {
+    // Try clicking the attachment button first to reveal the input
+    await page.evaluate(() => {
+      const btn = document.querySelector('button[aria-label*="ttach"], button[aria-label*="ile"], label[aria-label*="ttach"]');
+      if (btn) btn.click();
+    });
+    await sleep(600);
+    const fi = await page.$('input[type="file"]').catch(() => null);
+    if (fi) { await fi.uploadFile(audioPath); await sleep(jitter(1500, 500)); }
+  }
+
+  // Type text body
+  const msgInput = await page.waitForSelector(
+    '[role="textbox"][aria-label="message input"], [aria-label="message input"]', { timeout: 6000 }
+  ).catch(() => null);
+  if (!msgInput) throw new Error('Message input not found');
+  await msgInput.click();
+  await page.keyboard.type(body, { delay: jitter(20, 10) });
+  await sleep(jitter(400, 200));
+
+  // Send
+  const sent = await page.evaluate(() => {
+    const btn = document.querySelector('button[aria-label="Send message"]');
+    if (btn && !btn.disabled) { btn.click(); return true; }
+    return false;
+  });
+  if (!sent) await page.keyboard.press('Enter');
+  await sleep(jitter(1000, 400));
+}
+
 // Reply in the currently open conversation.
 async function sendReply(page, body) {
   const msgInput = await page.waitForSelector(
@@ -505,31 +603,32 @@ async function checkReplies(page, config, scripts) {
           }
 
           const hasBookingIntent = BOOKING_INTENT_KEYWORDS.some(kw => bodyLower.includes(kw));
+          const usedScriptId = lead.text_script_id || scriptId;
 
           if (!lead.text_reply_received) {
             await markLeadReplied(lead.id);
-            await logMessage(lead.id, 'inbound', contactPhone, displayNumber, lastInbound.body, 'reply', lead.text_script_id || scriptId);
+            await logMessage(lead.id, 'inbound', contactPhone, displayNumber, lastInbound.body, 'reply', usedScriptId);
             log(`  ✓ Marked replied: ${contactPhone}${hasBookingIntent ? ' [BOOKING INTENT]' : ''}`);
+          }
 
-            if (hasBookingIntent) {
-              await markBookingIntent(lead.id);
-            }
-
-            // Generate AI reply
+          if (hasBookingIntent && !lead.text_booking_link_sent) {
+            // Send booking link — generate a natural message around it via AI
+            await markBookingIntent(lead.id);
             const history = await getConversationHistory(lead.id);
-            const aiReply = await generateAIReply(lead, lastInbound.body, lead.text_script_id || scriptId, history);
+            const bookingMsg = await generateBookingLinkMessage(lead, lastInbound.body, usedScriptId, history);
+            await sendReply(page, bookingMsg);
+            await markBookingLinkSent(lead.id);
+            await logMessage(lead.id, 'outbound', displayNumber, contactPhone, bookingMsg, 'booking_link', usedScriptId);
+            log(`  Booking link sent to ${contactPhone}`);
+          } else if (!hasBookingIntent) {
+            // AI reply to continue the conversation
+            const history = await getConversationHistory(lead.id);
+            const aiReply = await generateAIReply(lead, lastInbound.body, usedScriptId, history);
             if (aiReply) {
               await sendReply(page, aiReply);
-              await logMessage(lead.id, 'outbound', displayNumber, contactPhone, aiReply, 'ai_reply', lead.text_script_id || scriptId);
+              await logMessage(lead.id, 'outbound', displayNumber, contactPhone, aiReply, 'ai_reply', usedScriptId);
               log(`  AI reply sent to ${contactPhone}: "${aiReply.slice(0, 60)}"`);
-            } else if (script?.autoReply) {
-              const replyBody = personalise(script.autoReply, lead);
-              await sendReply(page, replyBody);
-              await logMessage(lead.id, 'outbound', displayNumber, contactPhone, replyBody, 'auto_reply', scriptId);
-              log(`  Static reply sent to ${contactPhone}`);
             }
-          } else {
-            log(`  Already marked replied: ${contactPhone}`);
           }
         } catch (err) {
           log(`  Error processing ${conv.href}: ${err.message}`);
@@ -541,7 +640,7 @@ async function checkReplies(page, config, scripts) {
   }
 }
 
-// ── Send outbound (initial + follow-ups) ──────────────────────────────────────
+// ── Send outbound (initial + 3 follow-ups + 3 post-booking follow-ups) ────────
 async function sendOutbound(page, config, scripts) {
   log('\n=== Sending outbound ===');
   const dailyLimit = getDailyLimit(config);
@@ -549,61 +648,81 @@ async function sendOutbound(page, config, scripts) {
     Math.min(config.ramp.days, Math.floor((Date.now() - new Date(config.ramp.startDate)) / 86400000) + 1);
   log(`Ramp day ${rampDay}/${config.ramp.days} — limit: ${dailyLimit}/number`);
 
-  // ── Follow-up 2 ────────────────────────────────────────────────────────────
-  if (config.followUp2Days) {
-    const leads = await getLeadsForFollowUp(2, config.followUp2Days);
-    log(`\n  Follow-up 2: ${leads.length} leads eligible`);
+  const fu = scripts.followups || {};
+  const pb = scripts.postBooking || {};
+
+  const followupSteps = [
+    { fromStatus: 'initial_sent',    toStatus: 'followup_1_sent',   text: fu['1']?.text, days: fu['1']?.daysAfter || 1 },
+    { fromStatus: 'followup_1_sent', toStatus: 'followup_2_sent',   text: fu['2']?.text, days: fu['2']?.daysAfter || 2 },
+    { fromStatus: 'followup_2_sent', toStatus: 'followup_3_sent',   text: fu['3']?.text, days: fu['3']?.daysAfter || 2 },
+  ];
+
+  const postBookingSteps = [
+    { fromStatus: 'booking_link_sent',     toStatus: 'post_booking_1_sent', text: pb['1']?.text, days: pb['1']?.daysAfter || 2 },
+    { fromStatus: 'post_booking_1_sent',   toStatus: 'post_booking_2_sent', text: pb['2']?.text, days: pb['2']?.daysAfter || 2 },
+    { fromStatus: 'post_booking_2_sent',   toStatus: 'post_booking_3_sent', text: pb['3']?.text, days: pb['3']?.daysAfter || 2 },
+  ];
+
+  // ── Post-booking follow-ups (run first — highest urgency) ──────────────────
+  for (const step of postBookingSteps) {
+    if (!step.text) continue;
+    const leads = await getLeadsForPostBooking(step.fromStatus, step.days);
+    log(`\n  Post-booking ${step.fromStatus}: ${leads.length} eligible`);
     for (const lead of leads) {
       const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
-      if (!numCfg) continue;
+      if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-      const script = scripts[String(lead.text_script_id || numCfg.scriptId)];
-      if (!script?.followup2) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, script.followup2, 'followup_2_sent', lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
     }
   }
 
-  // ── Follow-up 1 ────────────────────────────────────────────────────────────
-  const fu1Leads = await getLeadsForFollowUp(1, config.followUpDays);
-  log(`\n  Follow-up 1: ${fu1Leads.length} leads eligible`);
-  for (const lead of fu1Leads) {
-    const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
-    if (!numCfg) continue;
-    if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-    const script = scripts[String(lead.text_script_id || numCfg.scriptId)];
-    if (!script?.followup1) continue;
-    await sendToLead(page, lead, numCfg.displayNumber, script.followup1, 'followup_1_sent', lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
+  // ── Follow-ups 3 → 1 (reverse order so limits apply correctly) ───────────
+  for (const step of [...followupSteps].reverse()) {
+    if (!step.text) continue;
+    const leads = await getLeadsForFollowUp(step.fromStatus, step.days);
+    log(`\n  ${step.fromStatus} → ${step.toStatus}: ${leads.length} eligible`);
+    for (const lead of leads) {
+      const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
+      if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
+      if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
+    }
   }
 
   // ── Initial sends — per number ─────────────────────────────────────────────
   for (const numCfg of config.numbers) {
-    const { displayNumber, scriptId } = numCfg;
+    const { displayNumber, scriptId, inboxId } = numCfg;
+    if ((config.blockedInboxIds || []).includes(inboxId)) continue;
     const sent = getDailySent(displayNumber);
     const remaining = dailyLimit - sent;
     if (remaining <= 0) { log(`\n  ${displayNumber}: limit reached (${sent}/${dailyLimit})`); continue; }
 
     const script = scripts[String(scriptId)];
-    if (!script) { log(`  No script for id ${scriptId}`); continue; }
+    if (!script?.initial) { log(`  No initial script for id ${scriptId}`); continue; }
 
     const leads = await getLeadsForInitial(scriptId, config.leadCategory || 'calling', remaining);
     log(`\n  ${displayNumber} (script ${scriptId}): ${leads.length} initial sends, ${remaining} slots`);
 
     for (const lead of leads) {
       if (getDailySent(displayNumber) >= dailyLimit) break;
-      await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId, numCfg.inboxId);
+      await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId, inboxId, script.audioFile || null);
     }
   }
 }
 
-async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId, inboxId) {
+async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId, inboxId, audioFile = null) {
   const body = personalise(template, lead);
   try {
     await switchToInbox(page, fromNumber, inboxId || null);
-    await sendText(page, lead.phone, body);
+    if (audioFile && fs.existsSync(audioFile)) {
+      await sendMMS(page, lead.phone, body, audioFile);
+    } else {
+      await sendText(page, lead.phone, body);
+    }
     await updateLeadTexted(lead.id, newStatus, fromNumber, parseInt(scriptId));
     await logMessage(lead.id, 'outbound', fromNumber, lead.phone, body, newStatus.replace('_sent', ''), parseInt(scriptId));
     incrementDailySent(fromNumber);
-    log(`  ✓ ${lead.phone} (${lead.first_name || lead.full_name}) — ${newStatus} from ${fromNumber}`);
+    log(`  ✓ ${lead.phone} (${getFirstName(lead)}) — ${newStatus} from ${fromNumber}`);
     await sleep(jitter(2500, 1000));
   } catch (err) {
     log(`  ✗ ${lead.phone}: ${err.message}`);
@@ -717,6 +836,7 @@ async function main() {
 
   if (!isSend)  await checkReplies(page, config, scripts);
   if (!isCheck) await sendOutbound(page, config, scripts);
+  // Note: scripts object is the full JSON including followups/postBooking/bookingLink keys
 
   browser.disconnect();
   log('\n=== Done ===');

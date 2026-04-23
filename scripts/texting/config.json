@@ -18,7 +18,5 @@
     "endLimit": 40,
     "days": 5
   },
-  "followUpDays": 3,
-  "followUp2Days": 6,
   "leadCategory": "calling"
 }
