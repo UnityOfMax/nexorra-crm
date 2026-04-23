@@ -1,19 +1,19 @@
 {
   "1": {
-    "audioFile": null,
-    "initial": "[Set the text that goes alongside the voice note — script 1]"
+    "audioFile": "/home/max/crm/scripts/texting/Script 1.m4a",
+    "initial": "For a 10-15 minute call {First_name}"
   },
   "2": {
-    "audioFile": null,
-    "initial": "[Set the text that goes alongside the voice note — script 2]"
+    "audioFile": "/home/max/crm/scripts/texting/Script 2.m4a",
+    "initial": "For a 10-15 minute call {First_name}"
   },
   "3": {
-    "audioFile": null,
-    "initial": "[Set the text that goes alongside the voice note — script 3]"
+    "audioFile": "/home/max/crm/scripts/texting/Script 3.m4a",
+    "initial": "Let me know if you have any concerns aswell {First_name}"
   },
   "4": {
-    "audioFile": null,
-    "initial": "[Set the text that goes alongside the voice note — script 4]"
+    "audioFile": "/home/max/crm/scripts/texting/Script 4.m4a",
+    "initial": "Let me know if you have any concerns aswell {First_name}"
   },
   "followups": {
     "1": { "text": "Just bumping this up", "daysAfter": 1 },
