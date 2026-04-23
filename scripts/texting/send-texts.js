@@ -291,40 +291,26 @@ async function switchToInbox(page, displayNumber, inboxId) {
 
   const digits = displayNumber.replace(/\D/g, '').slice(-10);
 
-  // Already on this inbox root (not inside a specific conversation)?
+  // Click the inbox in the sidebar — all inboxes are always visible as DIVs
+  // containing the phone number. No page navigation needed.
   const currentUrl = page.url();
-  const onInboxRoot = inboxId && currentUrl.includes(`/inbox/${inboxId}`) && !currentUrl.includes('/c/');
-  if (onInboxRoot) {
-    await sleep(300);
-    return;
-  }
+  const alreadyThere = inboxId && currentUrl.includes(`/inbox/${inboxId}`) && !currentUrl.includes('/c/');
+  if (alreadyThere) { await sleep(200); return; }
 
-  // Navigate directly if we have the inbox ID
-  if (inboxId) {
-    await page.goto(`https://my.quo.com/inbox/${inboxId}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-    // Wait for compose button to confirm React has rendered the inbox
-    await page.waitForSelector('button[aria-label="Send a message"]', { timeout: 10000 }).catch(() => {});
-    await sleep(300);
-    return;
-  }
-
-  // Fallback: try sidebar buttons by aria-label digits
+  // Each inbox is a button[role="link"] in the sidebar containing the phone number
   const clicked = await page.evaluate((digits) => {
-    for (const btn of document.querySelectorAll('button[aria-label], [role="button"][aria-label], a[aria-label]')) {
-      const labelDigits = (btn.getAttribute('aria-label') || '').replace(/\D/g, '');
-      if (labelDigits.includes(digits)) { btn.click(); return true; }
-    }
-    // Try any clickable element whose text contains the number digits
-    for (const el of document.querySelectorAll('nav *, aside *, [class*="sidebar"] *')) {
-      if ((el.textContent || '').replace(/\D/g, '').includes(digits) && !el.children.length) {
-        (el.closest('a, button, [role="button"]') || el).click(); return true;
+    for (const btn of document.querySelectorAll('button[role="link"]')) {
+      if ((btn.textContent || '').replace(/\D/g, '').includes(digits)) {
+        btn.click();
+        return true;
       }
     }
     return false;
   }, digits);
 
-  if (!clicked) throw new Error(`Inbox not found for ${displayNumber} — add inboxId to config.json`);
-  await sleep(jitter(1200, 500));
+  if (!clicked) throw new Error(`Inbox not found in sidebar for ${displayNumber}`);
+  await page.waitForSelector('button[aria-label="Send a message"]', { timeout: 8000 }).catch(() => {});
+  await sleep(200);
 }
 
 // Get all conversation hrefs in the current inbox.
