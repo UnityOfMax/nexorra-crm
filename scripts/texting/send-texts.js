@@ -16,6 +16,10 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'remove me', 'dont text', "don't text", 'opt out', 'no thanks', 'not interested'];
+const BOOKING_INTENT_KEYWORDS = ['yes', 'sure', 'sounds good', 'interested', 'when', 'what time', 'schedule', 'book', 'call', 'zoom', 'tell me more', 'how does', 'definitely', "i'd like", 'id like', 'love to', 'works for me', 'available', 'open to', 'let\'s', 'lets'];
+
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const CALENDLY_URL = 'https://calendly.com/nexorra/discovery';
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
@@ -125,6 +129,68 @@ async function markLeadOptedOut(leadId) {
   await supabase('PATCH', `leads?id=eq.${leadId}`, { text_opted_out: true, text_status: 'opted_out' });
 }
 
+async function markBookingIntent(leadId) {
+  await supabase('PATCH', `leads?id=eq.${leadId}`, {
+    text_booking_intent: true, text_booking_intent_at: new Date().toISOString(),
+  });
+}
+
+async function getConversationHistory(leadId) {
+  const r = await supabase('GET',
+    `text_message_log?lead_id=eq.${leadId}&order=sent_at.asc&limit=10&select=direction,body`
+  );
+  return r.data || [];
+}
+
+async function generateAIReply(lead, inboundMessage, scriptId, history) {
+  if (!ANTHROPIC_API_KEY) return null;
+  const scripts = loadScripts();
+  const script = scripts[String(scriptId)];
+  const firstName = lead.first_name || (lead.full_name || '').split(' ')[0] || 'there';
+  const initialMsg = (script?.initial || '')
+    .replace(/{first_name}/g, firstName)
+    .replace(/{city}/g, lead.city || 'your area');
+
+  const historyText = history.map(m => `${m.direction === 'outbound' ? 'Us' : 'Them'}: ${m.body}`).join('\n');
+
+  const prompt = `You rep Nexorra texting real estate agents about AI-powered appointment setting.
+
+Agent: ${firstName} | Market: ${lead.city || 'their area'}, ${lead.state_province || ''}
+Goal: book a 10-min discovery call
+
+Our opening: "${initialMsg}"
+${historyText ? `\nConversation:\n${historyText}` : ''}
+Them: ${inboundMessage}
+
+Reply in 1-2 sentences max. Casual, direct, human. If they show interest push for a specific time or send: ${CALENDLY_URL}
+Never start with: Absolutely, Great, Fantastic, Certainly, Of course, I understand.
+Reply only — no quotes, no labels.`;
+
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 120,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const req = https.request({
+      hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01',
+        'content-type': 'application/json', 'content-length': Buffer.byteLength(body),
+      },
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(d).content?.[0]?.text?.trim() || null); }
+        catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.write(body);
+    req.end();
+  });
+}
+
 async function findLeadByPhone(phone) {
   const digits = phone.replace(/\D/g, '').slice(-10);
   const r = await supabase('GET',
@@ -149,181 +215,227 @@ function personalise(template, lead) {
     .replace(/{state}/g, lead.state_province || '');
 }
 
-// ── OpenPhone web app helpers ─────────────────────────────────────────────────
+// ── Quo web app helpers ───────────────────────────────────────────────────────
 
 async function waitForApp(page) {
+  // Wait until Quo sidebar inbox buttons are present
   await page.waitForFunction(
-    () => document.readyState === 'complete' && !!document.querySelector('nav, aside, [class*="sidebar"], [class*="Sidebar"]'),
+    () => !!document.querySelector('button[role="link"][aria-label], nav, aside'),
     { timeout: 20000 }
   ).catch(() => {});
   await sleep(1500);
 }
 
-// Switch to the inbox for a given display number (e.g. "+15551234567")
-async function switchToInbox(page, displayNumber) {
+// Read unread counts from sidebar badges BEFORE switching inboxes.
+// Returns { "4642453780": 5, "7786585522": 3, ... } keyed by last-10 digits.
+async function getInboxUnreadCounts(page) {
+  return page.evaluate(() => {
+    const result = {};
+    // Quo sidebar: <div aria-label="5 unread conversations">5</div> inside inbox buttons
+    const badges = Array.from(document.querySelectorAll('[aria-label*="unread conversations"]'));
+    for (const badge of badges) {
+      const btn = badge.closest('button[role="link"][aria-label]');
+      if (!btn) continue;
+      const digits = (btn.getAttribute('aria-label') || '').replace(/\D/g, '').slice(-10);
+      if (digits.length === 10) result[digits] = parseInt(badge.textContent) || 1;
+    }
+    return result;
+  });
+}
+
+// Switch to the inbox for a given display number.
+// Primary: navigate by inboxId URL (fast, reliable).
+// Fallback: scan sidebar buttons by phone digits.
+async function switchToInbox(page, displayNumber, inboxId) {
   const digits = displayNumber.replace(/\D/g, '').slice(-10);
 
+  // Already on this inbox root (not inside a specific conversation)?
+  const currentUrl = page.url();
+  const onInboxRoot = inboxId && currentUrl.includes(`/inbox/${inboxId}`) && !currentUrl.includes('/c/');
+  if (onInboxRoot) {
+    await sleep(300);
+    return;
+  }
+
+  // Navigate directly if we have the inbox ID
+  if (inboxId) {
+    await page.goto(`https://my.quo.com/inbox/${inboxId}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    await sleep(jitter(800, 300));
+    return;
+  }
+
+  // Fallback: try sidebar buttons by aria-label digits
   const clicked = await page.evaluate((digits) => {
-    // Walk all sidebar-ish elements looking for one containing our number
-    const candidates = Array.from(document.querySelectorAll(
-      'nav *, aside *, [role="navigation"] *, [class*="sidebar"] *, [class*="Sidebar"] *'
-    ));
-    for (const el of candidates) {
-      if (el.children.length > 3) continue; // skip containers, only leaf-ish nodes
-      const text = (el.textContent || '').replace(/\D/g, '');
-      if (text.includes(digits)) {
-        const btn = el.closest('a, button, [role="button"], li, [class*="number"], [class*="inbox"]') || el;
-        btn.click();
-        return true;
+    for (const btn of document.querySelectorAll('button[aria-label], [role="button"][aria-label], a[aria-label]')) {
+      const labelDigits = (btn.getAttribute('aria-label') || '').replace(/\D/g, '');
+      if (labelDigits.includes(digits)) { btn.click(); return true; }
+    }
+    // Try any clickable element whose text contains the number digits
+    for (const el of document.querySelectorAll('nav *, aside *, [class*="sidebar"] *')) {
+      if ((el.textContent || '').replace(/\D/g, '').includes(digits) && !el.children.length) {
+        (el.closest('a, button, [role="button"]') || el).click(); return true;
       }
     }
     return false;
   }, digits);
 
-  if (!clicked) throw new Error(`Inbox not found for ${displayNumber} — run --inspect to debug`);
+  if (!clicked) throw new Error(`Inbox not found for ${displayNumber} — add inboxId to config.json`);
   await sleep(jitter(1200, 500));
 }
 
-// Get conversations visible in the current inbox (phone + unread flag)
+// Get all conversation hrefs in the current inbox.
+// The <a> is empty — unread badge lives in the parent container div.
 async function getVisibleConversations(page) {
   return page.evaluate(() => {
-    const results = [];
-    // Try multiple selectors for conversation list items
-    let items = [];
-    for (const sel of [
-      '[data-testid*="conversation"]', '[class*="ConversationItem"]',
-      '[class*="conversation-item"]', '[class*="ThreadItem"]', '[class*="thread-item"]',
-    ]) {
-      items = Array.from(document.querySelectorAll(sel));
-      if (items.length) break;
-    }
-    // Fallback: any <li> in the main content area that contains a phone pattern
-    if (!items.length) items = Array.from(document.querySelectorAll('li, [role="listitem"]'));
-
-    for (const el of items) {
-      const text = el.textContent || '';
-      const m = text.match(/\+?1?\s*\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/);
-      const hasUnread = !!el.querySelector('[class*="unread"], [class*="Unread"], [data-unread="true"], [class*="badge"], [class*="Badge"]');
-      if (m) results.push({ phone: m[0].replace(/\D/g, '').slice(-10), hasUnread });
-    }
-    return results;
+    return Array.from(document.querySelectorAll('a[href*="/inbox/"][href*="/c/"]'))
+      .map(el => {
+        const container = el.closest('[data-index]') || el.parentElement || el;
+        return {
+          href: el.getAttribute('href'),
+          hasUnread: !!container.querySelector('[aria-label*="unread"]'),
+        };
+      })
+      .filter(c => c.href);
   });
 }
 
-// Click into the conversation for a given phone number
-async function openConversation(page, phone) {
-  const digits = phone.replace(/\D/g, '').slice(-10);
-  const found = await page.evaluate((digits) => {
-    const all = Array.from(document.querySelectorAll('li, [role="listitem"], [class*="conversation"], [class*="thread"]'));
-    for (const el of all) {
-      if ((el.textContent || '').replace(/\D/g, '').includes(digits)) {
-        el.click(); return true;
+// Get the contact's phone number from the open conversation.
+// Waits for the message input to confirm the view is loaded, then scans for a phone pattern.
+async function getContactPhone(page) {
+
+  return page.evaluate(() => {
+    const re = /\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/;
+    // Walk all text nodes — phone appears in a button or span in the conversation header
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const candidates = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      const t = (node.textContent || '').trim();
+      if (re.test(t)) {
+        const digits = t.replace(/\D/g, '');
+        // Must be exactly a 10-digit US number (or 11 starting with 1)
+        const ten = digits.length === 10 ? digits : digits.length === 11 && digits[0] === '1' ? digits.slice(1) : null;
+        if (ten) {
+          const parent = node.parentElement;
+          const tag = parent.tagName.toLowerCase();
+          // Prefer buttons (Quo shows contact phone as a button in header)
+          // Exclude sidebar numbers (our own inboxes shown in the nav)
+          const inNav = !!parent.closest('nav, [id="sideMenu"]');
+          if (!inNav) candidates.push({ ten, inButton: tag === 'button', tag });
+        }
       }
     }
-    return false;
-  }, digits);
-  if (!found) return false;
-  await sleep(jitter(800, 400));
-  return true;
+    // Return a button candidate first, then any other
+    const btn = candidates.find(c => c.inButton);
+    return btn ? btn.ten : (candidates[0] ? candidates[0].ten : null);
+  });
 }
 
-// Get the last N messages in the open conversation
+// Get the last N message groups from the open conversation.
+// Direction: outbound if avatar has a gravatar photo (background-image), inbound if initials only.
 async function getLastMessages(page, n = 8) {
+  // Scroll to bottom first so virtual list renders latest messages
+  await page.evaluate(() => {
+    const s = document.querySelector('[data-testid="virtuoso-scroller"]');
+    if (s) s.scrollTop = s.scrollHeight;
+  });
+  await sleep(500);
+
   return page.evaluate((n) => {
-    let els = [];
-    for (const sel of ['[data-testid*="message"]', '[class*="MessageBubble"]', '[class*="message-bubble"]', '[class*="Message"]']) {
-      els = Array.from(document.querySelectorAll(sel));
-      if (els.length) break;
-    }
-    return els.slice(-n).map(el => {
-      const cls = (el.className || '') + (el.getAttribute('data-direction') || '');
-      const isOut = /outbound|sent|right/i.test(cls);
-      const isIn  = /inbound|received|left/i.test(cls);
-      return {
-        body: (el.textContent || '').trim(),
-        direction: isOut ? 'outbound' : isIn ? 'inbound' : 'unknown',
+    const items = Array.from(document.querySelectorAll('[role="listitem"]'));
+    const messages = [];
+    for (const item of items) {
+      const avatar = item.querySelector('[role="img"][aria-label*="avatar"]');
+      if (!avatar) continue;
+      // Outbound: inner div has gravatar photo via background-image
+      // Inbound:  inner div has only background-color (letter initial)
+      const hasPhoto = !!avatar.querySelector('[style*="background-image"]');
+      const direction = hasPhoto ? 'outbound' : 'inbound';
+      // Collect text from leaf nodes inside this message group
+      const texts = [];
+      const walk = (el) => {
+        if (!el.childElementCount) {
+          const t = (el.textContent || '').trim();
+          if (t.length > 1) texts.push(t);
+        } else { for (const c of el.children) walk(c); }
       };
-    });
+      walk(item);
+      const body = texts.join(' ').trim();
+      if (body) messages.push({ body, direction });
+    }
+    return messages.slice(-n);
   }, n);
 }
 
-// Compose and send a brand-new text (handles both new contacts and existing conversations)
+// Compose and send a brand-new text to a number.
+// Quo DOM (confirmed): participant input[role="combobox"][aria-label="participant input"]
+//                      message  div[role="textbox"][aria-label="message input"]
+//                      send     button[aria-label="Send message"]
 async function sendText(page, toPhone, body) {
-  // Click the new-message / compose button
+  // Click the compose button
   const composeClicked = await page.evaluate(() => {
-    for (const sel of [
-      'button[aria-label*="new message" i]', 'button[aria-label*="compose" i]',
-      'button[aria-label*="create" i]', '[data-testid*="compose"]',
-      '[data-testid*="new-message"]', 'a[href*="compose"]',
-    ]) {
-      const el = document.querySelector(sel);
-      if (el) { el.click(); return sel; }
-    }
-    // Fallback: any button whose label or title mentions new/compose/write
-    for (const btn of document.querySelectorAll('button')) {
-      const hint = (btn.getAttribute('aria-label') || btn.title || '').toLowerCase();
-      if (hint.includes('new') || hint.includes('compose') || hint.includes('write')) {
-        btn.click(); return 'fallback-btn';
-      }
-    }
-    return null;
+    const btn = document.querySelector('button[aria-label="Send a message"]');
+    if (btn) { btn.click(); return true; }
+    return false;
   });
-
-  if (!composeClicked) throw new Error('Compose button not found — run --inspect to debug selectors');
+  if (!composeClicked) throw new Error('Compose button not found');
   await sleep(jitter(800, 400));
 
-  // Type recipient number
+  // Enter recipient phone number
   const recipientInput = await page.waitForSelector(
-    'input[placeholder*="number" i], input[placeholder*="name" i], input[placeholder*="to" i], input[placeholder*="recipient" i]',
+    'input[aria-label="participant input"], input[role="combobox"]',
     { timeout: 6000 }
   ).catch(() => null);
   if (!recipientInput) throw new Error('Recipient input not found');
-  await recipientInput.type(toPhone, { delay: jitter(30, 20) });
-  await sleep(jitter(700, 300));
-  await page.keyboard.press('Enter');
-  await sleep(jitter(500, 200));
+  await recipientInput.type(toPhone, { delay: jitter(50, 30) });
+  await sleep(jitter(900, 300));
 
-  // Type message body
-  const msgInput = await page.waitForSelector(
-    'textarea, [contenteditable="true"][data-placeholder*="message" i], [data-testid*="message-input"]',
-    { timeout: 6000 }
+  // Wait for autocomplete suggestion and click it, or press Enter to confirm
+  const suggestion = await page.waitForSelector(
+    '[role="option"], [role="listbox"] [role="option"], [aria-selected]',
+    { timeout: 3000 }
   ).catch(() => null);
-  if (!msgInput) throw new Error('Message input not found');
+  if (suggestion) {
+    await suggestion.click();
+  } else {
+    await page.keyboard.press('Enter');
+  }
+  await sleep(jitter(800, 300));
+
+  // Wait for the message input to appear — this confirms we're in a conversation context
+  // (not still in the recipient-entry state)
+  const msgInput = await page.waitForSelector(
+    '[role="textbox"][aria-label="message input"], [aria-label="message input"]',
+    { timeout: 8000 }
+  ).catch(() => null);
+  if (!msgInput) throw new Error('Message input not found — recipient may not have been confirmed');
   await msgInput.click();
-  await msgInput.type(body, { delay: jitter(18, 12) });
+  await page.keyboard.type(body, { delay: jitter(20, 10) });
   await sleep(jitter(400, 200));
 
-  // Send
+  // Click Send
   const sent = await page.evaluate(() => {
-    for (const sel of ['button[aria-label*="send" i]', 'button[data-testid*="send"]', 'button[type="submit"]']) {
-      const el = document.querySelector(sel);
-      if (el && !el.disabled) { el.click(); return sel; }
-    }
-    // text "Send" button
-    for (const btn of document.querySelectorAll('button')) {
-      if ((btn.textContent || '').trim().toLowerCase() === 'send') { btn.click(); return 'text-send'; }
-    }
-    return null;
+    const btn = document.querySelector('button[aria-label="Send message"]');
+    if (btn && !btn.disabled) { btn.click(); return true; }
+    return false;
   });
   if (!sent) await page.keyboard.press('Enter');
   await sleep(jitter(1000, 400));
 }
 
-// Reply in the currently open conversation
+// Reply in the currently open conversation.
 async function sendReply(page, body) {
   const msgInput = await page.waitForSelector(
-    'textarea, [contenteditable="true"], [data-testid*="message-input"]',
+    '[role="textbox"][aria-label="message input"], [aria-label="message input"]',
     { timeout: 5000 }
   ).catch(() => null);
   if (!msgInput) throw new Error('Message input not found for reply');
   await msgInput.click();
-  await msgInput.type(body, { delay: jitter(18, 12) });
+  await page.keyboard.type(body, { delay: jitter(20, 10) });
   await sleep(jitter(400, 200));
   const sent = await page.evaluate(() => {
-    for (const sel of ['button[aria-label*="send" i]', 'button[data-testid*="send"]', 'button[type="submit"]']) {
-      const el = document.querySelector(sel);
-      if (el && !el.disabled) { el.click(); return true; }
-    }
+    const btn = document.querySelector('button[aria-label="Send message"]');
+    if (btn && !btn.disabled) { btn.click(); return true; }
     return false;
   });
   if (!sent) await page.keyboard.press('Enter');
@@ -333,66 +445,108 @@ async function sendReply(page, body) {
 // ── Check inboxes for new replies ─────────────────────────────────────────────
 async function checkReplies(page, config, scripts) {
   log('\n=== Checking for replies ===');
-  const lastCheck = loadLastCheck();
-  const newCheck  = { ...lastCheck };
 
   for (const numCfg of config.numbers) {
-    const { displayNumber, scriptId } = numCfg;
+    const { displayNumber, scriptId, inboxId } = numCfg;
+    if (!inboxId) { log(`  ${displayNumber}: no inboxId configured — skip`); continue; }
     const script = scripts[String(scriptId)];
-    newCheck[displayNumber] = new Date().toISOString();
 
-    log(`\n  Inbox ${displayNumber}...`);
+    log(`\n  Inbox ${displayNumber} (${inboxId})...`);
     try {
-      await switchToInbox(page, displayNumber);
-      const conversations = await getVisibleConversations(page);
-      const unread = conversations.filter(c => c.hasUnread);
-      if (!unread.length) { log('  No unread conversations'); continue; }
-      log(`  ${unread.length} unread`);
+      // Navigate to this inbox and wait for conversation list to render
+      await page.goto(`https://my.quo.com/inbox/${inboxId}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await page.waitForSelector('a[href*="/inbox/"][href*="/c/"]', { timeout: 8000 }).catch(() => {});
+      await sleep(500);
 
-      for (const conv of unread) {
+      const conversations = await getVisibleConversations(page);
+      const toCheck = conversations.filter(c => c.hasUnread);
+      log(`  ${conversations.length} conversations, ${toCheck.length} unread`);
+      if (!toCheck.length) continue;
+
+      for (const conv of toCheck) {
         try {
-          if (!await openConversation(page, conv.phone)) continue;
+          // Click the conversation link. After the first click we're inside a conversation
+          // and Virtuoso has unmounted other list items — so go back first to restore the list.
+          let clicked = await page.evaluate((href) => {
+            const a = document.querySelector(`a[href="${href}"]`);
+            if (a) { a.click(); return true; }
+            return false;
+          }, conv.href);
+
+          if (!clicked) {
+            // Go back to inbox list via client-side history (no HTTP reload)
+            await page.evaluate(() => window.history.back());
+            await page.waitForSelector('a[href*="/inbox/"][href*="/c/"]', { timeout: 6000 }).catch(() => {});
+            await sleep(400);
+            clicked = await page.evaluate((href) => {
+              const a = document.querySelector(`a[href="${href}"]`);
+              if (a) { a.click(); return true; }
+              return false;
+            }, conv.href);
+          }
+
+          if (!clicked) { log(`  Could not open ${conv.href} — skipping`); continue; }
+
+          // Wait for message input to confirm conversation loaded
+          await page.waitForSelector('[aria-label="message input"], [role="textbox"]', { timeout: 8000 }).catch(() => {});
+          await sleep(jitter(400, 150));
+
+          const contactPhone = await getContactPhone(page);
+          if (!contactPhone) { log(`  No phone found in ${conv.href}`); continue; }
+
           const msgs = await getLastMessages(page);
           const lastInbound = [...msgs].reverse().find(m => m.direction === 'inbound');
-          if (!lastInbound) continue;
+          if (!lastInbound?.body) { log(`  No inbound message in ${contactPhone}`); continue; }
 
-          const lead = await findLeadByPhone(conv.phone);
-          if (!lead) { log(`  No lead for ${conv.phone}`); continue; }
+          log(`  Inbound from ${contactPhone}: "${lastInbound.body.slice(0, 60)}"`);
 
-          const bodyLower = (lastInbound.body || '').toLowerCase();
+          const lead = await findLeadByPhone(contactPhone);
+          if (!lead) { log(`  No lead for ${contactPhone}`); continue; }
 
-          // Opt-out detection
+          const bodyLower = lastInbound.body.toLowerCase();
+
           if (OPT_OUT_KEYWORDS.some(kw => bodyLower.includes(kw))) {
-            log(`  Opt-out: ${conv.phone}`);
+            log(`  Opt-out: ${contactPhone}`);
             await markLeadOptedOut(lead.id);
-            await logMessage(lead.id, 'inbound', conv.phone, displayNumber, lastInbound.body, 'opt_out', scriptId);
+            await logMessage(lead.id, 'inbound', contactPhone, displayNumber, lastInbound.body, 'opt_out', scriptId);
             continue;
           }
 
-          // New reply
-          if (!lead.text_reply_received) {
-            log(`  Reply from ${conv.phone}: "${lastInbound.body.slice(0, 60)}"`);
-            await markLeadReplied(lead.id);
-            await logMessage(lead.id, 'inbound', conv.phone, displayNumber, lastInbound.body, 'reply', scriptId);
+          const hasBookingIntent = BOOKING_INTENT_KEYWORDS.some(kw => bodyLower.includes(kw));
 
-            // Auto-reply if script has one
-            if (script?.autoReply) {
+          if (!lead.text_reply_received) {
+            await markLeadReplied(lead.id);
+            await logMessage(lead.id, 'inbound', contactPhone, displayNumber, lastInbound.body, 'reply', lead.text_script_id || scriptId);
+            log(`  ✓ Marked replied: ${contactPhone}${hasBookingIntent ? ' [BOOKING INTENT]' : ''}`);
+
+            if (hasBookingIntent) {
+              await markBookingIntent(lead.id);
+            }
+
+            // Generate AI reply
+            const history = await getConversationHistory(lead.id);
+            const aiReply = await generateAIReply(lead, lastInbound.body, lead.text_script_id || scriptId, history);
+            if (aiReply) {
+              await sendReply(page, aiReply);
+              await logMessage(lead.id, 'outbound', displayNumber, contactPhone, aiReply, 'ai_reply', lead.text_script_id || scriptId);
+              log(`  AI reply sent to ${contactPhone}: "${aiReply.slice(0, 60)}"`);
+            } else if (script?.autoReply) {
               const replyBody = personalise(script.autoReply, lead);
               await sendReply(page, replyBody);
-              await logMessage(lead.id, 'outbound', displayNumber, conv.phone, replyBody, 'auto_reply', scriptId);
-              log(`  Auto-replied to ${conv.phone}`);
+              await logMessage(lead.id, 'outbound', displayNumber, contactPhone, replyBody, 'auto_reply', scriptId);
+              log(`  Static reply sent to ${contactPhone}`);
             }
+          } else {
+            log(`  Already marked replied: ${contactPhone}`);
           }
         } catch (err) {
-          log(`  Error on ${conv.phone}: ${err.message}`);
+          log(`  Error processing ${conv.href}: ${err.message}`);
         }
       }
     } catch (err) {
       log(`  Error checking ${displayNumber}: ${err.message}`);
     }
   }
-
-  saveLastCheck(newCheck);
 }
 
 // ── Send outbound (initial + follow-ups) ──────────────────────────────────────
@@ -403,7 +557,7 @@ async function sendOutbound(page, config, scripts) {
     Math.min(config.ramp.days, Math.floor((Date.now() - new Date(config.ramp.startDate)) / 86400000) + 1);
   log(`Ramp day ${rampDay}/${config.ramp.days} — limit: ${dailyLimit}/number`);
 
-  // ── Follow-up 2 (if configured) ──────────────────────────────────────────
+  // ── Follow-up 2 ────────────────────────────────────────────────────────────
   if (config.followUp2Days) {
     const leads = await getLeadsForFollowUp(2, config.followUp2Days);
     log(`\n  Follow-up 2: ${leads.length} leads eligible`);
@@ -413,11 +567,11 @@ async function sendOutbound(page, config, scripts) {
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
       const script = scripts[String(lead.text_script_id || numCfg.scriptId)];
       if (!script?.followup2) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, script.followup2, 'followup_2_sent', lead.text_script_id || numCfg.scriptId);
+      await sendToLead(page, lead, numCfg.displayNumber, script.followup2, 'followup_2_sent', lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
     }
   }
 
-  // ── Follow-up 1 ───────────────────────────────────────────────────────────
+  // ── Follow-up 1 ────────────────────────────────────────────────────────────
   const fu1Leads = await getLeadsForFollowUp(1, config.followUpDays);
   log(`\n  Follow-up 1: ${fu1Leads.length} leads eligible`);
   for (const lead of fu1Leads) {
@@ -426,7 +580,7 @@ async function sendOutbound(page, config, scripts) {
     if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
     const script = scripts[String(lead.text_script_id || numCfg.scriptId)];
     if (!script?.followup1) continue;
-    await sendToLead(page, lead, numCfg.displayNumber, script.followup1, 'followup_1_sent', lead.text_script_id || numCfg.scriptId);
+    await sendToLead(page, lead, numCfg.displayNumber, script.followup1, 'followup_1_sent', lead.text_script_id || numCfg.scriptId, numCfg.inboxId);
   }
 
   // ── Initial sends — per number ─────────────────────────────────────────────
@@ -444,15 +598,15 @@ async function sendOutbound(page, config, scripts) {
 
     for (const lead of leads) {
       if (getDailySent(displayNumber) >= dailyLimit) break;
-      await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId);
+      await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId, numCfg.inboxId);
     }
   }
 }
 
-async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId) {
+async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId, inboxId) {
   const body = personalise(template, lead);
   try {
-    await switchToInbox(page, fromNumber);
+    await switchToInbox(page, fromNumber, inboxId || null);
     await sendText(page, lead.phone, body);
     await updateLeadTexted(lead.id, newStatus, fromNumber, parseInt(scriptId));
     await logMessage(lead.id, 'outbound', fromNumber, lead.phone, body, newStatus.replace('_sent', ''), parseInt(scriptId));
@@ -464,28 +618,50 @@ async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId)
   }
 }
 
-// ── Inspect mode: dump page structure to identify selectors ───────────────────
+// ── Inspect mode ──────────────────────────────────────────────────────────────
 async function inspect(page) {
   log('\n=== INSPECT MODE ===');
   log(`URL: ${page.url()}`);
-  const structure = await page.evaluate(() => {
-    function tree(el, depth) {
-      if (depth > 4) return '';
-      const tag  = el.tagName.toLowerCase();
-      const id   = el.id ? `#${el.id}` : '';
-      const cls  = el.className && typeof el.className === 'string'
-        ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : '';
-      const dt   = el.dataset?.testid ? `[data-testid="${el.dataset.testid}"]` : '';
-      const role = el.getAttribute('role') ? `[role="${el.getAttribute('role')}"]` : '';
-      const label = el.getAttribute('aria-label') ? ` aria="${el.getAttribute('aria-label')}"` : '';
-      const txt  = el.childElementCount === 0 ? ` "${(el.textContent || '').trim().slice(0, 40)}"` : '';
-      let out = `${'  '.repeat(depth)}<${tag}${id}${cls}${dt}${role}${label}${txt}>\n`;
-      for (const child of Array.from(el.children).slice(0, 10)) out += tree(child, depth + 1);
-      return out;
-    }
-    return tree(document.body, 0);
+
+  const result = await page.evaluate(() => {
+    const out = [];
+
+    // Inbox sidebar buttons (Quo: button[role="link"][aria-label])
+    out.push('--- INBOX BUTTONS ---');
+    Array.from(document.querySelectorAll('button[role="link"][aria-label]')).forEach(b => {
+      out.push(`  aria-label: "${b.getAttribute('aria-label')}"`);
+    });
+
+    // Unread badges
+    out.push('--- UNREAD BADGES ---');
+    Array.from(document.querySelectorAll('[aria-label*="unread"]')).forEach(b => {
+      out.push(`  aria-label: "${b.getAttribute('aria-label')}"  text: "${b.textContent.trim()}"`);
+    });
+
+    // Conversation links
+    out.push('--- CONVERSATION LINKS ---');
+    Array.from(document.querySelectorAll('a[href*="/inbox/"][href*="/c/"]')).slice(0, 10).forEach(a => {
+      out.push(`  href: ${a.getAttribute('href')}  text: "${a.textContent.trim().slice(0, 60)}"`);
+    });
+
+    // Compose / new message buttons
+    out.push('--- BUTTONS (aria-label) ---');
+    Array.from(document.querySelectorAll('button[aria-label]')).slice(0, 30).forEach(b => {
+      out.push(`  "${b.getAttribute('aria-label')}"`);
+    });
+
+    // Inputs
+    out.push('--- INPUTS ---');
+    Array.from(document.querySelectorAll('input, textarea, [contenteditable="true"]')).forEach(el => {
+      const ph = el.getAttribute('placeholder') || '';
+      const label = el.getAttribute('aria-label') || '';
+      out.push(`  <${el.tagName.toLowerCase()}> placeholder="${ph}" aria-label="${label}"`);
+    });
+
+    return out.join('\n');
   });
-  console.log(structure);
+
+  console.log(result);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -495,6 +671,13 @@ async function main() {
   const isInspect = process.argv.includes('--inspect');
   const isCheck   = process.argv.includes('--check-only');
   const isSend    = process.argv.includes('--send-only');
+
+  // --test --from=+14642453780 --inbox-id=PNAtCJVoUv --to=+12056062178 --msg="Hi this is a Test."
+  const testArg    = process.argv.find(a => a === '--test');
+  const fromArg    = (process.argv.find(a => a.startsWith('--from='))     || '').replace('--from=', '');
+  const inboxIdArg = (process.argv.find(a => a.startsWith('--inbox-id=')) || '').replace('--inbox-id=', '');
+  const toArg      = (process.argv.find(a => a.startsWith('--to='))       || '').replace('--to=', '');
+  const msgArg     = (process.argv.find(a => a.startsWith('--msg='))      || '').replace('--msg=', '');
 
   log('=== OpenPhone Texting Daemon ===');
 
@@ -511,8 +694,26 @@ async function main() {
   const page  = pages.find(p => p.url().includes('quo.com')) || pages[0];
   if (!page) { log('ERROR: No OpenPhone page found'); browser.disconnect(); process.exit(1); }
 
+  log(`Connected to: ${page.url()}`);
+
   if (isInspect) {
     await inspect(page);
+    browser.disconnect();
+    return;
+  }
+
+  if (testArg) {
+    if (!fromArg || !toArg || !msgArg) {
+      log('Usage: --test --from=+1XXXXXXXXXX --to=+1XXXXXXXXXX --msg="your message"');
+      browser.disconnect(); process.exit(1);
+    }
+    log(`\n=== TEST SEND ===`);
+    log(`From: ${fromArg}  InboxId: ${inboxIdArg || '(none)'}  To: ${toArg}`);
+    log(`Msg:  ${msgArg}`);
+    await waitForApp(page);
+    await switchToInbox(page, fromArg, inboxIdArg || null);
+    await sendText(page, toArg, msgArg);
+    log('✓ Test message sent');
     browser.disconnect();
     return;
   }
