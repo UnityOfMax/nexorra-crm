@@ -5,6 +5,16 @@
 set -e
 
 cd /home/max/crm || exit 1
+
+# Lockfile — prevent two instances running at once (cron double-fire or manual re-run)
+LOCKFILE="/tmp/morning-run.lock"
+if [ -f "$LOCKFILE" ] && kill -0 "$(cat "$LOCKFILE")" 2>/dev/null; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Already running (pid $(cat "$LOCKFILE")) — exiting" >> logs/morning-run.log
+  exit 0
+fi
+echo $$ > "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"' EXIT
+
 set -a && source .env.local && set +a
 
 LOG="logs/morning-run.log"
@@ -19,7 +29,7 @@ send_alert() {
     -d text="[Morning Run] $msg" > /dev/null 2>&1 || true
 }
 
-trap 'ts "ERROR: step failed — entering minimal mode anyway"; send_alert "Step failed at line $LINENO. Entering minimal mode."; bash /home/max/crm/scripts/setup/minimal-mode.sh; exit 1' ERR
+trap 'ts "ERROR: step failed — entering minimal mode anyway"; send_alert "Step failed at line $LINENO. Entering minimal mode."; rm -f "$LOCKFILE"; bash /home/max/crm/scripts/setup/minimal-mode.sh; exit 1' ERR
 
 ts "=== Morning run started ==="
 
@@ -29,10 +39,17 @@ sudo systemctl start gdm
 sleep 30  # XWayland needs ~20-30s to create auth file after GDM starts
 
 # ── 2. Chrome on port 9222 (Jeff) and 9223 (GMaps) ──────────────────────────
+# Kill any existing instances — the watchdog may have started them on Xvfb :99
+# before GDM was up. Force a fresh launch on :0 (real display).
+ts "Killing any existing scraper Chromes to force relaunch on :0"
+pkill -f "remote-debugging-port=9222" 2>/dev/null || true
+pkill -f "remote-debugging-port=9223" 2>/dev/null || true
+sleep 3
+
 ts "Starting Chrome :9222 for realtor.com scraping"
-DISPLAY=:0 bash scripts/chrome-launch.sh >> logs/chrome-debug.log 2>&1 &
+bash scripts/chrome-launch.sh >> logs/chrome-debug.log 2>&1 &
 ts "Starting Chrome :9223 for Google Maps scraping"
-DISPLAY=:0 bash scripts/chrome-launch-gmaps.sh >> logs/chrome-gmaps.log 2>&1 &
+bash scripts/chrome-launch-gmaps.sh >> logs/chrome-gmaps.log 2>&1 &
 sleep 10
 
 # ── 3. Realtor.com scraping ───────────────────────────────────────────────────
@@ -40,18 +57,20 @@ ts "Running realtor.com scraping (realtor-leads.js)"
 DISPLAY=:0 node scripts/calling/realtor-leads.js >> "$LOG" 2>&1
 ts "Realtor.com scraping complete"
 
-# ── 4. Kill scraping Chromes ──────────────────────────────────────────────────
-ts "Killing Chrome :9222 and :9223"
+# ── 4. Kill Jeff's Chrome only — GMaps Chrome (9223) stays alive for step 5 ──
+ts "Killing Chrome :9222 (Jeff done)"
 pkill -f "remote-debugging-port=9222" || true
-pkill -f "remote-debugging-port=9223" || true
 sleep 2
 
-# ── 5. Google Maps leads (no-website businesses) ─────────────────────────────
+# ── 5. Google Maps leads (no-website businesses) — needs Chrome :9223 ─────────
 ts "Running Google Maps leads scraper"
 node scripts/local-biz/gmaps-leads.js >> "$LOG" 2>&1
 ts "Google Maps leads complete"
 
-# ── 6. Enter minimal mode (kills GDM + Chrome) ───────────────────────────────
+# ── 6. Kill GMaps Chrome now that we're done ──────────────────────────────────
+pkill -f "remote-debugging-port=9223" || true
+
+# ── 7. Enter minimal mode ─────────────────────────────────────────────────────
 ts "=== Morning run complete — entering minimal mode ==="
 send_alert "Morning run complete. Entering minimal mode."
 bash /home/max/crm/scripts/setup/minimal-mode.sh

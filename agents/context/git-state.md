@@ -1,39 +1,21 @@
-# Git State (2026-04-21 20:00)
+# Git State (2026-04-22 20:00)
 Branch: main
 
 ## Last 5 Commits
-a39a505 Fix FB lead sync: replace filtering array with since param
-4de68f6 System overhaul: remove Petra, upgrade Jeff, add website leads, rework LeadsList UI
-47a8b57 Fix cleanup-leads cron auth: use Authorization: Bearer pattern
-e45b011 Add full funnel step tracking to landing page forms
-ba1c363 Fix Facebook lead sync: correct filter field time_created → created_time
+fb6a36e Quo launcher: add --ozone-platform=x11, Chrome defaulted to Wayland (no compositor)
+6148875 Quo launcher: use my.quo.com, strip automation flags, force DISPLAY=:0
+dfdcb72 Add OpenPhone texting daemon — ramp, follow-ups, reply detection
+197ee55 GMaps scraper: filter sponsored listings by name prefix
+ed6912c GMaps scraper: scroll all results, remove per-listing goBack
 
 ## Modified Files
  M agents/context/git-state.md
- M app/globals.css
-?? .gmail-ramp.json
-?? Gemini_Generated_Image_qf7ndwqf7ndwqf7n.png
-?? "Pre-call Video.mp4"
-?? "Real Booked Testimonial.mp4"
-?? "Screenshot from 2026-04-15 22-42-11.png"
-?? "Screenshot from 2026-04-15 22-42-44.png"
-?? "Screenshot from 2026-04-15 22-43-20.png"
-?? "client_testimonial_video_v1 (1080p) (1).mp4"
-?? "client_testimonial_video_v1 (1080p) (2).mp4"
-?? "client_testimonial_video_v1 (1080p) (3).mp4"
-?? "client_testimonial_video_v1 (1080p) (4).mp4"
-?? "client_testimonial_video_v1 (1080p).mp4"
-?? logo.png
-?? tmplibd5wc9.jpg
+ M scripts/cron/morning-run.sh
+ M scripts/setup/full-mode.sh
+ M scripts/setup/minimal-mode.sh
+ M scripts/texting/config.json
+ M scripts/texting/send-texts.js
+?? scripts/texting/quo-inspect.js
 
 ## Untracked
-.gmail-ramp.json
-Gemini_Generated_Image_qf7ndwqf7ndwqf7n.png
-Pre-call Video.mp4
-Real Booked Testimonial.mp4
-Screenshot from 2026-04-15 22-42-11.png
-Screenshot from 2026-04-15 22-42-44.png
-Screenshot from 2026-04-15 22-43-20.png
-client_testimonial_video_v1 (1080p) (1).mp4
-client_testimonial_video_v1 (1080p) (2).mp4
-client_testimonial_video_v1 (1080p) (3).mp4
+scripts/texting/quo-inspect.js

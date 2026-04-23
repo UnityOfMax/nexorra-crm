@@ -438,6 +438,18 @@ function BookingConfirmedBubble({ name, date, time }: { name: string; date: stri
   );
 }
 
+// ── Sort key: converts lastTime string to a numeric recency score ─────────────
+// Lower = more recent
+function timeRecencyScore(t: string): number {
+  if (/AM|PM/.test(t)) return 0;           // today (e.g. "10:30 AM")
+  if (t === 'Yesterday') return 1;
+  const dMatch = t.match(/^(\d+)d ago$/);
+  if (dMatch) return 1 + parseInt(dMatch[1], 10);
+  const wMatch = t.match(/^(\d+)w ago$/);
+  if (wMatch) return 1 + parseInt(wMatch[1], 10) * 7;
+  return 999;
+}
+
 function MockConversations({ slug }: { slug: string }) {
   const isStephanie = slug === 'sabrina-delisle';
 
@@ -452,10 +464,18 @@ function MockConversations({ slug }: { slug: string }) {
 
   const contacts = useMemo(() => {
     const generated = generateMockContacts(slug, 70);
-    if (!isStephanie) return generated;
-    // Put Stephanie at the top, filter out any random Stephanie collision
-    const rest = generated.filter(c => c.name !== 'Stephanie Collins');
-    return [stephanieMockContact, ...rest];
+    let list: MockContactItem[];
+    if (!isStephanie) {
+      list = generated;
+    } else {
+      const rest = generated.filter(c => c.name !== 'Stephanie Collins');
+      list = [stephanieMockContact, ...rest];
+    }
+    // Sort: unread first, then by recency
+    return [...list].sort((a, b) => {
+      if (b.unread !== a.unread) return b.unread - a.unread;
+      return timeRecencyScore(a.lastTime) - timeRecencyScore(b.lastTime);
+    });
   }, [slug, isStephanie]);
 
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -486,15 +506,10 @@ function MockConversations({ slug }: { slug: string }) {
               className={`w-full text-left px-4 py-3 border-b border-gray-50 dark:border-white/5 transition-colors hover:bg-gray-50 dark:hover:bg-white/3 ${selectedId === c.id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : ''}`}
             >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0 relative">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0">
                   <span className="text-xs font-bold text-primary-700 dark:text-primary-400">
                     {c.name.split(' ').map(n => n[0]).join('').slice(0,2)}
                   </span>
-                  {c.unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                      {c.unread}
-                    </span>
-                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
@@ -506,6 +521,17 @@ function MockConversations({ slug }: { slug: string }) {
                   </div>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">{c.lastText}</p>
                 </div>
+                {c.unread > 0 && (
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 999,
+                    background: 'var(--blue)', color: '#fff',
+                    fontSize: 11, fontFamily: 'Geist Mono, monospace',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, alignSelf: 'center',
+                  }}>
+                    {c.unread}
+                  </div>
+                )}
               </div>
             </button>
           ))}

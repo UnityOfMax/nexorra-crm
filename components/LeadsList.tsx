@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import TextingAnalytics from './TextingAnalytics';
 
 interface Lead {
   id: string;
@@ -35,7 +34,7 @@ interface Lead {
   has_website?: boolean | null;
 }
 
-type LeadCategory = 'calling' | 'website' | 'texting';
+type LeadCategory = 'calling' | 'website';
 
 const TIMEZONES = ['EST', 'CST', 'MST', 'PST'];
 const PAGE_SIZE = 100;
@@ -105,7 +104,7 @@ export default function LeadsList() {
   const [loading, setLoading] = useState(true);
   const [offset, setOffset] = useState(0);
   const [category, setCategory] = useState<LeadCategory>('calling');
-  const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ calling: 0, website: 0, texting: 0 });
+  const [categoryCounts, setCategoryCounts] = useState<Record<LeadCategory, number>>({ calling: 0, website: 0 });
   const [csvExporting, setCsvExporting] = useState(false);
   const [tzCounts, setTzCounts] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
   const [tzAvail, setTzAvail] = useState<Record<string, number>>({ EST: 0, CST: 0, MST: 0, PST: 0 });
@@ -229,7 +228,6 @@ export default function LeadsList() {
   const catTabs: { key: LeadCategory; label: string }[] = [
     { key: 'calling', label: 'Agent Leads' },
     { key: 'website', label: 'Website Leads' },
-    { key: 'texting', label: 'Texting' },
   ];
 
   const kpis = [
@@ -294,21 +292,16 @@ export default function LeadsList() {
               }}
             >
               {t.label}
-              {t.key !== 'texting' && (
-                <span style={{ fontSize: 11, ...MONO, color: active ? 'var(--blue)' : 'var(--ink-3)' }}>
-                  {categoryCounts[t.key].toLocaleString()}
-                </span>
-              )}
+              <span style={{ fontSize: 11, ...MONO, color: active ? 'var(--blue)' : 'var(--ink-3)' }}>
+                {categoryCounts[t.key].toLocaleString()}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Texting analytics view */}
-      {category === 'texting' && <TextingAnalytics />}
-
       {/* KPI Cards */}
-      {category !== 'texting' && (<>
+      <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 20 }} className="nx-2col-mobile">
         {kpis.map((k, i) => (
           <div key={i} style={{ background: 'var(--paper-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '18px 20px' }}>
@@ -595,7 +588,7 @@ export default function LeadsList() {
         </div>
       )}
 
-      </>)}
+      </>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

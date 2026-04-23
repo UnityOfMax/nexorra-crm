@@ -260,14 +260,14 @@ export function Sidebar({
         { id: 'overview', label: 'Subaccounts', icon: <Icons.grid size={17} /> },
         { id: 'dashboard', label: 'Dashboard', icon: <Icons.home size={17} /> },
         { id: 'contacts', label: 'Contacts', icon: <Icons.contacts size={17} /> },
-        { id: 'inbox', label: 'Conversations', icon: <Icons.inbox size={17} />, badge: { label: '4', tone: 'blue' } },
+        { id: 'inbox', label: 'Conversations', icon: <Icons.inbox size={17} /> },
         { id: 'calendar', label: 'Calendar', icon: <Icons.calendar size={17} /> },
         { id: 'pipeline', label: 'Opportunities', icon: <Icons.pipeline size={17} /> },
       ]
     : [
         { id: 'dashboard', label: 'Dashboard', icon: <Icons.home size={17} /> },
         { id: 'contacts', label: 'Contacts', icon: <Icons.contacts size={17} /> },
-        { id: 'inbox', label: 'Conversations', icon: <Icons.inbox size={17} />, badge: { label: '2', tone: 'blue' } },
+        { id: 'inbox', label: 'Conversations', icon: <Icons.inbox size={17} /> },
         { id: 'calendar', label: 'Calendar', icon: <Icons.calendar size={17} /> },
         { id: 'pipeline', label: 'Opportunities', icon: <Icons.pipeline size={17} /> },
       ];

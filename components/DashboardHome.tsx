@@ -488,8 +488,8 @@ export default function DashboardHome({
         <>
           {/* ── 4 KPI cards ── */}
           <div className="nx-2col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-            <KPI label="Leads / 30d"     value={fmtN(stats.totalLeads)}                    delta={stats.totalLeads > 0 ? 12.4 : undefined}  trend={leadTrend}   tone="blue" />
-            <KPI label="Ad Spend / 30d"  value={stats.adSpend > 0 ? fmt$(stats.adSpend, true) : '—'}  delta={stats.adSpend > 0 ? 4.1 : undefined}  trend={spendTrend}  tone="violet" />
+            <KPI label="Leads / 30d"     value={fmtN(stats.totalLeads)}                    trend={leadTrend}   tone="blue" />
+            <KPI label="Ad Spend / 30d"  value={stats.adSpend > 0 ? fmt$(stats.adSpend, true) : '—'}  trend={spendTrend}  tone="violet" />
             <KPI label="Pipeline Value"  value={stats.activeDeals > 0 ? fmtN(stats.activeDeals) + ' deals' : '—'}  trend={leadTrend}   tone="green" />
             <KPI label="Closed Won / mo" value={stats.revenue > 0 ? fmt$(stats.revenue, true) : '$0'}  delta={stats.closings > 0 ? undefined : undefined}  trend={spendTrend.map(x => x * 0.8)}  tone="amber" />
           </div>

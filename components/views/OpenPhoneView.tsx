@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, Avatar, Badge } from '../ui/primitives';
 import { Icons } from '../Icons';
 import type { SubAccount } from '../Sidebar';
+import TextingAnalytics from '../TextingAnalytics';
 
 interface OpenPhoneViewProps {
   sub: SubAccount;
@@ -214,6 +215,10 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS text_reply_at timestamptz;`}</Code>
 
       <div style={{ marginTop: 28, padding: '16px 20px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--paper-2)', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>
         <strong>Why AT-SPI instead of screenshots?</strong> AT-SPI tree queries are O(1) element lookups — ~50ms per message send vs 2-3s for Claude vision. No Anthropic API calls at runtime. Python + pyatspi footprint is under 30MB. The cron runs every 30 min but each execution is &lt;5s.
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <TextingAnalytics />
       </div>
     </div>
   );

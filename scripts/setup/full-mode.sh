@@ -8,6 +8,8 @@ if ! systemctl is-active --quiet gdm; then
   sudo systemctl start gdm
   sleep 5
 fi
+# Switch display back to the graphical VT (GDM owns VT1 on Ubuntu)
+sudo chvt 1
 
 bash /home/max/crm/scripts/setup/start-xvfb.sh
 sleep 3
