@@ -539,26 +539,33 @@ async function sendMMS(page, toPhone, body, audioPath, firstName, lastName) {
     await page.waitForSelector('[aria-label="message input"]', { timeout: 5000 }).catch(() => {});
   }
 
-  // Upload audio via the file input (already in DOM in Quo's compose area)
+  // Upload audio file and send it as its own message (no text body)
   const fileInputs = await page.$$('input[type="file"]');
   for (const fi of fileInputs) {
     try { await fi.uploadFile(audioPath); break; } catch { /* try next */ }
   }
-  await sleep(jitter(2000, 500));
-
-  // Type text and send
-  const msgInput = await page.$('[aria-label="message input"]').catch(() => null);
-  if (!msgInput) throw new Error('Message input not found after audio upload');
-  await msgInput.click();
-  await page.keyboard.type(body, { delay: jitter(20, 10) });
-  await sleep(jitter(400, 200));
-  const sent = await page.evaluate(() => {
+  await sleep(jitter(1500, 300));
+  const audioSent = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label="Send message"]');
     if (btn && !btn.disabled) { btn.click(); return true; }
     return false;
   });
-  if (!sent) await page.keyboard.press('Enter');
-  await sleep(jitter(1000, 400));
+  if (!audioSent) await page.keyboard.press('Enter');
+  await sleep(1000); // 1 second between audio and text
+
+  // Send text as a separate follow-up message
+  const msgInput = await page.$('[aria-label="message input"]').catch(() => null);
+  if (!msgInput) throw new Error('Message input not found for text follow-up');
+  await msgInput.click();
+  await page.keyboard.type(body, { delay: jitter(20, 10) });
+  await sleep(jitter(300, 150));
+  const textSent = await page.evaluate(() => {
+    const btn = document.querySelector('button[aria-label="Send message"]');
+    if (btn && !btn.disabled) { btn.click(); return true; }
+    return false;
+  });
+  if (!textSent) await page.keyboard.press('Enter');
+  await sleep(jitter(800, 300));
 }
 
 // Reply in the currently open conversation.
