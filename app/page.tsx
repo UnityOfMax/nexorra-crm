@@ -7,27 +7,40 @@ import { User } from '@supabase/supabase-js';
 import AuthForm from '@/components/AuthForm';
 import Shell from '@/components/Shell';
 
+function getStoredUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    // Supabase stores the session in localStorage — read it synchronously so the
+    // page renders immediately without waiting for a network round-trip.
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return parsed?.user ?? null;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 function HomeContent() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(getStoredUser);
+  const [loading, setLoading] = useState(!getStoredUser());
   const searchParams = useSearchParams();
   const initialView = searchParams.get('view') || undefined;
   const initialAccountId = searchParams.get('account') || undefined;
 
   useEffect(() => {
-    // Check active sessions
+    // Refresh session in the background — updates state if token changed or expired
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-    }).catch((err) => {
-      console.error('Auth session error:', err);
-      setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
