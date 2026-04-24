@@ -580,6 +580,10 @@ async function sendInitial(page, toPhone, text1, text2, firstName, lastName) {
   // Send text1 first — conversation must exist before we can set the contact name
   await sendMsg(text1);
 
+  // Blur the message input after sending to prevent keystrokes leaking into this
+  // conversation when the next lead's compose flow runs
+  await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
+
   // Now set contact name (Show details panel only appears once a conversation exists)
   if (firstName) {
     await setContactName(page, firstName, lastName || '');
@@ -588,6 +592,9 @@ async function sendInitial(page, toPhone, text1, text2, firstName, lastName) {
 
   await sleep(3000); // 3 seconds between messages
   await sendMsg(text2);
+
+  // Blur again after text2 to prevent leaking into the next send
+  await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
   await sleep(jitter(800, 300));
 }
 
