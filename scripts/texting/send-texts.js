@@ -549,39 +549,45 @@ async function sendInitial(page, toPhone, text1, text2, firstName, lastName) {
   // Wait for conversation to open
   await page.waitForSelector('[aria-label="message input"]', { timeout: 8000 }).catch(() => {});
 
-  // Set contact name
+  // Type text into the message input — splits on \n and uses Shift+Enter
+  // so newlines don't accidentally trigger a send
+  async function typeMessage(text) {
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        await page.keyboard.down('Shift');
+        await page.keyboard.press('Enter');
+        await page.keyboard.up('Shift');
+      }
+      if (lines[i]) await page.keyboard.type(lines[i], { delay: jitter(15, 8) });
+    }
+  }
+
+  async function sendMsg(text) {
+    const inp = await page.$('[aria-label="message input"]').catch(() => null);
+    if (!inp) throw new Error('Message input not found');
+    await inp.click();
+    await typeMessage(text);
+    await sleep(jitter(300, 150));
+    const sent = await page.evaluate(() => {
+      const btn = document.querySelector('button[aria-label="Send message"]');
+      if (btn && !btn.disabled) { btn.click(); return true; }
+      return false;
+    });
+    if (!sent) await page.keyboard.press('Enter');
+  }
+
+  // Send text1 first — conversation must exist before we can set the contact name
+  await sendMsg(text1);
+
+  // Now set contact name (Show details panel only appears once a conversation exists)
   if (firstName) {
     await setContactName(page, firstName, lastName || '');
     await page.waitForSelector('[aria-label="message input"]', { timeout: 5000 }).catch(() => {});
   }
 
-  // Send text1
-  const msg1 = await page.$('[aria-label="message input"]').catch(() => null);
-  if (!msg1) throw new Error('Message input not found for text1');
-  await msg1.click();
-  await page.keyboard.type(text1, { delay: jitter(15, 8) });
-  await sleep(jitter(300, 150));
-  const sent1 = await page.evaluate(() => {
-    const btn = document.querySelector('button[aria-label="Send message"]');
-    if (btn && !btn.disabled) { btn.click(); return true; }
-    return false;
-  });
-  if (!sent1) await page.keyboard.press('Enter');
-
-  await sleep(1000); // 1 second between messages
-
-  // Send text2
-  const msg2 = await page.$('[aria-label="message input"]').catch(() => null);
-  if (!msg2) throw new Error('Message input not found for text2');
-  await msg2.click();
-  await page.keyboard.type(text2, { delay: jitter(15, 8) });
-  await sleep(jitter(300, 150));
-  const sent2 = await page.evaluate(() => {
-    const btn = document.querySelector('button[aria-label="Send message"]');
-    if (btn && !btn.disabled) { btn.click(); return true; }
-    return false;
-  });
-  if (!sent2) await page.keyboard.press('Enter');
+  await sleep(3000); // 3 seconds between messages
+  await sendMsg(text2);
   await sleep(jitter(800, 300));
 }
 
