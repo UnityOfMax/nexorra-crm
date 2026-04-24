@@ -1,19 +1,19 @@
 {
   "1": {
-    "audioFile": "/home/max/crm/scripts/texting/Script 1.m4a",
-    "initial": "For a 10-15 minute call {First_name}"
+    "text1": "Hey {First_name}, my name's Max. I wanted to reach out because we've recently recieved funding for our startup Nexorra.\nBasically it's an ai client acquisition software for real estate agents. We're working with a few beta testers right now, and they're averaging 1-3 extra deals a month with us. We're now looking for some more clients to add to our results. The software essentially finds warm leads, qualifies them and books them in to meetings with you fully automatically.",
+    "text2": "I'd love to run you through how it works on a zoom if you're interested. Just shoot me a thumbs up and I'll send you my calendar link."
   },
   "2": {
-    "audioFile": "/home/max/crm/scripts/texting/Script 2.m4a",
-    "initial": "For a 10-15 minute call {First_name}"
+    "text1": "Hey {First_name}, my name's Max. I wanted to reach out because we've recently recieved funding for our startup Nexorra. Basically an ai client acquisition software for real estate agents. I'm sure you've heard of agencies doing something similar for 2-10k upfront.",
+    "text2": "We're chargin 299/m for it. We're working with a few beta testers right now, and they're averaging 1-3 extra deals a month with us. We're now looking for some more clients to add to our results. The software essentially finds warm leads, qualifies them and books them in to meetings with you fully automatically. And I'd love to run you through how it works on a zoom if you're interested. Just shoot me a thumbs up and I'll send you my calendar link so you can find a time that works for you."
   },
   "3": {
-    "audioFile": "/home/max/crm/scripts/texting/Script 3.m4a",
-    "initial": "Let me know if you have any concerns aswell {First_name}"
+    "text1": "Hey {First_name}, how's it going? My name is Max, I work for a company called Nexorra. We've created a software that gets you more deals. We charge 299/mo for it. We're currently working with over a thousand other agents, they're averaging around 1 to 3 extra deals each month on top of what they're already doing.",
+    "text2": "I don't fully know if this would be of interest because you might be so busy that even your procrastination is behind schedule but if you do have the capacity for a few more deals and you're open to new opportunities I'd love to show you our software on a 10-15 minute call. Just let me know and I'll send over my calendar link."
   },
   "4": {
-    "audioFile": "/home/max/crm/scripts/texting/Script 4.m4a",
-    "initial": "Let me know if you have any concerns aswell {First_name}"
+    "text1": "Hey {First_name} this is Max. I know this isn't your first cold message today (or this hour) so I'll get to the point. We've built a software for agents to get them more deals. It finds warm people that are looking for you, qualifies them and books them into a meeting with you fully automatically. We're charging 299/mo for this right now. I'd love to show you how the software actually works on a 10-15 minute call if you'd be open for that.",
+    "text2": "Let me know and I'll send you my calendar link"
   },
   "followups": {
     "1": { "text": "Just bumping this up", "daysAfter": 1 },

@@ -494,8 +494,9 @@ async function setContactName(page, firstName, lastName) {
   await sleep(400);
 }
 
-// Send MMS: compose new conversation, set contact name, upload audio, send text.
-async function sendMMS(page, toPhone, body, audioPath, firstName, lastName) {
+// Send initial outreach: compose new conversation, set contact name,
+// send text1, wait 1 second, send text2 as a separate message.
+async function sendInitial(page, toPhone, text1, text2, firstName, lastName) {
   // Click compose
   const composeClicked = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label="Send a message"]');
@@ -516,41 +517,42 @@ async function sendMMS(page, toPhone, body, audioPath, firstName, lastName) {
   if (suggestion) await suggestion.click(); else await page.keyboard.press('Enter');
   await sleep(jitter(800, 300));
 
-  // Wait for conversation to open (message input appears)
+  // Wait for conversation to open
   await page.waitForSelector('[aria-label="message input"]', { timeout: 8000 }).catch(() => {});
 
-  // Set contact name if provided
+  // Set contact name
   if (firstName) {
     await setContactName(page, firstName, lastName || '');
     await page.waitForSelector('[aria-label="message input"]', { timeout: 5000 }).catch(() => {});
   }
 
-  // Upload audio file and send it as its own message (no text body)
-  const fileInputs = await page.$$('input[type="file"]');
-  for (const fi of fileInputs) {
-    try { await fi.uploadFile(audioPath); break; } catch { /* try next */ }
-  }
-  await sleep(jitter(1500, 300));
-  const audioSent = await page.evaluate(() => {
-    const btn = document.querySelector('button[aria-label="Send message"]');
-    if (btn && !btn.disabled) { btn.click(); return true; }
-    return false;
-  });
-  if (!audioSent) await page.keyboard.press('Enter');
-  await sleep(1000); // 1 second between audio and text
-
-  // Send text as a separate follow-up message
-  const msgInput = await page.$('[aria-label="message input"]').catch(() => null);
-  if (!msgInput) throw new Error('Message input not found for text follow-up');
-  await msgInput.click();
-  await page.keyboard.type(body, { delay: jitter(20, 10) });
+  // Send text1
+  const msg1 = await page.$('[aria-label="message input"]').catch(() => null);
+  if (!msg1) throw new Error('Message input not found for text1');
+  await msg1.click();
+  await page.keyboard.type(text1, { delay: jitter(15, 8) });
   await sleep(jitter(300, 150));
-  const textSent = await page.evaluate(() => {
+  const sent1 = await page.evaluate(() => {
     const btn = document.querySelector('button[aria-label="Send message"]');
     if (btn && !btn.disabled) { btn.click(); return true; }
     return false;
   });
-  if (!textSent) await page.keyboard.press('Enter');
+  if (!sent1) await page.keyboard.press('Enter');
+
+  await sleep(1000); // 1 second between messages
+
+  // Send text2
+  const msg2 = await page.$('[aria-label="message input"]').catch(() => null);
+  if (!msg2) throw new Error('Message input not found for text2');
+  await msg2.click();
+  await page.keyboard.type(text2, { delay: jitter(15, 8) });
+  await sleep(jitter(300, 150));
+  const sent2 = await page.evaluate(() => {
+    const btn = document.querySelector('button[aria-label="Send message"]');
+    if (btn && !btn.disabled) { btn.click(); return true; }
+    return false;
+  });
+  if (!sent2) await page.keyboard.press('Enter');
   await sleep(jitter(800, 300));
 }
 
@@ -716,7 +718,7 @@ async function sendOutbound(page, config, scripts) {
       const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
       if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, null, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
     }
   }
 
@@ -729,7 +731,7 @@ async function sendOutbound(page, config, scripts) {
       const numCfg = config.numbers.find(n => n.displayNumber === lead.text_sender_number);
       if (!numCfg || (config.blockedInboxIds || []).includes(numCfg.inboxId)) continue;
       if (getDailySent(numCfg.displayNumber) >= dailyLimit) continue;
-      await sendToLead(page, lead, numCfg.displayNumber, step.text, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
+      await sendToLead(page, lead, numCfg.displayNumber, step.text, null, step.toStatus, lead.text_script_id || 1, numCfg.inboxId);
     }
   }
 
@@ -754,26 +756,27 @@ async function sendOutbound(page, config, scripts) {
       const currentSent = getDailySent(displayNumber);
       const scriptId = getScriptForCount(currentSent, dailyLimit);
       const script = scripts[String(scriptId)];
-      if (!script?.initial) { log(`  No script ${scriptId}`); continue; }
-      await sendToLead(page, lead, displayNumber, script.initial, 'initial_sent', scriptId, inboxId, script.audioFile || null);
+      if (!script?.text1) { log(`  No script ${scriptId}`); continue; }
+      await sendToLead(page, lead, displayNumber, script.text1, script.text2, 'initial_sent', scriptId, inboxId);
     }
   }
 }
 
-async function sendToLead(page, lead, fromNumber, template, newStatus, scriptId, inboxId, audioFile = null) {
-  const body = personalise(template, lead);
+async function sendToLead(page, lead, fromNumber, text1, text2, newStatus, scriptId, inboxId) {
+  const body1 = personalise(text1, lead);
+  const body2 = text2 ? personalise(text2, lead) : null;
   try {
     await switchToInbox(page, fromNumber, inboxId || null);
-    if (audioFile && fs.existsSync(audioFile)) {
+    if (newStatus === 'initial_sent') {
       const fn = getFirstName(lead);
       const rawFull = (lead.full_name || '').trim().split(/\s+/);
       const ln = rawFull.length > 1 ? properName(rawFull.slice(1).join(' ')) : '';
-      await sendMMS(page, lead.phone, body, audioFile, fn, ln);
+      await sendInitial(page, lead.phone, body1, body2 || '', fn, ln);
     } else {
-      await sendText(page, lead.phone, body);
+      await sendText(page, lead.phone, body1);
     }
     await updateLeadTexted(lead.id, newStatus, fromNumber, parseInt(scriptId));
-    await logMessage(lead.id, 'outbound', fromNumber, lead.phone, body, newStatus.replace('_sent', ''), parseInt(scriptId));
+    await logMessage(lead.id, 'outbound', fromNumber, lead.phone, body1 + (body2 ? ' | ' + body2 : ''), newStatus.replace('_sent', ''), parseInt(scriptId));
     incrementDailySent(fromNumber);
     log(`  ✓ ${lead.phone} (${getFirstName(lead)}) — ${newStatus} from ${fromNumber}`);
     await sleep(jitter(2500, 1000));
