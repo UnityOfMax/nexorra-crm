@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Avatar, Badge } from '../ui/primitives';
 import { Icons } from '../Icons';
 import type { SubAccount } from '../Sidebar';
@@ -81,8 +81,61 @@ function Code({ children }: { children: string }) {
 }
 
 export default function OpenPhoneView({ sub }: OpenPhoneViewProps) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/texting/settings')
+      .then(r => r.json())
+      .then((d: { texting_enabled?: boolean }) => {
+        if (typeof d.texting_enabled === 'boolean') setEnabled(d.texting_enabled);
+      })
+      .catch(() => {/* silently ignore */});
+  }, []);
+
+  async function toggle() {
+    if (enabled === null || toggling) return;
+    const next = !enabled;
+    setEnabled(next);
+    setToggling(true);
+    try {
+      await fetch('/api/texting/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texting_enabled: next }),
+      });
+    } catch {
+      setEnabled(!next);
+    } finally {
+      setToggling(false);
+    }
+  }
+
   return (
     <div style={{ padding: '24px 32px 48px', maxWidth: 860, margin: '0 auto' }} className="nx-pad-mobile">
+      {/* Texting toggle */}
+      {enabled !== null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 12px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+            background: enabled ? 'var(--green-soft)' : 'var(--rose-soft)',
+            color: enabled ? 'var(--green)' : 'var(--red)',
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: enabled ? 'var(--green)' : 'var(--red)' }} />
+            Texting {enabled ? 'ON' : 'OFF'}
+          </span>
+          <button onClick={toggle} style={{
+            padding: '4px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+            background: enabled ? 'var(--rose-soft)' : 'var(--green-soft)',
+            color: enabled ? 'var(--red)' : 'var(--green)',
+            border: '1px solid currentColor', cursor: 'pointer',
+          }}>
+            {toggling ? '...' : enabled ? 'Turn off' : 'Turn on'}
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>

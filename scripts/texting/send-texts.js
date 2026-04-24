@@ -20,6 +20,30 @@ const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'remove me', 'dont text', "don'
 const BOOKING_INTENT_KEYWORDS = ['yes', 'sure', 'sounds good', 'interested', 'when', 'what time', 'schedule', 'book', 'call', 'zoom', 'tell me more', 'how does', 'definitely', "i'd like", 'id like', 'love to', 'works for me', 'available', 'open to', 'let\'s', 'lets'];
 
 const CALENDLY_URL = 'https://calendly.com/nexorra/demo-call';
+const AGENCY_ACCOUNT_ID = 'da99b768-79dd-48f8-af86-abf95e61a69f';
+
+// UTC offset for each timezone (standard time — US doesn't observe DST uniformly
+// but these offsets are close enough; OpenPhone leads are scraped with tz labels)
+const TZ_UTC_OFFSET = { EST: -5, CST: -6, MST: -7, PST: -8 };
+
+// Returns true if current time is within 9:00AM–5:30PM in the given timezone
+function isWithinSendingHours(timezone) {
+  const offset = TZ_UTC_OFFSET[timezone] ?? -5;
+  const now = new Date();
+  const localMins = ((now.getUTCHours() + offset + 24) % 24) * 60 + now.getUTCMinutes();
+  return localMins >= 9 * 60 && localMins < 17 * 60 + 30;
+}
+
+// Check texting_enabled flag from agency account settings in Supabase
+async function isTextingEnabled() {
+  try {
+    const r = await supabase('GET',
+      `accounts?id=eq.${AGENCY_ACCOUNT_ID}&select=settings`
+    );
+    const settings = (r.data || [])[0]?.settings || {};
+    return settings.texting_enabled !== false; // default true
+  } catch { return true; }
+}
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 function log(msg) { console.log(`[${new Date().toISOString()}] ${msg}`); }
@@ -180,23 +204,28 @@ async function getConversationHistory(leadId) {
 
 function claudeExec(prompt) {
   try {
-    return execSync(`claude -p ${JSON.stringify(prompt)}`, { timeout: 30000, encoding: 'utf8' }).trim() || null;
+    return execSync(
+      `claude -p --model claude-haiku-4-5-20251001 ${JSON.stringify(prompt)}`,
+      { timeout: 30000, encoding: 'utf8' }
+    ).trim() || null;
   } catch { return null; }
 }
 
 async function generateAIReply(lead, inboundMessage, scriptId, history) {
   const firstName = getFirstName(lead);
   const historyText = history.map(m => `${m.direction === 'outbound' ? 'Us' : 'Them'}: ${m.body}`).join('\n');
-  const prompt = `You text real estate agents for Nexorra about AI-powered lead follow-up.
+  const prompt = `You text real estate agents for Nexorra about AI-powered lead follow-up. You are Max.
 
 Agent: ${firstName} | Market: ${lead.city || 'their area'}, ${lead.state_province || ''}
-Goal: get them to book a demo call
+Goal: get them to book a 10-15 min demo call at ${CALENDLY_URL}
 
 ${historyText ? `Conversation so far:\n${historyText}\n` : ''}Them: ${inboundMessage}
 
-Reply in 1-2 sentences. Direct, real, no filler. No dashes. No AI slop.
-Never say: Absolutely, Great, Fantastic, Certainly, Of course, I totally understand, I appreciate.
-Reply only — no labels, no quotes.`;
+Reply in 1-2 sentences max. Sound like a real person texting — casual, direct, no corporate filler.
+No dashes. No bullet points. No em dashes.
+Never use: Absolutely, Great, Fantastic, Certainly, Of course, I totally understand, I appreciate, Sounds good, Happy to help.
+If they show interest, move toward booking — suggest the calendar link naturally.
+Reply only — no labels, no quotes, nothing else.`;
   return claudeExec(prompt);
 }
 
@@ -589,10 +618,10 @@ async function checkReplies(page, config, scripts) {
 
     log(`\n  Inbox ${displayNumber} (${inboxId})...`);
     try {
-      // Navigate to this inbox and wait for conversation list to render
-      await page.goto(`https://my.quo.com/inbox/${inboxId}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      // Switch to this inbox via sidebar click (no page reload)
+      await switchToInbox(page, displayNumber, inboxId);
       await page.waitForSelector('a[href*="/inbox/"][href*="/c/"]', { timeout: 8000 }).catch(() => {});
-      await sleep(500);
+      await sleep(300);
 
       const conversations = await getVisibleConversations(page);
       const toCheck = conversations.filter(c => c.hasUnread);
@@ -744,6 +773,12 @@ async function sendOutbound(page, config, scripts) {
     if (!timezone) continue;
     if ((config.blockedInboxIds || []).includes(inboxId)) continue;
 
+    // Only send during 9AM–5:30PM in this number's timezone
+    if (!isWithinSendingHours(timezone)) {
+      log(`\n  ${displayNumber} (${timezone}): outside sending hours — skip`);
+      continue;
+    }
+
     const sent = getDailySent(displayNumber);
     const remaining = dailyLimit - sent;
     if (remaining <= 0) { log(`\n  ${displayNumber} (${timezone}): limit reached`); continue; }
@@ -890,9 +925,19 @@ async function main() {
 
   await waitForApp(page);
 
-  if (!isSend)  await checkReplies(page, config, scripts);
+  // Check master enable flag — if off, skip everything
+  const enabled = await isTextingEnabled();
+  if (!enabled) {
+    log('Texting is DISABLED in CRM — skipping all sends and replies');
+    browser.disconnect();
+    return;
+  }
+
+  // Replies run 24/7
+  if (!isSend) await checkReplies(page, config, scripts);
+
+  // Outbound sends only during timezone business hours (9AM–5:30PM per TZ)
   if (!isCheck) await sendOutbound(page, config, scripts);
-  // Note: scripts object is the full JSON including followups/postBooking/bookingLink keys
 
   browser.disconnect();
   log('\n=== Done ===');
