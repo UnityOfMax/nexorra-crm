@@ -512,15 +512,15 @@ async function setContactName(page, firstName, lastName) {
   const lnInput = await page.$('input[placeholder="Add a last name..."]').catch(() => null);
   if (fnInput) { await fnInput.click(); await fnInput.type(firstName, { delay: 50 }); await sleep(200); }
   if (lnInput) { await lnInput.click(); await lnInput.type(lastName, { delay: 50 }); await sleep(200); }
-  if (fnInput || lnInput) { await page.keyboard.press('Tab'); await sleep(500); }
 
-  // Close details panel
+  // Close details panel by clicking Show details again — this blurs the inputs
+  // and saves the name without pressing Tab (which triggers "Mark as done" in Quo)
   await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll('button[aria-label]'))
       .find(b => b.getAttribute('aria-label') === 'Show details');
     if (btn) btn.click();
   });
-  await sleep(400);
+  await sleep(600);
 }
 
 // Send initial outreach: compose new conversation, set contact name,
