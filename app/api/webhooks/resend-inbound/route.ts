@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { generateAndSendAI } from '@/lib/ai/generate-and-send';
 import { triggerAgentRun } from '@/lib/agents/trigger-run';
 import { stopContactWorkflows } from '@/lib/workflow-engine/stop-workflows';
+import { stopAutomation } from '@/lib/automations/enrollment';
 import { classifyIntent } from '@/lib/ai/intent-classifier';
 import { maybeSendLeadAlert } from '@/lib/ai/lead-alert';
 import { triggerInboundMessage } from '@/lib/workflow-engine/triggers';
@@ -100,7 +101,10 @@ export async function POST(req: NextRequest) {
       intent,
     }).catch(err => console.error('[resend-inbound] lead-alert error:', err));
 
-    // Stop any running workflow sequences (they replied)
+    // Stop automation drip sequences and workflow sequences (they replied)
+    stopAutomation(account.id, contact.id).catch(err =>
+      console.error('[resend-inbound] stopAutomation error:', err)
+    );
     stopContactWorkflows(account.id, contact.id).catch(err =>
       console.error('[resend-inbound] stop-workflows error:', err)
     );

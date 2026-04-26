@@ -52,7 +52,7 @@ Just reply with a time that works.
   {
     type: 'sms',
     delayMs: 1 * D,
-    body: `Hi {{contact.first_name}}, just following up. Happy to chat whenever works for you, even 5 minutes helps.`,
+    body: `Hi {{contact.first_name}}, just following up. Even a quick 5-minute call works — let me know when you're free.`,
   },
   {
     type: 'email',
@@ -229,7 +229,7 @@ I will be ready to go. Talk soon.
 ];
 
 // Switch message when contact books while in new_lead
-export const BOOKING_SWITCH_SMS = `Great, I see you booked a call for {{callTime}}, {{contact.first_name}}. Looking forward to it.`;
+export const BOOKING_SWITCH_SMS = `Got it — you're booked for {{callTime}}, {{contact.first_name}}. Looking forward to it.`;
 
 // -- Nurturing (30-day) ---------------------------------------
 export interface NurturingTemplate {
@@ -284,7 +284,7 @@ I know the home-buying process can feel like a lot. There is a lot to think abou
 
 That is exactly what I am here to help with. You do not need to have it all sorted before we talk.
 
-Whenever you are ready, just reply. Happy to listen first and go from there.
+Whenever you are ready, just reply. We can start wherever makes sense for you.
 
 {{user.firstname}}`,
   },
@@ -394,7 +394,7 @@ When that day comes, I want to be the one helping you get there. Reach out anyti
 
 Is there anything specific that has been holding you back? Sometimes just talking it through makes all the difference.
 
-Feel free to reply and let me know what is going on. I am happy to help however I can.
+Feel free to reply and let me know what is going on. I am here to help.
 
 {{user.firstname}}`,
   },

@@ -218,60 +218,6 @@ async function processLead(
 
   if (existingByLeadId) return false; // Already processed this exact submission
 
-  // Secondary dedup by email — catches same person re-submitted via a different form
-  if (fields.email) {
-    const { data: existingByEmail } = await supabaseAdmin
-      .from('facebook_ad_leads')
-      .select('id')
-      .eq('account_id', accountId)
-      .eq('email', fields.email)
-      .maybeSingle();
-    if (existingByEmail) {
-      // Record this lead_id so future runs skip it immediately via the primary dedup
-      void supabaseAdmin.from('facebook_ad_leads').insert({
-        account_id: accountId,
-        contact_id: existingByEmail.id,
-        facebook_lead_id: lead.id,
-        form_id: form.id,
-        lead_data: lead.field_data,
-        email: fields.email,
-        phone: normalizedPhone,
-        first_name: fields.first_name || null,
-        last_name: fields.last_name || null,
-        created_time: lead.created_time,
-      });
-      return false;
-    }
-  }
-
-  // Upsert contact (dedup by phone or email)
-  let existingContact: { id: string; custom_fields: Record<string, any> } | null = null;
-
-  if (normalizedPhone) {
-    const variants = phoneVariants(fields.phone!);
-    const orFilter = variants.map((v) => `phone.eq.${v}`).join(',');
-    const { data } = await supabaseAdmin
-      .from('contacts')
-      .select('id, custom_fields')
-      .eq('account_id', accountId)
-      .or(orFilter)
-      .limit(1)
-      .maybeSingle();
-    existingContact = data;
-  }
-
-  if (!existingContact && fields.email) {
-    const { data } = await supabaseAdmin
-      .from('contacts')
-      .select('id, custom_fields')
-      .eq('account_id', accountId)
-      .eq('email', fields.email)
-      .maybeSingle();
-    existingContact = data;
-  }
-
-  let contactId: string;
-
   const customFields = {
     ...fields.custom,
     meta_form_id: form.id,
@@ -281,63 +227,91 @@ async function processLead(
     meta_campaign_id: lead.campaign_id,
   };
 
-  if (existingContact) {
-    await supabaseAdmin
-      .from('contacts')
-      .update({
-        first_name: fields.first_name || undefined,
-        last_name: fields.last_name || undefined,
-        phone: normalizedPhone || undefined,
-        email: fields.email || undefined,
-        source: 'Facebook Lead Ad',
-        custom_fields: { ...(existingContact.custom_fields || {}), ...customFields },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existingContact.id);
-    contactId = existingContact.id;
-  } else {
-    const { data, error } = await supabaseAdmin
-      .from('contacts')
-      .insert({
-        account_id: accountId,
-        first_name: fields.first_name || null,
-        last_name: fields.last_name || null,
-        phone: normalizedPhone || null,
-        email: fields.email || null,
-        status: 'lead',
-        source: 'Facebook Lead Ad',
-        funnel_stage: 'lead',
-        custom_fields: customFields,
-      })
-      .select('id')
-      .single();
+  // ── Contact creation: try-INSERT then catch-23505 ─────────────────────────
+  // Does NOT use .upsert() — Supabase upsert requires a full unique constraint
+  // for ON CONFLICT but our indexes are partial (WHERE phone IS NOT NULL).
+  // This pattern works correctly with partial indexes.
+  let contactId: string;
+  let isNewContact = false;
 
-    if (error) throw error;
-    contactId = data.id;
+  const { data: inserted, error: insertError } = await supabaseAdmin
+    .from('contacts')
+    .insert({
+      account_id:    accountId,
+      first_name:    fields.first_name || null,
+      last_name:     fields.last_name || null,
+      phone:         normalizedPhone || null,
+      email:         fields.email || null,
+      status:        'lead',
+      source:        'Facebook Lead Ad',
+      funnel_stage:  'lead',
+      custom_fields: customFields,
+    })
+    .select('id')
+    .single();
+
+  if (!insertError) {
+    contactId    = inserted.id;
+    isNewContact = true;
+  } else if (insertError.code === '23505') {
+    // Unique constraint hit — contact already exists, find and update it
+    let existing: { id: string; custom_fields: Record<string, any> } | null = null;
+    if (normalizedPhone) {
+      const variants = phoneVariants(fields.phone!);
+      const orFilter = variants.map((v) => `phone.eq.${v}`).join(',');
+      const { data } = await supabaseAdmin
+        .from('contacts').select('id, custom_fields')
+        .eq('account_id', accountId).or(orFilter).maybeSingle();
+      existing = data;
+    }
+    if (!existing && fields.email) {
+      const { data } = await supabaseAdmin
+        .from('contacts').select('id, custom_fields')
+        .eq('account_id', accountId).eq('email', fields.email).maybeSingle();
+      existing = data;
+    }
+    if (!existing) throw insertError;
+    contactId    = existing.id;
+    isNewContact = false;
+    await supabaseAdmin.from('contacts').update({
+      first_name:    fields.first_name || undefined,
+      last_name:     fields.last_name  || undefined,
+      phone:         normalizedPhone   || undefined,
+      email:         fields.email      || undefined,
+      source:        'Facebook Lead Ad',
+      custom_fields: { ...(existing.custom_fields || {}), ...customFields },
+      updated_at:    new Date().toISOString(),
+    }).eq('id', contactId);
+  } else {
+    throw insertError;
   }
 
-  // Record in facebook_ad_leads
-  await supabaseAdmin.from('facebook_ad_leads').insert({
-    account_id: accountId,
-    contact_id: contactId,
+  // ── Claim in facebook_ad_leads — atomic final gate ────────────────────────
+  // If the webhook already processed this lead concurrently and inserted a row,
+  // we get 23505 here and return false — no duplicate triggers.
+  const { error: claimErr } = await supabaseAdmin.from('facebook_ad_leads').insert({
+    account_id:       accountId,
+    contact_id:       contactId,
     facebook_lead_id: lead.id,
-    ad_id: lead.ad_id || null,
-    ad_name: lead.ad_name || null,
-    campaign_id: lead.campaign_id || null,
-    campaign_name: lead.campaign_name || null,
-    form_id: form.id,
-    lead_data: lead.field_data,
-    email: fields.email || null,
-    phone: normalizedPhone || null,
-    first_name: fields.first_name || null,
-    last_name: fields.last_name || null,
-    created_time: lead.created_time,
+    ad_id:            lead.ad_id        || null,
+    ad_name:          lead.ad_name      || null,
+    campaign_id:      lead.campaign_id  || null,
+    campaign_name:    lead.campaign_name || null,
+    form_id:          form.id,
+    lead_data:        lead.field_data,
+    email:            fields.email      || null,
+    phone:            normalizedPhone   || null,
+    first_name:       fields.first_name || null,
+    last_name:        fields.last_name  || null,
+    created_time:     lead.created_time,
   });
+
+  if (claimErr?.code === '23505') return false; // Webhook beat us to it
 
   const contactName = [fields.first_name, fields.last_name].filter(Boolean).join(' ') || 'there';
 
   // New contacts only: pipeline entry, CAPI, workflow trigger, push, enrollment
-  if (!existingContact) {
+  if (isNewContact) {
     // Add to pipeline first stage — triggers deal_stage_changed workflows
     if (pipelineId && firstStage) {
       const leadName = [fields.first_name, fields.last_name].filter(Boolean).join(' ') || 'New Lead';

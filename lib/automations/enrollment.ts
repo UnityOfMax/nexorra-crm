@@ -232,28 +232,32 @@ export async function enrollBookingReminders(params: EnrollBookingParams) {
 
 export async function stopAutomation(accountId: string, contactId: string) {
   try {
-    const { data: enrollment } = await supabaseAdmin
+    // Find ALL active enrollments for this contact (not just one)
+    const { data: enrollments } = await supabaseAdmin
       .from('automation_enrollments')
       .select('id')
       .eq('account_id', accountId)
       .eq('contact_id', contactId)
-      .eq('status', 'active')
-      .maybeSingle();
+      .eq('status', 'active');
 
-    if (!enrollment) return;
+    if (!enrollments?.length) return;
+
+    const enrollmentIds = enrollments.map(e => e.id);
 
     await supabaseAdmin
       .from('automation_enrollments')
       .update({ status: 'stopped', updated_at: new Date().toISOString() })
-      .eq('id', enrollment.id);
+      .in('id', enrollmentIds);
 
+    // Cancel both 'pending' and 'processing' — processing messages can still be
+    // caught before the actual send if the cron re-checks enrollment status.
     await supabaseAdmin
       .from('automation_messages')
       .update({ status: 'cancelled' })
-      .eq('enrollment_id', enrollment.id)
-      .eq('status', 'pending');
+      .in('enrollment_id', enrollmentIds)
+      .in('status', ['pending', 'processing']);
 
-    console.log(`[automation] Stopped automation for ${contactId} (response received)`);
+    console.log(`[automation] Stopped ${enrollmentIds.length} enrollment(s) for ${contactId}`);
   } catch (err) {
     console.error('[automation] stopAutomation error:', err);
   }

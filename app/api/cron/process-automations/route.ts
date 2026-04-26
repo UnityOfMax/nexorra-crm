@@ -75,6 +75,32 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // Stop sequence if contact has replied — a real reply means they're engaged
+        // and the automated drip should not keep firing over the top of the conversation.
+        const { data: inboundReply } = await supabaseAdmin
+          .from('messages')
+          .select('id')
+          .eq('account_id', msg.account_id)
+          .eq('contact_id', msg.contact_id)
+          .eq('direction', 'inbound')
+          .limit(1)
+          .maybeSingle();
+
+        if (inboundReply) {
+          await supabaseAdmin
+            .from('automation_enrollments')
+            .update({ status: 'stopped', updated_at: new Date().toISOString() })
+            .eq('id', msg.enrollment_id)
+            .eq('status', 'active');
+          await supabaseAdmin
+            .from('automation_messages')
+            .update({ status: 'cancelled' })
+            .eq('enrollment_id', msg.enrollment_id)
+            .in('status', ['pending', 'processing']);
+          console.log(`[CRON automations] Stopped enrollment ${msg.enrollment_id} — contact replied`);
+          continue;
+        }
+
         // ── Nurturing escalation ─────────────────────────────
         if (msg.type === 'nurturing_escalation') {
           await escalateToNurturing(
