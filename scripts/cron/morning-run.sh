@@ -1,5 +1,5 @@
 #!/bin/bash
-# Morning run: realtor.com scraping → Google Maps leads → minimal mode
+# Morning run: realtor.com scraping → Google Maps leads
 # Schedule: 30 9 * * 1-5
 # Chrome runs on DISPLAY=:0 (real GDM desktop) — required for bot detection bypass
 set -e
@@ -29,7 +29,7 @@ send_alert() {
     -d text="[Morning Run] $msg" > /dev/null 2>&1 || true
 }
 
-trap 'ts "ERROR: step failed — entering minimal mode anyway"; send_alert "Step failed at line $LINENO. Entering minimal mode."; rm -f "$LOCKFILE"; bash /home/max/crm/scripts/setup/minimal-mode.sh; exit 1' ERR
+trap 'ts "ERROR: step failed"; send_alert "Morning run failed at line $LINENO."; rm -f "$LOCKFILE"; exit 1' ERR
 
 ts "=== Morning run started ==="
 
@@ -70,7 +70,5 @@ ts "Google Maps leads complete"
 # ── 6. Kill GMaps Chrome now that we're done ──────────────────────────────────
 pkill -f "remote-debugging-port=9223" || true
 
-# ── 7. Enter minimal mode ─────────────────────────────────────────────────────
-ts "=== Morning run complete — entering minimal mode ==="
-send_alert "Morning run complete. Entering minimal mode."
-bash /home/max/crm/scripts/setup/minimal-mode.sh
+ts "=== Morning run complete ==="
+send_alert "Morning run complete."

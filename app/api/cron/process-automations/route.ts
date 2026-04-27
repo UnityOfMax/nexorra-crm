@@ -102,7 +102,9 @@ export async function GET(request: NextRequest) {
         }
 
         // ── Nurturing escalation ─────────────────────────────
-        if (msg.type === 'nurturing_escalation') {
+        if (msg.type === 'nurturing_escalation' || msg.body === '__escalate__') {
+          // Safety: __escalate__ must NEVER be sent to a contact as a real message.
+          // If body is __escalate__ and type is wrong (DB mismatch), still intercept it.
           await escalateToNurturing(
             enrollment.id,
             msg.account_id,
@@ -115,6 +117,13 @@ export async function GET(request: NextRequest) {
             .update({ status: 'sent', sent_at: new Date().toISOString() })
             .eq('id', msg.id);
           processed++;
+          continue;
+        }
+
+        // Hard safety net — if body contains the internal sentinel, cancel and never send
+        if (msg.body?.includes('__escalate__') || msg.body?.startsWith('__')) {
+          await markFailed(msg.id, 'Internal sentinel value — refused to send');
+          console.error(`[CRON automations] BLOCKED internal sentinel in msg ${msg.id}`);
           continue;
         }
 
