@@ -38,41 +38,46 @@ export default function SubaccountsOverview({ sub, accountId, userId, onOpen }: 
   const [view, setView] = useState<'cards' | 'table'>('cards');
   const [sort, setSort] = useState('leads');
   const [loading, setLoading] = useState(true);
+  const [showNewClient, setShowNewClient] = useState(false);
+
+  async function loadClients() {
+    try {
+      const res = await fetch(`/api/agency/clients?agencyId=${accountId}&userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const raw: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
+        const COLORS = ['blue', 'violet', 'green', 'amber', 'rose'];
+        const mapped: SubAccount[] = raw.map((c, i) => {
+          const name = (c.name as string) || 'Client';
+          const words = name.trim().split(/\s+/);
+          const tag = words.length >= 2
+            ? (words[0][0] + words[1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+          const settings = (c.settings as Record<string, unknown>) || {};
+          const loc = settings.location as Record<string, unknown> | string | undefined;
+          const locStr = typeof loc === 'object' && loc
+            ? [(loc as Record<string, unknown>).first_name, (loc as Record<string, unknown>).last_name].filter(Boolean).join(' ')
+            : (typeof loc === 'string' ? loc : '');
+          return {
+            id: c.id as string,
+            name,
+            kind: 'client' as const,
+            tag,
+            color: COLORS[i % COLORS.length],
+            location: locStr,
+            leads30: 0,
+            status: 'healthy',
+          };
+        });
+        setClients(mapped);
+      }
+    } catch {}
+  }
 
   useEffect(() => {
     async function load() {
+      await loadClients();
       try {
-        // Load client accounts
-        const res = await fetch(`/api/agency/clients?agencyId=${accountId}&userId=${userId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const raw: Record<string, unknown>[] = Array.isArray(data) ? data : (data.clients || []);
-          const COLORS = ['blue', 'violet', 'green', 'amber', 'rose'];
-          const mapped: SubAccount[] = raw.map((c, i) => {
-            const name = (c.name as string) || 'Client';
-            const words = name.trim().split(/\s+/);
-            const tag = words.length >= 2
-              ? (words[0][0] + words[1][0]).toUpperCase()
-              : name.slice(0, 2).toUpperCase();
-            const settings = (c.settings as Record<string, unknown>) || {};
-            const loc = settings.location as Record<string, unknown> | string | undefined;
-            const locStr = typeof loc === 'object' && loc
-              ? [(loc as Record<string, unknown>).first_name, (loc as Record<string, unknown>).last_name].filter(Boolean).join(' ')
-              : (typeof loc === 'string' ? loc : '');
-            return {
-              id: c.id as string,
-              name,
-              kind: 'client' as const,
-              tag,
-              color: COLORS[i % COLORS.length],
-              location: locStr,
-              leads30: 0,
-              status: 'healthy',
-            };
-          });
-          setClients(mapped);
-        }
-        // Load overview stats
         const ovRes = await fetch(`/api/analytics/overview?accountId=${accountId}`);
         if (ovRes.ok) {
           const ov = await ovRes.json();
@@ -173,7 +178,7 @@ export default function SubaccountsOverview({ sub, accountId, userId, onOpen }: 
               <option value="roas">Sort: ROAS</option>
               <option value="name">Sort: Name</option>
             </select>
-            <Button variant="grad" icon={<Icons.plus size={15} />}>New client</Button>
+            <Button variant="grad" icon={<Icons.plus size={15} />} onClick={() => setShowNewClient(true)}>New client</Button>
           </div>
         }
       />
@@ -198,6 +203,15 @@ export default function SubaccountsOverview({ sub, accountId, userId, onOpen }: 
         </div>
       ) : (
         <ClientTable rows={sorted} stats={clientStats} onClick={onOpen} />
+      )}
+
+      {showNewClient && (
+        <NewClientModal
+          agencyId={accountId}
+          userId={userId}
+          onClose={() => setShowNewClient(false)}
+          onSuccess={() => { setShowNewClient(false); loadClients(); }}
+        />
       )}
     </div>
   );
@@ -263,6 +277,116 @@ function ClientCard({ s, stats, onClick }: { s: SubAccount; stats?: ClientStats;
         <Sparkline data={trend} w={96} h={32} color={colorVar} />
       </div>
     </Card>
+  );
+}
+
+// ── New Client Modal ──────────────────────────────────────────────────────────
+
+const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Phoenix'];
+const TZ_LABELS: Record<string, string> = {
+  'America/New_York': 'Eastern (ET)',
+  'America/Chicago': 'Central (CT)',
+  'America/Denver': 'Mountain (MT)',
+  'America/Los_Angeles': 'Pacific (PT)',
+  'America/Phoenix': 'Arizona (no DST)',
+};
+
+function NewClientModal({ agencyId, userId, onClose, onSuccess }: {
+  agencyId: string; userId: string; onClose: () => void; onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({ name: '', firstName: '', lastName: '', email: '', phone: '', city: '', state: '', timezone: 'America/New_York' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Account name is required'); return; }
+    setSaving(true); setError('');
+    try {
+      const res = await fetch('/api/agency/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agencyId, userId, name: form.name.trim(),
+          location: form.firstName ? { first_name: form.firstName, last_name: form.lastName, email: form.email, phone: form.phone } : undefined,
+          timezone: form.timezone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create account');
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '9px 12px', fontSize: 13.5, border: '1px solid var(--line)',
+    borderRadius: 8, background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none',
+    fontFamily: 'inherit', boxSizing: 'border-box',
+  };
+  const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)', marginBottom: 5, display: 'block' };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'oklch(0% 0 0 / 0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 24px 48px oklch(0% 0 0 / 0.2)' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>New client workspace</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>Creates an account with a default pipeline.</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <form onSubmit={submit}>
+          <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {error && <div style={{ background: 'oklch(55% 0.22 25 / 0.1)', border: '1px solid oklch(55% 0.22 25 / 0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--rose)' }}>{error}</div>}
+            <div>
+              <label style={label}>Account name *</label>
+              <input style={inp} value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Jane Smith Real Estate" required />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={label}>Client first name</label>
+                <input style={inp} value={form.firstName} onChange={e => set('firstName', e.target.value)} placeholder="Jane" />
+              </div>
+              <div>
+                <label style={label}>Client last name</label>
+                <input style={inp} value={form.lastName} onChange={e => set('lastName', e.target.value)} placeholder="Smith" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={label}>Email</label>
+                <input style={inp} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@example.com" />
+              </div>
+              <div>
+                <label style={label}>Phone</label>
+                <input style={inp} value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 555 000 0000" />
+              </div>
+            </div>
+            <div>
+              <label style={label}>Timezone</label>
+              <select style={{ ...inp }} value={form.timezone} onChange={e => set('timezone', e.target.value)}>
+                {TIMEZONES.map(tz => <option key={tz} value={tz}>{TZ_LABELS[tz]}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--line)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '9px 18px', fontSize: 13.5, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--paper-2)', color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{ padding: '9px 20px', fontSize: 13.5, border: 'none', borderRadius: 8, background: 'var(--blue)', color: '#fff', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit', fontWeight: 500 }}>
+              {saving ? 'Creating…' : 'Create workspace'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

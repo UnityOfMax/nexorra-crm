@@ -32,3 +32,57 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ members });
 }
+
+// PATCH /api/account-members?accountId=&userId= — update role
+export async function PATCH(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const accountId = searchParams.get('accountId');
+  const userId = searchParams.get('userId');
+
+  if (!accountId || !userId) {
+    return NextResponse.json({ error: 'accountId and userId are required' }, { status: 400 });
+  }
+
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
+
+  const { role } = await request.json();
+  if (!role) return NextResponse.json({ error: 'role is required' }, { status: 400 });
+
+  const validRoles = ['agency_owner', 'agency_admin', 'client_owner', 'client_admin', 'client_user'];
+  if (!validRoles.includes(role)) {
+    return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('account_members')
+    .update({ role })
+    .eq('account_id', accountId)
+    .eq('user_id', userId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE /api/account-members?accountId=&userId= — remove member
+export async function DELETE(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const accountId = searchParams.get('accountId');
+  const userId = searchParams.get('userId');
+
+  if (!accountId || !userId) {
+    return NextResponse.json({ error: 'accountId and userId are required' }, { status: 400 });
+  }
+
+  const auth = await requireAccountAccess(request, accountId);
+  if (auth instanceof NextResponse) return auth;
+
+  const { error } = await supabaseAdmin
+    .from('account_members')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('user_id', userId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

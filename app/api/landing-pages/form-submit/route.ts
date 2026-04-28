@@ -69,48 +69,57 @@ export async function POST(request: NextRequest) {
 
     let contactId: string;
 
-    if (existingContact) {
-      // Update existing contact with new info
-      const mergedFields = { ...(existingContact.custom_fields || {}), ...(custom_fields || {}) };
-      const { error } = await supabaseAdmin
-        .from('contacts')
-        .update({
-          first_name: first_name || undefined,
-          last_name: last_name || undefined,
-          phone: normalizedPhone || undefined,
-          email: email || undefined,
-          source: source || 'Landing Page',
-          custom_fields: mergedFields,
-          fbc: fbc || undefined,
-          fbp: fbp || undefined,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingContact.id);
+    // Try INSERT first. If unique constraint fires (23505 — same phone or email already
+    // exists in this account), fall back to SELECT + UPDATE.
+    // This is race-proof: the DB partial unique indexes block any duplicate regardless
+    // of concurrent submissions. .upsert() is NOT used because it doesn't work with
+    // partial unique indexes in PostgREST.
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from('contacts')
+      .insert({
+        account_id:   accountId,
+        first_name:   first_name || null,
+        last_name:    last_name  || null,
+        phone:        normalizedPhone || null,
+        email:        email || null,
+        status:       'lead',
+        source:       source || 'Landing Page',
+        custom_fields: custom_fields || {},
+        fbc:          fbc || null,
+        fbp:          fbp || null,
+        funnel_stage: 'lead',
+      })
+      .select('id')
+      .single();
 
-      if (error) throw error;
+    if (!insertErr) {
+      contactId = inserted.id;
+    } else if (insertErr.code === '23505') {
+      // Duplicate — find and update the existing contact
+      if (!existingContact) {
+        // Re-query in case the race happened after our earlier lookup
+        const lookup = normalizedPhone
+          ? supabaseAdmin.from('contacts').select('id, custom_fields').eq('account_id', accountId).eq('phone', normalizedPhone)
+          : supabaseAdmin.from('contacts').select('id, custom_fields').eq('account_id', accountId).eq('email', email!);
+        const { data: found } = await lookup.maybeSingle();
+        existingContact = found;
+      }
+      if (!existingContact) throw insertErr;
+      const mergedFields = { ...(existingContact.custom_fields || {}), ...(custom_fields || {}) };
+      await supabaseAdmin.from('contacts').update({
+        first_name:   first_name    || undefined,
+        last_name:    last_name     || undefined,
+        phone:        normalizedPhone || undefined,
+        email:        email         || undefined,
+        source:       source        || 'Landing Page',
+        custom_fields: mergedFields,
+        fbc:          fbc           || undefined,
+        fbp:          fbp           || undefined,
+        updated_at:   new Date().toISOString(),
+      }).eq('id', existingContact.id);
       contactId = existingContact.id;
     } else {
-      // Create new contact
-      const { data, error } = await supabaseAdmin
-        .from('contacts')
-        .insert({
-          account_id: accountId,
-          first_name: first_name || null,
-          last_name: last_name || null,
-          phone: normalizedPhone || null,
-          email: email || null,
-          status: 'lead',
-          source: source || 'Landing Page',
-          custom_fields: custom_fields || {},
-          fbc: fbc || null,
-          fbp: fbp || null,
-          funnel_stage: 'lead',
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      contactId = data.id;
+      throw insertErr;
     }
 
     // Write per-step funnel events from answered questions (non-blocking)

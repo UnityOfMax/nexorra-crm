@@ -62,7 +62,7 @@ export default function SettingsView({ sub, accountId, userId, userRole = 'membe
         <div>
           {section === 'general' && <GeneralSettings sub={sub} accountId={accountId} />}
           {section === 'preferences' && <PreferencesSettings theme={theme} setTheme={applyTheme} />}
-          {section === 'team' && <TeamSettings accountId={accountId} />}
+          {section === 'team' && <TeamSettings accountId={accountId} userId={userId} />}
           {section === 'integrations' && <IntegrationsSettings accountId={accountId} userRole={userRole} />}
           {!['general', 'preferences', 'team', 'integrations'].includes(section) && (
             <Card padding={28}><Placeholder h={320} label={`${section} settings`} /></Card>
@@ -188,20 +188,72 @@ function PreferencesSettings({ theme, setTheme }: { theme: string; setTheme: (t:
 
 // ── Team ──────────────────────────────────────────────────────────────────────
 
-function TeamSettings({ accountId }: { accountId: string }) {
-  const [members, setMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+const ROLE_LABELS: Record<string, string> = {
+  agency_owner: 'Agency owner', agency_admin: 'Agency admin',
+  client_owner: 'Owner', client_admin: 'Admin', client_user: 'Member',
+};
+const ROLE_OPTIONS = [
+  { value: 'client_owner', label: 'Owner' },
+  { value: 'client_admin', label: 'Admin' },
+  { value: 'client_user', label: 'Member' },
+];
 
-  useEffect(() => {
+function TeamSettings({ accountId, userId }: { accountId: string; userId: string }) {
+  const [members, setMembers] = useState<Array<{ id: string; full_name: string; email: string; role: string }>>([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('client_user');
+  const [inviting, setSending] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState('');
+
+  function loadMembers() {
     fetch(`/api/account-members?accountId=${accountId}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setMembers(d.members || d || []); })
+      .then(d => { if (d) setMembers(d.members || []); })
       .catch(() => {});
-  }, [accountId]);
+  }
 
-  const displayMembers = members.length > 0 ? members : [
-    { id: '1', name: 'Jess Alvarez', email: 'jess@nexorra.com', role: 'Agency admin' },
-    { id: '2', name: 'Kai Obi', email: 'kai@nexorra.com', role: 'Account manager' },
-  ];
+  useEffect(() => { loadMembers(); }, [accountId]);
+
+  async function sendInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true); setInviteMsg('');
+    try {
+      const res = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, email: inviteEmail, role: inviteRole, invitedBy: userId }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed');
+      setInviteMsg(`Invite sent to ${inviteEmail}`);
+      setInviteEmail('');
+      setTimeout(() => { setShowInvite(false); setInviteMsg(''); }, 2500);
+    } catch (err: any) {
+      setInviteMsg(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function changeRole(memberId: string, role: string) {
+    await fetch(`/api/account-members?accountId=${accountId}&userId=${memberId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }),
+    });
+    loadMembers();
+  }
+
+  async function removeMember(memberId: string) {
+    if (!confirm('Remove this person from the workspace?')) return;
+    await fetch(`/api/account-members?accountId=${accountId}&userId=${memberId}`, { method: 'DELETE' });
+    loadMembers();
+  }
+
+  const inp: CSSProperties = {
+    padding: '8px 12px', fontSize: 13.5, border: '1px solid var(--line)',
+    borderRadius: 8, background: 'var(--paper-2)', color: 'var(--ink)',
+    outline: 'none', fontFamily: 'inherit', flex: 1,
+  };
 
   return (
     <Card padding={0} style={{ overflow: 'hidden' }}>
@@ -210,19 +262,50 @@ function TeamSettings({ accountId }: { accountId: string }) {
           <div style={{ fontSize: 15, fontWeight: 600 }}>Team & access</div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>People who can access this workspace.</div>
         </div>
-        <Button variant="primary" size="sm" icon={<Icons.plus size={13} />}>Invite</Button>
+        <Button variant="primary" size="sm" icon={<Icons.plus size={13} />} onClick={() => setShowInvite(s => !s)}>Invite</Button>
       </div>
-      {displayMembers.map((t, i) => (
-        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px', borderBottom: i < displayMembers.length - 1 ? '1px solid var(--line)' : 'none' }}>
-          <Avatar name={t.name} color={(['blue', 'violet', 'green', 'amber'] as const)[i % 4]} size={32} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</div>
+
+      {showInvite && (
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--line)', background: 'var(--paper-2)' }}>
+          <form onSubmit={sendInvite} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input style={inp} type="email" placeholder="user@example.com" value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)} required />
+            <select style={{ ...inp, flex: 'none', width: 130 }} value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
+              {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+            <button type="submit" disabled={inviting} style={{ padding: '8px 16px', fontSize: 13.5, fontWeight: 500, border: 'none', borderRadius: 8, background: 'var(--blue)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {inviting ? 'Sending…' : 'Send invite'}
+            </button>
+          </form>
+          {inviteMsg && <div style={{ fontSize: 12.5, marginTop: 8, color: inviteMsg.startsWith('Invite sent') ? 'var(--green)' : 'var(--rose)' }}>{inviteMsg}</div>}
+        </div>
+      )}
+
+      {members.length === 0 ? (
+        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13.5 }}>No members yet.</div>
+      ) : members.map((t, i) => (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: i < members.length - 1 ? '1px solid var(--line)' : 'none' }}>
+          <Avatar name={t.full_name || t.email} color={(['blue', 'violet', 'green', 'amber'] as const)[i % 4]} size={32} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.full_name || '—'}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{t.email}</div>
           </div>
-          <Badge tone="neutral">{t.role}</Badge>
-          <button style={{ padding: 4, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>
-            <Icons.more size={16} />
-          </button>
+          {t.role?.startsWith('agency_') ? (
+            <Badge tone="violet">{ROLE_LABELS[t.role] || t.role}</Badge>
+          ) : (
+            <select value={t.role} onChange={e => changeRole(t.id, e.target.value)}
+              style={{ padding: '5px 10px', fontSize: 12.5, border: '1px solid var(--line)', borderRadius: 7, background: 'var(--paper-2)', color: 'var(--ink)', fontFamily: 'inherit', cursor: 'pointer' }}>
+              {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          )}
+          {!t.role?.startsWith('agency_') && t.id !== userId && (
+            <button onClick={() => removeMember(t.id)} title="Remove member"
+              style={{ padding: 5, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6 }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--rose)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-3)')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+          )}
         </div>
       ))}
     </Card>
