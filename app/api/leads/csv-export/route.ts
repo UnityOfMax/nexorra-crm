@@ -75,20 +75,33 @@ export async function GET(request: NextRequest) {
   // Build CSV — Company = unique batch ID (e.g. 20260416-a3f2c1b0)
   const header = 'First Name,Last Name,Phone Number,Address,City,State,Zip Code,Country,Email,Company,Role,Website';
 
-  const rows = allLeads.map(lead => [
-    csvEscape(lead.first_name || ''),
-    csvEscape(lead.last_name || ''),
-    csvEscape(lead.mobile_phone || lead.phone || ''),
-    '',
-    csvEscape(lead.city || ''),
-    csvEscape(lead.state_province || ''),
-    '',
-    csvEscape(lead.country || ''),
-    csvEscape(lead.email || ''),
-    batchId,         // Company = unique export batch ID
-    'Real Estate Agent',
-    csvEscape(lead.profile_url || ''),
-  ].join(','));
+  const rows = allLeads.map(lead => {
+    // Role: for website leads → "{reviewer name} - {business type}"
+    //       for calling leads → "Real Estate Agent"
+    let role = 'Real Estate Agent';
+    if (category === 'website') {
+      const reviewer = lead.reviewer_name || '';
+      const bizType = lead.source_brokerage || '';
+      role = reviewer && bizType ? `${reviewer} - ${bizType}`
+           : reviewer ? reviewer
+           : bizType || 'Local Business';
+    }
+
+    return [
+      csvEscape(lead.first_name || ''),
+      csvEscape(lead.last_name || ''),
+      csvEscape(lead.mobile_phone || lead.phone || ''),
+      '',
+      csvEscape(lead.city || ''),
+      csvEscape(lead.state_province || ''),
+      '',
+      csvEscape(lead.country || ''),
+      csvEscape(lead.email || ''),
+      batchId,
+      csvEscape(role),
+      csvEscape(lead.profile_url || ''),
+    ].join(',');
+  });
 
   const csv = [header, ...rows].join('\n');
   const fileName = `${category}-leads-${date}-${allLeads.length}.csv`;

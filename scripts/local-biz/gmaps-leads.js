@@ -1,15 +1,11 @@
 #!/usr/bin/env node
 /**
  * Google Maps local business lead scraper.
- * Finds local businesses (restaurants, barbers, salons, etc.) that have:
- *   - No website, OR a bad/social-only website
- *   - Under 50 reviews
- *
- * Captures per listing: business name, phone, Google Maps URL, review count,
- * website URL (if any), Facebook URL (if any).
+ * Targets small local businesses with no real website.
+ * Niches: barbers, hair salons, restaurants/cafes (no chains),
+ *         physio, small gyms, massage, med spas, nail salons, day spas.
  *
  * Uses Chrome on port 9223. Stores in leads table (lead_category='website').
- * Extra fields go into personal_research jsonb.
  */
 
 'use strict';
@@ -19,7 +15,7 @@ const https = require('https');
 const fs = require('fs');
 
 const PORT = 9223;
-const DAILY_TARGET = 500;
+const DAILY_TARGET = 300;
 const CITY_STATE_FILE = '/home/max/crm/agents/state/gmaps-city-pages.json';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -46,6 +42,48 @@ const BAD_WEBSITE_DOMAINS = [
   'tumblr.com',
 ];
 
+// Known chain / franchise name keywords — skip anything matching these
+const CHAIN_KEYWORDS = [
+  // Fast food & casual dining
+  "mcdonald", "burger king", "subway", "starbucks", "chipotle", "domino",
+  "pizza hut", "wendy", "kfc", "taco bell", "chick-fil-a", "chick fil a",
+  "panera", "sonic drive", "dunkin", "popeyes", "dairy queen", "five guys",
+  "jimmy john", "jersey mike", "firehouse subs", "potbelly", "quiznos",
+  "arby", "jack in the box", "carl's jr", "hardee", "del taco", "whataburger",
+  "in-n-out", "culver", "wingstop", "buffalo wild wings", "applebee",
+  "chili's", "olive garden", "red lobster", "outback steakhouse", "longhorn",
+  "ihop", "denny", "cracker barrel", "waffle house", "bob evans",
+  "red robin", "perkins", "friendly", "noodles & company", "panda express",
+  "raising cane", "shake shack", "habit burger", "smashburger", "portillo",
+  // Coffee chains
+  "dunkin' donuts", "tim hortons", "peet's coffee", "caribou coffee",
+  "dutch bros", "coffee bean", "second cup",
+  // Gyms
+  "planet fitness", "la fitness", "24 hour fitness", "anytime fitness",
+  "gold's gym", "ymca", "ywca", "orangetheory", "orange theory",
+  "equinox", "lifetime fitness", "life time", "snap fitness", "retro fitness",
+  "crunch fitness", "blink fitness", "f45", "barry's bootcamp", "pure barre",
+  "club pilates", "cyclebar", "row house",
+  // Hair
+  "great clips", "sport clips", "supercuts", "hair cuttery", "cost cutters",
+  "regis salons", "fantastic sams", "pro cuts", "mastercuts", "hair club",
+  "smartstyle",
+  // Massage & spa chains
+  "massage envy", "hand & stone", "hand and stone", "elements massage",
+  "now massage",
+  // Med spa / beauty chains
+  "european wax center", "deka lash", "waxing the city", "laser away",
+  "ideal image",
+  // Other retail
+  "walmart", "target", "walgreens", "cvs", "rite aid",
+];
+
+function isChain(name) {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return CHAIN_KEYWORDS.some(kw => lower.includes(kw));
+}
+
 function isBadWebsite(url) {
   if (!url) return true;
   try {
@@ -54,27 +92,28 @@ function isBadWebsite(url) {
   } catch { return true; }
 }
 
+// Small local niches only — no trades, home services, or chains
 const BUSINESS_TYPES = [
   'barber shop',
   'hair salon',
+  'hairdresser',
   'restaurant',
-  'nail salon',
-  'auto repair',
-  'cleaning service',
-  'landscaping',
-  'plumber',
-  'electrician',
-  'pizza',
   'cafe',
-  'tattoo shop',
-  'dog groomer',
+  'local food',
+  'diner',
+  'physiotherapy',
+  'physical therapy clinic',
+  'sports massage',
+  'massage therapy',
+  'massage spa',
   'gym',
-  'daycare',
-  'car wash',
-  'laundromat',
-  'florist',
-  'painter',
-  'roofing',
+  'fitness studio',
+  'pilates studio',
+  'yoga studio',
+  'med spa',
+  'medical spa',
+  'day spa',
+  'nail salon',
 ];
 
 const CITIES = [
@@ -166,7 +205,6 @@ function formatPhone(p) {
 function loadCityState() {
   try { return JSON.parse(fs.readFileSync(CITY_STATE_FILE, 'utf8')); } catch { return {}; }
 }
-
 function saveCityState(state) {
   try { fs.writeFileSync(CITY_STATE_FILE, JSON.stringify(state, null, 2)); } catch {}
 }
@@ -229,10 +267,10 @@ async function insertLead(lead) {
         Prefer: 'return=minimal',
       },
     }, res => {
-      let body = '';
-      res.on('data', d => body += d);
+      let b = '';
+      res.on('data', d => b += d);
       res.on('end', () => {
-        if (res.statusCode >= 300) log(`  INSERT ERROR ${res.statusCode}: ${body.slice(0, 200)}`);
+        if (res.statusCode >= 300) log(`  INSERT ERROR ${res.statusCode}: ${b.slice(0, 200)}`);
         resolve(res.statusCode < 300);
       });
     });
@@ -242,10 +280,8 @@ async function insertLead(lead) {
   });
 }
 
-// Extract all details from a listing page that's already loaded
 async function extractListingDetails(page) {
   return page.evaluate(() => {
-    // Phone — from data-item-id attribute (most reliable)
     let phone = null;
     document.querySelectorAll('[data-item-id]').forEach(el => {
       const id = el.getAttribute('data-item-id') || '';
@@ -256,12 +292,10 @@ async function extractListingDetails(page) {
       if (telLink) phone = telLink.href.replace('tel:', '').trim();
     }
 
-    // Website URL — the authority link
     let website_url = null;
     const websiteEl = document.querySelector('a[data-item-id="authority"]');
     if (websiteEl) website_url = websiteEl.href;
 
-    // Facebook URL — look for facebook.com links in the page
     let facebook_url = null;
     document.querySelectorAll('a[href]').forEach(a => {
       if (!facebook_url && a.href.includes('facebook.com/') &&
@@ -272,17 +306,13 @@ async function extractListingDetails(page) {
       }
     });
 
-    // Review count — "X reviews" in page text
     let review_count = null;
     const bodyText = document.body.innerText || '';
     const rm = bodyText.match(/(\d[\d,]*)\s+reviews?/i);
     if (rm) review_count = parseInt(rm[1].replace(/,/g, ''));
 
-    // Current page URL (the canonical Maps listing URL)
     const maps_url = window.location.href;
 
-    // Business name — h1 that is NOT "Results" (the search panel heading)
-    // Fallback: decode from URL path /maps/place/Business+Name/...
     let name = null;
     document.querySelectorAll('h1').forEach(el => {
       const t = el.innerText.trim();
@@ -295,8 +325,6 @@ async function extractListingDetails(page) {
       } catch {}
     }
 
-    // Reviewer name — scoped inside [data-review-id] so we only hit customer review cards,
-    // never the business listing header photo (which is outside any review container).
     let reviewer_name = null;
     const bizNameLower = (name || '').toLowerCase().trim();
     const reviewEl = document.querySelector('[data-review-id]');
@@ -329,7 +357,6 @@ async function scrapeSearch(page, city, businessType) {
     return [];
   }
 
-  // Scroll until Maps reaches the end of results or no new listings load
   let lastCount = 0;
   let staleScrolls = 0;
   for (let i = 0; i < 20 && staleScrolls < 3; i++) {
@@ -352,7 +379,6 @@ async function scrapeSearch(page, city, businessType) {
     if (atEnd) break;
   }
 
-  // Collect all listing URLs — no cap
   const listingUrls = await page.evaluate(() => {
     const seen = new Set();
     const urls = [];
@@ -365,7 +391,6 @@ async function scrapeSearch(page, city, businessType) {
   log(`  Found ${listingUrls.length} listings`);
   const leads = [];
 
-  // Navigate listing-to-listing directly — no goBack needed since we have all URLs upfront
   for (let idx = 0; idx < listingUrls.length; idx++) {
     try {
       await page.goto(listingUrls[idx], { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -375,21 +400,28 @@ async function scrapeSearch(page, city, businessType) {
       const info = await extractListingDetails(page);
 
       let skip = false;
+      let skipReason = '';
       if (!info.name || info.name === 'Results' || /^sponsored/i.test(info.name)) {
-        log(`  Skip: (no valid name)`); skip = true;
+        skip = true; skipReason = 'no valid name';
+      } else if (isChain(info.name)) {
+        skip = true; skipReason = `chain/franchise`;
       } else if (info.website_url && !isBadWebsite(info.website_url)) {
-        log(`  Skip: ${info.name} (has real website: ${info.website_url.slice(0, 50)})`); skip = true;
+        skip = true; skipReason = `has real website`;
       } else if (!info.phone) {
-        log(`  Skip: ${info.name} (no phone)`); skip = true;
+        skip = true; skipReason = 'no phone';
       }
 
-      if (!skip) {
+      if (skip) {
+        log(`  Skip: ${info.name || '(unnamed)'} — ${skipReason}`);
+      } else {
         const phone = formatPhone(info.phone);
         if (phone) {
           if (await phoneExists(phone)) {
-            log(`  Dupe: ${info.name} (${phone})`);
+            log(`  Dupe: ${info.name}`);
           } else {
-            const lead = {
+            const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
+            log(`  + "${info.name}" (${info.review_count ?? '?'} reviews${websiteNote}) — ${phone}`);
+            leads.push({
               business_name:  info.name,
               phone,
               city:           city.name,
@@ -402,11 +434,7 @@ async function scrapeSearch(page, city, businessType) {
               business_type:  businessType,
               reviewer_name:  info.reviewer_name || null,
               has_website:    !!info.website_url,
-            };
-            const websiteNote = info.website_url ? ` | web: ${info.website_url.slice(0, 40)}` : ' | no website';
-            const fbNote = info.facebook_url ? ' | has FB' : '';
-            log(`  + "${info.name}" (${info.review_count ?? '?'} reviews${websiteNote}${fbNote}) — ${phone}`);
-            leads.push(lead);
+            });
           }
         }
       }
@@ -423,7 +451,8 @@ async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) { log('ERROR: Missing Supabase env vars'); process.exit(1); }
 
   log('=== Google Maps local business scraper ===');
-  log(`Filter: no real website (review count no longer a filter)`);
+  log(`Niches: barbers, hair, restaurants (no chains), physio, gyms, massage, med spas`);
+  log(`Daily target: ${DAILY_TARGET}`);
 
   let browser;
   try {
@@ -441,7 +470,6 @@ async function main() {
     return;
   }
 
-  // Close leftover Maps tabs from previous killed runs
   const existingPages = await browser.pages();
   for (const p of existingPages) {
     const url = p.url();
@@ -452,7 +480,6 @@ async function main() {
 
   const cityState = loadCityState();
   const today = new Date().toISOString().split('T')[0];
-
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
@@ -481,7 +508,6 @@ async function main() {
           log(`ERROR: ${err.message}`);
         }
 
-        // Mark this type as done for today
         if (!cityState[cityKey] || cityState[cityKey].date !== today) {
           cityState[cityKey] = { date: today, types: [] };
         }
@@ -494,7 +520,7 @@ async function main() {
   } finally {
     await page.close().catch(() => {});
     browser.disconnect();
-    log(`\n=== Done: ${totalSaved} website leads saved ===`);
+    log(`\n=== Done: ${totalSaved} website leads saved (total today: ${todayStart + totalSaved}/${DAILY_TARGET}) ===`);
   }
 }
 
