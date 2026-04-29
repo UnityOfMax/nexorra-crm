@@ -172,12 +172,27 @@ export async function spawnAgent(params: {
     }
   }
 
-  // Insert run record
-  const { data: run, error: runError } = await supabaseAdmin
-    .from('agent_runs')
-    .insert({ agent_id: agentId, status: 'running', trigger })
-    .select()
-    .single();
+  // Insert run record — retry once on transient network errors (stale connection pool)
+  let run: any = null;
+  let runError: any = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await (attempt === 0
+      ? supabaseAdmin
+      : createClient(supabaseUrl, supabaseKey)
+    ).from('agent_runs')
+      .insert({ agent_id: agentId, status: 'running', trigger })
+      .select()
+      .single();
+    run = result.data;
+    runError = result.error;
+    if (!runError) break;
+    if (attempt === 0 && runError.message?.includes('fetch failed')) {
+      console.warn('[daemon] Supabase insert failed with network error, retrying with fresh client...');
+      await new Promise(r => setTimeout(r, 2000));
+    } else {
+      break;
+    }
+  }
 
   if (runError || !run) {
     throw new Error(`Failed to create run: ${runError?.message}`);
