@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('lead_category', category)
       .is('csv_batch_id', null)
+      .not('text_contacted', 'is', true) // exclude leads already contacted via texting
       .eq('timezone', tz)
       .order('scraped_at', { ascending: false })
       .limit(want);
@@ -129,6 +130,7 @@ export async function HEAD(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('lead_category', category)
       .is('csv_batch_id', null)
+      .not('text_contacted', 'is', true)
       .eq('timezone', tz);
     counts[tz] = count || 0;
   }

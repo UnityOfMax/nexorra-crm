@@ -148,7 +148,10 @@ export default function LeadsList() {
   }, []);
 
   useEffect(() => {
-    setOffset(0); setSelectedIds(new Set()); setTzAvailLoaded(false); fetchLeads(0);
+    setOffset(0); setSelectedIds(new Set()); setTzAvailLoaded(false);
+    setTzAvail({ EST: 0, CST: 0, MST: 0, PST: 0 });
+    setTzCounts({ EST: 0, CST: 0, MST: 0, PST: 0 });
+    fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, filterTimezone, filterCountry]);
 
