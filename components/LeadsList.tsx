@@ -158,12 +158,15 @@ export default function LeadsList() {
   useEffect(() => {
     if (tzAvailLoaded) return;
     const load = async () => {
-      const res = await fetch(`/api/leads/csv-export?category=${category}`, { method: 'HEAD' });
+      const res = await fetch(`/api/leads/csv-export?category=${category}&_t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
       if (res.ok) {
         try {
           const counts = JSON.parse(res.headers.get('X-TZ-Counts') || '{}');
           setTzAvail(counts);
           setTzCounts({ EST: Math.min(counts.EST || 0, 200), CST: Math.min(counts.CST || 0, 200), MST: Math.min(counts.MST || 0, 200), PST: Math.min(counts.PST || 0, 200) });
+          // Update category badge to show available count (not total)
+          const available = Object.values(counts).reduce((a: number, b) => a + (b as number), 0);
+          setCategoryCounts(prev => ({ ...prev, [category]: available }));
         } catch {}
       }
       setTzAvailLoaded(true);
@@ -192,7 +195,10 @@ export default function LeadsList() {
         a.download = cd.match(/filename=([^\s;]+)/)?.[1] || `${category}-leads.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        setTzAvailLoaded(false); fetchLeads(offset);
+        setTzAvail({ EST: 0, CST: 0, MST: 0, PST: 0 });
+        setTzCounts({ EST: 0, CST: 0, MST: 0, PST: 0 });
+        setTzAvailLoaded(false);
+        fetchLeads(offset);
       }
     } finally { setCsvExporting(false); }
   };
