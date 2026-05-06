@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const category = sp.get('category') || 'calling';
+  const niche = sp.get('niche') || '';
 
   // Per-timezone mode: EST=N&CST=N&MST=N&PST=N
   const perTz: Partial<Record<typeof TIMEZONES[number], number>> = {};
@@ -42,15 +43,17 @@ export async function GET(request: NextRequest) {
     const want = perTz[tz] || 0;
     if (!want) continue;
 
-    const { data } = await supabaseAdmin
+    let q = supabaseAdmin
       .from('leads')
       .select('*')
       .eq('lead_category', category)
       .is('csv_batch_id', null)
-      .not('text_contacted', 'is', true) // exclude leads already contacted via texting
+      .not('text_contacted', 'is', true)
       .eq('timezone', tz)
       .order('scraped_at', { ascending: false })
       .limit(want);
+    if (niche) q = q.eq('source_brokerage', niche);
+    const { data } = await q;
 
     if (data) {
       for (const lead of data) {
@@ -121,17 +124,21 @@ export async function HEAD(request: NextRequest) {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return auth;
 
-  const category = request.nextUrl.searchParams.get('category') || 'calling';
+  const headSp = request.nextUrl.searchParams;
+  const category = headSp.get('category') || 'calling';
+  const niche = headSp.get('niche') || '';
 
   const counts: Record<string, number> = {};
   for (const tz of TIMEZONES) {
-    const { count } = await supabaseAdmin
+    let q = supabaseAdmin
       .from('leads')
       .select('id', { count: 'exact', head: true })
       .eq('lead_category', category)
       .is('csv_batch_id', null)
       .not('text_contacted', 'is', true)
       .eq('timezone', tz);
+    if (niche) q = q.eq('source_brokerage', niche);
+    const { count } = await q;
     counts[tz] = count || 0;
   }
 

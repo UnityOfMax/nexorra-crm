@@ -111,6 +111,7 @@ export default function LeadsList() {
   const [tzAvailLoaded, setTzAvailLoaded] = useState(false);
   const [filterTimezone, setFilterTimezone] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
+  const [filterNiche, setFilterNiche] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -123,6 +124,7 @@ export default function LeadsList() {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), category });
     if (filterTimezone) params.set('timezone', filterTimezone);
     if (filterCountry) params.set('country', filterCountry);
+    if (filterNiche) params.set('brokerage', filterNiche);
     try {
       const res = await fetch(`/api/leads?${params}`);
       if (res.ok) {
@@ -132,7 +134,7 @@ export default function LeadsList() {
         setCategoryCounts(prev => ({ ...prev, [category]: json.total || 0 }));
       }
     } finally { setLoading(false); }
-  }, [offset, category, filterTimezone, filterCountry]);
+  }, [offset, category, filterTimezone, filterCountry, filterNiche]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -153,12 +155,13 @@ export default function LeadsList() {
     setTzCounts({ EST: 0, CST: 0, MST: 0, PST: 0 });
     fetchLeads(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, filterTimezone, filterCountry]);
+  }, [category, filterTimezone, filterCountry, filterNiche]);
 
   useEffect(() => {
     if (tzAvailLoaded) return;
     const load = async () => {
-      const res = await fetch(`/api/leads/csv-export?category=${category}&_t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+      const nichePart = filterNiche ? `&niche=${encodeURIComponent(filterNiche)}` : '';
+      const res = await fetch(`/api/leads/csv-export?category=${category}${nichePart}&_t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
       if (res.ok) {
         try {
           const counts = JSON.parse(res.headers.get('X-TZ-Counts') || '{}');
@@ -185,6 +188,7 @@ export default function LeadsList() {
     try {
       const params = new URLSearchParams({ category });
       for (const [tz, count] of Object.entries(tzCounts)) { if (count > 0) params.set(tz, String(count)); }
+      if (filterNiche) params.set('niche', filterNiche);
       const res = await fetch(`/api/leads/csv-export?${params}`);
       if (res.ok) {
         const blob = await res.blob();
@@ -370,6 +374,7 @@ export default function LeadsList() {
         {[
           { value: filterTimezone, onChange: setFilterTimezone, options: [['', 'All TZ'], ...TIMEZONES.map(t => [t, t])] },
           { value: filterCountry, onChange: setFilterCountry, options: [['', 'US + CA'], ['US', 'United States'], ['CA', 'Canada']] },
+          { value: filterNiche, onChange: setFilterNiche, options: [['', 'All niches'], ['pest control', 'Pest Control'], ['exterminator', 'Exterminator'], ['hvac', 'HVAC'], ['air conditioning repair', 'AC Repair'], ['landscaping', 'Landscaping'], ['kitchen remodel', 'Kitchen Remodel'], ['bathroom remodel', 'Bathroom Remodel'], ['roofing contractor', 'Roofing']] },
         ].map((f, i) => (
           <select
             key={i}
