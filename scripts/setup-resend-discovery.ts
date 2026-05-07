@@ -22,7 +22,7 @@ dotenv.config({ path: '.env.local' });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const CONFIG_FILE = path.join(__dirname, '../agents/state/resend-discovery-config.json');
 
-const PRECALL_URL = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com'}/call-booked`;
+const PRECALL_URL = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.nexorra.io'}/call-booked`;
 const BASE_IMG = 'https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/email-results';
 
 // ── Template HTML ─────────────────────────────────────────────────────────────

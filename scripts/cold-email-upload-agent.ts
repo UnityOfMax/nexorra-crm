@@ -93,7 +93,7 @@ async function getLandingPageUrl(leadId: string): Promise<string> {
     .single();
 
   if (data) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.ainexorra.com";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.nexorra.io";
     return `${baseUrl}/video/${data.id}`;
   }
 
@@ -102,7 +102,7 @@ async function getLandingPageUrl(leadId: string): Promise<string> {
 
 async function createLandingPage(lead: any): Promise<string> {
   // Create landing page via the API endpoint
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.ainexorra.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.nexorra.io";
 
   try {
     const { buildColdEmailPage } = await import("../lib/landing-pages/cold-email-builder");

@@ -19,5 +19,5 @@ git push "https://${GH_TOKEN}@github.com/UnityOfMax/nexorra-crm.git" main 2>&1 |
 echo ""
 
 echo "[2/2] Build triggered on Vercel!"
-echo "  Production: https://app.ainexorra.com"
+echo "  Production: https://app.nexorra.io"
 echo "  Monitor:    https://vercel.com/maxs-projects-c8624c3e/nexorra-crm/deployments"

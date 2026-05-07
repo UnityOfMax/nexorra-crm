@@ -397,7 +397,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
           </button>
           {published && (
             <a
-              href={`https://app.ainexorra.com/account/${accountSlug}/landing-pages/${page.id}`}
+              href={`https://app.nexorra.io/account/${accountSlug}/landing-pages/${page.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary text-sm flex items-center gap-1"
@@ -420,7 +420,7 @@ export default function LandingPageBuilder({ page, accountId, accountSlug, onBac
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Page URL (stable)</label>
               <p className="text-xs font-mono text-gray-700 bg-gray-50 rounded p-2 break-all select-all">
-                https://app.ainexorra.com/account/{accountSlug}/landing-pages/{page.id}
+                https://app.nexorra.io/account/{accountSlug}/landing-pages/{page.id}
               </p>
             </div>
             <div>

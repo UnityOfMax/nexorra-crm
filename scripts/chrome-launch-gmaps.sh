@@ -25,24 +25,22 @@ done
 mkdir -p "$DEBUG_PROFILE/Default" "$(dirname "$LOG")"
 echo "[$(date)] Launching Chrome GMaps instance on port ${PORT}..." | tee -a "$LOG"
 
-# Always use the real GDM desktop (:0) — never fall back to Xvfb (:99)
+# Detect active display (:0, :1, or :99 Xvfb)
 unset WAYLAND_DISPLAY
 export XDG_RUNTIME_DIR="/run/user/1000"
 XAUTH_CANDIDATE=$(ls -t /run/user/1000/.mutter-Xwaylandauth.* 2>/dev/null | head -1 || echo "")
 [ -n "$XAUTH_CANDIDATE" ] && export XAUTHORITY="$XAUTH_CANDIDATE" || export XAUTHORITY=""
 
-# Wait up to 30s for :0 — GDM may still be starting
 DISPLAY_FOUND=""
-for i in $(seq 1 30); do
-  if DISPLAY=":0" xdpyinfo >/dev/null 2>&1; then DISPLAY_FOUND=":0"; break; fi
-  sleep 1
+for d in ":0" ":1" ":99"; do
+  if DISPLAY="$d" xdpyinfo >/dev/null 2>&1; then DISPLAY_FOUND="$d"; break; fi
 done
 if [ -z "$DISPLAY_FOUND" ]; then
-  echo "[$(date)] ERROR: Display :0 not available after 30s — Chrome must run on real desktop" | tee -a "$LOG"
+  echo "[$(date)] ERROR: No X display available (:0, :1, :99 all failed)" | tee -a "$LOG"
   exit 1
 fi
-export DISPLAY=":0"
-echo "[$(date)] Using DISPLAY=:0" | tee -a "$LOG"
+export DISPLAY="$DISPLAY_FOUND"
+echo "[$(date)] Using DISPLAY=$DISPLAY_FOUND" | tee -a "$LOG"
 
 # Sync cookies from main profile for Google auth
 for ITEM in Cookies "Local State" Preferences "Web Data"; do

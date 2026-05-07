@@ -9,7 +9,7 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '/home/max/crm/.env.local' });
 
 const supa = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://app.nexorra.io';
 const AGENCY = 'da99b768-79dd-48f8-af86-abf95e61a69f';
 const SB = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;

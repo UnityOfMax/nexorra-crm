@@ -1,29 +1,33 @@
 {
   "1": {
-    "text1": "Hey {First_name}, my name's Max. I wanted to reach out because we've recently recieved funding for our startup Nexorra. Basically it's an ai client acquisition software for real estate agents. We're working with a few beta testers right now, and they're averaging 1-3 extra deals a month with us. We're now looking for some more clients to add to our results. The software essentially finds warm leads, qualifies them and books them in to meetings with you fully automatically.",
-    "text2": "I'd love to run you through how it works on a zoom if you're interested. Just shoot me a thumbs up and I'll send you my calendar link."
+    "text1": "Hey I couldn't find your website so thought I'd build you one.",
+    "text2": "I'm a college student trying to make a bit of side income at the moment, I build websites for companies like yours, it's super cheap and just wanted to see if you wanted to check out what I'd built",
+    "text3": "Let me know and I'd love to jump on a call to show you"
   },
   "2": {
-    "text1": "Hey {First_name}, my name's Max. I wanted to reach out because we've recently recieved funding for our startup Nexorra. Basically an ai client acquisition software for real estate agents. I'm sure you've heard of agencies doing something similar for 2-10k upfront.",
-    "text2": "We're chargin 299/m for it. We're working with a few beta testers right now, and they're averaging 1-3 extra deals a month with us. We're now looking for some more clients to add to our results. The software essentially finds warm leads, qualifies them and books them in to meetings with you fully automatically. And I'd love to run you through how it works on a zoom if you're interested. Just shoot me a thumbs up and I'll send you my calendar link so you can find a time that works for you."
+    "text1": "Hey, my name is Max, I couldn't find your website so I made you one",
+    "text2": "I build websites for companies like yours, I'm trying to make some extra money on the side while at college",
+    "text3": "I'd love to show you what I've made if you have 5-10 minutes to jump on a call at some point?"
   },
   "3": {
-    "text1": "Hey {First_name}, how's it going? My name is Max, I work for a company called Nexorra. We've created a software that gets you more deals. We charge 299/mo for it. We're currently working with over a thousand other agents, they're averaging around 1 to 3 extra deals each month on top of what they're already doing.",
-    "text2": "I don't fully know if this would be of interest because you might be so busy that even your procrastination is behind schedule but if you do have the capacity for a few more deals and you're open to new opportunities I'd love to show you our software on a 10-15 minute call. Just let me know and I'll send over my calendar link."
+    "text1": "Hey, I'm Max, I don't want to be disrespectful or anything",
+    "text2": "You guys seem like one of the best {company type} in {local area} but I couldn't find your website",
+    "text3": "I wasn't sure if you had one or not so I built you one for free, I'd love to show it to you if you have the time"
   },
   "4": {
-    "text1": "Hey {First_name} this is Max. I know this isn't your first cold message today (or this hour) so I'll get to the point. We've built a software for agents to get them more deals. It finds warm people that are looking for you, qualifies them and books them into a meeting with you fully automatically. We're charging 299/mo for this right now. I'd love to show you how the software actually works on a 10-15 minute call if you'd be open for that.",
-    "text2": "Let me know and I'll send you my calendar link"
+    "text1": "Hey, it's Max, I couldn't find a website for you guys so I decided to make one for you",
+    "text2": "I've built some for a few other guys in {local area} and it's helped a lot with leads and stuff",
+    "text3": "I'd love to show you what I've built if you're open to it"
   },
   "followups": {
     "1": { "text": "Just bumping this up", "daysAfter": 1 },
-    "2": { "text": "{First_name}?", "daysAfter": 2 },
-    "3": { "text": "I didn't realise you were the type of person to ghost {First_name}...", "daysAfter": 2 }
+    "2": { "text": "Hey?", "daysAfter": 2 },
+    "3": { "text": "No worries if you're not interested, just let me know either way", "daysAfter": 2 }
   },
   "postBooking": {
-    "1": { "text": "I haven't seen your name pop up on my calendar yet {First_name}, I'm happy to get something in for you, when works best?", "daysAfter": 2 },
-    "2": { "text": "{First_name}?", "daysAfter": 2 },
-    "3": { "text": "It's okay, I'm used to this, I get ghosted by girls all the time...", "daysAfter": 2 }
+    "1": { "text": "Hey, haven't seen you come through on my calendar yet — still want to jump on a call?", "daysAfter": 2 },
+    "2": { "text": "Hey?", "daysAfter": 2 },
+    "3": { "text": "All good if not, just let me know", "daysAfter": 2 }
   },
-  "bookingLink": "https://calendly.com/nexorra/demo-call"
+  "bookingLink": "https://calendly.com/homeconsultingai/discovery-call"
 }

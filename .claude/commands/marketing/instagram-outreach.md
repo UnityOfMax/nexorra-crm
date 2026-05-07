@@ -147,7 +147,7 @@ For each of the 5 leads assigned to this account:
      curl -s "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/landing_pages?lead_id=eq.{lead_id}&page_type=eq.cold-email&select=id&limit=1" \
        -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
      ```
-     URL format: `https://app.ainexorra.com/video/{page_id}`
+     URL format: `https://app.nexorra.io/video/{page_id}`
      If no landing page: skip this lead (video not processed yet).
 
 4. **Send DM:**

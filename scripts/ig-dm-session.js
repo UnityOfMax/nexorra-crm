@@ -329,7 +329,7 @@ async function sendTextMessage(page, text) {
 }
 
 async function sendDmToLead(page, lead, accountUsername) {
-  const lpUrl = `https://app.ainexorra.com/video/${lead.lp_id}`;
+  const lpUrl = `https://app.nexorra.io/video/${lead.lp_id}`;
   const msg2 = `Hey ${lead.first_name}, I'm Max. I just wanted to break the ice. We've helped over 100 other realestate agents close on average 3 extra deals per month`;
   const msg3 = `I found you on ${lead.brokerage}'s website and I thought you'd be a great fit for this, I recorded a video for you explaining everything if you're interested:`;
 

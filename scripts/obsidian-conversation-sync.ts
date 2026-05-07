@@ -458,7 +458,7 @@ AI appointment-setting agency for real estate agents (US + Canada). CRM + AI age
 
 ## Active Pipelines
 - **Jeff** (Lead Gen): Compass + RE/MAX + Realtor.com → 1,000 email + 350 Instagram + 500 calling leads/day
-- **Derek** (Video): Per-lead personalised demo videos → landing pages at app.ainexorra.com/video/{id}
+- **Derek** (Video): Per-lead personalised demo videos → landing pages at app.nexorra.io/video/{id}
 - **Stacey** (Cold Email): Instantly campaigns → upload 1,000 leads/day, 3-email sequence
 - **Petra** (Local Biz): Google Maps → website demos → email/SMS outreach to local businesses
 - **Tara** (Instagram): 5 accounts × 50 DMs/day = 250 DMs/day with video links

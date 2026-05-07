@@ -32,7 +32,7 @@ const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_KEY    = process.env.RESEND_API_KEY;
 const FROM_EMAIL    = process.env.FROM_EMAIL || 'noreply@noreply.ainexorralinks.com';
 const ACCOUNT_ID    = process.env.NEXORRA_AGENCY_ACCOUNT_ID || 'da99b768-79dd-48f8-af86-abf95e61a69f';
-const APP_URL       = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+const APP_URL       = process.env.NEXT_PUBLIC_APP_URL || 'https://app.nexorra.io';
 const PRECALL_URL   = `${APP_URL}/call-booked`;
 const TEST_EMAIL    = process.env.TEST_EMAIL || '111macifawcett@gmail.com';
 

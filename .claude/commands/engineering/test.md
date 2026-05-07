@@ -48,7 +48,7 @@ Report the deployment URL back to Barny.
 ### Step 6: Post-deploy Smoke Test
 - `GET /api/agents` — should return agent list
 - `GET /api/usage/stats` — should return usage data
-- Check that the preview changes are live on https://app.ainexorra.com
+- Check that the preview changes are live on https://app.nexorra.io
 
 ## CRITICAL RULES
 - **NEVER push to git without Max's approval**

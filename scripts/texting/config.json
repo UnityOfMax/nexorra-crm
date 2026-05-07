@@ -1,22 +1,65 @@
 {
   "numbers": [
-    { "displayNumber": "+19294703489", "inboxId": "PNWNDnEVrq", "timezone": "EST" },
-    { "displayNumber": "+17864421372", "inboxId": "PNCo6ggAJA", "timezone": "EST" },
-    { "displayNumber": "+14702795391", "inboxId": "PNTxQHg3A4", "timezone": "EST" },
-    { "displayNumber": "+13465006552", "inboxId": "PN0ckB2aF5", "timezone": "CST" },
-    { "displayNumber": "+14695359670", "inboxId": "PNwStvYCJI", "timezone": "CST" },
-    { "displayNumber": "+14642514331", "inboxId": "PNd8ezV5yd", "timezone": "CST" },
-    { "displayNumber": "+14805428293", "inboxId": "PNN7Gx6N9C", "timezone": "MST" },
-    { "displayNumber": "+17208071281", "inboxId": "PNCa7iJMP1", "timezone": "MST" },
-    { "displayNumber": "+12133205591", "inboxId": "PNvlWf19zc", "timezone": "PST" },
-    { "displayNumber": "+12065944042", "inboxId": "PNdcPHhY0M", "timezone": "PST" }
+    {
+      "displayNumber": "+19294703489",
+      "inboxId": "PNWNDnEVrq",
+      "timezone": "EST"
+    },
+    {
+      "displayNumber": "+17864421372",
+      "inboxId": "PNCo6ggAJA",
+      "timezone": "EST"
+    },
+    {
+      "displayNumber": "+14702795391",
+      "inboxId": "PNTxQHg3A4",
+      "timezone": "EST"
+    },
+    {
+      "displayNumber": "+13465006552",
+      "inboxId": "PN0ckB2aF5",
+      "timezone": "CST"
+    },
+    {
+      "displayNumber": "+14695359670",
+      "inboxId": "PNwStvYCJI",
+      "timezone": "CST"
+    },
+    {
+      "displayNumber": "+14642514331",
+      "inboxId": "PNd8ezV5yd",
+      "timezone": "CST"
+    },
+    {
+      "displayNumber": "+14805428293",
+      "inboxId": "PNN7Gx6N9C",
+      "timezone": "MST"
+    },
+    {
+      "displayNumber": "+17208071281",
+      "inboxId": "PNCa7iJMP1",
+      "timezone": "MST"
+    },
+    {
+      "displayNumber": "+12133205591",
+      "inboxId": "PNvlWf19zc",
+      "timezone": "PST"
+    },
+    {
+      "displayNumber": "+12065944042",
+      "inboxId": "PNdcPHhY0M",
+      "timezone": "PST"
+    }
   ],
-  "blockedInboxIds": ["PNAtCJVoUv", "PNDvQkHlFA"],
+  "blockedInboxIds": [
+    "PNAtCJVoUv",
+    "PNDvQkHlFA"
+  ],
   "ramp": {
-    "startDate": null,
+    "startDate": "2026-04-24",
     "startLimit": 10,
     "endLimit": 40,
     "days": 5
   },
-  "leadCategory": "calling"
+  "leadCategory": "website"
 }

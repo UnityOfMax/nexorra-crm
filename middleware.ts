@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // In production these default to the live domains.
 // Set BASE_DOMAIN and INTERNAL_API_BASE in .env.local to test locally.
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'app.ainexorra.com';
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'app.nexorra.io';
 const LEGACY_BASE_DOMAIN = process.env.BASE_DOMAIN || 'ourlimitedoffer.com';
 const INTERNAL_API_BASE = process.env.INTERNAL_API_BASE || `https://${APP_DOMAIN}`;
 

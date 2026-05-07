@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     .eq('id', page.id);
 
   // Build the public URL — /video/{uuid}
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ainexorra.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.nexorra.io';
   const url = `${baseUrl}/video/${page.id}`;
 
   return NextResponse.json({ slug: page.slug, url, page_id: page.id });

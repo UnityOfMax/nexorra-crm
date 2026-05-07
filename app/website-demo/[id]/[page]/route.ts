@@ -19,7 +19,7 @@ export async function GET(
 
   if (!page || !page.published) {
     // Fallback: redirect to home if subpage doesn't exist (legacy single-page demos)
-    return NextResponse.redirect(new URL(`/website-demo/${params.id}`, 'https://app.ainexorra.com'));
+    return NextResponse.redirect(new URL(`/website-demo/${params.id}`, 'https://app.nexorra.io'));
   }
 
   return new NextResponse(page.content, {

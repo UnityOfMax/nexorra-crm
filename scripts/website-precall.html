@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Website Consultation is Confirmed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue-950: #0c1a4a; --blue-900: #0f2d6e; --blue-700: #1040a0;
+      --blue-600: #1354e8; --blue-500: #3b82f6; --blue-400: #60a5fa;
+      --blue-100: #dbeafe; --blue-50: #eff6ff;
+      --off-white: #f8faff; --slate-200: #e2e8f0;
+      --text-dark: #0a0f1e; --text-muted: #64748b;
+      --radius: 16px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 14px 44px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.07);
+      --shadow-blue: 0 8px 40px rgba(19,84,232,0.22), 0 2px 8px rgba(19,84,232,0.12);
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font-body); background: #fff; color: var(--text-dark); line-height: 1.72; -webkit-font-smoothing: antialiased; }
+
+    /* ── HERO ── */
+    .hero { background: linear-gradient(148deg, var(--blue-950) 0%, var(--blue-600) 55%, #3b7bf0 100%); padding: 72px 24px 88px; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 55% at 50% 115%, rgba(96,165,250,0.28) 0%, transparent 70%), radial-gradient(ellipse 55% 40% at 85% 5%, rgba(59,130,246,0.18) 0%, transparent 65%); pointer-events: none; }
+    .hero-inner { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.14); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.24); padding: 8px 18px; border-radius: 100px; color: rgba(255,255,255,0.94); font-size: 14px; font-weight: 500; letter-spacing: 0.02em; margin-bottom: 28px; }
+    .hero-badge .live-dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; flex-shrink: 0; animation: livepulse 2s ease-in-out infinite; }
+    @keyframes livepulse { 0%,100% { box-shadow: 0 0 0 3px rgba(74,222,128,0.3); } 50% { box-shadow: 0 0 0 6px rgba(74,222,128,0.1); } }
+    .hero-check { width: 72px; height: 72px; background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.38); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 30px; color: #fff; animation: checkin 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+    @keyframes checkin { from { transform: scale(0) rotate(-30deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+    .hero h1 { font-family: var(--font-display); font-size: clamp(36px, 8vw, 64px); font-weight: 800; color: #fff; line-height: 1.04; letter-spacing: -0.025em; margin-bottom: 20px; }
+    .hero h1 .grad { background: linear-gradient(130deg, #93c5fd 10%, #a5f3fc 90%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: clamp(17px, 3vw, 20px); color: rgba(255,255,255,0.80); max-width: 460px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── SHARED ── */
+    section { padding: 84px 24px; }
+    .container { max-width: 860px; margin: 0 auto; }
+    .container-wide { max-width: 1080px; margin: 0 auto; }
+    .tc { text-align: center; }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue-600); margin-bottom: 12px; }
+    .section-title { font-family: var(--font-display); font-size: clamp(28px, 5vw, 44px); font-weight: 800; color: var(--text-dark); line-height: 1.1; letter-spacing: -0.022em; margin-bottom: 16px; }
+    .section-subtitle { font-size: 18px; color: var(--text-muted); line-height: 1.68; }
+
+    /* ── VIDEO ── */
+    .video-section { background: #fff; }
+    .video-section .section-subtitle { max-width: 540px; margin: 0 auto 44px; }
+    .video-wrap { max-width: 800px; margin: 0 auto; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-blue); border: 2px solid rgba(19,84,232,0.10); position: relative; cursor: pointer; user-select: none; background: #000; }
+    .video-wrap video { width: 100%; display: block; object-fit: contain; pointer-events: none; }
+    .video-wrap video::-webkit-media-controls { display: none !important; }
+    .video-wrap video::-webkit-media-controls-enclosure { display: none !important; }
+    .video-wrap video::-webkit-media-controls-panel { display: none !important; }
+    .play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 15; transition: opacity 0.3s; pointer-events: none; }
+    .play-overlay.playing { opacity: 0; }
+    .play-btn-icon { width: 68px; height: 68px; background: rgba(255,255,255,0.92); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 28px rgba(0,0,0,0.28); }
+    .play-btn-icon svg { width: 26px; height: 26px; margin-left: 5px; }
+    .vsl-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: rgba(255,255,255,0.18); z-index: 20; pointer-events: none; }
+    .vsl-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #1354e8, #60a5fa); transition: width 0.8s ease; }
+
+    /* ── STEPS ── */
+    .steps-section { background: var(--off-white); }
+    .steps-section .section-subtitle { max-width: 540px; }
+    .steps-grid { display: grid; gap: 16px; margin-top: 44px; }
+    .step-card { background: #fff; border: 1px solid var(--slate-200); border-radius: var(--radius); padding: 32px 36px; display: flex; gap: 28px; align-items: flex-start; box-shadow: var(--shadow-sm); opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.2s; }
+    .step-card:hover { box-shadow: var(--shadow); }
+    .step-card.in-view { opacity: 1; transform: translateY(0); }
+    .step-num { font-family: var(--font-display); font-size: 52px; font-weight: 800; color: var(--blue-100); line-height: 1; flex-shrink: 0; min-width: 56px; letter-spacing: -0.04em; user-select: none; }
+    .step-body h3 { font-family: var(--font-display); font-size: 21px; font-weight: 700; color: var(--text-dark); margin-bottom: 8px; letter-spacing: -0.01em; line-height: 1.25; }
+    .step-body p { font-size: 16.5px; color: var(--text-muted); line-height: 1.7; }
+
+    /* ── DEMOS ── */
+    .demos-section { background: #fff; padding-bottom: 100px; }
+    .demos-section .section-subtitle { max-width: 580px; }
+    .demos-screenshot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; margin-top: 48px; }
+
+    .sc-card { border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid rgba(0,0,0,0.07); opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.25s; background: #fff; }
+    .sc-card:hover { box-shadow: 0 28px 64px rgba(0,0,0,0.16), 0 8px 20px rgba(0,0,0,0.08); transform: translateY(-4px) !important; }
+    .sc-card.in-view { opacity: 1; transform: translateY(0); }
+
+    .sc-chrome { background: #f1f5f9; padding: 9px 12px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid #e2e8f0; }
+    .sc-dots { display: flex; gap: 5px; }
+    .sc-dots span { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #ffbd2e; } .dot-g { background: #28c840; }
+    .sc-url { flex: 1; background: #fff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 3px 10px; font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .sc-img { display: block; width: 100%; height: 280px; object-fit: cover; object-position: top center; line-height: 0; }
+
+    .sc-footer { padding: 12px 16px; border-top: 1px solid var(--slate-200); display: flex; align-items: center; justify-content: space-between; }
+    .sc-name { font-size: 13.5px; font-weight: 600; color: var(--text-dark); }
+    .sc-niche { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .sc-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; }
+
+    /* ── TESTIMONIALS ── */
+    .testi-section { background: linear-gradient(148deg, var(--blue-950) 0%, var(--blue-600) 58%, #2d6ae8 100%); position: relative; overflow: hidden; }
+    .testi-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 65% 45% at 18% 80%, rgba(96,165,250,0.2) 0%, transparent 65%), radial-gradient(ellipse 50% 35% at 82% 18%, rgba(147,197,253,0.14) 0%, transparent 60%); pointer-events: none; }
+    .testi-section .container-wide { position: relative; z-index: 1; }
+    .testi-section .eyebrow { color: rgba(255,255,255,0.65); }
+    .testi-section .section-title { color: #fff; }
+    .testi-section .section-subtitle { color: rgba(255,255,255,0.72); max-width: 520px; }
+    .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 48px; }
+    .tc-card { background: rgba(255,255,255,0.11); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.17); border-radius: var(--radius); padding: 24px; opacity: 0; transform: translateY(16px); transition: opacity 0.45s ease, transform 0.45s ease, background 0.2s; }
+    .tc-card:hover { background: rgba(255,255,255,0.16); }
+    .tc-card.in-view { opacity: 1; transform: translateY(0); }
+    .tc-card.feat { background: rgba(255,255,255,0.96); border-color: transparent; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .tc-card.feat:hover { background: #fff; }
+    .tc-card.feat .tc-quote { color: var(--text-dark); } .tc-card.feat .tc-name { color: var(--text-dark); } .tc-card.feat .tc-biz { color: var(--text-muted); } .tc-card.feat .tc-stars { color: #f59e0b; }
+    .tc-stars { color: #fbbf24; font-size: 13px; letter-spacing: 1.5px; margin-bottom: 14px; }
+    .tc-quote { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.90); margin-bottom: 18px; font-style: italic; }
+    .tc-quote::before { content: '\201C'; } .tc-quote::after { content: '\201D'; }
+    .tc-foot { display: flex; align-items: center; gap: 11px; }
+    .tc-av { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .tc-name { font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.97); line-height: 1.25; }
+    .tc-biz { font-size: 12px; color: rgba(255,255,255,0.58); margin-top: 2px; }
+
+    /* ── CLOSING ── */
+    .closing { background: #fff; text-align: center; padding: 84px 24px 100px; }
+    .closing .container { max-width: 520px; }
+    .closing h2 { font-family: var(--font-display); font-size: clamp(28px, 5vw, 42px); font-weight: 800; color: var(--text-dark); letter-spacing: -0.022em; margin-bottom: 20px; line-height: 1.1; }
+    .closing p { font-size: 18px; color: var(--text-muted); line-height: 1.68; margin-bottom: 32px; }
+    .closing-brand { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--blue-600); letter-spacing: -0.01em; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) { .testi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { section { padding: 64px 20px; } .step-card { flex-direction: column; gap: 10px; padding: 24px 20px; } .step-num { font-size: 38px; } .demos-screenshot-grid { grid-template-columns: 1fr; } .testi-grid { grid-template-columns: 1fr; } .sc-img { height: 200px; } }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge"><span class="live-dot"></span>Call confirmed</div>
+    <div class="hero-check">&#10003;</div>
+    <h1>You're booked.<br><span class="grad">Let's get ready.</span></h1>
+    <p class="hero-sub">Take 10 minutes before we speak. Watch the video, check your invite, and browse a few of the sites we've built for businesses like yours.</p>
+  </div>
+</header>
+
+<section class="video-section">
+  <div class="container tc">
+    <p class="eyebrow">Step one</p>
+    <h2 class="section-title">Watch this first</h2>
+    <p class="section-subtitle">This covers exactly how we build your website, what's included, and what to expect on our call.</p>
+    <div class="video-wrap" id="videoWrap" onclick="togglePlay()">
+      <video id="mainVideo" preload="metadata" playsinline>
+        <source src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/videos/website-precall-vsl.mp4" type="video/mp4">
+      </video>
+      <div class="play-overlay" id="playOverlay">
+        <div class="play-btn-icon">
+          <svg viewBox="0 0 24 24" fill="#1354e8"><polygon points="5,3 19,12 5,21"/></svg>
+        </div>
+      </div>
+      <div class="vsl-progress"><div class="vsl-progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="steps-section">
+  <div class="container">
+    <p class="eyebrow">Before we speak</p>
+    <h2 class="section-title">Three things to do</h2>
+    <p class="section-subtitle">Quick. Takes about 10 minutes. You'll get a lot more from the call if you come prepared.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-body">
+          <h3>Watch the video above</h3>
+          <p>It covers what we build, how long it takes, and what a finished site looks like. You'll come into the call knowing exactly what you're getting. No surprises.</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-body">
+          <h3>Accept your calendar invite</h3>
+          <p>You'll have a Google Calendar invite sent to the email you booked with. If you can't find it, check your spam. It'll be there with the call link inside.</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-body">
+          <h3>Browse the demo websites below</h3>
+          <p>Scroll down and take a look at sites we've built for businesses in your industry. Get a feel for the quality of what we produce, and come ready to tell us your style.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DEMOS ── -->
+<section class="demos-section">
+  <div class="container-wide">
+    <p class="eyebrow">Our work</p>
+    <h2 class="section-title">Real websites, built for real businesses.</h2>
+    <p class="section-subtitle">These are actual demo sites built by Home Consulting AI — the same quality you'll get for your business.</p>
+
+    <div class="demos-screenshot-grid">
+
+      <div class="sc-card">
+        <div class="sc-chrome">
+          <div class="sc-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+          <div class="sc-url">summitroofingco.com</div>
+        </div>
+        <img class="sc-img" src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/precall-demos/roofing-hero.png" alt="Summit Roofing Co. website demo" loading="lazy">
+        <div class="sc-footer">
+          <div>
+            <div class="sc-name">Summit Roofing Co.</div>
+            <div class="sc-niche">Nashville, TN &middot; Roofing</div>
+          </div>
+          <div class="sc-badge" style="background:#fee2e2;color:#991b1b">Roofing</div>
+        </div>
+      </div>
+
+      <div class="sc-card">
+        <div class="sc-chrome">
+          <div class="sc-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+          <div class="sc-url">greenspirelandscaping.com</div>
+        </div>
+        <img class="sc-img" src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/precall-demos/landscaping-hero.png" alt="GreenSpire Landscaping website demo" loading="lazy">
+        <div class="sc-footer">
+          <div>
+            <div class="sc-name">GreenSpire Landscaping</div>
+            <div class="sc-niche">Austin, TX &middot; Landscaping</div>
+          </div>
+          <div class="sc-badge" style="background:#dcfce7;color:#166534">Landscaping</div>
+        </div>
+      </div>
+
+      <div class="sc-card">
+        <div class="sc-chrome">
+          <div class="sc-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+          <div class="sc-url">craftkitchenstudio.com</div>
+        </div>
+        <img class="sc-img" src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/precall-demos/kitchen-hero.png" alt="Craft Kitchen Studio website demo" loading="lazy">
+        <div class="sc-footer">
+          <div>
+            <div class="sc-name">Craft Kitchen Studio</div>
+            <div class="sc-niche">Denver, CO &middot; Kitchen Remodeling</div>
+          </div>
+          <div class="sc-badge" style="background:#fef3c7;color:#92400e">Kitchen</div>
+        </div>
+      </div>
+
+      <div class="sc-card">
+        <div class="sc-chrome">
+          <div class="sc-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+          <div class="sc-url">shieldpestpro.com</div>
+        </div>
+        <img class="sc-img" src="https://nhflmisklsanfiiywrfo.supabase.co/storage/v1/object/public/landing-page-assets/precall-demos/pest-hero.png" alt="Shield Pest Pro website demo" loading="lazy">
+        <div class="sc-footer">
+          <div>
+            <div class="sc-name">Shield Pest Pro</div>
+            <div class="sc-niche">Tampa, FL &middot; Pest Control</div>
+          </div>
+          <div class="sc-badge" style="background:#dcfce7;color:#14532d">Pest Control</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ── TESTIMONIALS ── -->
+<section class="testi-section">
+  <div class="container-wide">
+    <p class="eyebrow">What they say</p>
+    <h2 class="section-title">Business owners love it.</h2>
+    <p class="section-subtitle">From first impressions to more bookings. Here's what clients are saying after their sites went live.</p>
+    <div class="testi-grid">
+      <div class="tc-card feat">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I figured it would take at least a month to get a website sorted. They had it live in four days. Four days. And it looked better than most landscaping companies in my city who've probably spent thousands on theirs.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:#fde8d8;color:#c45c1e">S</div><div><div class="tc-name" style="color:var(--text-dark)">Sarah M.</div><div class="tc-biz" style="color:var(--text-muted)">Landscaping Company</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">Really easy to get hold of them throughout. Replied the same day every time. Once the site was up I found out there's an auto text that goes out when someone fills in the contact form. Didn't even know it was included. It just handles the first reply for me now.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">M</div><div><div class="tc-name">Marcus R.</div><div class="tc-biz">Roofing Company</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">Honestly I was expecting to pay way more. After seeing the price I figured there had to be some catch. There wasn't. Site looks great, it's hosted and secure, I don't touch it. It just works.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">J</div><div><div class="tc-name">Jennifer L.</div><div class="tc-biz">Pest Control</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">A client asked for my website and I had nothing to send them. That was the push I needed. Five days later I had something I was actually happy to share. The price was nothing like I expected either.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">T</div><div><div class="tc-name">Tyler B.</div><div class="tc-biz">Landscaping</div></div></div>
+      </div>
+      <div class="tc-card feat">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">Every other time I've tried to get a website built it was a nightmare of email chains and nothing ever looked right. This was the opposite. They asked the right questions upfront and basically handled it from there. I barely had to do anything.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:#dbeafe;color:#1354e8">D</div><div><div class="tc-name" style="color:var(--text-dark)">Dave C.</div><div class="tc-biz" style="color:var(--text-muted)">Roofing Company</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I didn't know the auto text was part of it until a lead messaged me saying they appreciated hearing back so quickly. I hadn't even seen their form yet. The system had already gotten there first.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">A</div><div><div class="tc-name">Amy K.</div><div class="tc-biz">Exterminator</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">My competitors have the same clunky site they've had for ten years. Mine looks like it was done by a proper agency. And I don't have to maintain it or worry about security. It's just there.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">R</div><div><div class="tc-name">Rosa T.</div><div class="tc-biz">Kitchen Remodeling</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">Three days from signing up to a live website. Easy to get hold of throughout, and what came back looked genuinely good. Should have done it two years ago.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">N</div><div><div class="tc-name">Nathan W.</div><div class="tc-biz">Kitchen Renovations</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I was missing so many leads before because I couldn't always pick up the phone. Now people fill out the form and get a text back immediately. Bookings went up and I didn't change anything else.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">K</div><div><div class="tc-name">Kevin J.</div><div class="tc-biz">Pest Control</div></div></div>
+      </div>
+      <div class="tc-card feat">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I had a WordPress site before that kept getting hacked and going offline. I didn't know what SSL was or how to fix any of it. Now someone else handles all of that and I just send people to my URL.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:#e8f5e9;color:#2d5a2d">E</div><div><div class="tc-name" style="color:var(--text-dark)">Emily T.</div><div class="tc-biz" style="color:var(--text-muted)">Kitchen Remodeling</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">Site was live inside three days. They asked what they needed upfront, got on with it, and I barely heard from them until it was done. That's how every contractor should work.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">P</div><div><div class="tc-name">Patricia G.</div><div class="tc-biz">Exterminator</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">My nephew quoted me triple the price to build something half as good. I couldn't believe what the site looked like when it went live. Clients comment on it at least once a week.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">W</div><div><div class="tc-name">Wade H.</div><div class="tc-biz">Bathroom Remodeling</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I don't have a tech person and I'm not becoming one. The hosting and security are handled for me, and anyone who fills in the contact form gets a text back automatically. First time a website hasn't become something I had to manage.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">H</div><div><div class="tc-name">Hannah V.</div><div class="tc-biz">Bathroom Remodeling</div></div></div>
+      </div>
+      <div class="tc-card">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">I'm not easy to impress. I've been burned by people promising fast delivery and then going quiet. This wasn't that. Updates when they said there would be updates, done when they said it would be done.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:rgba(255,255,255,0.18);color:#fff">F</div><div><div class="tc-name">Fernando L.</div><div class="tc-biz">Landscaping</div></div></div>
+      </div>
+      <div class="tc-card feat">
+        <div class="tc-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p class="tc-quote">For what we pay, the maths don't add up in a good way. A competitor told me they spend three times as much just for hosting and still do all the maintenance themselves. We haven't touched anything since it went live.</p>
+        <div class="tc-foot"><div class="tc-av" style="background:#fef3c7;color:#92400e">C</div><div><div class="tc-name" style="color:var(--text-dark)">Chris M.</div><div class="tc-biz" style="color:var(--text-muted)">Roofing</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CLOSING ── -->
+<section class="closing">
+  <div class="container">
+    <h2>See you on the call.</h2>
+    <p>We'll walk through your business, what we'd build specifically for you, and exactly what working together looks like. Come with any questions.</p>
+    <div class="closing-brand">Home Consulting AI</div>
+  </div>
+</section>
+
+<script>
+  // ── VSL player ──
+  const vslVideo   = document.getElementById('mainVideo');
+  const vslOverlay = document.getElementById('playOverlay');
+  const vslFill    = document.getElementById('progressFill');
+
+  function togglePlay() {
+    vslVideo.paused ? vslVideo.play() : vslVideo.pause();
+  }
+
+  vslVideo.addEventListener('play',  () => vslOverlay.classList.add('playing'));
+  vslVideo.addEventListener('pause', () => vslOverlay.classList.remove('playing'));
+  vslVideo.addEventListener('ended', () => vslOverlay.classList.remove('playing'));
+
+  // Progress bar: first 30% of playback fills bar to 50% (fast), then slows to 100%
+  vslVideo.addEventListener('timeupdate', () => {
+    if (!vslVideo.duration) return;
+    const vp = vslVideo.currentTime / vslVideo.duration;
+    const bp = vp < 0.3 ? (vp / 0.3) * 0.5 : 0.5 + ((vp - 0.3) / 0.7) * 0.5;
+    vslFill.style.width = (bp * 100).toFixed(2) + '%';
+  });
+
+  vslVideo.addEventListener('contextmenu', e => e.preventDefault());
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const delay = el.dataset.delay ? parseInt(el.dataset.delay) : 0;
+        setTimeout(() => el.classList.add('in-view'), delay);
+        observer.unobserve(el);
+      }
+    });
+  }, { threshold: 0.07, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.step-card, .tc-card, .sc-card').forEach((el, i) => {
+    if (el.classList.contains('tc-card')) el.dataset.delay = String((i % 3) * 80);
+    if (el.classList.contains('sc-card')) el.dataset.delay = String((i % 2) * 120);
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>

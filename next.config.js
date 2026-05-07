@@ -13,7 +13,7 @@ const nextConfig = {
     ],
   },
   images: {
-    domains: ['localhost', 'app.ainexorra.com'],
+    domains: ['localhost', 'app.nexorra.io'],
   },
   async headers() {
     return [

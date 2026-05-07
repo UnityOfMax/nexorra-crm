@@ -10,6 +10,19 @@ import { createClient } from '@supabase/supabase-js';
 import type { FastCopy } from '../local-biz/copy-generator';
 import { buildAllPages, type BizPageData } from '../local-biz/multi-page-builder';
 import { buildRestaurantAllPages } from '../local-biz/restaurant-page-builder';
+import { buildPestControlAllPages } from '../local-biz/pest-control-builder';
+import { buildPestControlV2AllPages } from '../local-biz/pest-control-builder-v2';
+import { buildExterminatorAllPages } from '../local-biz/exterminator-builder';
+import { buildExterminatorV2AllPages } from '../local-biz/exterminator-builder-v2';
+import { buildLandscapingAllPages } from '../local-biz/landscaping-builder';
+import { buildLandscapingV2AllPages } from '../local-biz/landscaping-builder-v2';
+import { buildLandscapingV3AllPages } from '../local-biz/landscaping-builder-v3';
+import { buildRoofingAllPages } from '../local-biz/roofing-builder';
+import { buildRoofingV2AllPages } from '../local-biz/roofing-builder-v2';
+import { buildKitchenRemodelAllPages } from '../local-biz/kitchen-remodel-builder';
+import { buildKitchenRemodelV2AllPages } from '../local-biz/kitchen-remodel-builder-v2';
+import { buildBathroomRemodelAllPages } from '../local-biz/bathroom-remodel-builder';
+import { buildBathroomRemodelV2AllPages } from '../local-biz/bathroom-remodel-builder-v2';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -324,13 +337,38 @@ function buildVars(biz: LocalBizData, enrichedCopy?: Partial<FastCopy>): Record<
 
 export function detectBizCategory(businessType: string): string {
   const t = businessType.toLowerCase();
+  // Home improvement niches (specific builders)
+  if (t.includes('pest control') || t.includes('pest')) return 'pest-control';
+  if (t.includes('exterminator') || t.includes('termite') || t.includes('bed bug')) return 'exterminator';
+  if (t.includes('landscap') || t.includes('lawn') || t.includes('lawn care') || t.includes('yard')) return 'landscaping';
+  if (t.includes('kitchen remodel') || t.includes('kitchen renovat') || t.includes('kitchen contractor')) return 'kitchen-remodel';
+  if (t.includes('bathroom remodel') || t.includes('bath remodel') || t.includes('bathroom renovat')) return 'bathroom-remodel';
+  if (t.includes('roof') || t.includes('roofer') || t.includes('roofing')) return 'roofing';
+  // Existing categories
   if (t.includes('salon') || t.includes('hair') || t.includes('hairdress') || t.includes('beauty') || t.includes('nail') || t.includes('spa')) return 'salon';
   if (t.includes('barber')) return 'barber';
   if (t.includes('restaurant') || t.includes('cafe') || t.includes('food') || t.includes('bakery') || t.includes('bistro')) return 'restaurant';
   if (t.includes('gym') || t.includes('fitness') || t.includes('yoga') || t.includes('pilates') || t.includes('martial')) return 'fitness';
-  if (t.includes('plumb') || t.includes('electr') || t.includes('roof') || t.includes('hvac') || t.includes('contractor') || t.includes('builder')) return 'trades';
+  if (t.includes('plumb') || t.includes('electr') || t.includes('hvac') || t.includes('contractor') || t.includes('builder')) return 'trades';
   if (t.includes('dent') || t.includes('chiroprac') || t.includes('account') || t.includes('law') || t.includes('consult') || t.includes('physio')) return 'professional';
   return 'professional';
+}
+
+function pick<T>(...variants: T[]): T {
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
+function selectBuilder(bizCat: string): (biz: BizPageData, baseUrl: string) => Record<string, string | undefined> {
+  switch (bizCat) {
+    case 'pest-control':     return pick(buildPestControlAllPages, buildPestControlV2AllPages);
+    case 'exterminator':     return pick(buildExterminatorAllPages, buildExterminatorV2AllPages);
+    case 'landscaping':      return pick(buildLandscapingAllPages, buildLandscapingV2AllPages, buildLandscapingV3AllPages);
+    case 'roofing':          return pick(buildRoofingAllPages, buildRoofingV2AllPages);
+    case 'kitchen-remodel':  return pick(buildKitchenRemodelAllPages, buildKitchenRemodelV2AllPages);
+    case 'bathroom-remodel': return pick(buildBathroomRemodelAllPages, buildBathroomRemodelV2AllPages);
+    case 'restaurant':       return buildRestaurantAllPages as any;
+    default:                 return buildAllPages;
+  }
 }
 
 // ── Team extractor from review text ──────────────────────────────────────────
@@ -445,10 +483,8 @@ export async function buildWebsiteDemo(biz: LocalBizData, enrichedCopy?: Partial
     extraNavLinks:    extraNavLinks.length > 4 ? extraNavLinks : undefined,
   };
 
-  // Route to specialist builders by category
-  const pages = bizCat === 'restaurant'
-    ? buildRestaurantAllPages(bizPageData, baseUrl)
-    : buildAllPages(bizPageData, baseUrl);
+  // Route to specialist builder by category
+  const pages = selectBuilder(bizCat)(bizPageData, baseUrl);
 
   // Insert home page
   const { data: homePage, error } = await supabaseAdmin

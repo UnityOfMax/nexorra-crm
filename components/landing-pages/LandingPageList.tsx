@@ -411,7 +411,7 @@ export default function LandingPageList({ accountId, accountSlug, isAgencyUser }
 
                     {page.published && (
                       <a
-                        href={`https://app.ainexorra.com/account/${accountSlug}/landing-pages/${page.id}`}
+                        href={`https://app.nexorra.io/account/${accountSlug}/landing-pages/${page.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

@@ -65,8 +65,9 @@ resolve_display() {
   return 1
 }
 
-# Force main display so the user can interact with OpenPhone
-export DISPLAY=:0
+# Detect the active X11 display from the logged-in session
+ACTIVE_DISPLAY=$(who | grep '(:' | grep -o '(:[0-9]*)' | tr -d '()' | head -1)
+export DISPLAY="${ACTIVE_DISPLAY:-:1}"
 
 echo "[$(date)] Using DISPLAY=$DISPLAY" | tee -a "$LOG"
 

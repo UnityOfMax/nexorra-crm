@@ -30,5 +30,4 @@ check_and_restart() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port ${PORT} restart complete." >> "$LOG"
 }
 
-check_and_restart 9222 scripts/chrome-launch.sh                    # Jeff (realtor.com)
 check_and_restart 9223 scripts/chrome-launch-gmaps.sh              # GMaps (website leads)

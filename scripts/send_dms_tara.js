@@ -91,7 +91,7 @@ async function typeMessage(page, msgInput, text) {
     const brokerageDisplay = brokerage === 'bhhs' ? 'BHHS' : brokerage === 'remax' ? 'RE/MAX' : brokerage.toUpperCase();
     
     console.log(`\n[${i+1}/${leads.length}] @${handle} (${firstName} ${lead.last_name || ''}) — ${brokerageDisplay}`);
-    console.log(`  URL: https://app.ainexorra.com/video/${lead.landing_page_id}`);
+    console.log(`  URL: https://app.nexorra.io/video/${lead.landing_page_id}`);
     
     try {
       // Navigate to profile
