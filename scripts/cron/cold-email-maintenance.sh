@@ -2,6 +2,8 @@
 # Cold Email Maintenance — nudge, ghosted detection, learning cycle
 # Schedule: 8:00 PM daily
 cd /home/max/crm || exit 1
+LOG="logs/cold-email-maintenance.log"
+mkdir -p logs
 
 # Operating hours guard: 10am-2am only
 HOUR=$(date +%H)
@@ -10,8 +12,6 @@ if [ "$HOUR" -ge 2 ] && [ "$HOUR" -lt 10 ]; then
   exit 0
 fi
 set -a && source .env.local && set +a
-LOG="logs/cold-email.log"
-mkdir -p logs
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') — Triggering cold-email-maintenance" >> "$LOG"
 
