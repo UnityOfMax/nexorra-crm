@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reviews · Wagsworth &amp; Co.</title>
+<meta name="description" content="Six hundred and twelve five-star reviews from Columbus dog families.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .review-stats { display: grid; grid-template-columns: 1fr 2fr; gap: 64px; align-items: center; margin-bottom: 72px; padding-bottom: 72px; border-bottom: 1px solid var(--rule); }
+  .big-rating { display: flex; flex-direction: column; gap: 8px; }
+  .big-rating .num { font-family: var(--font-display); font-size: clamp(80px, 9vw, 140px); line-height: 0.9; }
+  .big-rating .stars { color: var(--clay); font-size: 24px; letter-spacing: 4px; }
+  .big-rating .lbl { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); margin-top: 10px; }
+  .breakdown { display: flex; flex-direction: column; gap: 16px; }
+  .bd-row { display: grid; grid-template-columns: 80px 1fr 60px; gap: 16px; align-items: center; font-size: 14px; }
+  .bd-row .bar { background: rgba(26,22,18,0.08); border-radius: 999px; height: 6px; overflow: hidden; }
+  .bd-row .bar-fill { background: var(--clay); height: 100%; border-radius: 999px; }
+  .bd-row .count { color: var(--ink-mute); font-family: var(--font-mono); font-size: 12px; text-align: right; }
+
+  .pulled-quote {
+    background: var(--ink); color: var(--cream);
+    padding: clamp(40px, 6vw, 80px);
+    border-radius: 4px;
+    margin: 64px 0;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 24px; align-items: center;
+  }
+  .pulled-quote .stars { color: var(--clay); font-size: 24px; letter-spacing: 4px; }
+  .pulled-quote blockquote {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 4vw, 56px);
+    line-height: 1.15;
+    max-width: 22ch;
+  }
+  .pulled-quote cite { font-style: normal; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(243,237,225,0.6); }
+
+  .review-platforms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 64px 0 32px; }
+  .platform {
+    padding: 24px;
+    background: var(--cream);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .platform .src { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); }
+  .platform .rating { font-family: var(--font-display); font-size: 32px; line-height: 1; display: flex; align-items: baseline; gap: 6px; }
+  .platform .rating small { font-family: var(--font-body); font-size: 14px; color: var(--ink-mute); }
+  .platform .count { font-size: 12px; color: var(--ink-mute); }
+
+  .reviews-wall { columns: 3; column-gap: 24px; }
+  .reviews-wall .review { break-inside: avoid; margin-bottom: 24px; display: inline-flex; width: 100%; background: var(--cream); }
+  @media (max-width: 960px) {
+    .reviews-wall { columns: 2; }
+    .review-stats { grid-template-columns: 1fr; gap: 32px; }
+    .review-platforms { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .reviews-wall { columns: 1; }
+    .review-platforms { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-screen-label="05 Reviews">
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="9" cy="13" r="2.4" fill="currentColor"/><circle cx="16" cy="10" r="2.4" fill="currentColor"/><circle cx="23" cy="13" r="2.4" fill="currentColor"/><circle cx="13" cy="19" r="2.4" fill="currentColor"/><circle cx="19" cy="19" r="2.4" fill="currentColor"/><path d="M11 24c0-2.8 2.2-4 5-4s5 1.2 5 4-2.2 4-5 4-5-1.2-5-4z" fill="currentColor"/></svg></span><span>Wagsworth &amp; Co.</span></a>
+    <nav><ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="reviews.html" class="active">Reviews</a></li>
+      <li><a href="faq.html">FAQ</a></li>
+    </ul></nav>
+    <div class="nav-right">
+      <a class="nav-phone" href="tel:+16145550142">(614) 555&middot;0142</a>
+      <a class="btn btn-clay" href="contact.html">Book a visit <span class="arrow">→</span></a>
+      <button class="nav-toggle" aria-label="Open menu"><span></span></button>
+    </div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <div>
+      <div class="crumbs"><a href="index.html">Home</a><span class="sep">/</span><span>Reviews</span></div>
+      <h1 class="display">What our<br>neighbors <span class="italic">say.</span></h1>
+    </div>
+    <div class="right">
+      <p class="lede">We don't ask for reviews. The ones below all came in unprompted from clients who took the time to write to us, Google, or Yelp.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+
+    <!-- ===== Big stats ===== -->
+    <div class="review-stats reveal">
+      <div class="big-rating">
+        <div class="stars">★★★★★</div>
+        <div class="num">4.9</div>
+        <div class="lbl">Average across 612 reviews</div>
+      </div>
+      <div class="breakdown">
+        <div class="bd-row"><span>5 stars</span><div class="bar"><div class="bar-fill" style="width:94%"></div></div><span class="count">578</span></div>
+        <div class="bd-row"><span>4 stars</span><div class="bar"><div class="bar-fill" style="width:5%"></div></div><span class="count">29</span></div>
+        <div class="bd-row"><span>3 stars</span><div class="bar"><div class="bar-fill" style="width:0.7%"></div></div><span class="count">4</span></div>
+        <div class="bd-row"><span>2 stars</span><div class="bar"><div class="bar-fill" style="width:0.2%"></div></div><span class="count">1</span></div>
+        <div class="bd-row"><span>1 star</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div><span class="count">0</span></div>
+      </div>
+    </div>
+
+    <!-- ===== Platform stats ===== -->
+    <div class="review-platforms reveal">
+      <div class="platform">
+        <span class="src">Google</span>
+        <div class="rating">4.9 <small>★★★★★</small></div>
+        <span class="count">421 reviews</span>
+      </div>
+      <div class="platform">
+        <span class="src">Yelp</span>
+        <div class="rating">4.8 <small>★★★★★</small></div>
+        <span class="count">108 reviews</span>
+      </div>
+      <div class="platform">
+        <span class="src">Facebook</span>
+        <div class="rating">5.0 <small>★★★★★</small></div>
+        <span class="count">62 reviews</span>
+      </div>
+      <div class="platform">
+        <span class="src">Nextdoor</span>
+        <div class="rating">— <small>Top Local</small></div>
+        <span class="count">21 recommendations</span>
+      </div>
+    </div>
+
+    <!-- ===== Big pulled quote ===== -->
+    <div class="pulled-quote reveal">
+      <div class="stars">★★★★★</div>
+      <blockquote>"My anxious mutt has never walked herself into a groomer before. She walks herself into Wagsworth."</blockquote>
+      <cite>— Erin K. · Biscuit, Cocker Spaniel · Google · March 2026</cite>
+    </div>
+
+    <!-- ===== Wall of reviews ===== -->
+    <div class="reviews-wall reveal">
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Mara figured out that Biscuit's "attitude" at past groomers was actually a sore ear. He walks himself into Wagsworth now.</blockquote>
+        <div class="review-foot"><div class="who">Erin K.<small>Biscuit · Cocker</small></div><div class="meta">Google · Mar 2026</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>The only place I've found that will actually scissor a poodle face instead of buzz it. Worth the drive from Westerville.</blockquote>
+        <div class="review-foot"><div class="who">Devon M.<small>Apollo · Std Poodle</small></div><div class="meta">Yelp · Feb 2026</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>They sent us home with notes on our shepherd's coat and a follow-up text two days later. Who does that? Hugo Builders for dogs, I swear.</blockquote>
+        <div class="review-foot"><div class="who">Rachel &amp; Tom H.<small>Juno · GSD</small></div><div class="meta">Google · Feb 2026</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Theo got my fifteen-year-old Bichon through a full groom with three breaks and no stress. I almost cried at pickup.</blockquote>
+        <div class="review-foot"><div class="who">Margaret P.<small>Truffles · Bichon</small></div><div class="meta">Google · Jan 2026</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Jordan does the kind of show-quality schnauzer pattern you read about in books. Sterling looks like he's about to go ringside.</blockquote>
+        <div class="review-foot"><div class="who">Patrick L.<small>Sterling · Mini Schnauzer</small></div><div class="meta">Yelp · Jan 2026</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>I love that it's just my dog in there. No barking neighbors, no waiting around. My Frenchie used to shake — now she naps in the car on the way home.</blockquote>
+        <div class="review-foot"><div class="who">Aisha O.<small>Plum · Frenchie</small></div><div class="meta">Google · Dec 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Brought our rescue in for the first time terrified. They booked a "no-charge intro" visit before the real groom. By the third visit she was leaning on Mara for ear scratches.</blockquote>
+        <div class="review-foot"><div class="who">Vanessa &amp; Pete F.<small>Daffodil · Mystery mix</small></div><div class="meta">Google · Dec 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Hand-stripping a wire-haired dachshund in Columbus felt impossible until I found Jordan. Best Schnauzer-style coat she's ever had.</blockquote>
+        <div class="review-foot"><div class="who">Daniel R.<small>Berry · Wire Dachshund</small></div><div class="meta">Yelp · Nov 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Honest pricing, no surprise fees, and they actually told me my dog's coat didn't need a full groom this visit — just a bath. Who does that?</blockquote>
+        <div class="review-foot"><div class="who">Madison T.<small>Beans · Cavalier</small></div><div class="meta">Google · Nov 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>The puppy first-cut package is genius. Three short visits to acclimate, then the real groom. My Goldendoodle thinks the grooming table is the best place on earth.</blockquote>
+        <div class="review-foot"><div class="who">Charlie B.<small>Otis · Goldendoodle (10mo)</small></div><div class="meta">Google · Oct 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>The "ready" photo they text at pickup makes my whole day. Always perfectly groomed, always wearing a stupid bandana, always smiling.</blockquote>
+        <div class="review-foot"><div class="who">Lena V.<small>Mochi · Mini Aussie</small></div><div class="meta">Facebook · Oct 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Best de-shed treatment in Columbus, full stop. Our Husky leaves looking like a different dog and our house stays clean for two weeks.</blockquote>
+        <div class="review-foot"><div class="who">Brent &amp; Cory K.<small>Ziggy · Husky</small></div><div class="meta">Yelp · Sep 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>Walked in for a 10am Saturday consult, walked out with a plan, the right brush, and an appointment next week. Felt like I'd been a customer for years.</blockquote>
+        <div class="review-foot"><div class="who">Hannah J.<small>Pickle · Bernedoodle</small></div><div class="meta">Google · Sep 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>I have a deaf, blind, and very old terrier who hates everything. Theo somehow groomed him without him even noticing. I don't know how.</blockquote>
+        <div class="review-foot"><div class="who">Robert M.<small>Festus · Westie (14yrs)</small></div><div class="meta">Google · Aug 2025</div></div>
+      </div>
+
+      <div class="review">
+        <div class="stars">★★★★★</div>
+        <blockquote>The room is quiet, the people are kind, the prices are fair, and my dog comes home looking like she lost ten years. I cannot recommend this place enough.</blockquote>
+        <div class="review-foot"><div class="who">Naomi D.<small>Olive · Lab mix</small></div><div class="meta">Google · Aug 2025</div></div>
+      </div>
+
+    </div>
+
+    <p style="font-family:var(--font-mono); font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-mute); margin-top: 48px; text-align:center;">
+      Showing 15 of 612 reviews · &nbsp;<a href="https://google.com" style="border-bottom:1px solid currentColor; padding-bottom:2px;">Read more on Google →</a>
+    </p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cream">
+  <div class="container">
+    <div class="big-cta reveal">
+      <div class="bg"><img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=2000&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="big-cta-inner">
+        <p class="eyebrow" style="color:rgba(248,243,231,0.85);"><span class="dot"></span>Be number 613</p>
+        <h2 class="display">Bring your<br>dog in.</h2>
+        <p>If we do our job right, you'll write the next review without us ever asking.</p>
+        <a class="btn btn-clay" href="contact.html">Book a visit <span class="arrow">→</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo">Wagsworth &amp; Co.</div>
+        <p>A small, cage-free dog grooming studio on N. High Street in Clintonville, Columbus.</p>
+        <p style="font-family: var(--font-mono); font-size: 12px; letter-spacing:0.16em; text-transform:uppercase; color: rgba(243,237,225,0.5);">Tue–Sat · 8a–6p &nbsp;·&nbsp; Sun 10a–4p &nbsp;·&nbsp; Mon closed</p>
+      </div>
+      <div class="footer-col"><h5>Visit</h5><ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="reviews.html">Reviews</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="contact.html">Book a visit</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Studio</h5><ul>
+        <li><span class="contact-line">2841 N. High Street</span></li>
+        <li><span class="contact-line">Columbus, OH 43202</span></li>
+        <li><a href="https://maps.google.com" target="_blank" rel="noopener">Get directions →</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Get in touch</h5><ul>
+        <li><a href="tel:+16145550142">(614) 555·0142</a></li>
+        <li><a href="mailto:hi@wagsworth.studio">hi@wagsworth.studio</a></li>
+        <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram</a></li>
+        <li><a href="https://facebook.com" target="_blank" rel="noopener">Facebook</a></li>
+      </ul></div>
+    </div>
+    <div class="footer-wordmark">Wagsworth &amp; Co.</div>
+    <div class="footer-bottom">
+      <span>© 2026 Wagsworth &amp; Co. Grooming Studio LLC</span>
+      <span>Columbus, Ohio · Made on N. High St.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="editor-inject.js"></script>
+</body>
+</html>

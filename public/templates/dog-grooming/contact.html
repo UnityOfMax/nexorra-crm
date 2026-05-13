@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a visit · Wagsworth &amp; Co.</title>
+<meta name="description" content="Request an appointment, ask a question, or stop by during Saturday open hours.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .hours-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .hours-grid .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 15px;
+  }
+  .hours-grid .row .day { font-weight: 500; }
+  .hours-grid .row .hrs { color: var(--ink-mute); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; }
+  .hours-grid .row.closed .hrs { color: var(--clay); }
+  .hours-grid .row:nth-child(odd) { padding-right: 32px; }
+  .hours-grid .row:nth-child(even) { padding-left: 32px; }
+  @media (max-width: 720px) {
+    .hours-grid { grid-template-columns: 1fr; }
+    .hours-grid .row:nth-child(odd), .hours-grid .row:nth-child(even) { padding-left: 0; padding-right: 0; }
+  }
+
+  .map-wrap {
+    aspect-ratio: 16 / 9;
+    background: var(--paper-warm);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--rule);
+  }
+  .map-svg { width: 100%; height: 100%; display: block; }
+  .map-pin {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    pointer-events: none;
+  }
+  .map-pin .dot {
+    width: 18px; height: 18px;
+    background: var(--clay); border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(179,103,74,0.25), 0 0 0 12px rgba(179,103,74,0.12);
+    animation: pulse 2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(179,103,74,0.45), 0 0 0 0 rgba(179,103,74,0.25); }
+    100% { box-shadow: 0 0 0 16px rgba(179,103,74,0), 0 0 0 32px rgba(179,103,74,0); }
+  }
+  .map-pin .label {
+    background: var(--ink); color: var(--cream);
+    padding: 6px 12px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    white-space: nowrap;
+    transform: translateY(-14px);
+  }
+</style>
+</head>
+<body data-screen-label="07 Contact">
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="9" cy="13" r="2.4" fill="currentColor"/><circle cx="16" cy="10" r="2.4" fill="currentColor"/><circle cx="23" cy="13" r="2.4" fill="currentColor"/><circle cx="13" cy="19" r="2.4" fill="currentColor"/><circle cx="19" cy="19" r="2.4" fill="currentColor"/><path d="M11 24c0-2.8 2.2-4 5-4s5 1.2 5 4-2.2 4-5 4-5-1.2-5-4z" fill="currentColor"/></svg></span><span>Wagsworth &amp; Co.</span></a>
+    <nav><ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="reviews.html">Reviews</a></li>
+      <li><a href="faq.html">FAQ</a></li>
+    </ul></nav>
+    <div class="nav-right">
+      <a class="nav-phone" href="tel:+16145550142">(614) 555&middot;0142</a>
+      <a class="btn btn-clay" href="contact.html">Book a visit <span class="arrow">→</span></a>
+      <button class="nav-toggle" aria-label="Open menu"><span></span></button>
+    </div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <div>
+      <div class="crumbs"><a href="index.html">Home</a><span class="sep">/</span><span>Book a visit</span></div>
+      <h1 class="display">Let's get<br>your dog <span class="italic">on the books.</span></h1>
+    </div>
+    <div class="right">
+      <p class="lede">Tell us a little about your dog and we'll text or email you within one business day with two or three appointment options.</p>
+      <p style="margin-top:18px; font-family: var(--font-mono); font-size: 12px; letter-spacing:0.16em; text-transform:uppercase; color: var(--ink-mute);">Booking ~2–3 weeks out · Saturdays often 4+</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FORM + INFO ===================== -->
+<section class="section">
+  <div class="container">
+    <div class="contact-grid">
+
+      <!-- ===== Left: contact info ===== -->
+      <div class="contact-info">
+        <div class="info-block">
+          <div class="label">Studio</div>
+          <div class="value">2841 N. High Street<small>Columbus, OH 43202 · Clintonville</small></div>
+        </div>
+        <div class="info-block">
+          <div class="label">Phone &amp; text</div>
+          <div class="value"><a href="tel:+16145550142" style="border-bottom:1px solid var(--rule);">(614) 555·0142</a><small>Text us. Honestly, we're better at texts.</small></div>
+        </div>
+        <div class="info-block">
+          <div class="label">Email</div>
+          <div class="value"><a href="mailto:hi@wagsworth.studio" style="border-bottom:1px solid var(--rule);">hi@wagsworth.studio</a><small>Vaccine records &amp; longer questions.</small></div>
+        </div>
+
+        <div class="info-block">
+          <div class="label">Hours</div>
+          <div class="hours-grid" style="margin-top: 14px;">
+            <div class="row closed"><span class="day">Monday</span><span class="hrs">Closed</span></div>
+            <div class="row"><span class="day">Tuesday</span><span class="hrs">8a — 6p</span></div>
+            <div class="row"><span class="day">Wednesday</span><span class="hrs">8a — 6p</span></div>
+            <div class="row"><span class="day">Thursday</span><span class="hrs">8a — 6p</span></div>
+            <div class="row"><span class="day">Friday</span><span class="hrs">8a — 6p</span></div>
+            <div class="row"><span class="day">Saturday</span><span class="hrs">8a — 6p</span></div>
+            <div class="row"><span class="day">Sunday</span><span class="hrs">10a — 4p</span></div>
+            <div class="row"><span class="day" style="color:var(--clay);">Sat. open consult</span><span class="hrs" style="color:var(--clay);">10a — 12p</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Right: form ===== -->
+      <form class="contact-form" novalidate>
+        <div class="full">
+          <p class="eyebrow"><span class="dot"></span>Step 01 — about you</p>
+        </div>
+        <div class="field"><label for="f-name">Your name</label><input type="text" id="f-name" name="name" placeholder="Jane Doe" required></div>
+        <div class="field"><label for="f-email">Email</label><input type="email" id="f-email" name="email" placeholder="jane@example.com" required></div>
+        <div class="field"><label for="f-phone">Phone</label><input type="tel" id="f-phone" name="phone" placeholder="(614) 555-0123" required></div>
+        <div class="field"><label for="f-zip">ZIP code</label><input type="text" id="f-zip" name="zip" placeholder="43202"></div>
+
+        <div class="full" style="margin-top: 12px;">
+          <p class="eyebrow"><span class="dot"></span>Step 02 — about your dog</p>
+        </div>
+        <div class="field"><label for="f-dog">Dog's name</label><input type="text" id="f-dog" name="dog" placeholder="Biscuit" required></div>
+        <div class="field"><label for="f-breed">Breed (or best guess)</label><input type="text" id="f-breed" name="breed" placeholder="Cocker Spaniel mix"></div>
+        <div class="field">
+          <label for="f-size">Size</label>
+          <select id="f-size" name="size">
+            <option value="">Choose…</option>
+            <option>Tiny (under 15 lb)</option>
+            <option>Small (15–30 lb)</option>
+            <option>Medium (30–50 lb)</option>
+            <option>Large (50–80 lb)</option>
+            <option>Giant (80+ lb)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-age">Age</label>
+          <select id="f-age" name="age">
+            <option value="">Choose…</option>
+            <option>Puppy (under 6 months)</option>
+            <option>Young (6 months – 2 yrs)</option>
+            <option>Adult (2–10 yrs)</option>
+            <option>Senior (10+ yrs)</option>
+          </select>
+        </div>
+
+        <div class="full" style="margin-top: 12px;">
+          <p class="eyebrow"><span class="dot"></span>Step 03 — what you'd like</p>
+        </div>
+        <div class="full field">
+          <label>Service</label>
+          <div class="chips">
+            <button type="button" class="chip" data-value="full-groom">Full Groom</button>
+            <button type="button" class="chip" data-value="bath-brush">Bath &amp; Brush</button>
+            <button type="button" class="chip" data-value="puppy">Puppy First Visit</button>
+            <button type="button" class="chip" data-value="deshed">De-Shed</button>
+            <button type="button" class="chip" data-value="senior">Senior / Special needs</button>
+            <button type="button" class="chip" data-value="hand-strip">Hand-Stripping</button>
+            <button type="button" class="chip" data-value="not-sure">Not sure — help me pick</button>
+          </div>
+          <input type="hidden" name="service" value="">
+        </div>
+
+        <div class="field">
+          <label for="f-when">Preferred days</label>
+          <select id="f-when" name="when">
+            <option value="">Anything's fine</option>
+            <option>Weekday mornings</option>
+            <option>Weekday afternoons</option>
+            <option>Saturdays</option>
+            <option>Sundays</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-groomer">Preferred groomer</label>
+          <select id="f-groomer" name="groomer">
+            <option value="">No preference</option>
+            <option>Mara (owner)</option>
+            <option>Jordan</option>
+            <option>Theo</option>
+          </select>
+        </div>
+
+        <div class="full field">
+          <label for="f-notes">Anything we should know?</label>
+          <textarea id="f-notes" name="notes" placeholder="Behavior quirks, medical things, what you'd like the cut to look like — anything helps."></textarea>
+        </div>
+
+        <div class="full" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <button class="btn btn-clay" type="submit">Send the request <span class="arrow">→</span></button>
+          <span style="font-family: var(--font-mono); font-size: 11px; letter-spacing:0.16em; text-transform:uppercase; color: var(--ink-mute);">We reply within one business day</span>
+        </div>
+
+        <div class="form-success hidden">
+          <span style="font-size:18px;">✓</span>
+          <div>
+            <strong>Thanks — we got it.</strong><br>
+            A member of the team will be in touch within one business day. Or call us at (614) 555·0142.
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MAP / DIRECTIONS ===================== -->
+<section class="section warm">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <div class="section-num">02 — Find us</div>
+        <h2 class="display">Three doors down<br>from <span class="italic">Stauf's.</span></h2>
+      </div>
+      <div class="right">
+        <p class="lede">We're on the east side of N. High Street between Como Ave and Glen Echo. Free parking out front; quieter parking lot off Como behind the building.</p>
+      </div>
+    </div>
+
+    <div class="map-wrap reveal">
+      <svg class="map-svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
+        <!-- Stylized hand-drawn map of Clintonville -->
+        <rect width="1200" height="600" fill="#ece4d3"/>
+        <!-- Park blob -->
+        <path d="M 0 80 Q 200 50 280 140 Q 320 240 220 280 Q 80 300 0 240 Z" fill="#c8ce9c" opacity="0.6"/>
+        <text x="120" y="180" font-family="Instrument Serif" font-size="22" fill="#5a6a3a" font-style="italic">Whetstone Park</text>
+        <!-- River -->
+        <path d="M 1050 0 Q 1000 200 1080 380 Q 1150 480 1100 600" stroke="#88a4c2" stroke-width="32" fill="none" opacity="0.6"/>
+        <text x="1080" y="280" font-family="Instrument Serif" font-size="20" fill="#5a7090" font-style="italic" transform="rotate(70 1080 280)">Olentangy R.</text>
+        <!-- Streets -->
+        <path d="M 0 380 L 1200 380" stroke="#a89978" stroke-width="22" fill="none" opacity="0.5"/>
+        <path d="M 0 380 L 1200 380" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="14 14" opacity="0.7"/>
+        <text x="40" y="370" font-family="JetBrains Mono" font-size="13" fill="#6b6258" letter-spacing="2">N. HIGH ST</text>
+        <path d="M 600 0 L 600 600" stroke="#a89978" stroke-width="14" fill="none" opacity="0.5"/>
+        <text x="612" y="20" font-family="JetBrains Mono" font-size="11" fill="#6b6258" letter-spacing="2">COMO AVE</text>
+        <path d="M 220 0 L 220 600" stroke="#a89978" stroke-width="10" fill="none" opacity="0.4"/>
+        <path d="M 940 0 L 940 600" stroke="#a89978" stroke-width="10" fill="none" opacity="0.4"/>
+        <!-- Buildings -->
+        <rect x="80" y="420" width="80" height="50" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="180" y="440" width="60" height="36" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="280" y="420" width="120" height="44" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="420" y="430" width="80" height="40" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="520" y="420" width="60" height="50" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="630" y="420" width="90" height="46" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="740" y="425" width="70" height="42" fill="#1a1612" opacity="0.25" rx="2"/>
+        <rect x="830" y="420" width="80" height="48" fill="#1a1612" opacity="0.25" rx="2"/>
+        <!-- Wagsworth building (highlighted) -->
+        <rect x="556" y="304" width="88" height="56" fill="#b3674a" rx="3"/>
+        <text x="600" y="338" font-family="Instrument Serif" font-size="14" fill="#fff" text-anchor="middle">Wagsworth</text>
+        <!-- Other landmarks -->
+        <text x="380" y="490" font-family="Instrument Serif" font-size="16" fill="#6b6258" font-style="italic">Stauf's Coffee</text>
+        <text x="780" y="490" font-family="Instrument Serif" font-size="16" fill="#6b6258" font-style="italic">Old North Arcade</text>
+      </svg>
+      <div class="map-pin">
+        <span class="label">Wagsworth &amp; Co.</span>
+        <span class="dot"></span>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 24px;">
+      <div style="padding: 24px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px;">
+        <div class="eyebrow" style="margin-bottom:8px;"><span class="dot"></span>By car</div>
+        <p style="font-size: 14px; line-height: 1.6;">Free angled parking on N. High Street, plus a small lot behind the building (enter from Como Ave). For nervous dogs, the back lot is quieter.</p>
+      </div>
+      <div style="padding: 24px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px;">
+        <div class="eyebrow" style="margin-bottom:8px;"><span class="dot"></span>By bus</div>
+        <p style="font-size: 14px; line-height: 1.6;">COTA #2 stops at High &amp; Como, half a block south. Buses run every 15 minutes weekdays.</p>
+      </div>
+      <div style="padding: 24px; background: var(--paper); border: 1px solid var(--rule); border-radius: 4px;">
+        <div class="eyebrow" style="margin-bottom:8px;"><span class="dot"></span>On foot</div>
+        <p style="font-size: 14px; line-height: 1.6;">Most of our clients live within 15 minutes' walk in Clintonville. Whetstone Park is two blocks west if your dog needs to stretch before their visit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo">Wagsworth &amp; Co.</div>
+        <p>A small, cage-free dog grooming studio on N. High Street in Clintonville, Columbus.</p>
+        <p style="font-family: var(--font-mono); font-size: 12px; letter-spacing:0.16em; text-transform:uppercase; color: rgba(243,237,225,0.5);">Tue–Sat · 8a–6p &nbsp;·&nbsp; Sun 10a–4p &nbsp;·&nbsp; Mon closed</p>
+      </div>
+      <div class="footer-col"><h5>Visit</h5><ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="reviews.html">Reviews</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="contact.html">Book a visit</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Studio</h5><ul>
+        <li><span class="contact-line">2841 N. High Street</span></li>
+        <li><span class="contact-line">Columbus, OH 43202</span></li>
+        <li><a href="https://maps.google.com" target="_blank" rel="noopener">Get directions →</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Get in touch</h5><ul>
+        <li><a href="tel:+16145550142">(614) 555·0142</a></li>
+        <li><a href="mailto:hi@wagsworth.studio">hi@wagsworth.studio</a></li>
+        <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram</a></li>
+        <li><a href="https://facebook.com" target="_blank" rel="noopener">Facebook</a></li>
+      </ul></div>
+    </div>
+    <div class="footer-wordmark">Wagsworth &amp; Co.</div>
+    <div class="footer-bottom">
+      <span>© 2026 Wagsworth &amp; Co. Grooming Studio LLC</span>
+      <span>Columbus, Ohio · Made on N. High St.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script src="editor-inject.js"></script>
+</body>
+</html>

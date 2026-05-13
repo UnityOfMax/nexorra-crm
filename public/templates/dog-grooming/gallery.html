@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery · Wagsworth &amp; Co.</title>
+<meta name="description" content="A scrappy feed of the dogs that came through Wagsworth this season.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .filter-row {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px;
+    padding-bottom: 28px; border-bottom: 1px solid var(--rule);
+  }
+  .filter-row .chip { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+  .video-strip {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 48px;
+  }
+  .vid-card {
+    position: relative;
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--ink);
+    color: var(--cream);
+    cursor: pointer;
+  }
+  .vid-card video, .vid-card img { width:100%; height:100%; object-fit:cover; }
+  .vid-card::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(26,22,18,0.6) 0%, transparent 50%);
+  }
+  .vid-card .play {
+    position: absolute; top: 50%; left: 50%;
+    width: 64px; height: 64px;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,0.95);
+    color: var(--ink);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s;
+  }
+  .vid-card:hover .play { transform: translate(-50%,-50%) scale(1.08); }
+  .vid-card .play::before {
+    content: ""; width: 0; height: 0;
+    border-style: solid; border-width: 9px 0 9px 14px;
+    border-color: transparent transparent transparent currentColor;
+    margin-left: 4px;
+  }
+  .vid-card .label {
+    position: absolute; bottom: 18px; left: 18px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .vid-card .label strong { display: block; font-family: var(--font-display); font-size: 22px; letter-spacing: 0; text-transform: none; margin-top: 4px; font-weight: 400; }
+
+  .gallery-big-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: 100px;
+    gap: 14px;
+  }
+  .gallery-big-grid .g-item.tall { grid-row: span 5; }
+  .gallery-big-grid .g-item.med { grid-row: span 4; }
+  .gallery-big-grid .g-item.short { grid-row: span 3; }
+  .gallery-big-grid .g-item.w2 { grid-column: span 4; }
+  .gallery-big-grid .g-item.w3 { grid-column: span 5; }
+  .gallery-big-grid .g-item.w4 { grid-column: span 6; }
+  .gallery-big-grid .g-item.w5 { grid-column: span 7; }
+  @media (max-width: 960px) {
+    .gallery-big-grid .g-item.w2, .gallery-big-grid .g-item.w3, .gallery-big-grid .g-item.w4, .gallery-big-grid .g-item.w5 { grid-column: span 6; }
+    .video-strip { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-screen-label="04 Gallery">
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="9" cy="13" r="2.4" fill="currentColor"/><circle cx="16" cy="10" r="2.4" fill="currentColor"/><circle cx="23" cy="13" r="2.4" fill="currentColor"/><circle cx="13" cy="19" r="2.4" fill="currentColor"/><circle cx="19" cy="19" r="2.4" fill="currentColor"/><path d="M11 24c0-2.8 2.2-4 5-4s5 1.2 5 4-2.2 4-5 4-5-1.2-5-4z" fill="currentColor"/></svg></span><span>Wagsworth &amp; Co.</span></a>
+    <nav><ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="gallery.html" class="active">Gallery</a></li>
+      <li><a href="reviews.html">Reviews</a></li>
+      <li><a href="faq.html">FAQ</a></li>
+    </ul></nav>
+    <div class="nav-right">
+      <a class="nav-phone" href="tel:+16145550142">(614) 555&middot;0142</a>
+      <a class="btn btn-clay" href="contact.html">Book a visit <span class="arrow">→</span></a>
+      <button class="nav-toggle" aria-label="Open menu"><span></span></button>
+    </div>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <div>
+      <div class="crumbs"><a href="index.html">Home</a><span class="sep">/</span><span>Gallery</span></div>
+      <h1 class="display">Every dog<br><span class="italic">who came through.</span></h1>
+    </div>
+    <div class="right">
+      <p class="lede">A messy, low-edit feed of the season's grooms. Tap any photo to enlarge. Tag your dog <strong>@wagsworth.studio</strong> on Instagram and we'll re-share.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== VIDEO REEL ===================== -->
+<section class="section" style="padding-top: 80px;">
+  <div class="container container-wide">
+    <div class="section-num">A — From the room</div>
+    <h2 class="display reveal" style="max-width:18ch; margin-bottom: 36px;">Three short clips<br>from <span class="italic">last Saturday.</span></h2>
+
+    <div class="video-strip reveal">
+      <div class="vid-card" data-vid="1">
+        <video muted loop playsinline autoplay poster="https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?w=1400&auto=format&fit=crop&q=80" data-hero>
+          <source src="https://videos.pexels.com/video-files/4109174/4109174-hd_1920_1080_25fps.mp4" type="video/mp4">
+        </video>
+        <div class="play"></div>
+        <div class="label">01 · Bath room<strong>Sunday morning soak</strong></div>
+      </div>
+      <div class="vid-card" data-vid="2">
+        <video muted loop playsinline autoplay poster="https://images.unsplash.com/photo-1583511655826-05700d52f4d9?w=1200&auto=format&fit=crop&q=80" data-hero>
+          <source src="https://videos.pexels.com/video-files/3191421/3191421-uhd_2560_1440_25fps.mp4" type="video/mp4">
+        </video>
+        <div class="play"></div>
+        <div class="label">02 · Scissor work<strong>Theo finishing a doodle</strong></div>
+      </div>
+      <div class="vid-card" data-vid="3">
+        <video muted loop playsinline autoplay poster="https://images.unsplash.com/photo-1546238232-20216dec9f72?w=1200&auto=format&fit=crop&q=80" data-hero>
+          <source src="https://videos.pexels.com/video-files/4498092/4498092-hd_1920_1080_25fps.mp4" type="video/mp4">
+        </video>
+        <div class="play"></div>
+        <div class="label">03 · Pickup<strong>Apollo's "ready" portrait</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FILTERS + GRID ===================== -->
+<section class="section warm" style="padding-top: 60px;">
+  <div class="container container-wide">
+    <div class="section-num">B — The grid</div>
+    <h2 class="display reveal" style="max-width:18ch; margin-bottom: 36px;">Fall 2025<br><span class="italic">— spring 2026.</span></h2>
+
+    <div class="filter-row reveal" id="gallery-filters">
+      <button class="chip on" data-filter="all">All</button>
+      <button class="chip" data-filter="doodle">Doodles</button>
+      <button class="chip" data-filter="terrier">Terriers</button>
+      <button class="chip" data-filter="puppy">Puppies</button>
+      <button class="chip" data-filter="senior">Seniors</button>
+      <button class="chip" data-filter="bigdog">Big dogs</button>
+      <button class="chip" data-filter="littledog">Little dogs</button>
+    </div>
+
+    <div class="gallery-big-grid reveal" id="gallery-grid">
+      <div class="g-item w3 tall" data-cat="doodle"><span class="tag">Bernedoodle · Full Groom</span><img src="https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=1400&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w2 med" data-cat="littledog"><span class="tag">Frenchie · Bath</span><img src="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=900&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w2 med" data-cat="terrier"><span class="tag">Schnauzer · Hand-strip</span><img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?w=900&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 med" data-cat="bigdog"><span class="tag">Golden · De-Shed</span><img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+
+      <div class="g-item w2 tall" data-cat="doodle"><span class="tag">Goldendoodle · 12mo</span><img src="https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w4 med" data-cat="puppy"><span class="tag">Corgi puppy · First visit</span><img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1400&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 short" data-cat="littledog"><span class="tag">Cavalier · Bath</span><img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+
+      <div class="g-item w3 med" data-cat="bigdog"><span class="tag">Shepherd · De-Shed</span><img src="https://images.unsplash.com/photo-1546238232-20216dec9f72?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 tall" data-cat="senior"><span class="tag">Senior Lab · Comfort groom</span><img src="https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=1400&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w2 med" data-cat="puppy"><span class="tag">Puppy first cut</span><img src="https://images.unsplash.com/photo-1591946614720-90a587da4a36?w=900&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w2 med" data-cat="doodle"><span class="tag">Mini doodle · Trim</span><img src="https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?w=900&auto=format&fit=crop&q=80" alt=""></div>
+
+      <div class="g-item w4 short" data-cat="bigdog"><span class="tag">In the bath</span><img src="https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=1400&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 short" data-cat="terrier"><span class="tag">Westie · Hand-strip</span><img src="https://images.unsplash.com/photo-1583511655826-05700d52f4d9?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w5 med" data-cat="doodle"><span class="tag">Doodle pack · Saturday morning</span><img src="https://images.unsplash.com/photo-1518091056229-08eb9a4bf6e9?w=1400&auto=format&fit=crop&q=80" alt=""></div>
+
+      <div class="g-item w3 short" data-cat="littledog"><span class="tag">Pomeranian · Trim</span><img src="https://images.unsplash.com/photo-1633722715534-cf04ec7e64ca?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 med" data-cat="senior"><span class="tag">Hugo · 13yrs</span><img src="https://images.unsplash.com/photo-1444212477490-ca407925329e?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="g-item w3 short" data-cat="puppy"><span class="tag">Aussie puppy · Intro</span><img src="https://images.unsplash.com/photo-1605568427561-40dd23c2acea?w=1200&auto=format&fit=crop&q=80" alt=""></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="section cream">
+  <div class="container">
+    <div class="big-cta reveal">
+      <div class="bg"><img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=2000&auto=format&fit=crop&q=80" alt=""></div>
+      <div class="big-cta-inner">
+        <p class="eyebrow" style="color:rgba(248,243,231,0.85);"><span class="dot"></span>Ready for their photo?</p>
+        <h2 class="display">Bring your<br>dog in.</h2>
+        <p>Every Saturday morning's grooms end with a portrait at the front window. Yours could be up here next week.</p>
+        <a class="btn btn-clay" href="contact.html">Book a visit <span class="arrow">→</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo">Wagsworth &amp; Co.</div>
+        <p>A small, cage-free dog grooming studio on N. High Street in Clintonville, Columbus.</p>
+        <p style="font-family: var(--font-mono); font-size: 12px; letter-spacing:0.16em; text-transform:uppercase; color: rgba(243,237,225,0.5);">Tue–Sat · 8a–6p &nbsp;·&nbsp; Sun 10a–4p &nbsp;·&nbsp; Mon closed</p>
+      </div>
+      <div class="footer-col"><h5>Visit</h5><ul>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="reviews.html">Reviews</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="contact.html">Book a visit</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Studio</h5><ul>
+        <li><span class="contact-line">2841 N. High Street</span></li>
+        <li><span class="contact-line">Columbus, OH 43202</span></li>
+        <li><a href="https://maps.google.com" target="_blank" rel="noopener">Get directions →</a></li>
+      </ul></div>
+      <div class="footer-col"><h5>Get in touch</h5><ul>
+        <li><a href="tel:+16145550142">(614) 555·0142</a></li>
+        <li><a href="mailto:hi@wagsworth.studio">hi@wagsworth.studio</a></li>
+        <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram</a></li>
+        <li><a href="https://facebook.com" target="_blank" rel="noopener">Facebook</a></li>
+      </ul></div>
+    </div>
+    <div class="footer-wordmark">Wagsworth &amp; Co.</div>
+    <div class="footer-bottom">
+      <span>© 2026 Wagsworth &amp; Co. Grooming Studio LLC</span>
+      <span>Columbus, Ohio · Made on N. High St.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+<script>
+  // Gallery filter behaviour
+  (function () {
+    const grid = document.getElementById('gallery-grid');
+    const filters = document.getElementById('gallery-filters');
+    if (!grid || !filters) return;
+    filters.querySelectorAll('.chip').forEach((c) => {
+      c.addEventListener('click', (e) => {
+        e.preventDefault();
+        filters.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+        c.classList.add('on');
+        const f = c.dataset.filter;
+        grid.querySelectorAll('.g-item').forEach((it) => {
+          if (f === 'all' || it.dataset.cat === f) {
+            it.style.display = '';
+          } else {
+            it.style.display = 'none';
+          }
+        });
+      });
+    });
+  })();
+</script>
+<script src="editor-inject.js"></script>
+</body>
+</html>
