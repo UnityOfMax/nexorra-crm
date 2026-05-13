@@ -102,7 +102,8 @@ export default function EditorPage() {
       previewWin.current.location.href = url;
       previewWin.current.focus();
     } else {
-      previewWin.current = window.open(url, 'nexorra_demo', 'width=1400,height=900,menubar=no,toolbar=no');
+      // Use _blank (no features string) so Chrome doesn't treat it as a popup and block it
+      previewWin.current = window.open(url, '_blank');
       setPreviewOpen(true);
     }
   };

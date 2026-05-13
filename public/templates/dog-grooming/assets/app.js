@@ -92,14 +92,15 @@
 
   // ===== Hero video graceful fallback =====
   document.querySelectorAll('video[data-hero]').forEach((v) => {
-    let failed = false;
-    v.addEventListener('error', () => { if (!failed) { failed = true; v.style.display = 'none'; } });
-    // If after 4 seconds the video hasn't loaded any data, hide it and rely on the poster image fallback
-    setTimeout(() => {
-      if (v.readyState < 2) {
-        v.style.display = 'none';
-      }
-    }, 4000);
+    const stopVideo = () => {
+      v.querySelectorAll('source').forEach((s) => s.remove());
+      v.removeAttribute('src');
+      try { v.load(); } catch (_) {}
+      // Keep the element visible so the poster image remains as the hero background
+    };
+    v.addEventListener('error', stopVideo);
+    // If after 4 s the video hasn't started playing, drop the sources but keep the poster
+    setTimeout(() => { if (v.readyState < 2) stopVideo(); }, 4000);
   });
 
   // ===== Gallery lightbox-lite =====
