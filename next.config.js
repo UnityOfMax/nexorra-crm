@@ -24,6 +24,13 @@ const nextConfig = {
         ],
       },
       {
+        // Templates must be embeddable in the editor iframe (same origin)
+        source: '/templates/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
