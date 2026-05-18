@@ -1,6 +1,6 @@
 #!/bin/bash
 # Morning run: Google Maps website leads scraper (no realtor.com/Jeff)
-# Schedule: 30 9 * * 1-5
+# Schedule: 30 10 * * 1-5
 set -e
 
 cd /home/max/crm || exit 1
@@ -30,18 +30,11 @@ trap 'ts "ERROR: step failed"; send_alert "Morning run failed at line $LINENO.";
 
 ts "=== Morning run started ==="
 
-# ── 1. Start Chrome :9223 for Google Maps scraping ───────────────────────────
-ts "Starting Chrome :9223 for Google Maps"
-bash scripts/chrome-launch-gmaps.sh >> logs/chrome-gmaps.log 2>&1
-sleep 5
-
-# ── 2. Google Maps website leads ──────────────────────────────────────────────
+# ── 1. Google Maps website leads ─────────────────────────────────────────────
+# Chrome :9223 must be started manually before running
 ts "Running Google Maps leads scraper (1000/day target)"
 node scripts/local-biz/gmaps-leads.js >> "$LOG" 2>&1
 ts "Google Maps leads complete"
-
-# ── 3. Kill Chrome :9223 ─────────────────────────────────────────────────────
-pkill -f "remote-debugging-port=9223" || true
 
 ts "=== Morning run complete ==="
 send_alert "Morning run complete."

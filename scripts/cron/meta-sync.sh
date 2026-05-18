@@ -1,13 +1,13 @@
 #!/bin/bash
-# Sync Meta ad metrics — runs daily at 6 AM
-# Crontab: 0 6 * * * /home/max/crm/scripts/cron/meta-sync.sh >> /home/max/crm/logs/meta-sync.log 2>&1
+# Sync Meta ad metrics — runs daily at 10:50 AM BST
+# Crontab: 50 10 * * * /home/max/crm/scripts/cron/meta-sync.sh >> /home/max/crm/logs/meta-sync.log 2>&1
 
 set -e
 cd "$(dirname "$0")/../.."
 
 source .env.local 2>/dev/null || true
 
-BASE_URL="${CRM_BASE_URL:-http://localhost:3000}"
+BASE_URL="${CRM_BASE_URL:-https://nexorra-crm.vercel.app}"
 
 echo "[$(date)] Starting Meta sync..."
 
