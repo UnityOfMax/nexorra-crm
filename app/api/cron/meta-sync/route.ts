@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
   const globalAdAccountId = process.env.META_AD_ACCOUNT_ID;
   if (!globalAdAccountId) {
     return NextResponse.json(
-      { error: 'META_AD_ACCOUNT_ID not configured' },
-      { status: 500 }
+      { skipped: true, reason: 'META_AD_ACCOUNT_ID not configured' },
+      { status: 200 }
     );
   }
 
